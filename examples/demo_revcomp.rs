@@ -1,5 +1,5 @@
-use irma::data::fasta::*;
 use std::env;
+use zoe::data::fasta::*;
 
 fn main() -> Result<(), String> {
     let args: Vec<String> = env::args().collect();
@@ -15,6 +15,6 @@ fn main() -> Result<(), String> {
     for mut record in fasta_reader {
         record.reverse_complement();
         print!("{record}");
-    }  
-    Ok(()) 
+    }
+    Ok(())
 }
