@@ -1,0 +1,11 @@
+[package]
+edition = "2021"
+name = "zoe"
+version = "0.1.0"
+[dependencies]
+atoi = "*"
+lazy_static = "1.4.0"
+regex = "*"
+
+[profile.release]
+strip = true
