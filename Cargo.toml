@@ -5,7 +5,7 @@ version = "0.1.0"
 [dependencies]
 atoi = "*"
 lazy_static = "1.4.0"
-regex = "*"
+regex = { version = "*", default-features = false, features = ["std","perf"] }
 
 [profile.release]
 strip = true

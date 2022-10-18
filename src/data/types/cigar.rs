@@ -1,29 +1,35 @@
+use atoi::atoi;
 use lazy_static::lazy_static;
 use regex::bytes::Regex;
-use atoi::atoi;
-
 
 #[derive(Debug, Clone)]
 pub struct Cigar(Vec<u8>);
 
 impl Cigar {
+    #[must_use]
     pub fn expand_cigar(&self) -> ExpandedCigar {
         lazy_static! {
             static ref CIGAR_PARSE: Regex =
-                Regex::new(r"?-u:(\d+)([MIDNSHP])").expect("REGEX cigar ID didn't compile.");
+                Regex::new(r"(\d+)([MIDNSHP])").expect("REGEX cigar ID didn't compile.");
         }
 
         let caps = CIGAR_PARSE.captures_iter(self.0.as_slice());
         let mut expanded = Vec::new();
         for cap in caps {
-            let inc: usize = atoi(&cap[1]).unwrap();
+            let inc: usize = if let Some(number) = atoi(&cap[1]) {
+                number
+            } else {
+                continue;
+            };
             let op = cap[2][0];
             for _ in 0..inc {
                 expanded.push(op);
             }
         }
-        return ExpandedCigar(expanded);
+        ExpandedCigar(expanded)
     }
+
+    #[must_use]
     pub fn match_length(&self) -> usize {
         lazy_static! {
             static ref CIGAR_MATCH_STATE: Regex =
@@ -31,44 +37,41 @@ impl Cigar {
         }
         let mut length: usize = 0;
         for caps in CIGAR_MATCH_STATE.captures_iter(self.0.as_slice()) {
-            length += atoi::<usize>(&caps[1]).unwrap();
+            // Valid regex should never be default
+            length += atoi::<usize>(&caps[1]).unwrap_or_default();
         }
-    
-        return length;
+
+        length
     }
 
-    pub fn into_iter_tuple(&self) -> impl Iterator<Item=(usize,u8)> + '_ {
+    pub fn into_iter_tuple(&self) -> impl Iterator<Item = (usize, u8)> + '_ {
         lazy_static! {
             static ref CIGAR_PARSE: Regex =
                 Regex::new(r"(\d+)([MIDNSHP])").expect("REGEX cigar ID didn't compile.");
         }
         let caps = CIGAR_PARSE.captures_iter(self.0.as_slice());
 
-        return caps.map( |c| (atoi::<usize>(&c[1]).unwrap(), c[2][0]));
+        caps.map(|c| (atoi::<usize>(&c[1]).unwrap_or_default(), c[2][0]))
     }
 
-    pub fn into_iter(&self) -> impl Iterator<Item=Ciglet> + '_ {
+    pub fn into_iter(&self) -> impl Iterator<Item = Ciglet> + '_ {
         lazy_static! {
             static ref CIGAR_PARSE: Regex =
                 Regex::new(r"(\d+)([MIDNSHP])").expect("REGEX cigar ID didn't compile.");
         }
         let caps = CIGAR_PARSE.captures_iter(self.0.as_slice());
 
-        return caps.map( |c| Ciglet{inc: atoi::<usize>(&c[1]).unwrap(), op: c[2][0] } );
+        caps.map(|c| Ciglet {
+            inc: atoi::<usize>(&c[1]).unwrap_or_default(),
+            op: c[2][0],
+        })
     }
 }
 
 use std::fmt;
 impl fmt::Display for Cigar {
-   /*  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for v in &self.0 {
-            write!(f, "\t{}", v)?;
-        }
-        Ok(())
-    }
-    */
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f,"{}", String::from_utf8_lossy(&self.0))?;
+        write!(f, "{}", String::from_utf8_lossy(&self.0))?;
         Ok(())
     }
 }
@@ -76,21 +79,18 @@ impl fmt::Display for Cigar {
 /// A single increment quantifier-operation pair.
 /// Don't hate the name, it could have been Cygnet or Cigarette!
 
-
 #[derive(Clone, Copy)]
 pub struct Ciglet {
     pub inc: usize,
     pub op: u8,
 }
 
-
 impl fmt::Display for Ciglet {
-     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-         write!(f,"({},{})", self.inc, self.op as char)?;
-         Ok(())
-     }
- }
-
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({},{})", self.inc, self.op as char)?;
+        Ok(())
+    }
+}
 
 /* Infinite loop, need Iter Struct to manage it
 impl Iterator for Cigar {
@@ -110,7 +110,7 @@ impl Iterator for Cigar {
         } else {
             None
         }
-        
+
     }
 }*/
 
@@ -136,10 +136,11 @@ impl From<ExpandedCigar> for Cigar {
 pub struct ExpandedCigar(Vec<u8>);
 
 impl ExpandedCigar {
-    #[inline(always)]
+    #[inline]
+    #[must_use]
     pub fn condense_cigar(self) -> Cigar {
         lazy_static! {
-            static ref CIGAR_EXPANDED: Regex = Regex::new(r"?-u:([M]+|[D]+|[I]+|[H]+|[N]+|[S]+)")
+            static ref CIGAR_EXPANDED: Regex = Regex::new(r"([M]+|[D]+|[I]+|[H]+|[N]+|[S]+)")
                 .expect("REGEX condense_cigar didn't compile.");
         }
 
@@ -149,7 +150,7 @@ impl ExpandedCigar {
             condensed.push(caps[1][0]);
         }
 
-        return Cigar(condensed);
+        Cigar(condensed)
     }
 }
 

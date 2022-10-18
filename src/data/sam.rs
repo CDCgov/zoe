@@ -1,6 +1,5 @@
-
-use std::collections::HashMap;
 use crate::data::types::cigar::Cigar;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct SamRow {
@@ -23,7 +22,6 @@ pub struct SamReadSlice {
     pub qualities: Vec<u8>,
 }
 
-
 #[derive(Debug)]
 pub struct SamRowAligned {
     pub qname: String,
@@ -42,25 +40,26 @@ pub struct SamRowAligned {
     pub insertions: HashMap<usize, SamReadSlice>,
 }
 
-impl<'a> SamRowAligned {
-    fn new(row: SamRow, 
-                aligned: Vec<u8>, 
-                qaligned: Vec<u8>, 
-                insertions: HashMap<usize, SamReadSlice>) -> SamRowAligned {
-        SamRowAligned { qname: row.qname,
-                        flag: row.flag,
-                        reference_name: row.reference_name,
-                        position: row.position,
-                        mapq: row.mapq,
-                        cigar: row.cigar,
-                        mpos: row.mpos,
-                        mrnm: row.mrnm,
-                        index_size: row.index_size,
-                        seq: row.seq,
-                        qual: row.qual,
-                        aligned,
-                        qaligned,
-                        insertions }
+impl SamRowAligned {
+    fn new(
+        row: SamRow, aligned: Vec<u8>, qaligned: Vec<u8>, insertions: HashMap<usize, SamReadSlice>,
+    ) -> SamRowAligned {
+        SamRowAligned {
+            qname: row.qname,
+            flag: row.flag,
+            reference_name: row.reference_name,
+            position: row.position,
+            mapq: row.mapq,
+            cigar: row.cigar,
+            mpos: row.mpos,
+            mrnm: row.mrnm,
+            index_size: row.index_size,
+            seq: row.seq,
+            qual: row.qual,
+            aligned,
+            qaligned,
+            insertions,
+        }
     }
 }
 
@@ -74,7 +73,7 @@ impl From<SamRow> for SamRowAligned {
         let mut qAln: Vec<u8> = Vec::new();
         let mut insertions: HashMap<usize, SamReadSlice> = HashMap::new();
 
-        for (inc,op) in row.cigar.into_iter_tuple() {
+        for (inc, op) in row.cigar.into_iter_tuple() {
             match op {
                 b'M' => {
                     for _ in 0..inc {
@@ -93,8 +92,10 @@ impl From<SamRow> for SamRowAligned {
                 }
                 b'I' => {
                     qpos += inc;
-                    let ins = SamReadSlice { bases: row.seq[qpos..(qpos + inc)].to_owned(),
-                                             qualities: row.qual[qpos..(qpos + inc)].to_owned() };
+                    let ins = SamReadSlice {
+                        bases: row.seq[qpos..(qpos + inc)].to_owned(),
+                        qualities: row.qual[qpos..(qpos + inc)].to_owned(),
+                    };
                     insertions.insert(rpos - 1, ins);
                 }
 
@@ -116,7 +117,7 @@ impl From<SamRow> for SamRowAligned {
             }
         }
 
-        return SamRowAligned::new(row, aln, qAln, insertions);
+        SamRowAligned::new(row, aln, qAln, insertions)
         //$pairs{$qMolID}{$qSide} = [$aln,$qAln,$K,($pos-1),($rpos-1),$qname,$mapq];
     }
 }
