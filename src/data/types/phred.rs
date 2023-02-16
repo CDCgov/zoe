@@ -39,7 +39,7 @@ impl QualityScores {
     #[must_use]
     pub fn sorted(&self) -> Self {
         let mut s = self.0.clone();
-        s.sort_unstable();
+        crate::data::vec_types::count_sort(&mut s);
         QualityScores(s)
     }
 

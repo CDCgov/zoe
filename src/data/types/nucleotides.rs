@@ -1,7 +1,10 @@
+use std::slice::ChunksExact;
+
 #[derive(Debug, Clone, Default)]
 pub struct Nucleotides(pub(crate) Vec<u8>);
 
 impl Nucleotides {
+    // Standard functions
     #[inline]
     #[must_use]
     pub fn new() -> Self {
@@ -22,16 +25,12 @@ impl Nucleotides {
 
     #[inline]
     #[must_use]
-    pub fn reverse_complement(&self) -> Self {
-        Self(reverse_complement(&self.0))
-    }
-    #[inline]
-    #[must_use]
     pub fn as_bytes(&self) -> &[u8] {
         self.0.as_slice()
     }
 
     #[inline]
+    #[must_use]
     pub fn as_mut_bytes(&mut self) -> &mut [u8] {
         self.0.as_mut_slice()
     }
@@ -43,10 +42,12 @@ impl Nucleotides {
     }
 
     #[inline]
+    #[must_use]
     pub fn as_mut_vec(&mut self) -> &mut Vec<u8> {
         &mut self.0
     }
 
+    // Manipulation
     #[inline]
     pub fn find_and_replace(&mut self, needle: u8, replacement: u8) {
         crate::data::vec_types::find_and_replace(&mut self.0, needle, replacement);
@@ -55,6 +56,99 @@ impl Nucleotides {
     #[inline]
     pub fn shorten_to(&mut self, new_length: usize) {
         self.0.truncate(new_length);
+    }
+
+    // Domain functions
+    #[inline]
+    #[must_use]
+    pub fn reverse_complement(&self) -> Self {
+        Self(reverse_complement(&self.0))
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn translate(&self) -> Vec<u8> {
+        translate_sequence(&self.0)
+    }
+
+    #[must_use]
+    pub fn into_aa_iter(&self) -> TranslatedNucleotidesIter {
+        TranslatedNucleotidesIter {
+            codons: self.0.chunks_exact(3),
+            has_remainder: true,
+        }
+    }
+}
+
+#[inline]
+#[must_use]
+pub fn translate_sequence(s: &[u8]) -> Vec<u8> {
+    use crate::data::matrices::GENETIC_CODE;
+
+    let mut codons = s.chunks_exact(3);
+    let mut aa_sequence = Vec::with_capacity(s.len() / 3 + 1);
+
+    for codon in codons.by_ref() {
+        aa_sequence.push(if is_partial_codon(codon) {
+            b'~'
+        } else {
+            *GENETIC_CODE
+                .get(&codon.to_ascii_uppercase())
+                .unwrap_or(&b'X')
+        });
+    }
+
+    let tail = codons.remainder();
+    if is_partial_codon(tail) {
+        aa_sequence.push(b'~');
+    }
+
+    aa_sequence
+}
+
+pub struct TranslatedNucleotidesIter<'a> {
+    codons: ChunksExact<'a, u8>,
+    has_remainder: bool,
+}
+
+impl<'a> Iterator for TranslatedNucleotidesIter<'a> {
+    type Item = u8;
+    fn next(&mut self) -> Option<Self::Item> {
+        use crate::data::matrices::GENETIC_CODE;
+
+        if let Some(codon) = self.codons.next() {
+            if is_partial_codon(codon) {
+                Some(b'~')
+            } else {
+                Some(
+                    *GENETIC_CODE
+                        .get(&codon.to_ascii_uppercase())
+                        .unwrap_or(&b'X'),
+                )
+            }
+        } else if self.has_remainder && is_partial_codon(self.codons.remainder()) {
+            self.has_remainder = false;
+            Some(b'~')
+        } else {
+            None
+        }
+    }
+}
+
+#[inline]
+#[must_use]
+fn is_partial_codon(codon: &[u8]) -> bool {
+    if codon.is_empty() {
+        false
+    } else if codon.len() < 3 {
+        true
+    } else {
+        let count: u8 = codon
+            .iter()
+            .map(|b| u8::from(*b == b'-' || *b == b'~' || *b == b'.'))
+            .sum();
+
+        count == 1 || count == 2
     }
 }
 
@@ -104,5 +198,25 @@ pub fn reverse_complement(bases: &[u8]) -> Vec<u8> {
 impl std::fmt::Display for Nucleotides {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", String::from_utf8_lossy(&self.0))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_translate() {
+        let s = Nucleotides(b"ATGTCAGATcccagagaaTGAgg".to_vec());
+        assert_eq!(s.translate(), b"MSDPRE*~");
+    }
+
+    #[test]
+    fn test_translate_collect() {
+        use super::super::amino_acids::AminoAcids;
+        let s = Nucleotides(b"ATGTCAGATcccagagaaTGAgg".to_vec());
+        assert_eq!(
+            s.into_aa_iter().collect::<AminoAcids>().0,
+            b"MSDPRE*~".to_vec()
+        );
     }
 }
