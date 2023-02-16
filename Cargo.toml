@@ -3,8 +3,10 @@ edition = "2021"
 name = "zoe"
 version = "0.1.0"
 [dependencies]
+ahash = "0.8.1"
 atoi = "*"
-lazy_static = "1.4.0"
+lazy_static = "1.4"
+rand_xoshiro = "0.6"
 regex = { version = "*", default-features = false, features = ["std","perf"] }
 
 [profile.release]
