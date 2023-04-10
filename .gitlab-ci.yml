@@ -1,9 +1,15 @@
 stages:
   - build
+  - test
 
-rust-nightly:
+zoe-build:
   stage: build
   image: rustlang/rust:nightly
   script:
     - cargo build --verbose
+
+zoe-test:
+  stage: test
+  image: rustlang/rust:nightly
+  script:
     - cargo test --verbose
