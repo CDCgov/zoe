@@ -19,3 +19,4 @@ zoe-test:
   image: rustlang/rust:nightly
   script:
     - cargo test --verbose
+    
