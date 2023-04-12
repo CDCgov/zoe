@@ -4,12 +4,18 @@ stages:
 
 zoe-build:
   stage: build
+  tags: 
+    - docker
+    - scicomp
   image: rustlang/rust:nightly
   script:
     - cargo build --verbose
 
 zoe-test:
   stage: test
+  tags: 
+    - docker
+    - scicomp
   image: rustlang/rust:nightly
   script:
     - cargo test --verbose
