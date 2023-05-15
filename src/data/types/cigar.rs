@@ -92,28 +92,6 @@ impl fmt::Display for Ciglet {
     }
 }
 
-/* Infinite loop, need Iter Struct to manage it
-impl Iterator for Cigar {
-    type Item = (usize, u8);
-    fn next(&mut self) -> Option<Self::Item> {
-        lazy_static! {
-            static ref CIGAR_PARSE: Regex =
-                Regex::new(r"(\d+)([MIDNSHP])").expect("REGEX cigar ID didn't compile.");
-        }
-
-        let mut caps = CIGAR_PARSE.captures_iter(self.0.as_slice());
-        //caps.map( |c| (atoi::<usize>(&c[1]), c[2][0]));
-        if let Some(cap) = caps.next() {
-            let inc: usize = atoi(&cap[1]).unwrap();
-            let op = cap[2][0];
-            Some((inc,op))
-        } else {
-            None
-        }
-
-    }
-}*/
-
 impl From<&str> for Cigar {
     fn from(s: &str) -> Self {
         Cigar(s.as_bytes().to_owned())

@@ -1,6 +1,7 @@
 use super::types::{nucleotides::Nucleotides, phred::QualityScores};
 use std::fs::File;
 use std::io::BufRead;
+use std::io::{Error as IOError, ErrorKind};
 
 pub struct FastQ {
     pub header: String,
@@ -36,34 +37,29 @@ impl<R: std::io::Read> FastQReader<R> {
 }
 
 impl FastQReader<std::fs::File> {
+    /// Reads a fastq file into an iterator backed by a buffered reader.
+    ///
     /// # Errors
     ///
     /// Will return `Err` if file or permissions do not exist.
-    pub fn from_filename(filename: &str) -> Result<FastQReader<File>, String> {
-        match File::open(filename) {
-            Err(why) => Err(format!("Couldn't open fasta file '{filename}': {why}")),
-            Ok(file) => Ok(FastQReader::new(file)),
-        }
+    pub fn from_filename(filename: &str) -> Result<FastQReader<File>, std::io::Error> {
+        let file = File::open(filename)?;
+        Ok(FastQReader::new(file))
     }
 }
 
 // Consider making fallible
 impl<R: std::io::Read> Iterator for FastQReader<R> {
-    type Item = FastQ;
+    type Item = std::io::Result<FastQ>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.fastq_buffer.clear();
 
         // Read HEADER line
-        let bytes = self
-            .fastq_reader
-            .read_until(b'\n', &mut self.fastq_buffer)
-            .unwrap_or_else(|e| {
-                eprintln!("FASTQ read header failed: {e}\n");
-                0
-            });
-        if bytes == 0 {
-            return None;
+        match self.fastq_reader.read_until(b'\n', &mut self.fastq_buffer) {
+            Ok(0) => return None,
+            Ok(_) => {}
+            Err(e) => return Some(Err(e)),
         }
 
         let header = if self.fastq_buffer.len() > 1 {
@@ -73,10 +69,7 @@ impl<R: std::io::Read> Iterator for FastQReader<R> {
 
             match String::from_utf8(self.fastq_buffer.clone()) {
                 Ok(s) => s,
-                Err(e) => {
-                    eprintln!("FASTQ header failed to parse:\n{e}\n");
-                    return None;
-                }
+                Err(e) => return Some(Err(IOError::new(ErrorKind::InvalidData, e))),
             }
         } else {
             String::new()
@@ -84,15 +77,10 @@ impl<R: std::io::Read> Iterator for FastQReader<R> {
         self.fastq_buffer.clear();
 
         // Read SEQUENCE line
-        let bytes = self
-            .fastq_reader
-            .read_until(b'\n', &mut self.fastq_buffer)
-            .unwrap_or_else(|e| {
-                eprintln!("FASTQ read failed: {e}\n");
-                0
-            });
-        if bytes == 0 {
-            return None;
+        match self.fastq_reader.read_until(b'\n', &mut self.fastq_buffer) {
+            Ok(0) => return None,
+            Ok(_) => {}
+            Err(e) => return Some(Err(e)),
         }
 
         let sequence = if self.fastq_buffer.len() > 1 {
@@ -113,28 +101,19 @@ impl<R: std::io::Read> Iterator for FastQReader<R> {
         self.fastq_buffer.clear();
 
         // Read "+" line
-        let bytes = self
-            .fastq_reader
-            .read_until(b'\n', &mut self.fastq_buffer)
-            .unwrap_or_else(|e| {
-                eprintln!("FASTQ read failed: {e}\n");
-                0
-            });
-        if bytes == 0 {
-            return None;
+        match self.fastq_reader.read_until(b'\n', &mut self.fastq_buffer) {
+            Ok(0) => return None,
+            Ok(_) => {}
+            Err(e) => return Some(Err(e)),
         }
+
         self.fastq_buffer.clear();
 
         // Read QUALITY line
-        let bytes = self
-            .fastq_reader
-            .read_until(b'\n', &mut self.fastq_buffer)
-            .unwrap_or_else(|e| {
-                eprintln!("FASTQ read failed: {e}\n");
-                0
-            });
-        if bytes == 0 {
-            return None;
+        match self.fastq_reader.read_until(b'\n', &mut self.fastq_buffer) {
+            Ok(0) => return None,
+            Ok(_) => {}
+            Err(e) => return Some(Err(e)),
         }
 
         let quality = if self.fastq_buffer.len() > 1 {
@@ -153,10 +132,10 @@ impl<R: std::io::Read> Iterator for FastQReader<R> {
             QualityScores::new()
         };
 
-        Some(FastQ {
+        Some(Ok(FastQ {
             header,
             sequence,
             quality,
-        })
+        }))
     }
 }
