@@ -7,7 +7,7 @@ fn main() {
 
     println!("\n impl Into Iterator method:");
     for (inc, op) in cigar.into_iter_tuple() {
-        println!("({},{})", inc, op as char);
+        println!("({inc},{})", op as char);
     }
 
     println!("\n Ciglets:");

@@ -82,8 +82,8 @@ pub(crate) fn count_sort(v: &mut [u8]) {
         // Re-fill array
         let mut p = 0;
         for i in 32..128 {
-            for _ in 0..counts[i] {
-                v[p] = i as u8;
+            for _ in 0..counts[i as usize] {
+                v[p] = i;
                 p += 1;
             }
         }
@@ -112,21 +112,21 @@ mod test {
     }
 }
 
+#[allow(clippy::redundant_clone, clippy::stable_sort_primitive)]
 #[cfg(test)]
 mod bench {
     extern crate test;
     use test::Bencher;
 
     const N: usize = 150;
-    const ALPHA: &'static [u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const ALPHA: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     const SEED: u64 = 42;
 
     #[bench]
     fn clock_rand_clone(b: &mut Bencher) {
         b.iter(|| {
             let v1 = super::rand_sequence(ALPHA, N, SEED);
-            let v2 = v1.clone();
-            v2
+            v1.clone()
         });
     }
 

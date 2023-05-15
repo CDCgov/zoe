@@ -1,7 +1,7 @@
 use std::env;
-use zoe::data::fasta::*;
+use zoe::data::{err::OrFail, fasta::*};
 
-fn main() -> Result<(), String> {
+fn main() {
     let args: Vec<String> = env::args().collect();
 
     let filename = if args.len() == 2 {
@@ -10,11 +10,9 @@ fn main() -> Result<(), String> {
         "examples/example.fasta".to_owned()
     };
 
-    let fasta_reader = FastaReader::from_filename(&filename)?;
-
-    fasta_reader
+    FastaReader::from_filename(&filename)
+        .unwrap_or_die("Translate file error!")
+        .filter_map(|f| f.ok())
         .map(|r| r.translate())
         .for_each(|fasta_record| print!("{fasta_record}"));
-
-    Ok(())
 }

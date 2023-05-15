@@ -3,7 +3,7 @@ use super::types::{
     nucleotides::{reverse_complement, Nucleotides},
 };
 use std::fs::File;
-use std::io::BufRead;
+use std::io::{BufRead, Error as IOError, ErrorKind};
 
 #[derive(Debug)]
 pub struct FastaSeq {
@@ -31,6 +31,7 @@ impl FastaSeq {
         self.sequence = reverse_complement(&self.sequence);
     }
 
+    #[must_use]
     pub fn translate(self) -> FastaAA {
         FastaAA {
             name: self.name,
@@ -76,30 +77,27 @@ impl<R: std::io::Read> FastaReader<R> {
 }
 
 impl FastaReader<std::fs::File> {
+    /// Reads a fasta file into an iterator backed by a buffered reader.
+    ///
     /// # Errors
     ///
     /// Will return `Err` if file or permissions do not exist.
-    pub fn from_filename(filename: &str) -> Result<FastaReader<File>, String> {
-        match File::open(filename) {
-            Err(why) => Err(format!("Couldn't open fasta file '{filename}': {why}")),
-            Ok(file) => Ok(FastaReader::new(file)),
-        }
+    pub fn from_filename(filename: &str) -> Result<FastaReader<File>, std::io::Error> {
+        let file = File::open(filename)?;
+        Ok(FastaReader::new(file))
     }
 }
 
 impl<R: std::io::Read> Iterator for FastaReader<R> {
-    type Item = FastaSeq;
+    type Item = std::io::Result<FastaSeq>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.fasta_buffer.clear();
 
-        let bytes = self
-            .fasta_reader
-            .read_until(b'>', &mut self.fasta_buffer)
-            .unwrap_or_else(|e| {
-                eprintln!("FASTA read failed: {e}\n");
-                0
-            });
+        let bytes = match self.fasta_reader.read_until(b'>', &mut self.fasta_buffer) {
+            Ok(b) => b,
+            Err(e) => return Some(Err(e)),
+        };
 
         match bytes {
             0 => None,
@@ -111,16 +109,24 @@ impl<R: std::io::Read> Iterator for FastaReader<R> {
 
                 let mut lines = self.fasta_buffer.split(|x| *x == b'\n' || *x == b'\r');
                 let name = match lines.next() {
-                    Some(h) => h.to_vec(),
-                    None => b"UNKNOWN".to_vec(),
+                    Some(h) if !h.is_empty() => h.to_vec(),
+                    _ => {
+                        return Some(Err(IOError::new(
+                            ErrorKind::InvalidData,
+                            "Missing FASTA header!",
+                        )))
+                    }
                 };
 
                 let sequence: Vec<u8> = lines.flatten().copied().collect();
 
                 if sequence.is_empty() {
-                    None
+                    Some(Err(IOError::new(
+                        ErrorKind::InvalidData,
+                        "Missing sequence data!",
+                    )))
                 } else {
-                    Some(FastaSeq { name, sequence })
+                    Some(Ok(FastaSeq { name, sequence }))
                 }
             }
         }
