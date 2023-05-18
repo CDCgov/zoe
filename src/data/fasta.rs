@@ -7,17 +7,17 @@ use std::io::{BufRead, Error as IOError, ErrorKind};
 
 #[derive(Debug)]
 pub struct FastaSeq {
-    pub name: Vec<u8>,
+    pub name:     Vec<u8>,
     pub sequence: Vec<u8>,
 }
 
 pub struct FastaNT {
-    pub name: Vec<u8>,
+    pub name:     Vec<u8>,
     pub sequence: Nucleotides,
 }
 
 pub struct FastaAA {
-    pub name: Vec<u8>,
+    pub name:     Vec<u8>,
     pub sequence: AminoAcids,
 }
 
@@ -34,10 +34,8 @@ impl FastaSeq {
     #[must_use]
     pub fn translate(self) -> FastaAA {
         FastaAA {
-            name: self.name,
-            sequence: AminoAcids(super::types::nucleotides::translate_sequence(
-                &self.sequence,
-            )),
+            name:     self.name,
+            sequence: AminoAcids(super::types::nucleotides::translate_sequence(&self.sequence)),
         }
     }
 }
@@ -50,7 +48,7 @@ impl FastaNT {
     #[must_use]
     pub fn translate(self) -> FastaAA {
         FastaAA {
-            name: self.name,
+            name:     self.name,
             sequence: AminoAcids(self.sequence.translate()),
         }
     }
@@ -59,7 +57,7 @@ impl FastaNT {
 impl From<FastaSeq> for FastaNT {
     fn from(record: FastaSeq) -> Self {
         FastaNT {
-            name: record.name,
+            name:     record.name,
             sequence: record.sequence.into(),
         }
     }
@@ -110,21 +108,13 @@ impl<R: std::io::Read> Iterator for FastaReader<R> {
                 let mut lines = self.fasta_buffer.split(|x| *x == b'\n' || *x == b'\r');
                 let name = match lines.next() {
                     Some(h) if !h.is_empty() => h.to_vec(),
-                    _ => {
-                        return Some(Err(IOError::new(
-                            ErrorKind::InvalidData,
-                            "Missing FASTA header!",
-                        )))
-                    }
+                    _ => return Some(Err(IOError::new(ErrorKind::InvalidData, "Missing FASTA header!"))),
                 };
 
                 let sequence: Vec<u8> = lines.flatten().copied().collect();
 
                 if sequence.is_empty() {
-                    Some(Err(IOError::new(
-                        ErrorKind::InvalidData,
-                        "Missing sequence data!",
-                    )))
+                    Some(Err(IOError::new(ErrorKind::InvalidData, "Missing sequence data!")))
                 } else {
                     Some(Ok(FastaSeq { name, sequence }))
                 }

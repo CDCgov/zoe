@@ -3,47 +3,45 @@ use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct SamRow {
-    pub qname: String,
-    pub flag: String,
+    pub qname:          String,
+    pub flag:           String,
     pub reference_name: String,
-    pub position: usize,
-    pub mapq: String,
-    pub cigar: Cigar,
-    pub mrnm: String,
-    pub mpos: String,
-    pub index_size: String,
-    pub seq: Vec<u8>,
-    pub qual: Vec<u8>,
+    pub position:       usize,
+    pub mapq:           String,
+    pub cigar:          Cigar,
+    pub mrnm:           String,
+    pub mpos:           String,
+    pub index_size:     String,
+    pub seq:            Vec<u8>,
+    pub qual:           Vec<u8>,
 }
 
 #[derive(Debug)]
 pub struct SamReadSlice {
-    pub bases: Vec<u8>,
+    pub bases:     Vec<u8>,
     pub qualities: Vec<u8>,
 }
 
 #[derive(Debug)]
 pub struct SamRowAligned {
-    pub qname: String,
-    pub flag: String,
+    pub qname:          String,
+    pub flag:           String,
     pub reference_name: String,
-    pub position: usize,
-    pub mapq: String,
-    pub cigar: Cigar,
-    pub mrnm: String,
-    pub mpos: String,
-    pub index_size: String,
-    pub seq: Vec<u8>,
-    pub qual: Vec<u8>,
-    pub aligned: Vec<u8>,
-    pub qaligned: Vec<u8>,
-    pub insertions: HashMap<usize, SamReadSlice>,
+    pub position:       usize,
+    pub mapq:           String,
+    pub cigar:          Cigar,
+    pub mrnm:           String,
+    pub mpos:           String,
+    pub index_size:     String,
+    pub seq:            Vec<u8>,
+    pub qual:           Vec<u8>,
+    pub aligned:        Vec<u8>,
+    pub qaligned:       Vec<u8>,
+    pub insertions:     HashMap<usize, SamReadSlice>,
 }
 
 impl SamRowAligned {
-    fn new(
-        row: SamRow, aligned: Vec<u8>, qaligned: Vec<u8>, insertions: HashMap<usize, SamReadSlice>,
-    ) -> SamRowAligned {
+    fn new(row: SamRow, aligned: Vec<u8>, qaligned: Vec<u8>, insertions: HashMap<usize, SamReadSlice>) -> SamRowAligned {
         SamRowAligned {
             qname: row.qname,
             flag: row.flag,
@@ -93,7 +91,7 @@ impl From<SamRow> for SamRowAligned {
                 b'I' => {
                     qpos += inc;
                     let ins = SamReadSlice {
-                        bases: row.seq[qpos..(qpos + inc)].to_owned(),
+                        bases:     row.seq[qpos..(qpos + inc)].to_owned(),
                         qualities: row.qual[qpos..(qpos + inc)].to_owned(),
                     };
                     insertions.insert(rpos - 1, ins);

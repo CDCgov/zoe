@@ -3,8 +3,7 @@
 #[inline]
 pub(crate) fn find_and_replace<T>(v: &mut [T], needle: T, replacement: T)
 where
-    T: Copy + PartialEq,
-{
+    T: Copy + PartialEq, {
     for b in v.iter_mut() {
         if *b == needle {
             *b = replacement;
@@ -21,9 +20,7 @@ pub(crate) fn rand_sequence(alpha: &[u8], length: usize, seed: u64) -> Vec<u8> {
 
     let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
 
-    (1..length)
-        .map(|_| alpha[rng.next_u32() as usize % alpha.len()])
-        .collect()
+    (1..length).map(|_| alpha[rng.next_u32() as usize % alpha.len()]).collect()
 }
 
 /// Sorts sequence-like vectors, usually bases, amino acids, or quality scores.
@@ -183,5 +180,39 @@ mod bench {
             super::count_sort(&mut v1);
             v1
         });
+    }
+}
+
+/// Trait provides generic functions for Biological Sequences
+pub trait BiologicalSequence {
+    fn get_inner_ref(&self) -> &[u8];
+}
+
+use crate::data::types::{amino_acids::AminoAcids, nucleotides::Nucleotides};
+impl BiologicalSequence for &[u8] {
+    #[inline]
+    fn get_inner_ref(&self) -> &[u8] {
+        self
+    }
+}
+
+impl BiologicalSequence for Vec<u8> {
+    #[inline]
+    fn get_inner_ref(&self) -> &[u8] {
+        self
+    }
+}
+
+impl BiologicalSequence for Nucleotides {
+    #[inline]
+    fn get_inner_ref(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+impl BiologicalSequence for AminoAcids {
+    #[inline]
+    fn get_inner_ref(&self) -> &[u8] {
+        &self.0
     }
 }
