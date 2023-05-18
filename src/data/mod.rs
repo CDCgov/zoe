@@ -4,7 +4,7 @@ pub mod sam;
 
 pub mod types;
 
-mod matrices;
-mod vec_types;
+pub(crate) mod matrices;
+pub(crate) mod vec_types;
 
 pub mod err;

@@ -53,9 +53,7 @@ impl QualityScores {
             n => {
                 let s = self.sorted();
                 if n % 2 == 0 {
-                    Some(QScoreFloat(
-                        (f32::from(s.0[n / 2] + s.0[(n / 2) - 1]) / 2.0) - 33.0,
-                    ))
+                    Some(QScoreFloat((f32::from(s.0[n / 2] + s.0[(n / 2) - 1]) / 2.0) - 33.0))
                 } else {
                     Some(s.0[(n - 1) / 2].into())
                 }
@@ -111,14 +109,11 @@ impl QualityScores {
             0 => None,
             1 => Some((self.0[0].into(), self.0[0].into(), self.0[0].into())),
             n => {
-                let (min, mean, max) =
-                    self.0
-                        .iter()
-                        .fold((self.0[0], 0usize, self.0[0]), |(min, mean, max), x| {
-                            let new_min = if *x < min { *x } else { min };
-                            let new_max = if *x > min { *x } else { max };
-                            (new_min, mean + *x as usize, new_max)
-                        });
+                let (min, mean, max) = self.0.iter().fold((self.0[0], 0usize, self.0[0]), |(min, mean, max), x| {
+                    let new_min = if *x < min { *x } else { min };
+                    let new_max = if *x > min { *x } else { max };
+                    (new_min, mean + *x as usize, new_max)
+                });
                 Some((
                     QScoreInt::from(min),
                     QScoreFloat((mean - (n * 33)) as f32 / n as f32),
@@ -136,10 +131,7 @@ impl QualityScores {
             0 => None,
             1 => Some(self.0[0].into()),
             n => {
-                let sum = self
-                    .0
-                    .iter()
-                    .fold(0f32, |sum, x| sum + QScoreInt::encoded_qs_to_error(*x));
+                let sum = self.0.iter().fold(0f32, |sum, x| sum + QScoreInt::encoded_qs_to_error(*x));
 
                 Some(QScoreInt::error_to_q(sum / n as f32))
             }
@@ -154,14 +146,11 @@ impl QualityScores {
             0 => None,
             1 => Some((self.0[0].into(), self.0[0].into(), self.0[0].into())),
             n => {
-                let (min, sum, max) =
-                    self.0
-                        .iter()
-                        .fold((self.0[0], 0f32, self.0[0]), |(min, sum, max), x| {
-                            let new_min = if *x < min { *x } else { min };
-                            let new_max = if *x > min { *x } else { max };
-                            (new_min, sum + QScoreInt::encoded_qs_to_error(*x), new_max)
-                        });
+                let (min, sum, max) = self.0.iter().fold((self.0[0], 0f32, self.0[0]), |(min, sum, max), x| {
+                    let new_min = if *x < min { *x } else { min };
+                    let new_max = if *x > min { *x } else { max };
+                    (new_min, sum + QScoreInt::encoded_qs_to_error(*x), new_max)
+                });
 
                 Some((
                     QScoreInt::from(min),

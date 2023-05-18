@@ -1,6 +1,8 @@
+use crate::data::vec_types::BiologicalSequence;
 use std::slice::ChunksExact;
 
 #[derive(Debug, Clone, Default)]
+#[repr(transparent)]
 pub struct Nucleotides(pub(crate) Vec<u8>);
 
 impl Nucleotides {
@@ -74,11 +76,40 @@ impl Nucleotides {
     #[must_use]
     pub fn into_aa_iter(&self) -> TranslatedNucleotidesIter {
         TranslatedNucleotidesIter {
-            codons: self.0.chunks_exact(3),
+            codons:        self.0.chunks_exact(3),
             has_remainder: true,
         }
     }
+
+    /// # Distance
+    ///
+    /// Calculates hamming distance between `self`and another sequence.
+    ///
+    /// # Example
+    /// ```
+    /// use zoe::data::types::nucleotides::Nucleotides;
+    ///
+    /// let s1: Nucleotides = b"ATGCATCGATCGATCGATCGATCGATCGATGC".into();
+    /// let s2: Nucleotides = b"ATGCATnGATCGATCGATCGAnCGATCGATnC".into();
+    ///
+    /// assert!(3 == s1.distance_hamming(&s2));
+    ///
+    /// let s3: &[u8] = b"ATGCATnGATCGATCGATCGAnCGATCGATnC";
+    /// assert!(3 == s1.distance_hamming(&s3));
+    /// ```
+    ///
+    #[inline]
+    #[must_use]
+    pub fn distance_hamming<T: BiologicalSequence + MaybeNucleic>(&self, other_sequence: &T) -> usize {
+        crate::distance::hamming_simd::<16>(&self.0, other_sequence.get_inner_ref())
+    }
 }
+
+/// Marker trait to restrict usage to types that might possible contain nucleotides.
+pub trait MaybeNucleic {}
+impl MaybeNucleic for Nucleotides {}
+impl MaybeNucleic for Vec<u8> {}
+impl MaybeNucleic for &[u8] {}
 
 #[inline]
 #[must_use]
@@ -92,9 +123,7 @@ pub fn translate_sequence(s: &[u8]) -> Vec<u8> {
         aa_sequence.push(if is_partial_codon(codon) {
             b'~'
         } else {
-            *GENETIC_CODE
-                .get(&codon.to_ascii_uppercase())
-                .unwrap_or(&b'X')
+            *GENETIC_CODE.get(&codon.to_ascii_uppercase()).unwrap_or(&b'X')
         });
     }
 
@@ -107,7 +136,7 @@ pub fn translate_sequence(s: &[u8]) -> Vec<u8> {
 }
 
 pub struct TranslatedNucleotidesIter<'a> {
-    codons: ChunksExact<'a, u8>,
+    codons:        ChunksExact<'a, u8>,
     has_remainder: bool,
 }
 
@@ -120,11 +149,7 @@ impl<'a> Iterator for TranslatedNucleotidesIter<'a> {
             if is_partial_codon(codon) {
                 Some(b'~')
             } else {
-                Some(
-                    *GENETIC_CODE
-                        .get(&codon.to_ascii_uppercase())
-                        .unwrap_or(&b'X'),
-                )
+                Some(*GENETIC_CODE.get(&codon.to_ascii_uppercase()).unwrap_or(&b'X'))
             }
         } else if self.has_remainder && is_partial_codon(self.codons.remainder()) {
             self.has_remainder = false;
@@ -143,10 +168,7 @@ fn is_partial_codon(codon: &[u8]) -> bool {
     } else if codon.len() < 3 {
         true
     } else {
-        let count: u8 = codon
-            .iter()
-            .map(|b| u8::from(*b == b'-' || *b == b'~' || *b == b'.'))
-            .sum();
+        let count: u8 = codon.iter().map(|b| u8::from(*b == b'-' || *b == b'~' || *b == b'.')).sum();
 
         count == 1 || count == 2
     }
@@ -159,6 +181,12 @@ impl From<Vec<u8>> for Nucleotides {
 }
 impl From<&[u8]> for Nucleotides {
     fn from(bytes: &[u8]) -> Self {
+        Nucleotides(bytes.to_vec())
+    }
+}
+
+impl<const N: usize> From<&[u8; N]> for Nucleotides {
+    fn from(bytes: &[u8; N]) -> Self {
         Nucleotides(bytes.to_vec())
     }
 }
@@ -187,12 +215,7 @@ impl std::ops::IndexMut<usize> for Nucleotides {
 #[must_use]
 pub fn reverse_complement(bases: &[u8]) -> Vec<u8> {
     use crate::data::matrices::REV_COMP;
-    bases
-        .iter()
-        .rev()
-        .copied()
-        .map(|x| REV_COMP[x as usize])
-        .collect()
+    bases.iter().rev().copied().map(|x| REV_COMP[x as usize]).collect()
 }
 
 impl std::fmt::Display for Nucleotides {
@@ -214,9 +237,6 @@ mod tests {
     fn test_translate_collect() {
         use super::super::amino_acids::AminoAcids;
         let s = Nucleotides(b"ATGTCAGATcccagagaaTGAgg".to_vec());
-        assert_eq!(
-            s.into_aa_iter().collect::<AminoAcids>().0,
-            b"MSDPRE*~".to_vec()
-        );
+        assert_eq!(s.into_aa_iter().collect::<AminoAcids>().0, b"MSDPRE*~".to_vec());
     }
 }

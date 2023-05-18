@@ -43,3 +43,22 @@ where
         }
     }
 }
+
+#[derive(Debug)]
+pub enum DistanceError {
+    NoData,
+    NotComparable,
+}
+
+impl Display for DistanceError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let message = match self {
+            DistanceError::NoData => "No data found in at least one function argument",
+            DistanceError::NotComparable => "Data only had invalid state that was not able to be compared",
+        };
+
+        write!(f, "{message}")
+    }
+}
+
+impl std::error::Error for DistanceError {}

@@ -4,9 +4,9 @@ use std::io::BufRead;
 use std::io::{Error as IOError, ErrorKind};
 
 pub struct FastQ {
-    pub header: String,
+    pub header:   String,
     pub sequence: Nucleotides,
-    pub quality: QualityScores,
+    pub quality:  QualityScores,
 }
 
 impl std::fmt::Display for FastQ {
@@ -88,13 +88,7 @@ impl<R: std::io::Read> Iterator for FastQReader<R> {
                 self.fastq_buffer.pop();
             }
 
-            Nucleotides(
-                self.fastq_buffer
-                    .iter()
-                    .copied()
-                    .map(|c| c.to_ascii_uppercase())
-                    .collect(),
-            )
+            Nucleotides(self.fastq_buffer.iter().copied().map(|c| c.to_ascii_uppercase()).collect())
         } else {
             Nucleotides::new()
         };
@@ -121,13 +115,7 @@ impl<R: std::io::Read> Iterator for FastQReader<R> {
                 self.fastq_buffer.pop();
             }
 
-            QualityScores(
-                self.fastq_buffer
-                    .iter()
-                    .copied()
-                    .map(|c| c.to_ascii_uppercase())
-                    .collect(),
-            )
+            QualityScores(self.fastq_buffer.iter().copied().map(|c| c.to_ascii_uppercase()).collect())
         } else {
             QualityScores::new()
         };
