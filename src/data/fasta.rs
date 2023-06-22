@@ -2,8 +2,8 @@ use super::types::{
     amino_acids::AminoAcids,
     nucleotides::{reverse_complement, Nucleotides},
 };
-use std::fs::File;
 use std::io::{BufRead, Error as IOError, ErrorKind};
+use std::{fs::File, path::Path};
 
 #[derive(Debug)]
 pub struct FastaSeq {
@@ -79,8 +79,10 @@ impl FastaReader<std::fs::File> {
     ///
     /// # Errors
     ///
-    /// Will return `Err` if file or permissions do not exist.
-    pub fn from_filename(filename: &str) -> Result<FastaReader<File>, std::io::Error> {
+    /// Will return `Err` if file or permissions or the like do not exist.
+    pub fn from_filename<P>(filename: P) -> Result<FastaReader<File>, std::io::Error>
+    where
+        P: AsRef<Path>, {
         let file = File::open(filename)?;
         Ok(FastaReader::new(file))
     }

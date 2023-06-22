@@ -73,8 +73,6 @@ impl fmt::Display for Cigar {
 }
 
 /// A single increment quantifier-operation pair.
-/// Don't hate the name, it could have been Cygnet or Cigarette!
-
 #[derive(Clone, Copy)]
 pub struct Ciglet {
     pub inc: usize,
@@ -131,6 +129,12 @@ impl ExpandedCigar {
 impl From<Cigar> for ExpandedCigar {
     fn from(c: Cigar) -> ExpandedCigar {
         c.expand_cigar()
+    }
+}
+
+impl From<Vec<u8>> for ExpandedCigar {
+    fn from(vec: Vec<u8>) -> Self {
+        ExpandedCigar(vec)
     }
 }
 

@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+#![allow(dead_code, clippy::comparison_chain)]
 
 #[inline]
 pub(crate) fn find_and_replace<T>(v: &mut [T], needle: T, replacement: T)
@@ -216,3 +216,26 @@ impl BiologicalSequence for AminoAcids {
         &self.0
     }
 }
+
+pub trait ContainsSubsequence: BiologicalSequence + Sized {
+    fn contains_subsequence(&self, needle: Self) -> bool {
+        let haystack = self.get_inner_ref();
+        let needle = needle.get_inner_ref();
+
+        if needle.len() < haystack.len() {
+            if needle.is_empty() {
+                return false;
+            }
+
+            // TO-DO: improve with SIMD or memmem
+            haystack.windows(needle.len()).any(|w| w == needle)
+        } else if needle.len() > haystack.len() {
+            false
+        } else {
+            // Implies: needle.len() == haystack.len()
+            haystack == needle
+        }
+    }
+}
+
+impl<T: BiologicalSequence> ContainsSubsequence for T {}

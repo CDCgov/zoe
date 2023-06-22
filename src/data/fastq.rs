@@ -42,7 +42,9 @@ impl FastQReader<std::fs::File> {
     /// # Errors
     ///
     /// Will return `Err` if file or permissions do not exist.
-    pub fn from_filename(filename: &str) -> Result<FastQReader<File>, std::io::Error> {
+    pub fn from_filename<P>(filename: &str) -> Result<FastQReader<File>, std::io::Error>
+    where
+        P: AsRef<P>, {
         let file = File::open(filename)?;
         Ok(FastQReader::new(file))
     }

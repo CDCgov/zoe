@@ -10,7 +10,7 @@ fn main() {
         "examples/example.fasta".to_owned()
     };
 
-    FastaReader::from_filename(&filename)
+    FastaReader::from_filename(filename)
         .unwrap_or_die("Translate file error!")
         .filter_map(|f| f.ok())
         .map(|r| r.translate())

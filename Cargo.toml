@@ -2,6 +2,7 @@
 edition = "2021"
 name = "zoe"
 version = "0.1.0"
+
 [dependencies]
 ahash = "*"
 atoi = "*"

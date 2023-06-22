@@ -49,6 +49,13 @@ impl Nucleotides {
         &mut self.0
     }
 
+    #[inline]
+    pub fn get<I>(&self, index: I) -> Option<&I::Output>
+    where
+        I: std::slice::SliceIndex<[u8]>, {
+        self.0.get(index)
+    }
+
     // Manipulation
     #[inline]
     pub fn find_and_replace(&mut self, needle: u8, replacement: u8) {
@@ -179,6 +186,7 @@ impl From<Vec<u8>> for Nucleotides {
         Nucleotides(vec)
     }
 }
+
 impl From<&[u8]> for Nucleotides {
     fn from(bytes: &[u8]) -> Self {
         Nucleotides(bytes.to_vec())
@@ -208,6 +216,15 @@ impl std::ops::Index<usize> for Nucleotides {
 impl std::ops::IndexMut<usize> for Nucleotides {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.0[index]
+    }
+}
+
+impl std::ops::Index<std::ops::Range<usize>> for Nucleotides {
+    type Output = [u8];
+
+    #[inline]
+    fn index(&self, index: std::ops::Range<usize>) -> &[u8] {
+        &self.0[index]
     }
 }
 

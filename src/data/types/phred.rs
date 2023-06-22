@@ -1,6 +1,6 @@
 #![allow(clippy::cast_precision_loss)]
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct QualityScores(pub(crate) Vec<EncodedQS>);
 
 /// Alias for encoded Quality Score data
@@ -200,6 +200,14 @@ impl QualityScores {
     pub fn as_mut_vec(&mut self) -> &mut Vec<u8> {
         &mut self.0
     }
+
+    /// Get quality scores for some index or range, returning an optional slice.
+    #[inline]
+    pub fn get<I>(&self, index: I) -> Option<&I::Output>
+    where
+        I: std::slice::SliceIndex<[u8]>, {
+        self.0.get(index)
+    }
 }
 
 impl std::fmt::Display for QualityScores {
@@ -239,6 +247,15 @@ impl std::ops::IndexMut<usize> for QualityScores {
     }
 }
 
+impl std::ops::Index<std::ops::Range<usize>> for QualityScores {
+    type Output = [u8];
+
+    #[inline]
+    fn index(&self, index: std::ops::Range<usize>) -> &[u8] {
+        &self.0[index]
+    }
+}
+
 /// Type alias for `QScore` when returned as f32
 ///
 ///  Significant figures for Phred error probabilities is 6 (0.999999).
@@ -268,7 +285,7 @@ impl From<EncodedQS> for QScoreFloat {
     }
 }
 
-/// A single phred quality score in numeric (not encoded) range.
+/// A single phred quality score in numeric (not ASCII encoded) range.
 /// The type is functionally a u8.
 #[repr(transparent)]
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
