@@ -1,6 +1,10 @@
-use super::types::{
-    amino_acids::AminoAcids,
-    nucleotides::{reverse_complement, Nucleotides},
+use super::{
+    mappings::TO_UNALIGNED_DNA_UC,
+    types::{
+        amino_acids::AminoAcids,
+        nucleotides::{reverse_complement, Nucleotides},
+    },
+    vec_types::ValidateSequence,
 };
 use std::io::{BufRead, Error as IOError, ErrorKind};
 use std::{fs::File, path::Path};
@@ -29,6 +33,15 @@ pub struct FastaReader<R: std::io::Read> {
 impl FastaSeq {
     pub fn reverse_complement(&mut self) {
         self.sequence = reverse_complement(&self.sequence);
+    }
+
+    #[must_use]
+    pub fn retain_unaligned_dna_uc(mut self) -> FastaNT {
+        self.sequence.retain_by_recoding(TO_UNALIGNED_DNA_UC);
+        FastaNT {
+            name:     self.name,
+            sequence: Nucleotides(self.sequence),
+        }
     }
 
     #[must_use]

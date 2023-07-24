@@ -1,7 +1,11 @@
-use crate::data::vec_types::BiologicalSequence;
+use crate::data::mappings::{
+    GENETIC_CODE, IS_IUPAC_BASE, IS_UNALIGNED_IUPAC_BASE, SIMD64_REVERSE_COMPLEMENT, TO_DNA_UC, TO_REVERSE_COMPLEMENT,
+    TO_UNALIGNED_DNA_UC,
+};
+use crate::data::vec_types::{BiologicalSequence, ValidateSequence};
 use std::slice::ChunksExact;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 #[repr(transparent)]
 pub struct Nucleotides(pub(crate) Vec<u8>);
 
@@ -67,6 +71,32 @@ impl Nucleotides {
         self.0.truncate(new_length);
     }
 
+    // Validation
+
+    /// Only retains valid [IUPAC bases](https://www.bioinformatics.org/sms/iupac.html).
+    #[inline]
+    pub fn retain_iupac_bases(&mut self) {
+        self.0.retain_by_validation(IS_IUPAC_BASE);
+    }
+
+    /// Only retains valid [IUPAC bases](https://www.bioinformatics.org/sms/iupac.html).
+    #[inline]
+    pub fn retain_unaligned_bases(&mut self) {
+        self.0.retain_by_validation(IS_UNALIGNED_IUPAC_BASE);
+    }
+
+    /// Only retains valid [IUPAC](https://www.bioinformatics.org/sms/iupac.html) DNA and converts to uppercase.
+    #[inline]
+    pub fn retain_dna_uc(&mut self) {
+        self.0.retain_by_recoding(TO_DNA_UC);
+    }
+
+    /// Only retains valid, unaligned [IUPAC](https://www.bioinformatics.org/sms/iupac.html) DNA and converts to uppercase.
+    #[inline]
+    pub fn retain_unaligned_dna_uc(&mut self) {
+        self.0.retain_by_recoding(TO_UNALIGNED_DNA_UC);
+    }
+
     // Domain functions
     #[inline]
     #[must_use]
@@ -121,8 +151,6 @@ impl MaybeNucleic for &[u8] {}
 #[inline]
 #[must_use]
 pub fn translate_sequence(s: &[u8]) -> Vec<u8> {
-    use crate::data::matrices::GENETIC_CODE;
-
     let mut codons = s.chunks_exact(3);
     let mut aa_sequence = Vec::with_capacity(s.len() / 3 + 1);
 
@@ -150,8 +178,6 @@ pub struct TranslatedNucleotidesIter<'a> {
 impl<'a> Iterator for TranslatedNucleotidesIter<'a> {
     type Item = u8;
     fn next(&mut self) -> Option<Self::Item> {
-        use crate::data::matrices::GENETIC_CODE;
-
         if let Some(codon) = self.codons.next() {
             if is_partial_codon(codon) {
                 Some(b'~')
@@ -231,8 +257,55 @@ impl std::ops::Index<std::ops::Range<usize>> for Nucleotides {
 #[inline]
 #[must_use]
 pub fn reverse_complement(bases: &[u8]) -> Vec<u8> {
-    use crate::data::matrices::REV_COMP;
-    bases.iter().rev().copied().map(|x| REV_COMP[x as usize]).collect()
+    bases
+        .iter()
+        .rev()
+        .copied()
+        .map(|x| TO_REVERSE_COMPLEMENT[x as usize])
+        .collect()
+}
+
+// WIP: works but not recommended for use.
+// Both `swizzle_dyn` and `gather_or` are too slow to be relevant versus the
+// scalar implementation.
+use std::simd::{Simd, SimdPartialEq, SimdUint};
+#[inline]
+#[must_use]
+#[allow(dead_code)]
+fn reverse_complement_simd(bases: &[u8]) -> Vec<u8> {
+    const N: usize = 64;
+    let offset: Simd<u8, N> = Simd::splat(64u8);
+    let zeroes: Simd<u8, N> = Simd::splat(0u8);
+    let (pre, mid, sfx) = bases.as_simd::<64>();
+    let mut reverse_complement: Vec<u8> = Vec::with_capacity(bases.len());
+
+    sfx.iter()
+        .rev()
+        .copied()
+        .map(|x| TO_REVERSE_COMPLEMENT[x as usize])
+        .collect_into(&mut reverse_complement);
+
+    mid.iter()
+        .map(|&v| {
+            let original = v.reverse();
+            let subtracted = SIMD64_REVERSE_COMPLEMENT.swizzle_dyn(v.saturating_sub(offset)).reverse();
+            let mask = subtracted.simd_ne(zeroes);
+            let revcomp = mask.select(subtracted, original);
+
+            //let revcomp = Simd::gather_or_default(&TO_REVERSE_COMPLEMENT, v.reverse().cast::<usize>());
+
+            revcomp.to_array()
+        })
+        .rev()
+        .flatten()
+        .collect_into(&mut reverse_complement);
+
+    pre.iter()
+        .rev()
+        .copied()
+        .map(|x| TO_REVERSE_COMPLEMENT[x as usize])
+        .collect_into(&mut reverse_complement);
+    reverse_complement
 }
 
 impl std::fmt::Display for Nucleotides {
@@ -243,7 +316,18 @@ impl std::fmt::Display for Nucleotides {
 
 #[cfg(test)]
 mod tests {
+    use crate::data::alphas::NUCLEIC_IUPAC_UNALIGNED;
+
     use super::*;
+    use lazy_static::lazy_static;
+
+    const N: usize = 1200;
+    const SEED: u64 = 42;
+
+    lazy_static! {
+        static ref SEQ: Vec<u8> = crate::data::vec_types::rand_sequence(NUCLEIC_IUPAC_UNALIGNED, N, SEED);
+    }
+
     #[test]
     fn test_translate() {
         let s = Nucleotides(b"ATGTCAGATcccagagaaTGAgg".to_vec());
@@ -255,5 +339,75 @@ mod tests {
         use super::super::amino_acids::AminoAcids;
         let s = Nucleotides(b"ATGTCAGATcccagagaaTGAgg".to_vec());
         assert_eq!(s.into_aa_iter().collect::<AminoAcids>().0, b"MSDPRE*~".to_vec());
+    }
+
+    #[test]
+    fn validate_nucleotides() {
+        let mut s: Nucleotides = b"U gotta get my gat back--ok?!".into();
+        s.retain_dna_uc();
+
+        assert_eq!(s.to_string(), "TGTTAGTMYGATBACK--K");
+    }
+
+    #[test]
+    fn simd_reverse_complement() {
+        assert_eq!(
+            String::from_utf8_lossy(&reverse_complement(&SEQ)),
+            String::from_utf8_lossy(&reverse_complement_simd(&SEQ))
+        );
+    }
+}
+
+#[cfg(test)]
+mod bench {
+    use test::Bencher;
+    extern crate test;
+    use super::*;
+    use crate::data::{alphas::ENGLISH, mappings::TO_UNALIGNED_DNA_UC};
+    use lazy_static::lazy_static;
+
+    const N: usize = 1200;
+    const SEED: u64 = 42;
+
+    lazy_static! {
+        static ref SEQ: Vec<u8> = crate::data::vec_types::rand_sequence(ENGLISH, N, SEED);
+    }
+
+    #[bench]
+    fn validate_retain_unaligned_base_uc(b: &mut Bencher) {
+        b.iter(|| {
+            SEQ.clone().retain_mut(|b| {
+                *b = TO_UNALIGNED_DNA_UC[*b as usize];
+                *b > 0
+            });
+        });
+    }
+
+    #[bench]
+    fn validate_filtermap_unaligned_base_uc(b: &mut Bencher) {
+        b.iter(|| {
+            let _: Vec<u8> = SEQ
+                .clone()
+                .iter_mut()
+                .filter_map(|b| {
+                    *b = TO_UNALIGNED_DNA_UC[*b as usize];
+                    if *b > 0 {
+                        Some(*b)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+        });
+    }
+
+    #[bench]
+    fn scalar_revcomp(b: &mut Bencher) {
+        b.iter(|| reverse_complement(&SEQ));
+    }
+
+    #[bench]
+    fn simd_revcomp(b: &mut Bencher) {
+        b.iter(|| reverse_complement_simd(&SEQ));
     }
 }
