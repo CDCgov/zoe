@@ -1,9 +1,12 @@
+#![allow(dead_code)]
+use super::alphas::{NUCLEIC_IUPAC, NUCLEIC_IUPAC_UNALIGNED};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
+use std::simd::Simd;
 
 // Nucleotide reverse complement
 #[allow(clippy::cast_possible_truncation)]
-pub(crate) const REV_COMP: [u8; 256] = {
+pub(crate) const TO_REVERSE_COMPLEMENT: [u8; 256] = {
     let mut comp = [0u8; 256];
     let mut i: usize = 0;
     while i < 256 {
@@ -22,6 +25,73 @@ pub(crate) const REV_COMP: [u8; 256] = {
 
     comp
 };
+pub(crate) const SIMD64_REVERSE_COMPLEMENT: Simd<u8, 64> = {
+    let mut rc: [u8; 64] = [0; 64];
+    let mut i: usize = 0;
+    while i < rc.len() {
+        rc[i] = TO_REVERSE_COMPLEMENT[64 + i];
+        i += 1;
+    }
+    Simd::from_array(rc)
+};
+
+/// A boolean mapping of all valid IUPAC nucleotide codes. Useful for
+/// sequence filtering.
+pub(crate) const IS_IUPAC_BASE: [bool; 256] = {
+    let mut v = [false; 256];
+    let mut i = 0;
+
+    while i < NUCLEIC_IUPAC.len() {
+        v[NUCLEIC_IUPAC[i] as usize] = true;
+        i += 1;
+    }
+    v
+};
+
+/// A boolean mapping of valid, unaligned IUPAC nucleotide codes. Useful for
+/// sequence filtering.
+pub(crate) const IS_UNALIGNED_IUPAC_BASE: [bool; 256] = {
+    let mut v = [false; 256];
+    let mut i = 0;
+
+    while i < NUCLEIC_IUPAC_UNALIGNED.len() {
+        v[NUCLEIC_IUPAC_UNALIGNED[i] as usize] = true;
+        i += 1;
+    }
+    v
+};
+
+/// Used to convert nucleotide sequences to unaligned, IUPAC-validated,
+/// uppercase DNA. The 0-byte is used for filtering out unwanted patterns.
+pub(crate) const TO_UNALIGNED_DNA_UC: [u8; 256] = {
+    const FROM_BYTE: &[u8; 32] = b"acgturyswkmbdhvnACGTURYSWKMBDHVN";
+    const DEST_BYTE: &[u8; 32] = b"ACGTTRYSWKMBDHVNACGTTRYSWKMBDHVN";
+
+    let mut v = [0u8; 256];
+    let mut i = 0;
+
+    while i < FROM_BYTE.len() {
+        v[FROM_BYTE[i] as usize] = DEST_BYTE[i];
+        i += 1;
+    }
+    v
+};
+
+/// Used to convert nucleotide sequences to valid IUPAC DNA (uppercase). The
+/// 0-byte is used for filtering out unwanted patterns.
+pub(crate) const TO_DNA_UC: [u8; 256] = {
+    const FROM_BYTE: &[u8; 34] = b"acgturyswkmbdhvnACGTURYSWKMBDHVN.-";
+    const DEST_BYTE: &[u8; 34] = b"ACGTTRYSWKMBDHVNACGTTRYSWKMBDHVN.-";
+
+    let mut v = [0u8; 256];
+    let mut i = 0;
+
+    while i < FROM_BYTE.len() {
+        v[FROM_BYTE[i] as usize] = DEST_BYTE[i];
+        i += 1;
+    }
+    v
+};
 
 macro_rules! fill_map {
     ($( $key: expr => $val: expr ),*) => {{
@@ -31,6 +101,7 @@ macro_rules! fill_map {
    }}
 }
 
+// Assumes the library will uppercase input before hashing.
 lazy_static! {
     pub(crate) static ref GENETIC_CODE: HashMap<Vec<u8>, u8, ahash::RandomState> = fill_map!(
         b"TAA"=>b'*', b"TAG"=>b'*', b"TAR"=>b'*', b"TGA"=>b'*', b"TRA"=>b'*', b"GCA"=>b'A', b"GCB"=>b'A', b"GCC"=>b'A', b"GCD"=>b'A', b"GCG"=>b'A', b"GCH"=>b'A',
@@ -52,82 +123,3 @@ lazy_static! {
         b"..."=>b'.', b"---"=>b'-', b"NNN"=>b'X'
     );
 }
-
-pub(crate) static PHYSIOCHEMICAL_FACTORS: [[Option<f32>; 256]; 256] = {
-    const AA: [u8; 43] = [
-        b'A', b'C', b'D', b'E', b'F', b'G', b'H', b'I', b'K', b'L', b'M', b'N', b'P', b'Q', b'R', b'S', b'T', b'V', b'W',
-        b'Y', b'X', b'a', b'c', b'd', b'e', b'f', b'g', b'h', b'i', b'k', b'l', b'm', b'n', b'p', b'q', b'r', b's', b't',
-        b'v', b'w', b'y', b'x', b'-',
-    ];
-
-    const PCF: [[f64; 5]; 43] = [
-        [-0.59, -1.3, -0.73, 1.57, -0.15],
-        [-1.34, 0.47, -0.86, -1.02, -0.26],
-        [1.05, 0.3, -3.66, -0.26, -3.24],
-        [1.36, -1.45, 1.48, 0.11, -0.84],
-        [-1.01, -0.59, 1.89, -0.4, 0.41],
-        [-0.38, 1.65, 1.33, 1.05, 2.06],
-        [0.34, -0.42, -1.67, -1.47, -0.08],
-        [-1.24, -0.55, 2.13, 0.39, 0.82],
-        [1.83, -0.56, 0.53, -0.28, 1.65],
-        [-1.02, -0.99, -1.51, 1.27, -0.91],
-        [-0.66, -1.52, 2.22, -1.01, 1.21],
-        [0.95, 0.83, 1.3, -0.17, 0.93],
-        [0.19, 2.08, -1.63, 0.42, -1.39],
-        [0.93, -0.18, -3.01, -0.5, -1.85],
-        [1.54, -0.06, 1.5, 0.44, 2.9],
-        [-0.23, 1.4, -4.76, 0.67, -2.65],
-        [-0.03, 0.33, 2.21, 0.91, 1.31],
-        [-1.34, -0.28, -0.54, 1.24, -1.26],
-        [-0.6, 0.01, 0.67, -2.13, -0.18],
-        [0.26, 0.83, 3.1, -0.84, 1.51],
-        [0.0, 0.0, 0.0, 0.0, 0.0],
-        [-0.59, -1.3, -0.73, 1.57, -0.15],
-        [-1.34, 0.47, -0.86, -1.02, -0.26],
-        [1.05, 0.3, -3.66, -0.26, -3.24],
-        [1.36, -1.45, 1.48, 0.11, -0.84],
-        [-1.01, -0.59, 1.89, -0.4, 0.41],
-        [-0.38, 1.65, 1.33, 1.05, 2.06],
-        [0.34, -0.42, -1.67, -1.47, -0.08],
-        [-1.24, -0.55, 2.13, 0.39, 0.82],
-        [1.83, -0.56, 0.53, -0.28, 1.65],
-        [-1.02, -0.99, -1.51, 1.27, -0.91],
-        [-0.66, -1.52, 2.22, -1.01, 1.21],
-        [0.95, 0.83, 1.3, -0.17, 0.93],
-        [0.19, 2.08, -1.63, 0.42, -1.39],
-        [0.93, -0.18, -3.01, -0.5, -1.85],
-        [1.54, -0.06, 1.5, 0.44, 2.9],
-        [-0.23, 1.4, -4.76, 0.67, -2.65],
-        [-0.03, 0.33, 2.21, 0.91, 1.31],
-        [-1.34, -0.28, -0.54, 1.24, -1.26],
-        [-0.6, 0.01, 0.67, -2.13, -0.18],
-        [0.26, 0.83, 3.1, -0.84, 1.51],
-        [0.0, 0.0, 0.0, 0.0, 0.0],
-        [0.0, 0.0, 0.0, 0.0, 0.0],
-    ];
-    let mut pcd = [[None; 256]; 256];
-
-    let mut aa1: usize = 0;
-    while aa1 < 43 {
-        let mut aa2: usize = 0;
-        while aa2 < 43 {
-            pcd[AA[aa1] as usize][AA[aa2] as usize] = if AA[aa1].to_ascii_uppercase() == AA[aa2].to_ascii_uppercase() {
-                Some(0.0)
-            } else {
-                let mut d: f64 = 0.0;
-                let mut k: usize = 0;
-                while k < 5 {
-                    d += (PCF[aa1][k] - PCF[aa2][k]) * (PCF[aa1][k] - PCF[aa2][k]);
-                    k += 1;
-                }
-                #[allow(clippy::cast_possible_truncation)]
-                Some(crate::math::sqrt_baby(d) as f32)
-            };
-
-            aa2 += 1;
-        }
-        aa1 += 1;
-    }
-
-    pcd
-};

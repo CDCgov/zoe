@@ -1,4 +1,5 @@
-#![allow(dead_code, clippy::comparison_chain)]
+#![allow(dead_code, clippy::comparison_chain, clippy::explicit_iter_loop)]
+use crate::data::types::{amino_acids::AminoAcids, nucleotides::Nucleotides};
 
 #[inline]
 pub(crate) fn find_and_replace<T>(v: &mut [T], needle: T, replacement: T)
@@ -39,7 +40,7 @@ pub(crate) fn count_sorted(v: &[u8]) -> Vec<u8> {
         let mut output = vec![0u8; v.len()];
 
         // Create histogram
-        for b in v.iter() {
+        for b in v {
             counts[*b as usize] += 1;
         }
 
@@ -84,6 +85,86 @@ pub(crate) fn count_sort(v: &mut [u8]) {
                 p += 1;
             }
         }
+    }
+}
+
+/// Trait provides generic functions for Biological Sequences
+pub trait BiologicalSequence {
+    fn get_inner_ref(&self) -> &[u8];
+}
+
+impl BiologicalSequence for &[u8] {
+    #[inline]
+    fn get_inner_ref(&self) -> &[u8] {
+        self
+    }
+}
+
+impl BiologicalSequence for Vec<u8> {
+    #[inline]
+    fn get_inner_ref(&self) -> &[u8] {
+        self
+    }
+}
+
+impl BiologicalSequence for Nucleotides {
+    #[inline]
+    fn get_inner_ref(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+impl BiologicalSequence for AminoAcids {
+    #[inline]
+    fn get_inner_ref(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+pub trait ContainsSubsequence: BiologicalSequence + Sized {
+    fn contains_subsequence(&self, needle: Self) -> bool {
+        let haystack = self.get_inner_ref();
+        let needle = needle.get_inner_ref();
+
+        if needle.len() < haystack.len() {
+            if needle.is_empty() {
+                return false;
+            }
+
+            // TO-DO: improve with SIMD or memmem
+            haystack.windows(needle.len()).any(|w| w == needle)
+        } else if needle.len() > haystack.len() {
+            false
+        } else {
+            // Implies: needle.len() == haystack.len()
+            haystack == needle
+        }
+    }
+}
+
+impl<T: BiologicalSequence> ContainsSubsequence for T {}
+
+/// Utility trait for sequence validation using byte-wise mappings.
+pub trait ValidateSequence {
+    fn retain_by_validation(&mut self, validation_mapping: [bool; 256]);
+    fn retain_by_recoding(&mut self, transformation_mapping: [u8; 256]);
+}
+
+impl ValidateSequence for Vec<u8> {
+    /// Allows for filtering of biological sequences using a validation mapping.
+    #[inline]
+    fn retain_by_validation(&mut self, validation_mapping: [bool; 256]) {
+        self.retain(|b| validation_mapping[*b as usize]);
+    }
+
+    /// Allows for filtering of biological sequences using byte re-encoding. The
+    /// 0-byte is assumed to be an invalid pattern.
+    #[inline]
+    fn retain_by_recoding(&mut self, validation_mapping: [u8; 256]) {
+        self.retain_mut(|b| {
+            *b = validation_mapping[*b as usize];
+            *b > 0
+        });
     }
 }
 
@@ -182,60 +263,3 @@ mod bench {
         });
     }
 }
-
-/// Trait provides generic functions for Biological Sequences
-pub trait BiologicalSequence {
-    fn get_inner_ref(&self) -> &[u8];
-}
-
-use crate::data::types::{amino_acids::AminoAcids, nucleotides::Nucleotides};
-impl BiologicalSequence for &[u8] {
-    #[inline]
-    fn get_inner_ref(&self) -> &[u8] {
-        self
-    }
-}
-
-impl BiologicalSequence for Vec<u8> {
-    #[inline]
-    fn get_inner_ref(&self) -> &[u8] {
-        self
-    }
-}
-
-impl BiologicalSequence for Nucleotides {
-    #[inline]
-    fn get_inner_ref(&self) -> &[u8] {
-        &self.0
-    }
-}
-
-impl BiologicalSequence for AminoAcids {
-    #[inline]
-    fn get_inner_ref(&self) -> &[u8] {
-        &self.0
-    }
-}
-
-pub trait ContainsSubsequence: BiologicalSequence + Sized {
-    fn contains_subsequence(&self, needle: Self) -> bool {
-        let haystack = self.get_inner_ref();
-        let needle = needle.get_inner_ref();
-
-        if needle.len() < haystack.len() {
-            if needle.is_empty() {
-                return false;
-            }
-
-            // TO-DO: improve with SIMD or memmem
-            haystack.windows(needle.len()).any(|w| w == needle)
-        } else if needle.len() > haystack.len() {
-            false
-        } else {
-            // Implies: needle.len() == haystack.len()
-            haystack == needle
-        }
-    }
-}
-
-impl<T: BiologicalSequence> ContainsSubsequence for T {}
