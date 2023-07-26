@@ -10,3 +10,4 @@ pub mod data;
 pub mod distance;
 
 pub(crate) mod math;
+pub(crate) mod simd;
