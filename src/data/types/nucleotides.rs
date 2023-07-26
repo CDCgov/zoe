@@ -1,8 +1,13 @@
-use crate::data::mappings::{
-    GENETIC_CODE, IS_IUPAC_BASE, IS_UNALIGNED_IUPAC_BASE, SIMD64_REVERSE_COMPLEMENT, TO_DNA_UC, TO_REVERSE_COMPLEMENT,
-    TO_UNALIGNED_DNA_UC,
+use crate::{
+    data::{
+        mappings::{
+            GENETIC_CODE, IS_IUPAC_BASE, IS_UNALIGNED_IUPAC_BASE, TO_DNA_UC, TO_REVERSE_COMPLEMENT, TO_UNALIGNED_DNA_UC,
+        },
+        vec_types::{BiologicalSequence, ValidateSequence},
+    },
+    simd::{SimdByteFunctions, SimdMaskFunctions},
 };
-use crate::data::vec_types::{BiologicalSequence, ValidateSequence};
+use std::simd::{LaneCount, SupportedLaneCount};
 use std::slice::ChunksExact;
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -265,18 +270,20 @@ pub fn reverse_complement(bases: &[u8]) -> Vec<u8> {
         .collect()
 }
 
-// WIP: works but not recommended for use.
-// Both `swizzle_dyn` and `gather_or` are too slow to be relevant versus the
-// scalar implementation.
-use std::simd::{Simd, SimdPartialEq, SimdUint};
+/// Reverse complement of a nucleotide sequences using explicit SIMD instructions.
+///
+/// # Note
+///
+/// Works well for Haswell and above architectures. Recommend 32 lanes for x86.
+/// Both `swizzle_dyn` and `gather_or` are too slow to be relevant versus the
+/// scalar implementation.
 #[inline]
 #[must_use]
 #[allow(dead_code)]
-fn reverse_complement_simd(bases: &[u8]) -> Vec<u8> {
-    const N: usize = 64;
-    let offset: Simd<u8, N> = Simd::splat(64u8);
-    let zeroes: Simd<u8, N> = Simd::splat(0u8);
-    let (pre, mid, sfx) = bases.as_simd::<64>();
+pub fn reverse_complement_simd<const N: usize>(bases: &[u8]) -> Vec<u8>
+where
+    LaneCount<N>: SupportedLaneCount, {
+    let (pre, mid, sfx) = bases.as_simd::<N>();
     let mut reverse_complement: Vec<u8> = Vec::with_capacity(bases.len());
 
     sfx.iter()
@@ -287,14 +294,20 @@ fn reverse_complement_simd(bases: &[u8]) -> Vec<u8> {
 
     mid.iter()
         .map(|&v| {
-            let original = v.reverse();
-            let subtracted = SIMD64_REVERSE_COMPLEMENT.swizzle_dyn(v.saturating_sub(offset)).reverse();
-            let mask = subtracted.simd_ne(zeroes);
-            let revcomp = mask.select(subtracted, original);
+            let mut rev = v.reverse();
+            let lowercase = rev.is_ascii_lowercase();
+            rev = lowercase.make_selected_ascii_uppercase(&rev);
 
-            //let revcomp = Simd::gather_or_default(&TO_REVERSE_COMPLEMENT, v.reverse().cast::<usize>());
+            rev.swap_byte_pairs(b'T', b'A');
+            rev.swap_byte_pairs(b'G', b'C');
+            rev.swap_byte_pairs(b'R', b'Y');
+            rev.swap_byte_pairs(b'K', b'M');
+            rev.swap_byte_pairs(b'B', b'V');
+            rev.swap_byte_pairs(b'H', b'D');
+            rev.if_value_then_replace(b'U', b'A');
 
-            revcomp.to_array()
+            rev = lowercase.make_selected_ascii_lowercase(&rev);
+            rev.to_array()
         })
         .rev()
         .flatten()
@@ -353,7 +366,7 @@ mod tests {
     fn simd_reverse_complement() {
         assert_eq!(
             String::from_utf8_lossy(&reverse_complement(&SEQ)),
-            String::from_utf8_lossy(&reverse_complement_simd(&SEQ))
+            String::from_utf8_lossy(&reverse_complement_simd::<32>(&SEQ))
         );
     }
 }
@@ -408,6 +421,6 @@ mod bench {
 
     #[bench]
     fn simd_revcomp(b: &mut Bencher) {
-        b.iter(|| reverse_complement_simd(&SEQ));
+        b.iter(|| reverse_complement_simd::<32>(&SEQ));
     }
 }

@@ -2,37 +2,27 @@
 use super::alphas::{NUCLEIC_IUPAC, NUCLEIC_IUPAC_UNALIGNED};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
-use std::simd::Simd;
 
 // Nucleotide reverse complement
 #[allow(clippy::cast_possible_truncation)]
 pub(crate) const TO_REVERSE_COMPLEMENT: [u8; 256] = {
     let mut comp = [0u8; 256];
     let mut i: usize = 0;
-    while i < 256 {
+    while i < comp.len() {
         // usize cannot be greater than bound
         comp[i] = i as u8;
         i += 1;
     }
 
     let forward = b"gcatrykmbvdhuGCATRYKMBVDHU";
-    let reverse = b"cgtayrmkvbhdaCGTAYRMKVBHDA";
+    let reverse: &[u8; 26] = b"cgtayrmkvbhdaCGTAYRMKVBHDA";
     let mut b: usize = 0;
-    while b < 26 {
+    while b < forward.len() {
         comp[forward[b] as usize] = reverse[b];
         b += 1;
     }
 
     comp
-};
-pub(crate) const SIMD64_REVERSE_COMPLEMENT: Simd<u8, 64> = {
-    let mut rc: [u8; 64] = [0; 64];
-    let mut i: usize = 0;
-    while i < rc.len() {
-        rc[i] = TO_REVERSE_COMPLEMENT[64 + i];
-        i += 1;
-    }
-    Simd::from_array(rc)
 };
 
 /// A boolean mapping of all valid IUPAC nucleotide codes. Useful for
