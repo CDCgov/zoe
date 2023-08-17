@@ -4,3 +4,4 @@ examples/test*.rs
 *.fasta
 *.fas
 *.fa
+examples/rosalind
