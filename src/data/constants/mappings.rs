@@ -110,6 +110,15 @@ lazy_static! {
         b"ACB"=>b'T', b"ACC"=>b'T', b"ACD"=>b'T', b"ACG"=>b'T', b"ACH"=>b'T', b"ACK"=>b'T', b"ACM"=>b'T', b"ACN"=>b'T', b"ACR"=>b'T', b"ACS"=>b'T', b"ACT"=>b'T',
         b"ACV"=>b'T', b"ACW"=>b'T', b"ACY"=>b'T', b"GTA"=>b'V', b"GTB"=>b'V', b"GTC"=>b'V', b"GTD"=>b'V', b"GTG"=>b'V', b"GTH"=>b'V', b"GTK"=>b'V', b"GTM"=>b'V',
         b"GTN"=>b'V', b"GTR"=>b'V', b"GTS"=>b'V', b"GTT"=>b'V', b"GTV"=>b'V', b"GTW"=>b'V', b"GTY"=>b'V', b"TGG"=>b'W', b"TAC"=>b'Y', b"TAT"=>b'Y', b"TAY"=>b'Y',
-        b"..."=>b'.', b"---"=>b'-', b"NNN"=>b'X'
+        b"..."=>b'.', b"---"=>b'-', b"NNN"=>b'X',
+
+        b"UAA"=>b'*', b"UAG"=>b'*', b"UAR"=>b'*', b"UGA"=>b'*', b"URA"=>b'*', b"GCU"=>b'A', b"UGC"=>b'C', b"UGU"=>b'C', b"UGY"=>b'C', b"GAU"=>b'D', b"UUC"=>b'F',
+        b"UUU"=>b'F', b"UUY"=>b'F', b"GGU"=>b'G', b"CAU"=>b'H', b"AUA"=>b'I', b"AUC"=>b'I', b"AUH"=>b'I', b"AUM"=>b'I', b"AUU"=>b'I', b"AUW"=>b'I', b"AUY"=>b'I',
+        b"CUA"=>b'L', b"CUB"=>b'L', b"CUC"=>b'L', b"CUD"=>b'L', b"CUG"=>b'L', b"CUH"=>b'L', b"CUK"=>b'L', b"CUM"=>b'L', b"CUN"=>b'L', b"CUR"=>b'L', b"CUS"=>b'L',
+        b"CUU"=>b'L', b"CUV"=>b'L', b"CUW"=>b'L', b"CUY"=>b'L', b"UUA"=>b'L', b"UUG"=>b'L', b"UUR"=>b'L', b"YUA"=>b'L', b"YUG"=>b'L', b"YUR"=>b'L', b"AUG"=>b'M',
+        b"AAU"=>b'N', b"CCU"=>b'P', b"CGU"=>b'R', b"AGU"=>b'S', b"UCA"=>b'S', b"UCB"=>b'S', b"UCC"=>b'S', b"UCD"=>b'S', b"UCG"=>b'S', b"UCH"=>b'S', b"UCK"=>b'S',
+        b"UCM"=>b'S', b"UCN"=>b'S', b"UCR"=>b'S', b"UCS"=>b'S', b"UCU"=>b'S', b"UCV"=>b'S', b"UCW"=>b'S', b"UCY"=>b'S', b"ACU"=>b'T', b"GUA"=>b'V', b"GUB"=>b'V',
+        b"GUC"=>b'V', b"GUD"=>b'V', b"GUG"=>b'V', b"GUH"=>b'V', b"GUK"=>b'V', b"GUM"=>b'V', b"GUN"=>b'V', b"GUR"=>b'V', b"GUS"=>b'V', b"GUU"=>b'V', b"GUV"=>b'V',
+        b"GUW"=>b'V', b"GUY"=>b'V', b"UGG"=>b'W', b"UAC"=>b'Y', b"UAU"=>b'Y', b"UAY"=>b'Y'
     );
 }

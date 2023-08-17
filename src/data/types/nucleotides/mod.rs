@@ -1,14 +1,17 @@
 use crate::{
+    composition::NucleotideCounts,
     data::{
         mappings::{
             GENETIC_CODE, IS_IUPAC_BASE, IS_UNALIGNED_IUPAC_BASE, TO_DNA_UC, TO_REVERSE_COMPLEMENT, TO_UNALIGNED_DNA_UC,
         },
-        vec_types::{BiologicalSequence, ValidateSequence},
+        vec_types::ValidateSequence,
     },
     simd::{SimdByteFunctions, SimdMaskFunctions},
 };
 use std::simd::{LaneCount, SupportedLaneCount};
 use std::slice::ChunksExact;
+
+use super::{amino_acids::AminoAcids, Uint};
 
 #[derive(Debug, Clone, Default, PartialEq)]
 #[repr(transparent)]
@@ -68,7 +71,7 @@ impl Nucleotides {
     // Manipulation
     #[inline]
     pub fn find_and_replace(&mut self, needle: u8, replacement: u8) {
-        crate::data::vec_types::find_and_replace(&mut self.0, needle, replacement);
+        crate::search::find_and_replace(&mut self.0, needle, replacement);
     }
 
     #[inline]
@@ -111,8 +114,8 @@ impl Nucleotides {
 
     #[inline]
     #[must_use]
-    pub fn translate(&self) -> Vec<u8> {
-        translate_sequence(&self.0)
+    pub fn translate(&self) -> AminoAcids {
+        AminoAcids(translate_sequence(&self.0))
     }
 
     #[must_use]
@@ -121,6 +124,14 @@ impl Nucleotides {
             codons:        self.0.chunks_exact(3),
             has_remainder: true,
         }
+    }
+
+    #[must_use]
+    pub fn into_base_counts<T: Uint>(&self) -> Vec<NucleotideCounts<T>> {
+        self.0
+            .iter()
+            .map(|&b| NucleotideCounts::from(b))
+            .collect::<Vec<NucleotideCounts<T>>>()
     }
 
     /// # Distance
@@ -142,8 +153,16 @@ impl Nucleotides {
     ///
     #[inline]
     #[must_use]
-    pub fn distance_hamming<T: BiologicalSequence + MaybeNucleic>(&self, other_sequence: &T) -> usize {
-        crate::distance::hamming_simd::<16>(&self.0, other_sequence.get_inner_ref())
+    pub fn distance_hamming<T: AsRef<[u8]> + MaybeNucleic>(&self, other_sequence: &T) -> usize {
+        crate::distance::hamming_simd::<16>(&self.0, other_sequence.as_ref())
+    }
+
+    // Associated functions
+
+    /// Generate a random DNA sequence of given `length` and using a random `seed`.  Canonical DNA only contains A, C, G, or T.
+    #[must_use]
+    pub fn generate_random_dna(length: usize, seed: u64) -> Self {
+        Nucleotides(crate::generate::rand_sequence(b"AGCT", length, seed))
     }
 }
 
@@ -207,55 +226,7 @@ fn is_partial_codon(codon: &[u8]) -> bool {
         true
     } else {
         let count: u8 = codon.iter().map(|b| u8::from(*b == b'-' || *b == b'~' || *b == b'.')).sum();
-
         count == 1 || count == 2
-    }
-}
-
-impl From<Vec<u8>> for Nucleotides {
-    fn from(vec: Vec<u8>) -> Self {
-        Nucleotides(vec)
-    }
-}
-
-impl From<&[u8]> for Nucleotides {
-    fn from(bytes: &[u8]) -> Self {
-        Nucleotides(bytes.to_vec())
-    }
-}
-
-impl<const N: usize> From<&[u8; N]> for Nucleotides {
-    fn from(bytes: &[u8; N]) -> Self {
-        Nucleotides(bytes.to_vec())
-    }
-}
-
-impl FromIterator<u8> for Nucleotides {
-    fn from_iter<T: IntoIterator<Item = u8>>(iterable: T) -> Self {
-        Nucleotides(iterable.into_iter().collect())
-    }
-}
-
-impl std::ops::Index<usize> for Nucleotides {
-    type Output = u8;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.0[index]
-    }
-}
-
-impl std::ops::IndexMut<usize> for Nucleotides {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.0[index]
-    }
-}
-
-impl std::ops::Index<std::ops::Range<usize>> for Nucleotides {
-    type Output = [u8];
-
-    #[inline]
-    fn index(&self, index: std::ops::Range<usize>) -> &[u8] {
-        &self.0[index]
     }
 }
 
@@ -321,106 +292,10 @@ where
     reverse_complement
 }
 
-impl std::fmt::Display for Nucleotides {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", String::from_utf8_lossy(&self.0))
-    }
-}
-
 #[cfg(test)]
-mod tests {
-    use crate::data::alphas::NUCLEIC_IUPAC_UNALIGNED;
-
-    use super::*;
-    use lazy_static::lazy_static;
-
-    const N: usize = 1200;
-    const SEED: u64 = 42;
-
-    lazy_static! {
-        static ref SEQ: Vec<u8> = crate::data::vec_types::rand_sequence(NUCLEIC_IUPAC_UNALIGNED, N, SEED);
-    }
-
-    #[test]
-    fn test_translate() {
-        let s = Nucleotides(b"ATGTCAGATcccagagaaTGAgg".to_vec());
-        assert_eq!(s.translate(), b"MSDPRE*~");
-    }
-
-    #[test]
-    fn test_translate_collect() {
-        use super::super::amino_acids::AminoAcids;
-        let s = Nucleotides(b"ATGTCAGATcccagagaaTGAgg".to_vec());
-        assert_eq!(s.into_aa_iter().collect::<AminoAcids>().0, b"MSDPRE*~".to_vec());
-    }
-
-    #[test]
-    fn validate_nucleotides() {
-        let mut s: Nucleotides = b"U gotta get my gat back--ok?!".into();
-        s.retain_dna_uc();
-
-        assert_eq!(s.to_string(), "TGTTAGTMYGATBACK--K");
-    }
-
-    #[test]
-    fn simd_reverse_complement() {
-        assert_eq!(
-            String::from_utf8_lossy(&reverse_complement(&SEQ)),
-            String::from_utf8_lossy(&reverse_complement_simd::<32>(&SEQ))
-        );
-    }
-}
-
+mod bench;
 #[cfg(test)]
-mod bench {
-    use test::Bencher;
-    extern crate test;
-    use super::*;
-    use crate::data::{alphas::ENGLISH, mappings::TO_UNALIGNED_DNA_UC};
-    use lazy_static::lazy_static;
+mod test;
 
-    const N: usize = 1200;
-    const SEED: u64 = 42;
-
-    lazy_static! {
-        static ref SEQ: Vec<u8> = crate::data::vec_types::rand_sequence(ENGLISH, N, SEED);
-    }
-
-    #[bench]
-    fn validate_retain_unaligned_base_uc(b: &mut Bencher) {
-        b.iter(|| {
-            SEQ.clone().retain_mut(|b| {
-                *b = TO_UNALIGNED_DNA_UC[*b as usize];
-                *b > 0
-            });
-        });
-    }
-
-    #[bench]
-    fn validate_filtermap_unaligned_base_uc(b: &mut Bencher) {
-        b.iter(|| {
-            let _: Vec<u8> = SEQ
-                .clone()
-                .iter_mut()
-                .filter_map(|b| {
-                    *b = TO_UNALIGNED_DNA_UC[*b as usize];
-                    if *b > 0 {
-                        Some(*b)
-                    } else {
-                        None
-                    }
-                })
-                .collect();
-        });
-    }
-
-    #[bench]
-    fn scalar_revcomp(b: &mut Bencher) {
-        b.iter(|| reverse_complement(&SEQ));
-    }
-
-    #[bench]
-    fn simd_revcomp(b: &mut Bencher) {
-        b.iter(|| reverse_complement_simd::<32>(&SEQ));
-    }
-}
+mod std_traits;
+pub use std_traits::*;

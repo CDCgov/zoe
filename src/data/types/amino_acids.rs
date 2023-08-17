@@ -1,4 +1,4 @@
-use crate::data::{err::DistanceError, vec_types::BiologicalSequence};
+use crate::data::err::DistanceError;
 
 /// Amino Acid new type to help encourage type safety.
 #[derive(Debug, Clone, Default)]
@@ -52,12 +52,24 @@ impl AminoAcids {
     // Manipulation
     #[inline]
     pub fn find_and_replace(&mut self, needle: u8, replacement: u8) {
-        crate::data::vec_types::find_and_replace(&mut self.0, needle, replacement);
+        crate::search::find_and_replace(&mut self.0, needle, replacement);
     }
 
     #[inline]
     pub fn shorten_to(&mut self, new_length: usize) {
         self.0.truncate(new_length);
+    }
+
+    /// If the end has a stop codon, remove it. Takes and gives ownership for chaining.
+    #[must_use]
+    #[inline]
+    pub fn chop_stop(mut self) -> Self {
+        if let Some(&b'*') = self.0.last() {
+            self.0.pop();
+            self
+        } else {
+            self
+        }
     }
 
     /// # Distance
@@ -79,8 +91,8 @@ impl AminoAcids {
     ///
     #[inline]
     #[must_use]
-    pub fn distance_hamming<T: BiologicalSequence + MaybeAmino>(&self, other_sequence: &T) -> usize {
-        crate::distance::hamming_simd::<16>(&self.0, other_sequence.get_inner_ref())
+    pub fn distance_hamming<T: AsRef<[u8]> + MaybeAmino>(&self, other_sequence: &T) -> usize {
+        crate::distance::hamming_simd::<16>(&self.0, other_sequence.as_ref())
     }
 
     /// Calculates physiochemical distance between `self`and another protein sequence. See: [`crate::distance::physiochemical`]
@@ -110,10 +122,20 @@ impl AminoAcids {
     /// ```
     ///
     #[inline]
-    pub fn distance_physiochemical<T: BiologicalSequence + MaybeAmino>(
-        &self, other_sequence: &T,
-    ) -> Result<f32, DistanceError> {
-        crate::distance::physiochemical(&self.0, other_sequence.get_inner_ref())
+    pub fn distance_physiochemical<T: AsRef<[u8]> + MaybeAmino>(&self, other_sequence: &T) -> Result<f32, DistanceError> {
+        crate::distance::physiochemical(&self.0, other_sequence.as_ref())
+    }
+
+    // Associated functions
+
+    /// Generate a random AA sequence of given `length` and using a random `seed`.  Contains only uppercase, unaligned, non-ambiguous IUPAC codes.
+    #[must_use]
+    pub fn generate_random_aa(length: usize, seed: u64) -> Self {
+        AminoAcids(crate::generate::rand_sequence(
+            crate::data::constants::alphas::AMINO_ACIDS_UNALIGNED_UC,
+            length,
+            seed,
+        ))
     }
 }
 
@@ -123,6 +145,34 @@ impl MaybeAmino for AminoAcids {}
 impl MaybeAmino for Vec<u8> {}
 impl MaybeAmino for &[u8] {}
 
+impl AsRef<[u8]> for AminoAcids {
+    #[inline]
+    fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+impl AsMut<[u8]> for AminoAcids {
+    #[inline]
+    fn as_mut(&mut self) -> &mut [u8] {
+        &mut self.0
+    }
+}
+
+impl AsRef<Vec<u8>> for AminoAcids {
+    #[inline]
+    fn as_ref(&self) -> &Vec<u8> {
+        &self.0
+    }
+}
+
+impl AsMut<Vec<u8>> for AminoAcids {
+    #[inline]
+    fn as_mut(&mut self) -> &mut Vec<u8> {
+        &mut self.0
+    }
+}
+
 impl FromIterator<u8> for AminoAcids {
     fn from_iter<T: IntoIterator<Item = u8>>(iter: T) -> Self {
         let mut v = Vec::new();
@@ -130,6 +180,18 @@ impl FromIterator<u8> for AminoAcids {
             v.push(aa);
         }
         AminoAcids(v)
+    }
+}
+
+impl std::fmt::Display for AminoAcids {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", String::from_utf8_lossy(&self.0))
+    }
+}
+
+impl From<String> for AminoAcids {
+    fn from(s: String) -> Self {
+        AminoAcids(s.as_bytes().to_vec())
     }
 }
 

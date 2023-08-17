@@ -62,7 +62,7 @@ impl FastaNT {
     pub fn translate(self) -> FastaAA {
         FastaAA {
             name:     self.name,
-            sequence: AminoAcids(self.sequence.translate()),
+            sequence: self.sequence.translate(),
         }
     }
 }
