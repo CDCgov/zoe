@@ -1,3 +1,6 @@
 /target
-aa?
-test*.*
+examples/test*.rs
+*.txt
+*.fasta
+*.fas
+*.fa

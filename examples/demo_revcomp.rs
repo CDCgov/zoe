@@ -1,5 +1,5 @@
 use std::env;
-use zoe::data::{err::OrFail, fasta::FastaReader};
+use zoe::prelude::*;
 
 fn main() {
     let args: Vec<String> = env::args().collect();

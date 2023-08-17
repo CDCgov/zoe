@@ -4,7 +4,7 @@ use crate::data::types::{
     nucleotides::Nucleotides,
     phred::QualityScores,
 };
-use crate::data::ContainsSubsequence;
+use crate::data::Subsequence;
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::io::{BufRead, Error as IOError, ErrorKind};
@@ -12,7 +12,9 @@ use std::iter::repeat;
 use std::ops::{Add, AddAssign, Range};
 use std::{fs::File, path::Path};
 
-// We define `index` to be 1-based and `position` to be 0-based to avoid off-by-one errors and encourage better semantics
+// # NOTICE
+// We define `index` to be 1-based and `position` to be 0-based to avoid
+// off-by-one errors and encourage better semantics
 
 pub enum SamRow {
     Header(String),
