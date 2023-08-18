@@ -11,7 +11,7 @@ pub struct NucleotideCounts<T: Uint> {
 
 impl<T> NucleotideCounts<T>
 where
-    T: Uint + Add<Output = T>,
+    T: Uint,
 {
     #[must_use]
     pub fn new() -> Self {
@@ -56,35 +56,57 @@ where
         self.inner[7]
     }
 
+    /// Total count for A, T
+    #[inline]
+    pub fn total_at(&self) -> T
+    where
+        T: Add<Output = T>, {
+        self.a() + self.t()
+    }
+
+    /// Total count for A, T
+    #[inline]
+    pub fn total_gc(&self) -> T
+    where
+        T: Add<Output = T>, {
+        self.g() + self.c()
+    }
+
     /// Total count for A, C, G, T
     #[inline]
-    pub fn total_actg(&self) -> T {
+    pub fn total_actg(&self) -> T
+    where
+        T: Add<Output = T>, {
         self.inner[0..4].iter().fold(T::zero(), |acc, &v| acc + v)
     }
 
     /// Total count for A, C, G, T, N
     #[inline]
-    pub fn total_actgn(&self) -> T {
+    pub fn total_actgn(&self) -> T
+    where
+        T: Add<Output = T>, {
         self.inner[0..5].iter().fold(T::zero(), |acc, &v| acc + v)
     }
 
     /// Total count for A, C, G, T, N
     #[inline]
-    pub fn total_acgtn_gap(&self) -> T {
+    pub fn total_acgtn_gap(&self) -> T
+    where
+        T: Add<Output = T>, {
         self.inner[0..5].iter().fold(T::zero(), |acc, &v| acc + v)
     }
 
     /// Total valid IUPAC codes, including regular gaps.
     #[inline]
-    pub fn total_valid(&self) -> T {
+    pub fn total_valid(&self) -> T
+    where
+        T: Add<Output = T>, {
         self.inner[0..7].iter().fold(T::zero(), |acc, &v| acc + v)
     }
 
     /// The most frequent allele for A
     #[inline]
-    pub fn plurality_acgtn(&self) -> u8
-    where
-        T: Ord, {
+    pub fn plurality_acgtn(&self) -> u8 {
         const TO_BASE: &[u8; 6] = b"ACGTN-";
         const N: usize = length_needed(b'N');
 
@@ -108,7 +130,7 @@ where
 
 impl<T> Default for NucleotideCounts<T>
 where
-    T: Uint + Ord + Eq,
+    T: Uint,
     T: Add<Output = T>,
     T: Iterator<Item = T>,
 {

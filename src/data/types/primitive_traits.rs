@@ -1,8 +1,9 @@
+use std::ops::{Add, AddAssign};
 use std::simd::SimdElement;
 
 macro_rules! impl_int {
     { $ident:ident; $($ty:ty),* } => {
-        pub trait $ident: SimdElement {
+        pub trait $ident: SimdElement + Ord + Add + AddAssign {
             fn one() -> Self;
             fn zero() -> Self;
         }
