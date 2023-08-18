@@ -27,7 +27,7 @@ where
         match self {
             Ok(result) => result,
             Err(e) => {
-                eprintln!("{e}");
+                eprintln!("Error: {e}");
                 std::process::exit(e.get_code());
             }
         }

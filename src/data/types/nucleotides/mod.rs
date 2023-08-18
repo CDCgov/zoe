@@ -79,6 +79,12 @@ impl Nucleotides {
         self.0.truncate(new_length);
     }
 
+    #[inline]
+    #[must_use]
+    pub fn gc_content(&self) -> usize {
+        crate::composition::gc_content_simd::<32>(&self.0)
+    }
+
     // Validation
 
     /// Only retains valid [IUPAC bases](https://www.bioinformatics.org/sms/iupac.html).
@@ -127,11 +133,8 @@ impl Nucleotides {
     }
 
     #[must_use]
-    pub fn into_base_counts<T: Uint>(&self) -> Vec<NucleotideCounts<T>> {
-        self.0
-            .iter()
-            .map(|&b| NucleotideCounts::from(b))
-            .collect::<Vec<NucleotideCounts<T>>>()
+    pub fn into_base_counts<T: Uint>(&self) -> NucleotideCounts<T> {
+        self.0.iter().fold(NucleotideCounts::new(), |acc, &b| acc + b)
     }
 
     /// # Distance

@@ -1,4 +1,5 @@
 use super::{
+    convert::ToDNA,
     mappings::TO_UNALIGNED_DNA_UC,
     types::{
         amino_acids::AminoAcids,
@@ -16,18 +17,18 @@ pub struct FastaSeq {
 }
 
 pub struct FastaNT {
-    pub name:     Vec<u8>,
+    pub name:     String,
     pub sequence: Nucleotides,
 }
 
 pub struct FastaAA {
-    pub name:     Vec<u8>,
+    pub name:     String,
     pub sequence: AminoAcids,
 }
 
 pub struct FastaReader<R: std::io::Read> {
-    pub fasta_reader: std::io::BufReader<R>,
-    pub fasta_buffer: Vec<u8>,
+    fasta_reader: std::io::BufReader<R>,
+    fasta_buffer: Vec<u8>,
 }
 
 impl FastaSeq {
@@ -36,18 +37,29 @@ impl FastaSeq {
     }
 
     #[must_use]
-    pub fn retain_unaligned_dna_uc(mut self) -> FastaNT {
+    pub fn to_dna_unaligned(mut self) -> FastaNT {
         self.sequence.retain_by_recoding(TO_UNALIGNED_DNA_UC);
         FastaNT {
-            name:     self.name,
+            name:     String::from_utf8_lossy(&self.name).to_string(),
             sequence: Nucleotides(self.sequence),
+        }
+    }
+
+    /// Trims all invalid state from the sequence and validates name as UTF-8.
+    /// Returns `FastaNT`.
+    #[inline]
+    #[must_use]
+    pub fn to_dna(&self) -> FastaNT {
+        FastaNT {
+            name:     String::from_utf8_lossy(&self.name).to_string(),
+            sequence: self.sequence.to_dna(),
         }
     }
 
     #[must_use]
     pub fn translate(self) -> FastaAA {
         FastaAA {
-            name:     self.name,
+            name:     String::from_utf8_lossy(&self.name).to_string(),
             sequence: AminoAcids(super::types::nucleotides::translate_sequence(&self.sequence)),
         }
     }
@@ -70,13 +82,11 @@ impl FastaNT {
 impl From<FastaSeq> for FastaNT {
     fn from(record: FastaSeq) -> Self {
         FastaNT {
-            name:     record.name,
+            name:     String::from_utf8_lossy(&record.name).to_string(),
             sequence: record.sequence.into(),
         }
     }
 }
-
-//impl FastAA {}
 
 impl<R: std::io::Read> FastaReader<R> {
     pub fn new(inner: R) -> Self {
@@ -105,6 +115,7 @@ impl<R: std::io::Read> Iterator for FastaReader<R> {
     type Item = std::io::Result<FastaSeq>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        let valid_start = self.fasta_buffer.ends_with(b">");
         self.fasta_buffer.clear();
 
         let bytes = match self.fasta_reader.read_until(b'>', &mut self.fasta_buffer) {
@@ -116,8 +127,11 @@ impl<R: std::io::Read> Iterator for FastaReader<R> {
             0 => None,
             1 => self.next(),
             _ => {
-                if self.fasta_buffer.ends_with(b">") {
-                    self.fasta_buffer.pop();
+                if !valid_start {
+                    return Some(Err(IOError::new(
+                        ErrorKind::InvalidData,
+                        "FASTA records must start with the '>' symbol!",
+                    )));
                 }
 
                 let mut lines = self.fasta_buffer.split(|x| *x == b'\n' || *x == b'\r');
@@ -126,7 +140,10 @@ impl<R: std::io::Read> Iterator for FastaReader<R> {
                     _ => return Some(Err(IOError::new(ErrorKind::InvalidData, "Missing FASTA header!"))),
                 };
 
-                let sequence: Vec<u8> = lines.flatten().copied().collect();
+                let mut sequence: Vec<u8> = lines.flatten().copied().collect();
+                if sequence.ends_with(b">") {
+                    sequence.pop();
+                }
 
                 if sequence.is_empty() {
                     Some(Err(IOError::new(ErrorKind::InvalidData, "Missing sequence data!")))
@@ -151,22 +168,12 @@ impl std::fmt::Display for FastaSeq {
 
 impl std::fmt::Display for FastaNT {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            ">{}\n{}\n",
-            String::from_utf8_lossy(&self.name),
-            String::from_utf8_lossy(&self.sequence.0)
-        )
+        write!(f, ">{}\n{}\n", &self.name, String::from_utf8_lossy(&self.sequence.0))
     }
 }
 
 impl std::fmt::Display for FastaAA {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            ">{}\n{}\n",
-            String::from_utf8_lossy(&self.name),
-            String::from_utf8_lossy(&self.sequence.0)
-        )
+        write!(f, ">{}\n{}\n", self.name, String::from_utf8_lossy(&self.sequence.0))
     }
 }
