@@ -39,7 +39,7 @@ impl QualityScores {
     #[must_use]
     pub fn sorted(&self) -> Self {
         let mut s = self.0.clone();
-        crate::sort::count_sort(&mut s);
+        crate::sort::count_sort_ascii_print(&mut s);
         QualityScores(s)
     }
 

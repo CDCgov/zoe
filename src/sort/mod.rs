@@ -8,7 +8,7 @@
 /// Cormen.
 #[inline]
 #[must_use]
-pub(crate) fn count_sorted(v: &[u8]) -> Vec<u8> {
+pub(crate) fn count_sorted_ascii_print(v: &[u8]) -> Vec<u8> {
     if v.len() < 2 {
         v.to_vec()
     } else {
@@ -21,7 +21,7 @@ pub(crate) fn count_sorted(v: &[u8]) -> Vec<u8> {
         }
 
         // Perform prefix sum
-        for index in 32..128 {
+        for index in 32..=127 {
             counts[index] += counts[index - 1];
         }
 
@@ -44,7 +44,7 @@ pub(crate) fn count_sorted(v: &[u8]) -> Vec<u8> {
 /// Uses a nested loop in place of a prefix sum for mapping back onto the
 /// original, mutable array. Original algorithm by Thomas Cormen.
 #[inline]
-pub(crate) fn count_sort(v: &mut [u8]) {
+pub(crate) fn count_sort_ascii_print(v: &mut [u8]) {
     if v.len() > 1 {
         let mut counts = [0usize; 256];
 
@@ -55,7 +55,7 @@ pub(crate) fn count_sort(v: &mut [u8]) {
 
         // Re-fill array
         let mut p = 0;
-        for i in 32..128 {
+        for i in 32..=127 {
             for _ in 0..counts[i as usize] {
                 v[p] = i;
                 p += 1;
@@ -70,17 +70,17 @@ mod test {
 
     #[test]
     fn sort_test() {
-        use super::{count_sort, count_sorted};
+        use super::*;
 
         for _ in 0..1000 {
             let og = rand_sequence(b"ABCDEFGHIJKLMNOPQRSTUVWXYZ", 1000, 42);
             let mut s1 = og.clone();
-            let mut s2 = count_sorted(&og);
+            let mut s2 = count_sorted_ascii_print(&og);
             s1.sort_unstable();
             assert_eq!(s1, s2);
 
             s2 = og.clone();
-            count_sort(&mut s2);
+            count_sort_ascii_print(&mut s2);
             assert_eq!(s1, s2);
         }
     }
@@ -128,7 +128,7 @@ mod bench {
         #[allow(unused)]
         b.iter(|| {
             let v1 = rand_sequence(ALPHA, N, SEED);
-            super::count_sorted(&v1);
+            super::count_sorted_ascii_print(&v1);
             v1
         });
     }
@@ -155,7 +155,7 @@ mod bench {
     fn mod_count(b: &mut Bencher) {
         b.iter(|| {
             let mut v1 = rand_sequence(ALPHA, N, SEED);
-            super::count_sort(&mut v1);
+            super::count_sort_ascii_print(&mut v1);
             v1
         });
     }
