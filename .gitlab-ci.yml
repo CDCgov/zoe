@@ -7,7 +7,7 @@ zoe-build:
   tags: 
     - docker
     - scicomp
-  image: rustlang/rust:nightly
+  image: rustlang/rust:nightly-slim
   script:
     - cargo build --verbose
 
@@ -16,7 +16,7 @@ zoe-test:
   tags: 
     - docker
     - scicomp
-  image: rustlang/rust:nightly
+  image: rustlang/rust:nightly-slim
   script:
     - cargo test --verbose
     
