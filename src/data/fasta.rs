@@ -89,10 +89,31 @@ impl From<FastaSeq> for FastaNT {
 }
 
 impl<R: std::io::Read> FastaReader<R> {
-    pub fn new(inner: R) -> Self {
-        FastaReader {
+    /// Create a new `FastaReader` for buffered reading.
+    ///
+    /// # Errors
+    ///
+    /// Will return `Err` if the first record has an invalid start or otherwise cannot be read.
+    pub fn new(inner: R) -> Result<FastaReader<R>, std::io::Error> {
+        let mut r = FastaReader {
             fasta_reader: std::io::BufReader::new(inner),
             fasta_buffer: Vec::new(),
+        };
+
+        let bytes = r.fasta_reader.read_until(b'>', &mut r.fasta_buffer)?;
+        match bytes {
+            0 => Err(IOError::new(ErrorKind::Other, "No FASTA data found.")),
+            1 => Ok(r),
+            _ => {
+                if r.fasta_buffer.ends_with(b"\n>") {
+                    Ok(r)
+                } else {
+                    Err(IOError::new(
+                        ErrorKind::InvalidData,
+                        "FASTA records must start with the '>' symbol!",
+                    ))
+                }
+            }
         }
     }
 }
@@ -102,12 +123,12 @@ impl FastaReader<std::fs::File> {
     ///
     /// # Errors
     ///
-    /// Will return `Err` if file or permissions or the like do not exist.
+    /// Will return `Err` if file or permissions or the like do not exist or if the first record is invalid.
     pub fn from_filename<P>(filename: P) -> Result<FastaReader<File>, std::io::Error>
     where
         P: AsRef<Path>, {
         let file = File::open(filename)?;
-        Ok(FastaReader::new(file))
+        FastaReader::new(file)
     }
 }
 
@@ -115,7 +136,7 @@ impl<R: std::io::Read> Iterator for FastaReader<R> {
     type Item = std::io::Result<FastaSeq>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let valid_start = self.fasta_buffer.ends_with(b">");
+        let valid_start = self.fasta_buffer.ends_with(b"\n>") || self.fasta_buffer == b">";
         self.fasta_buffer.clear();
 
         let bytes = match self.fasta_reader.read_until(b'>', &mut self.fasta_buffer) {
@@ -123,34 +144,32 @@ impl<R: std::io::Read> Iterator for FastaReader<R> {
             Err(e) => return Some(Err(e)),
         };
 
-        match bytes {
-            0 => None,
-            1 => self.next(),
-            _ => {
-                if !valid_start {
-                    return Some(Err(IOError::new(
-                        ErrorKind::InvalidData,
-                        "FASTA records must start with the '>' symbol!",
-                    )));
-                }
-
-                let mut lines = self.fasta_buffer.split(|x| *x == b'\n' || *x == b'\r');
-                let name = match lines.next() {
-                    Some(h) if !h.is_empty() => h.to_vec(),
-                    _ => return Some(Err(IOError::new(ErrorKind::InvalidData, "Missing FASTA header!"))),
-                };
-
-                let mut sequence: Vec<u8> = lines.flatten().copied().collect();
-                if sequence.ends_with(b">") {
-                    sequence.pop();
-                }
-
-                if sequence.is_empty() {
-                    Some(Err(IOError::new(ErrorKind::InvalidData, "Missing sequence data!")))
-                } else {
-                    Some(Ok(FastaSeq { name, sequence }))
-                }
+        if bytes > 0 {
+            if !valid_start {
+                return Some(Err(IOError::new(
+                    ErrorKind::InvalidData,
+                    "FASTA records must start with the '>' symbol!",
+                )));
             }
+
+            let mut lines = self.fasta_buffer.split(|x| *x == b'\n' || *x == b'\r');
+            let name = match lines.next() {
+                Some(h) if !h.is_empty() => h.to_vec(),
+                _ => return Some(Err(IOError::new(ErrorKind::InvalidData, "Missing FASTA header!"))),
+            };
+
+            let mut sequence: Vec<u8> = lines.flatten().copied().collect();
+            if sequence.ends_with(b">") {
+                sequence.pop();
+            }
+
+            if sequence.is_empty() {
+                Some(Err(IOError::new(ErrorKind::InvalidData, "Missing sequence data!")))
+            } else {
+                Some(Ok(FastaSeq { name, sequence }))
+            }
+        } else {
+            None
         }
     }
 }
