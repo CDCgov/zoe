@@ -5,7 +5,7 @@
     clippy::wildcard_imports,
     clippy::enum_glob_use
 )]
-#![feature(test, portable_simd, const_fn_floating_point_arithmetic, iter_collect_into)]
+#![feature(test, portable_simd, const_fn_floating_point_arithmetic, iter_collect_into, let_chains)]
 
 /// Composition and consensus functions.
 pub mod composition;

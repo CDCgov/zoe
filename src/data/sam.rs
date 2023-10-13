@@ -5,8 +5,7 @@ use crate::data::types::{
     phred::QualityScores,
 };
 use crate::data::Subsequence;
-use lazy_static::lazy_static;
-use regex::Regex;
+use std::cmp::{max, min};
 use std::io::{BufRead, Error as IOError, ErrorKind};
 use std::iter::repeat;
 use std::ops::{Add, AddAssign, Range};
@@ -145,11 +144,6 @@ impl SamData {
     ) -> (SamData, PairedMergeStats) {
         let mut stats = PairedMergeStats::default();
 
-        lazy_static! {
-            static ref UPDATE_PAIR: Regex =
-                Regex::new(r"(.+?[_ ])[12](:.+)").expect("REGEX for changing 'qname' didn't compile.");
-        }
-
         let a1: SamAligned = self.get_aligned();
         let a2: SamAligned = other.get_aligned();
 
@@ -157,9 +151,9 @@ impl SamData {
 
         let m_qname = if bowtie_format {
             self.qname.clone()
-        // IRMA merged style: set to 3
         } else {
-            UPDATE_PAIR.replace(&self.qname, r"${1}3${2}").into_owned()
+            // IRMA merged style: set to 3
+            make_merged_qname(&self.qname)
         };
 
         let m_flag = 0;
@@ -172,8 +166,6 @@ impl SamData {
         let mut merged_cigars = Vec::with_capacity(paired_range.len());
         let mut merged_seq = Vec::with_capacity(paired_range.len());
         let mut merged_quals = Vec::with_capacity(paired_range.len());
-
-        use std::cmp::max;
 
         // 0-based index relateive to reference
         for ref_index in paired_range {
@@ -377,6 +369,72 @@ impl SamData {
     }
 }
 
+fn make_merged_qname(s: &str) -> String {
+    let mut merged = String::with_capacity(s.len() + 2);
+    if let Some(index) = s.find(' ') {
+        let (head, tail) = s.split_at(index);
+
+        if !head.starts_with("@SRR") || !head.contains('.') {
+            // Illumina format
+            merged.push_str(head);
+            merged.push_str(" 3");
+            if let Some(index) = tail.find(':') {
+                merged.push_str(&tail[index..]);
+            }
+        } else if let Some(index) = head.match_indices('.').nth(1).map(|(i, _)| i) {
+            // SRA format, read side included
+            let (head, _) = head.split_at(index);
+            merged.push_str(head);
+            merged.push_str(".3");
+            merged.push_str(tail);
+        } else {
+            // SRA format, no read side
+            merged.push_str(head);
+            merged.push_str(".3");
+            merged.push_str(tail);
+        }
+    } else if let Some(index) = s.find('/') {
+        // Legacy Illumina
+        let (id, _) = s.split_at(index);
+        merged.push_str(id);
+        merged.push_str("/3");
+    } else if s.starts_with("@SRR") && s.contains('.') {
+        let mut pieces = s.split('_');
+        let id = pieces.next().unwrap_or_default();
+
+        if let Some(index) = id.match_indices('.').nth(1).map(|(i, _)| i) {
+            // SRA with read side
+            let (new_id, _) = id.split_at(index);
+            merged.push_str(new_id);
+            merged.push_str(".3");
+            for piece in pieces {
+                merged.push('_');
+                merged.push_str(piece);
+            }
+        } else {
+            // SRA, no read side
+            merged.push_str(id);
+            merged.push_str(".3");
+            for piece in pieces {
+                merged.push('_');
+                merged.push_str(piece);
+            }
+        }
+    } else {
+        // IRMA Illumina legacy output
+        let mut indices = s.match_indices(':');
+        let (left, right) = (indices.nth(5), indices.next());
+        if let (Some((start, _)), Some((stop, _))) = (left, right)
+            && let Some(us) = s[start..stop].find('_') {
+                let underscore_index = start + us;
+            merged.push_str(&s[..underscore_index]);
+            merged.push_str("_3");
+            merged.push_str(&s[stop..]);
+        }
+    }
+    merged
+}
+
 #[derive(Default, Clone, Debug, Copy)]
 pub struct PairedMergeStats {
     pub observations:    u64,
@@ -503,8 +561,6 @@ impl SamAligned {
     /// range spans both aligned regions.
     #[must_use]
     pub fn merge_ref_range(&self, other: &SamAligned) -> Range<usize> {
-        use std::cmp::{max, min};
-
         min(self.ref_start, other.ref_start)..max(self.ref_end, other.ref_end)
     }
 
@@ -654,5 +710,67 @@ impl std::fmt::Display for SamData {
             f,
             "{qname}\t{flag}\t{rname}\t{pos}\t{mapq}\t{cigar}\t{rnext}\t{pnext}\t{tlen}\t{seq}\t{qual}"
         )
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::data::sam::make_merged_qname;
+
+    static QNAMES: [&str; 22] = [
+        "@SRR26182418.1 M07901:28:000000000-KP3NB:1:1101:10138:2117 length=147",
+        "@SRR26182418.1 M07901:28:000000000-KP3NB:1:1101:10138:2117 length=301",
+        "@SRR26182418.1.1 M07901:28:000000000-KP3NB:1:1101:10138:2117 length=147",
+        "@SRR26182418.1.2 M07901:28:000000000-KP3NB:1:1101:10138:2117 length=301",
+        "@A00350:691:HCKYLDSX3:2:2119:23863:2456/2",
+        "@A00350:691:HCKYLDSX3:2:2119:23863:2456/1",
+        "@M02989:9:000000000-L4PJL:1:2112:9890:15606 1:N:0:AACGCACGAG+GCCTCGGATA",
+        "@M02989:9:000000000-L4PJL:1:2112:9890:15606 2:N:0:AACGCACGAG+GCCTCGGATA",
+        "@NS500500:69:HKJFLAFX5:1:11204:14878:14643 1:N:0:TTCTCGTGCA+CTCTGTGTAT",
+        "@NS500500:69:HKJFLAFX5:1:11204:14878:14643 2:N:0:TTCTCGTGCA+CTCTGTGTAT",
+        "@A01000:249:HJFFWDRX2:1:2107:24605:18082 1:N:0:TAGGCATG+ATAGCCTT",
+        "@A01000:249:HJFFWDRX2:1:2107:24605:18082 2:N:0:TAGGCATG+ATAGCCTT",
+        "@M02989:9:000000000-L4PJL:1:2114:17393:19614_1:N:0:CTCTGCAGCG+GATGGATGTA",
+        "@M02989:9:000000000-L4PJL:1:2114:17393:19614_2:N:0:CTCTGCAGCG+GATGGATGTA",
+        "@M02989_1:9:000000000-L4PJL:1:2114:17393:19614_1:N:0:CTCTGCAGCG+GATGGATGTA",
+        "@M02989_1:9:000000000-L4PJL:1:2114:17393:19614_2:N:0:CTCTGCAGCG+GATGGATGTA",
+        "@SRR26182418.1_M07901:28:000000000-KP3NB:1:1101:10138:2117_length=147",
+        "@SRR26182418.1_M07901:28:000000000-KP3NB:1:1101:10138:2117_length=301",
+        "@SRR26182418.1.1_M07901:28:000000000-KP3NB:1:1101:10138:2117_length=147",
+        "@SRR26182418.1.2_M07901:28:000000000-KP3NB:1:1101:10138:2117_length=301",
+        "@SRR26182418.1 1:N:18:NULL",
+        "@SRR26182418.1.1 1:N:18:NULL",
+    ];
+
+    #[test]
+    fn test_make_merged_name() {
+        let merged = [
+            "@SRR26182418.1.3 M07901:28:000000000-KP3NB:1:1101:10138:2117 length=147",
+            "@SRR26182418.1.3 M07901:28:000000000-KP3NB:1:1101:10138:2117 length=301",
+            "@SRR26182418.1.3 M07901:28:000000000-KP3NB:1:1101:10138:2117 length=147",
+            "@SRR26182418.1.3 M07901:28:000000000-KP3NB:1:1101:10138:2117 length=301",
+            "@A00350:691:HCKYLDSX3:2:2119:23863:2456/3",
+            "@A00350:691:HCKYLDSX3:2:2119:23863:2456/3",
+            "@M02989:9:000000000-L4PJL:1:2112:9890:15606 3:N:0:AACGCACGAG+GCCTCGGATA",
+            "@M02989:9:000000000-L4PJL:1:2112:9890:15606 3:N:0:AACGCACGAG+GCCTCGGATA",
+            "@NS500500:69:HKJFLAFX5:1:11204:14878:14643 3:N:0:TTCTCGTGCA+CTCTGTGTAT",
+            "@NS500500:69:HKJFLAFX5:1:11204:14878:14643 3:N:0:TTCTCGTGCA+CTCTGTGTAT",
+            "@A01000:249:HJFFWDRX2:1:2107:24605:18082 3:N:0:TAGGCATG+ATAGCCTT",
+            "@A01000:249:HJFFWDRX2:1:2107:24605:18082 3:N:0:TAGGCATG+ATAGCCTT",
+            "@M02989:9:000000000-L4PJL:1:2114:17393:19614_3:N:0:CTCTGCAGCG+GATGGATGTA",
+            "@M02989:9:000000000-L4PJL:1:2114:17393:19614_3:N:0:CTCTGCAGCG+GATGGATGTA",
+            "@M02989_1:9:000000000-L4PJL:1:2114:17393:19614_3:N:0:CTCTGCAGCG+GATGGATGTA",
+            "@M02989_1:9:000000000-L4PJL:1:2114:17393:19614_3:N:0:CTCTGCAGCG+GATGGATGTA",
+            "@SRR26182418.1.3_M07901:28:000000000-KP3NB:1:1101:10138:2117_length=147",
+            "@SRR26182418.1.3_M07901:28:000000000-KP3NB:1:1101:10138:2117_length=301",
+            "@SRR26182418.1.3_M07901:28:000000000-KP3NB:1:1101:10138:2117_length=147",
+            "@SRR26182418.1.3_M07901:28:000000000-KP3NB:1:1101:10138:2117_length=301",
+            "@SRR26182418.1.3 1:N:18:NULL",
+            "@SRR26182418.1.3 1:N:18:NULL",
+        ];
+
+        for (i, o) in QNAMES.iter().enumerate() {
+            assert_eq!(make_merged_qname(o), merged[i], "'{o}'");
+        }
     }
 }

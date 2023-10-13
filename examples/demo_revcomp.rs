@@ -10,7 +10,7 @@ fn main() {
         "examples/example.fasta".to_owned()
     };
 
-    let fasta_reader = FastaReader::from_filename(&filename)
+    let fasta_reader = FastaReader::from_filename(filename)
         .unwrap_or_die("RevComp file error!")
         .filter_map(|f| f.ok());
 
