@@ -374,7 +374,7 @@ fn make_merged_qname(s: &str) -> String {
     if let Some(index) = s.find(' ') {
         let (head, tail) = s.split_at(index);
 
-        if !head.starts_with("@SRR") || !head.contains('.') {
+        if !(head.starts_with("@SRR") || head.starts_with("@DRR") || head.starts_with("@ERR")) || !head.contains('.') {
             // Illumina format
             merged.push_str(head);
             merged.push_str(" 3");
@@ -398,7 +398,7 @@ fn make_merged_qname(s: &str) -> String {
         let (id, _) = s.split_at(index);
         merged.push_str(id);
         merged.push_str("/3");
-    } else if s.starts_with("@SRR") && s.contains('.') {
+    } else if (s.starts_with("@SRR") || s.starts_with("@DRR") || s.starts_with("@ERR")) && s.contains('.') {
         let mut pieces = s.split('_');
         let id = pieces.next().unwrap_or_default();
 
@@ -717,7 +717,7 @@ impl std::fmt::Display for SamData {
 mod test {
     use crate::data::sam::make_merged_qname;
 
-    static QNAMES: [&str; 22] = [
+    static QNAMES: [&str; 26] = [
         "@SRR26182418.1 M07901:28:000000000-KP3NB:1:1101:10138:2117 length=147",
         "@SRR26182418.1 M07901:28:000000000-KP3NB:1:1101:10138:2117 length=301",
         "@SRR26182418.1.1 M07901:28:000000000-KP3NB:1:1101:10138:2117 length=147",
@@ -740,10 +740,14 @@ mod test {
         "@SRR26182418.1.2_M07901:28:000000000-KP3NB:1:1101:10138:2117_length=301",
         "@SRR26182418.1 1:N:18:NULL",
         "@SRR26182418.1.1 1:N:18:NULL",
+        "@ERR26182418.1 M07901:28:000000000-KP3NB:1:1101:10138:2117 length=147",
+        "@DRR26182418.1 M07901:28:000000000-KP3NB:1:1101:10138:2117 length=301",
+        "@ERR26182418.1.1 M07901:28:000000000-KP3NB:1:1101:10138:2117 length=147",
+        "@DRR26182418.2.2 M07901:28:000000000-KP3NB:1:1101:10138:2117 length=301",
     ];
 
     #[test]
-    fn test_make_merged_name() {
+    fn test_make_merged_qname() {
         let merged = [
             "@SRR26182418.1.3 M07901:28:000000000-KP3NB:1:1101:10138:2117 length=147",
             "@SRR26182418.1.3 M07901:28:000000000-KP3NB:1:1101:10138:2117 length=301",
@@ -767,6 +771,10 @@ mod test {
             "@SRR26182418.1.3_M07901:28:000000000-KP3NB:1:1101:10138:2117_length=301",
             "@SRR26182418.1.3 1:N:18:NULL",
             "@SRR26182418.1.3 1:N:18:NULL",
+            "@ERR26182418.1.3 M07901:28:000000000-KP3NB:1:1101:10138:2117 length=147",
+            "@DRR26182418.1.3 M07901:28:000000000-KP3NB:1:1101:10138:2117 length=301",
+            "@ERR26182418.1.3 M07901:28:000000000-KP3NB:1:1101:10138:2117 length=147",
+            "@DRR26182418.2.3 M07901:28:000000000-KP3NB:1:1101:10138:2117 length=301",
         ];
 
         for (i, o) in QNAMES.iter().enumerate() {
