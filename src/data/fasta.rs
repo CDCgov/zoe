@@ -49,10 +49,10 @@ impl FastaSeq {
     /// Returns `FastaNT`.
     #[inline]
     #[must_use]
-    pub fn to_dna(&self) -> FastaNT {
+    pub fn filter_to_dna(&self) -> FastaNT {
         FastaNT {
             name:     String::from_utf8_lossy(&self.name).to_string(),
-            sequence: self.sequence.to_dna(),
+            sequence: self.sequence.filter_to_dna(),
         }
     }
 

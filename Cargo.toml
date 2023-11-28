@@ -6,13 +6,9 @@ version = "0.0.1"
 [dependencies]
 ahash = "*"
 atoi = "*"
+itoa = "*"
 lazy_static = "*"
 rand_xoshiro = "*"
-regex = { version = "*", default-features = false, features = [
-    "std",
-    "perf",
-    "unicode-perl",
-] }
 
 [profile.release]
 strip = true

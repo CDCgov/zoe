@@ -260,38 +260,32 @@ where
     let (pre, mid, sfx) = bases.as_simd::<N>();
     let mut reverse_complement: Vec<u8> = Vec::with_capacity(bases.len());
 
-    sfx.iter()
-        .rev()
-        .copied()
-        .map(|x| TO_REVERSE_COMPLEMENT[x as usize])
-        .collect_into(&mut reverse_complement);
+    reverse_complement.extend(sfx.iter().rev().copied().map(|x| TO_REVERSE_COMPLEMENT[x as usize]));
 
-    mid.iter()
-        .map(|&v| {
-            let mut rev = v.reverse();
-            let lowercase = rev.is_ascii_lowercase();
-            rev = lowercase.make_selected_ascii_uppercase(&rev);
+    reverse_complement.extend(
+        mid.iter()
+            .map(|&v| {
+                let mut rev = v.reverse();
+                let lowercase = rev.is_ascii_lowercase();
+                rev = lowercase.make_selected_ascii_uppercase(&rev);
 
-            rev.swap_byte_pairs(b'T', b'A');
-            rev.swap_byte_pairs(b'G', b'C');
-            rev.swap_byte_pairs(b'R', b'Y');
-            rev.swap_byte_pairs(b'K', b'M');
-            rev.swap_byte_pairs(b'B', b'V');
-            rev.swap_byte_pairs(b'H', b'D');
-            rev.if_value_then_replace(b'U', b'A');
+                rev.swap_byte_pairs(b'T', b'A');
+                rev.swap_byte_pairs(b'G', b'C');
+                rev.swap_byte_pairs(b'R', b'Y');
+                rev.swap_byte_pairs(b'K', b'M');
+                rev.swap_byte_pairs(b'B', b'V');
+                rev.swap_byte_pairs(b'H', b'D');
+                rev.if_value_then_replace(b'U', b'A');
 
-            rev = lowercase.make_selected_ascii_lowercase(&rev);
-            rev.to_array()
-        })
-        .rev()
-        .flatten()
-        .collect_into(&mut reverse_complement);
+                rev = lowercase.make_selected_ascii_lowercase(&rev);
+                rev.to_array()
+            })
+            .rev()
+            .flatten(),
+    );
 
-    pre.iter()
-        .rev()
-        .copied()
-        .map(|x| TO_REVERSE_COMPLEMENT[x as usize])
-        .collect_into(&mut reverse_complement);
+    reverse_complement.extend(pre.iter().rev().copied().map(|x| TO_REVERSE_COMPLEMENT[x as usize]));
+
     reverse_complement
 }
 
@@ -301,4 +295,6 @@ mod bench;
 mod test;
 
 mod std_traits;
+
+#[allow(unused_imports)]
 pub use std_traits::*;

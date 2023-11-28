@@ -1,66 +1,30 @@
-use atoi::atoi;
-use lazy_static::lazy_static;
-use regex::bytes::Regex;
+use atoi::FromRadix10Checked;
 
-#[derive(Debug, Clone)]
+#[derive(Clone, PartialEq)]
 pub struct Cigar(Vec<u8>);
 
 impl Cigar {
     #[must_use]
-    pub fn expand_cigar(&self) -> ExpandedCigar {
-        lazy_static! {
-            static ref CIGAR_PARSE: Regex = Regex::new(r"(\d+)([MIDNSHP])").expect("REGEX cigar ID didn't compile.");
+    pub(crate) fn expand_cigar(&self) -> ExpandedCigar {
+        let mut expanded = Vec::new();
+
+        for Ciglet { inc, op } in self.into_iter() {
+            expanded.extend(std::iter::repeat(op).take(inc));
         }
 
-        let caps = CIGAR_PARSE.captures_iter(self.0.as_slice());
-        let mut expanded = Vec::new();
-        for cap in caps {
-            let inc: usize = if let Some(number) = atoi(&cap[1]) {
-                number
-            } else {
-                continue;
-            };
-            let op = cap[2][0];
-            for _ in 0..inc {
-                expanded.push(op);
-            }
-        }
         ExpandedCigar(expanded)
     }
 
     #[must_use]
     pub fn match_length(&self) -> usize {
-        lazy_static! {
-            static ref CIGAR_MATCH_STATE: Regex = Regex::new(r"(\d+)[MDN]").expect("REGEX match_length didn't compile.");
-        }
-        let mut length: usize = 0;
-        for caps in CIGAR_MATCH_STATE.captures_iter(self.0.as_slice()) {
-            // Valid regex should never be default
-            length += atoi::<usize>(&caps[1]).unwrap_or_default();
-        }
-
-        length
-    }
-
-    pub fn into_iter_tuple(&self) -> impl Iterator<Item = (usize, u8)> + '_ {
-        lazy_static! {
-            static ref CIGAR_PARSE: Regex = Regex::new(r"(\d+)([MIDNSHP])").expect("REGEX cigar ID didn't compile.");
-        }
-        let caps = CIGAR_PARSE.captures_iter(self.0.as_slice());
-
-        caps.map(|c| (atoi::<usize>(&c[1]).unwrap_or_default(), c[2][0]))
+        self.into_iter()
+            .filter(|Ciglet { inc: _, op }| matches!(op, b'M' | b'D' | b'N' | b'X' | b'='))
+            .map(|Ciglet { inc, .. }| inc)
+            .sum()
     }
 
     pub fn into_iter(&self) -> impl Iterator<Item = Ciglet> + '_ {
-        lazy_static! {
-            static ref CIGAR_PARSE: Regex = Regex::new(r"(\d+)([MIDNSHP])").expect("REGEX cigar ID didn't compile.");
-        }
-        let caps = CIGAR_PARSE.captures_iter(self.0.as_slice());
-
-        caps.map(|c| Ciglet {
-            inc: atoi::<usize>(&c[1]).unwrap_or_default(),
-            op:  c[2][0],
-        })
+        CigletIterator::new(&self.0)
     }
 }
 
@@ -72,16 +36,9 @@ impl fmt::Display for Cigar {
     }
 }
 
-/// A single increment quantifier-operation pair.
-#[derive(Clone, Copy)]
-pub struct Ciglet {
-    pub inc: usize,
-    pub op:  u8,
-}
-
-impl fmt::Display for Ciglet {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "({},{})", self.inc, self.op as char)?;
+impl fmt::Debug for Cigar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", String::from_utf8_lossy(&self.0))?;
         Ok(())
     }
 }
@@ -100,29 +57,148 @@ impl From<&[u8]> for Cigar {
 
 impl From<ExpandedCigar> for Cigar {
     fn from(c: ExpandedCigar) -> Cigar {
-        c.condense_cigar()
+        c.condense_to_cigar()
     }
 }
 
-#[derive(Debug)]
-pub struct ExpandedCigar(Vec<u8>);
+/// A single increment quantifier-operation pair.
+#[derive(Clone, Copy)]
+pub struct Ciglet {
+    pub inc: usize,
+    pub op:  u8,
+}
+
+pub struct CigletIterator<'a> {
+    buffer: &'a [u8],
+    offset: usize,
+}
+
+impl<'a> CigletIterator<'a> {
+    #[inline]
+    fn new(buffer: &'a [u8]) -> Self {
+        CigletIterator { buffer, offset: 0 }
+    }
+}
+
+impl<'a> Iterator for CigletIterator<'a> {
+    type Item = Ciglet;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(s) = self.buffer.get(self.offset..)
+            && let (Some(count), width) = usize::from_radix_10_checked(s)
+            && let Some(&state) = self.buffer.get(self.offset + width)
+        {
+            self.offset += width + 1;
+            if matches!(state, b'M' | b'I' | b'D' | b'N' | b'S' | b'H' | b'P' | b'X' | b'=') {
+                Some(Ciglet { inc: count, op: state })
+            } else {
+                self.next()
+            }
+        } else {
+            None
+        }
+    }
+}
+
+impl fmt::Display for Ciglet {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}{}", self.inc, self.op as char)?;
+        Ok(())
+    }
+}
+
+impl fmt::Debug for Ciglet {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({},{})", self.inc, self.op as char)?;
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct AlignmentStates(Vec<Ciglet>);
+
+#[allow(dead_code)]
+impl AlignmentStates {
+    #[must_use]
+    #[inline]
+    pub(crate) fn new() -> Self {
+        AlignmentStates(Vec::new())
+    }
+
+    pub(crate) fn add_state(&mut self, op: u8) {
+        if let Some(c) = self.0.last_mut()
+            && c.op == op
+        {
+            c.inc += 1;
+        } else {
+            self.0.push(Ciglet { inc: 1, op });
+        }
+    }
+
+    pub(crate) fn to_cigar(&self) -> Cigar {
+        let mut condensed = Vec::new();
+        let mut format_buffer = itoa::Buffer::new();
+
+        for Ciglet { inc, op } in self.0.iter().copied() {
+            condensed.extend_from_slice(format_buffer.format(inc).as_bytes());
+            condensed.push(op);
+        }
+
+        Cigar(condensed)
+    }
+}
+
+#[derive(PartialEq, Clone)]
+pub(crate) struct ExpandedCigar(Vec<u8>);
 
 impl ExpandedCigar {
     #[inline]
     #[must_use]
-    pub fn condense_cigar(self) -> Cigar {
-        lazy_static! {
-            static ref CIGAR_EXPANDED: Regex =
-                Regex::new(r"([M]+|[D]+|[I]+|[H]+|[N]+|[S]+)").expect("REGEX condense_cigar didn't compile.");
+    pub(crate) fn condense_to_cigar(self) -> Cigar {
+        let mut condensed: Vec<u8> = Vec::new();
+        let mut format_buffer = itoa::Buffer::new();
+
+        let mut cigars = self
+            .0
+            .iter()
+            .copied()
+            .filter(|op| matches!(op, b'M' | b'I' | b'D' | b'N' | b'S' | b'H' | b'P' | b'X' | b'='));
+
+        let Some(mut previous) = cigars.next() else {
+            return Cigar(condensed);
+        };
+
+        let mut count: usize = 1;
+
+        for op in cigars {
+            if previous == op {
+                count += 1;
+            } else {
+                condensed.extend_from_slice(format_buffer.format(count).as_bytes());
+                condensed.push(previous);
+                previous = op;
+                count = 1;
+            }
         }
 
-        let mut condensed: Vec<u8> = Vec::new();
-        for caps in CIGAR_EXPANDED.captures_iter(self.0.as_slice()) {
-            condensed.extend_from_slice(caps[1].len().to_string().as_bytes());
-            condensed.push(caps[1][0]);
-        }
+        condensed.extend_from_slice(format_buffer.format(count).as_bytes());
+        condensed.push(previous);
 
         Cigar(condensed)
+    }
+}
+
+impl fmt::Display for ExpandedCigar {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", String::from_utf8_lossy(&self.0))?;
+        Ok(())
+    }
+}
+
+impl fmt::Debug for ExpandedCigar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", String::from_utf8_lossy(&self.0))?;
+        Ok(())
     }
 }
 
@@ -147,5 +223,82 @@ impl From<&str> for ExpandedCigar {
 impl From<&[u8]> for ExpandedCigar {
     fn from(v: &[u8]) -> Self {
         ExpandedCigar(v.to_vec())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_expand() {
+        let cigar: Cigar = " 4S10M2I2D3M4H4P".into();
+        let expanded: ExpandedCigar = "SSSSMMMMMMMMMMIIDDMMMHHHHPPPP".into();
+        assert_eq!(cigar.expand_cigar(), expanded);
+    }
+
+    #[test]
+    fn test_match_length() {
+        let cigars = [
+            ("4S10M2I2D3M4H4P", 15),
+            ("", 0),
+            ("3M2D1M", 6),
+            ("255M", 255),
+            ("3M1D4I8X9=4M", 25),
+        ];
+
+        for (c, l) in cigars {
+            let cigar = Cigar::from(c);
+            assert_eq!(cigar.match_length(), l);
+        }
+    }
+
+    #[test]
+    fn test_condense_cigar() {
+        let cigars = ["4S10M2I2D3M4H4P", "", "3M2D1M", "255M", "3M1D4I8X9=4M"];
+
+        for c in cigars {
+            let cigar = Cigar::from(c);
+            assert_eq!(cigar.expand_cigar().condense_to_cigar(), cigar);
+        }
+    }
+
+    #[test]
+    fn test_add_state() {
+        let cigar: Cigar = "4S10M2I2D3M4H4P".into();
+        let mut states = AlignmentStates::new();
+        for Ciglet { inc, op } in cigar.into_iter() {
+            for _ in 0..inc {
+                states.add_state(op);
+            }
+        }
+
+        assert_eq!(cigar, states.to_cigar());
+    }
+}
+
+#[cfg(test)]
+mod benches {
+    use super::*;
+    use test::Bencher;
+    extern crate test;
+
+    #[bench]
+    fn expand_cigar(b: &mut Bencher) {
+        let cigar: Cigar = "3S10M2I2D3M4H4P".into();
+
+        b.iter(|| cigar.expand_cigar());
+    }
+
+    #[bench]
+    fn condense_cigar(b: &mut Bencher) {
+        let cigar = Cigar::from("4S10M2I2D3M4H4P").expand_cigar();
+        b.iter(|| cigar.clone().condense_to_cigar());
+    }
+
+    #[bench]
+    fn match_length(b: &mut Bencher) {
+        let cigar = Cigar::from("4S10M2I2D3M4H4P");
+        b.iter(|| cigar.match_length());
     }
 }
