@@ -1,6 +1,6 @@
 use crate::data::byte_types::{ByteAvg, IsBase};
 use crate::data::types::{
-    cigar::{Cigar, ExpandedCigar},
+    cigar::{Cigar, Ciglet, ExpandedCigar},
     nucleotides::Nucleotides,
     phred::QualityScores,
 };
@@ -85,7 +85,7 @@ impl SamData {
         let mut q_aln: Vec<u8> = Vec::new();
         let mut insertions = Vec::new();
 
-        for (inc, op) in self.cigar.into_iter_tuple() {
+        for Ciglet { inc, op } in self.cigar.into_iter() {
             match op {
                 b'M' | b'=' | b'X' => {
                     for _ in 0..inc {
@@ -271,24 +271,18 @@ impl SamData {
 
                     if insert1 == insert2 {
                         merged_seq.extend_from_slice(insert1.to_ascii_lowercase().as_slice());
-
-                        quals1
-                            .iter()
-                            .zip(quals2)
-                            .map(|(q1, q2)| max(*q1, *q2))
-                            .collect_into(&mut merged_quals);
-
-                        repeat(b'I').take(insert1.len()).collect_into(&mut merged_cigars);
+                        merged_quals.extend(quals1.iter().zip(quals2).map(|(q1, q2)| max(*q1, *q2)));
+                        merged_cigars.extend(repeat(b'I').take(insert1.len()));
                     } else if insert2.contains_subsequence(insert1) {
                         merged_seq.extend_from_slice(insert1.to_ascii_lowercase().as_slice());
                         merged_quals.extend_from_slice(quals1);
-                        repeat(b'I').take(insert1.len()).collect_into(&mut merged_cigars);
+                        merged_cigars.extend(repeat(b'I').take(insert1.len()));
 
                         stats.insert_errors += 1;
                     } else if insert1.contains_subsequence(insert2) {
                         merged_seq.extend_from_slice(insert2.to_ascii_lowercase().as_slice());
                         merged_quals.extend_from_slice(quals2);
-                        repeat(b'I').take(insert2.len()).collect_into(&mut merged_cigars);
+                        merged_cigars.extend(repeat(b'I').take(insert2.len()));
 
                         stats.insert_errors += 1;
                     } else {
@@ -310,7 +304,7 @@ impl SamData {
 
                         merged_seq.extend_from_slice(insert.to_ascii_lowercase().as_slice());
                         merged_quals.extend_from_slice(quals);
-                        repeat(b'I').take(insert.len()).collect_into(&mut merged_cigars);
+                        merged_cigars.extend(repeat(b'I').take(insert.len()));
                     }
                 }
                 (None, Some(r2)) => {
@@ -328,14 +322,14 @@ impl SamData {
                         // Remove lower-casing if it does nothing downstream.
                         merged_seq.extend_from_slice(insert.to_ascii_lowercase().as_slice());
                         merged_quals.extend_from_slice(quals);
-                        repeat(b'I').take(insert.len()).collect_into(&mut merged_cigars);
+                        merged_cigars.extend(repeat(b'I').take(insert.len()));
                     }
                 }
                 _ => {}
             }
         }
 
-        let merged_cigars = ExpandedCigar::from(merged_cigars).condense_cigar();
+        let merged_cigars = ExpandedCigar::from(merged_cigars).condense_to_cigar();
 
         (
             SamData::new(
@@ -425,8 +419,9 @@ fn make_merged_qname(s: &str) -> String {
         let mut indices = s.match_indices(':');
         let (left, right) = (indices.nth(5), indices.next());
         if let (Some((start, _)), Some((stop, _))) = (left, right)
-            && let Some(us) = s[start..stop].find('_') {
-                let underscore_index = start + us;
+            && let Some(us) = s[start..stop].find('_')
+        {
+            let underscore_index = start + us;
             merged.push_str(&s[..underscore_index]);
             merged.push_str("_3");
             merged.push_str(&s[stop..]);

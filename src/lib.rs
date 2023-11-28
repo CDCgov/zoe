@@ -5,7 +5,7 @@
     clippy::wildcard_imports,
     clippy::enum_glob_use
 )]
-#![feature(test, portable_simd, const_fn_floating_point_arithmetic, iter_collect_into, let_chains)]
+#![feature(test, portable_simd, const_fn_floating_point_arithmetic, let_chains)]
 
 /// Composition and consensus functions.
 pub mod composition;
@@ -27,6 +27,7 @@ pub(crate) mod sort;
 
 pub mod prelude {
     pub use crate::composition::{AlignmentComposition, CreateConsensus, NucleotideCounts};
+    pub use crate::data::types::{amino_acids::AminoAcids, nucleotides::Nucleotides};
     pub use crate::data::{convert::ToDNA, err::OrFail, fasta::FastaReader};
     pub use crate::generate::rand_sequence;
     pub use crate::search::{Subsequence, VectorSubsequence};
