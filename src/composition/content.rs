@@ -1,5 +1,5 @@
 use crate::simd::SimdByteFunctions;
-use std::simd::{LaneCount, Simd, SimdInt, SimdPartialEq, SupportedLaneCount};
+use std::simd::{prelude::*, LaneCount, SupportedLaneCount};
 
 #[allow(non_snake_case, clippy::cast_abs_to_unsigned)]
 pub(crate) fn gc_content_simd<const N: usize>(s: &[u8]) -> usize

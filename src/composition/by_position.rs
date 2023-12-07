@@ -1,7 +1,7 @@
 use crate::data::types::nucleotides::Nucleotides;
 use crate::data::{constants::alphas::NUCLEIC_IUPAC, types::Uint};
 use std::ops::{Add, AddAssign};
-use std::simd::{Simd, SimdUint};
+use std::simd::prelude::*;
 
 /// Nucleotide count statistics for A, C, G, T/U, N, -, other, invalid.
 #[derive(Debug, Clone, Copy)]

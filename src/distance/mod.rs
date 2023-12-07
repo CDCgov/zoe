@@ -1,4 +1,5 @@
 use crate::data::err::{DistanceError, DistanceError::*};
+use std::simd::prelude::*;
 
 #[must_use]
 /// Calculates the number of differences at the byte (or base/residue) level.

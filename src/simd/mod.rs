@@ -1,4 +1,4 @@
-use std::simd::{LaneCount, Mask, Simd, SimdPartialEq, SimdPartialOrd, SupportedLaneCount};
+use std::simd::{prelude::*, LaneCount, SupportedLaneCount};
 
 pub(crate) trait SimdByteFunctions<const N: usize>
 where
