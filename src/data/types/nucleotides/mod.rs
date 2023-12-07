@@ -180,12 +180,15 @@ impl MaybeNucleic for &[u8] {}
 pub fn translate_sequence(s: &[u8]) -> Vec<u8> {
     let mut codons = s.chunks_exact(3);
     let mut aa_sequence = Vec::with_capacity(s.len() / 3 + 1);
+    let mut codon_copy = [0; 3];
 
     for codon in codons.by_ref() {
         aa_sequence.push(if is_partial_codon(codon) {
             b'~'
         } else {
-            *GENETIC_CODE.get(&codon.to_ascii_uppercase()).unwrap_or(&b'X')
+            codon_copy.copy_from_slice(codon);
+            codon_copy.make_ascii_uppercase();
+            *GENETIC_CODE.get(&codon_copy).unwrap_or(&b'X')
         });
     }
 
@@ -209,7 +212,10 @@ impl<'a> Iterator for TranslatedNucleotidesIter<'a> {
             if is_partial_codon(codon) {
                 Some(b'~')
             } else {
-                Some(*GENETIC_CODE.get(&codon.to_ascii_uppercase()).unwrap_or(&b'X'))
+                let mut codon_copy = [0; 3];
+                codon_copy.copy_from_slice(codon);
+                codon_copy.make_ascii_uppercase();
+                Some(*GENETIC_CODE.get(&codon_copy).unwrap_or(&b'X'))
             }
         } else if self.has_remainder && is_partial_codon(self.codons.remainder()) {
             self.has_remainder = false;

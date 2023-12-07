@@ -1,4 +1,3 @@
-
 use test::Bencher;
 extern crate test;
 use super::*;
@@ -10,6 +9,11 @@ const SEED: u64 = 42;
 
 lazy_static! {
     static ref SEQ: Vec<u8> = crate::generate::rand_sequence(ENGLISH, N, SEED);
+}
+
+#[bench]
+fn translate_sequence_long(b: &mut Bencher) {
+    b.iter(|| translate_sequence(&SEQ));
 }
 
 #[bench]
