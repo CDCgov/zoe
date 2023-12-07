@@ -85,15 +85,15 @@ pub(crate) const TO_DNA_UC: [u8; 256] = {
 
 macro_rules! fill_map {
     ($( $key: expr => $val: expr ),*) => {{
-        let mut map: HashMap<Vec<u8>, u8, ahash::RandomState> = HashMap::default();
-        $( map.insert($key.to_vec(), $val); )*
+        let mut map: HashMap<[u8; 3], u8, ahash::RandomState> = HashMap::default();
+        $( map.insert( (*$key), $val); )*
         map
    }}
 }
 
 // Assumes the library will uppercase input before hashing.
 lazy_static! {
-    pub(crate) static ref GENETIC_CODE: HashMap<Vec<u8>, u8, ahash::RandomState> = fill_map!(
+    pub(crate) static ref GENETIC_CODE: HashMap<[u8; 3], u8, ahash::RandomState> = fill_map!(
         b"TAA"=>b'*', b"TAG"=>b'*', b"TAR"=>b'*', b"TGA"=>b'*', b"TRA"=>b'*', b"GCA"=>b'A', b"GCB"=>b'A', b"GCC"=>b'A', b"GCD"=>b'A', b"GCG"=>b'A', b"GCH"=>b'A',
         b"GCK"=>b'A', b"GCM"=>b'A', b"GCN"=>b'A', b"GCR"=>b'A', b"GCS"=>b'A', b"GCT"=>b'A', b"GCV"=>b'A', b"GCW"=>b'A', b"GCY"=>b'A', b"TGC"=>b'C', b"TGT"=>b'C',
         b"TGY"=>b'C', b"GAC"=>b'D', b"GAT"=>b'D', b"GAY"=>b'D', b"GAA"=>b'E', b"GAG"=>b'E', b"GAR"=>b'E', b"TTC"=>b'F', b"TTT"=>b'F', b"TTY"=>b'F', b"GGA"=>b'G',
