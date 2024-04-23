@@ -1,7 +1,7 @@
 use atoi::FromRadix10Checked;
 
 #[derive(Clone, PartialEq)]
-pub struct Cigar(Vec<u8>);
+pub struct Cigar(pub(crate) Vec<u8>);
 
 impl Cigar {
     #[must_use]
@@ -114,40 +114,6 @@ impl fmt::Debug for Ciglet {
     }
 }
 
-#[derive(Clone, Debug)]
-pub(crate) struct AlignmentStates(Vec<Ciglet>);
-
-#[allow(dead_code)]
-impl AlignmentStates {
-    #[must_use]
-    #[inline]
-    pub(crate) fn new() -> Self {
-        AlignmentStates(Vec::new())
-    }
-
-    pub(crate) fn add_state(&mut self, op: u8) {
-        if let Some(c) = self.0.last_mut()
-            && c.op == op
-        {
-            c.inc += 1;
-        } else {
-            self.0.push(Ciglet { inc: 1, op });
-        }
-    }
-
-    pub(crate) fn to_cigar(&self) -> Cigar {
-        let mut condensed = Vec::new();
-        let mut format_buffer = itoa::Buffer::new();
-
-        for Ciglet { inc, op } in self.0.iter().copied() {
-            condensed.extend_from_slice(format_buffer.format(inc).as_bytes());
-            condensed.push(op);
-        }
-
-        Cigar(condensed)
-    }
-}
-
 #[derive(PartialEq, Clone)]
 pub(crate) struct ExpandedCigar(Vec<u8>);
 
@@ -229,6 +195,7 @@ impl From<&[u8]> for ExpandedCigar {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::alignment::AlignmentStates;
 
     #[test]
     fn test_expand() {

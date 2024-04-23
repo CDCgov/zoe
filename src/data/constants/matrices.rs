@@ -82,3 +82,142 @@ pub(crate) static PHYSIOCHEMICAL_FACTORS: [[Option<f32>; 256]; 256] = {
 
     pcd
 };
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct BiasedWeightMatrix<const N: usize> {
+    pub(crate) mapping: [[u8; N]; N],
+    pub(crate) index:   &'static [u8; N],
+    pub(crate) bias:    u8,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct SymmetricWeightMatrix<const N: usize> {
+    pub(crate) mapping: [[i8; N]; N],
+    pub(crate) index:   &'static [u8; N],
+}
+
+impl<const N: usize> SymmetricWeightMatrix<N> {
+    /// Builds a simple Weight matrix for alignment. The `index` byte string
+    /// represents the states and must match the matrix dimension.
+    ///
+    /// ### Panics
+    /// Uppercase ASCII is expected for the `index` byte string.
+    #[must_use]
+    pub const fn new(index: &'static [u8; N], matching: i8, mismatch: i8, ignoring: Option<u8>) -> Self {
+        let mut mapping = [[0i8; N]; N];
+
+        let mut k = 0;
+        let mut skip_index = None;
+
+        if let Some(letter) = ignoring {
+            while k < index.len() {
+                if index[k] == letter {
+                    skip_index = Some(k);
+                }
+                k += 1;
+            }
+        }
+
+        let mut i = 0;
+        while i < N {
+            assert!(index[i].is_ascii_uppercase());
+            let mut j = 0;
+            while j < N {
+                if let Some(k) = skip_index
+                    && (k == i || k == j)
+                {
+                    j += 1;
+                    continue;
+                }
+
+                if i == j {
+                    mapping[i][j] = matching;
+                } else {
+                    mapping[i][j] = mismatch;
+                }
+
+                j += 1;
+            }
+            i += 1;
+        }
+
+        SymmetricWeightMatrix { mapping, index }
+    }
+
+    #[must_use]
+    // Gets the matrix bias, which should be lesser of 0 and the smallest non-positive number.
+    const fn get_bias(&self) -> i8 {
+        let mut min = 0;
+        let mut i = 0;
+        while i < N {
+            let mut j = i;
+            while j < N {
+                if self.mapping[i][j] < min {
+                    min = self.mapping[i][j];
+                }
+                j += 1;
+            }
+            i += 1;
+        }
+        min
+    }
+
+    #[allow(clippy::cast_sign_loss)]
+    #[must_use]
+    pub const fn into_biased_matrix(self) -> BiasedWeightMatrix<N> {
+        let bias = self.get_bias();
+        let mut mapping = [[0u8; N]; N];
+        let index = self.index;
+
+        let mut i = 0;
+        while i < N {
+            let mut j = 0;
+            while j < N {
+                // This quantity must be non-negative.
+                mapping[i][j] = (self.mapping[i][j] - bias) as u8;
+                j += 1;
+            }
+            i += 1;
+        }
+
+        // We can provide the bias as the unsigned version.
+        let bias = bias.unsigned_abs();
+
+        BiasedWeightMatrix { mapping, index, bias }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn create_simple() {
+        let result1 = SymmetricWeightMatrix {
+            mapping: [[0, 1], [1, 0]],
+            index:   b"AB",
+        };
+
+        let result2 = SymmetricWeightMatrix::new(b"AB", 0, 1, None);
+        assert_eq!(result1, result2);
+    }
+
+    #[allow(non_snake_case)]
+    #[test]
+    fn create_IRMA_matrix() {
+        let result1 = SymmetricWeightMatrix {
+            mapping: [
+                [2, -5, -5, -5, 0],
+                [-5, 2, -5, -5, 0],
+                [-5, -5, 2, -5, 0],
+                [-5, -5, -5, 2, 0],
+                [0, 0, 0, 0, 0],
+            ],
+            index:   b"ACGTN",
+        };
+
+        let result2 = SymmetricWeightMatrix::new(b"ACGTN", 2, -5, Some(b'N'));
+
+        assert_eq!(result1, result2);
+    }
+}

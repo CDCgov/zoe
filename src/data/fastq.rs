@@ -1,8 +1,12 @@
 use super::types::{nucleotides::Nucleotides, phred::QualityScores};
-use std::fs::File;
-use std::io::BufRead;
-use std::io::{Error as IOError, ErrorKind};
+use std::{
+    fs::File,
+    io::{BufRead, Error as IOError, ErrorKind},
+    path::Path,
+};
 
+/// Holds data for a single [Read](https://en.wikipedia.org/wiki/Read_(biology))
+/// or [FASTQ](https://en.wikipedia.org/wiki/FASTQ_format) record.
 pub struct FastQ {
     pub header:   String,
     pub sequence: Nucleotides,
@@ -11,14 +15,39 @@ pub struct FastQ {
 
 impl std::fmt::Display for FastQ {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}\n{}\n+{}\n", self.header, self.sequence, self.quality)
+        write!(f, "{}\n{}\n+\n{}\n", self.header, self.sequence, self.quality)
     }
 }
 
 impl FastQ {
+    /// Reverse complements the stored DNA sequence data.
+    #[inline]
     pub fn reverse_complement(&mut self) {
         self.sequence = self.sequence.reverse_complement();
         self.quality = self.quality.reverse();
+    }
+
+    /// Recodes the stored sequence to an uppercase canonical (ACTG + N) one.
+    /// Any non-canonical base becomes N.
+    #[inline]
+    pub fn recode_any_to_actgn_uc(&mut self) {
+        self.sequence.recode_any_to_actgn_uc();
+    }
+
+    /// Recodes the stored sequence of valid IUPAC codes to a canonical (ACTG + N)
+    /// sequence. Ambiguous bases become N while non-IUPAC bytes are left
+    /// unchanged.
+    #[inline]
+    pub fn recode_iupac_to_actgn(&mut self) {
+        self.sequence.recode_iupac_to_actgn();
+    }
+
+    /// Recodes the stored sequence of valid IUPAC codes to an uppercase
+    /// canonical (ACTG + N) sequence. Ambiguous bases become N while non-IUPAC
+    /// bytes are left unchanged.
+    #[inline]
+    pub fn recode_iupac_to_actg_uc(&mut self) {
+        self.sequence.recode_iupac_to_actgn_uc();
     }
 }
 
@@ -42,15 +71,16 @@ impl FastQReader<std::fs::File> {
     /// # Errors
     ///
     /// Will return `Err` if file or permissions do not exist.
-    pub fn from_filename<P>(filename: &str) -> Result<FastQReader<File>, std::io::Error>
+    pub fn from_filename<P>(filename: P) -> Result<FastQReader<File>, std::io::Error>
     where
-        P: AsRef<P>, {
+        P: AsRef<Path>, {
         let file = File::open(filename)?;
         Ok(FastQReader::new(file))
     }
 }
 
-// Consider making fallible
+/// An iterator for buffered reading of a
+/// [FASTQ](https://en.wikipedia.org/wiki/FASTQ_format) file.
 impl<R: std::io::Read> Iterator for FastQReader<R> {
     type Item = std::io::Result<FastQ>;
 
@@ -62,6 +92,14 @@ impl<R: std::io::Read> Iterator for FastQReader<R> {
             Ok(0) => return None,
             Ok(_) => {}
             Err(e) => return Some(Err(e)),
+        }
+
+        // Optimize flow
+        if !self.fastq_buffer.starts_with(b"@") {
+            return Some(Err(IOError::new(
+                ErrorKind::InvalidData,
+                "Missing '@' symbol at header line beginning.",
+            )));
         }
 
         let header = if self.fastq_buffer.len() > 1 {
@@ -90,7 +128,7 @@ impl<R: std::io::Read> Iterator for FastQReader<R> {
                 self.fastq_buffer.pop();
             }
 
-            Nucleotides(self.fastq_buffer.iter().copied().map(|c| c.to_ascii_uppercase()).collect())
+            Nucleotides(self.fastq_buffer.clone())
         } else {
             Nucleotides::new()
         };
@@ -117,7 +155,13 @@ impl<R: std::io::Read> Iterator for FastQReader<R> {
                 self.fastq_buffer.pop();
             }
 
-            QualityScores(self.fastq_buffer.iter().copied().map(|c| c.to_ascii_uppercase()).collect())
+            if self.fastq_buffer.len() != sequence.len() {
+                return Some(Err(IOError::new(
+                    ErrorKind::InvalidData,
+                    "Sequence and quality score length mismatch!",
+                )));
+            }
+            QualityScores(self.fastq_buffer.clone())
         } else {
             QualityScores::new()
         };

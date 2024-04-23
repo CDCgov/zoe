@@ -1,46 +1,60 @@
-use super::{
-    convert::ToDNA,
-    mappings::TO_UNALIGNED_DNA_UC,
-    types::{
-        amino_acids::AminoAcids,
-        nucleotides::{reverse_complement, Nucleotides},
+use crate::{
+    data::{
+        convert::ToDNA,
+        id_types::FastaIDs,
+        mappings::TO_UNALIGNED_DNA_UC,
+        types::{
+            amino_acids::AminoAcids,
+            nucleotides::{reverse_complement, Nucleotides},
+        },
+        vec_types::ValidateSequence,
     },
-    vec_types::ValidateSequence,
+    search::ByteSplitIter,
 };
-use std::io::{BufRead, Error as IOError, ErrorKind};
-use std::{fs::File, path::Path};
+use std::{
+    fs::File,
+    io::{BufRead, Error as IOError, ErrorKind},
+    path::Path,
+};
 
+/// Provides a container struct for data from a generic
+/// [FASTA](https://en.wikipedia.org/wiki/FASTA_format) file.
 #[derive(Debug)]
 pub struct FastaSeq {
-    pub name:     Vec<u8>,
+    pub name:     String,
     pub sequence: Vec<u8>,
 }
 
+/// Similar to [`FastaSeq`] but assumes that the `sequence` contains valid [Nucleotides].
 pub struct FastaNT {
     pub name:     String,
     pub sequence: Nucleotides,
 }
 
+/// Similar to [`FastaSeq`] but assumes that the `sequence` contains valid [`AminoAcids`].
 pub struct FastaAA {
     pub name:     String,
     pub sequence: AminoAcids,
 }
 
+/// Structure for buffered reading of `FASTA` files.
 pub struct FastaReader<R: std::io::Read> {
     fasta_reader: std::io::BufReader<R>,
     fasta_buffer: Vec<u8>,
 }
 
 impl FastaSeq {
+    /// Reverse complements the sequence stored in the struct using a new buffer.
     pub fn reverse_complement(&mut self) {
         self.sequence = reverse_complement(&self.sequence);
     }
 
+    /// Retains only valid DNA characters, removing alignment characters as well.
     #[must_use]
     pub fn to_dna_unaligned(mut self) -> FastaNT {
         self.sequence.retain_by_recoding(TO_UNALIGNED_DNA_UC);
         FastaNT {
-            name:     String::from_utf8_lossy(&self.name).to_string(),
+            name:     self.name,
             sequence: Nucleotides(self.sequence),
         }
     }
@@ -49,27 +63,39 @@ impl FastaSeq {
     /// Returns `FastaNT`.
     #[inline]
     #[must_use]
-    pub fn filter_to_dna(&self) -> FastaNT {
+    pub fn filter_to_dna(self) -> FastaNT {
         FastaNT {
-            name:     String::from_utf8_lossy(&self.name).to_string(),
+            name:     self.name,
             sequence: self.sequence.filter_to_dna(),
         }
     }
 
+    /// For an annotated `FASTA` with format `id{annotation}` returns a tuple
+    /// of the id and annotated taxon.
+    #[inline]
+    #[must_use]
+    pub fn get_id_taxon(&self) -> Option<(&str, &str)> {
+        self.name.get_id_taxon()
+    }
+
+    /// Translates the stored [`Vec<u8>`] to [`AminoAcids`] using a new buffer.
     #[must_use]
     pub fn translate(self) -> FastaAA {
         FastaAA {
-            name:     String::from_utf8_lossy(&self.name).to_string(),
+            name:     self.name,
             sequence: AminoAcids(super::types::nucleotides::translate_sequence(&self.sequence)),
         }
     }
 }
 
 impl FastaNT {
+    /// Reverse complements the sequence stored in the struct using a new buffer.
+    #[inline]
     pub fn reverse_complement(&mut self) {
         self.sequence = self.sequence.reverse_complement();
     }
 
+    /// Translates the stored [Nucleotides] to [`AminoAcids`] using a new buffer.
     #[must_use]
     pub fn translate(self) -> FastaAA {
         FastaAA {
@@ -77,14 +103,61 @@ impl FastaNT {
             sequence: self.sequence.translate(),
         }
     }
+
+    /// For an annotated `FASTA` with format `id{annotation}` returns a tuple
+    /// of the id and annotated taxon.
+    #[inline]
+    #[must_use]
+    pub fn get_id_taxon(&self) -> Option<(&str, &str)> {
+        self.name.get_id_taxon()
+    }
 }
 
+/// A struct for containing an [`FastaNT`] + owned `taxon` [String].
+pub struct FastaNTAnnot {
+    pub name:     String,
+    pub sequence: Nucleotides,
+    pub taxon:    String,
+}
+
+/// Fallibly converts from a generic [`FastaSeq`] to a [`FastaNTAnnot`], failing
+/// if no annotation is found. DNA is filtered in the process.
+impl TryFrom<FastaSeq> for FastaNTAnnot {
+    type Error = std::io::Error;
+    fn try_from(fa: FastaSeq) -> Result<Self, Self::Error> {
+        if let Some((id, taxon)) = fa.name.get_id_taxon() {
+            Ok(FastaNTAnnot {
+                name:     id.to_string(),
+                sequence: fa.sequence.filter_to_dna(),
+                taxon:    taxon.to_string(),
+            })
+        } else {
+            Err(std::io::Error::new(
+                ErrorKind::InvalidData,
+                format!("No taxon for: {id}", id = fa.name),
+            ))
+        }
+    }
+}
+
+/// Allows converting from [`FastaSeq`] to [`FastaNT`] without checks or
+/// filtering.
 impl From<FastaSeq> for FastaNT {
     fn from(record: FastaSeq) -> Self {
         FastaNT {
-            name:     String::from_utf8_lossy(&record.name).to_string(),
+            name:     record.name,
             sequence: record.sequence.into(),
         }
+    }
+}
+
+impl FastaAA {
+    /// For an annotated `FASTA` with format `id{annotation}` returns a tuple
+    /// of the id and annotated taxon.
+    #[inline]
+    #[must_use]
+    pub fn get_id_taxon(&self) -> Option<(&str, &str)> {
+        self.name.get_id_taxon()
     }
 }
 
@@ -132,6 +205,8 @@ impl FastaReader<std::fs::File> {
     }
 }
 
+/// An iterator for buffered reading of
+/// [FASTA](https://en.wikipedia.org/wiki/FASTA_format) files.
 impl<R: std::io::Read> Iterator for FastaReader<R> {
     type Item = std::io::Result<FastaSeq>;
 
@@ -152,13 +227,20 @@ impl<R: std::io::Read> Iterator for FastaReader<R> {
                 )));
             }
 
-            let mut lines = self.fasta_buffer.split(|x| *x == b'\n' || *x == b'\r');
-            let name = match lines.next() {
-                Some(h) if !h.is_empty() => h.to_vec(),
-                _ => return Some(Err(IOError::new(ErrorKind::InvalidData, "Missing FASTA header!"))),
+            let mut split = self.fasta_buffer.lines_ascii::<32>();
+            let name = if let Some(h) = split.next()
+                && !h.is_empty()
+            {
+                String::from_utf8_lossy(h).into_owned()
+            } else {
+                return Some(Err(IOError::new(ErrorKind::InvalidData, "Missing FASTA header!")));
             };
 
-            let mut sequence: Vec<u8> = lines.flatten().copied().collect();
+            let mut sequence = Vec::with_capacity(split.remaining_len());
+            for s in split {
+                sequence.extend_from_slice(s);
+            }
+
             if sequence.ends_with(b">") {
                 sequence.pop();
             }
@@ -176,12 +258,7 @@ impl<R: std::io::Read> Iterator for FastaReader<R> {
 
 impl std::fmt::Display for FastaSeq {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            ">{}\n{}\n",
-            String::from_utf8_lossy(&self.name),
-            String::from_utf8_lossy(&self.sequence)
-        )
+        write!(f, ">{}\n{}\n", self.name, String::from_utf8_lossy(&self.sequence))
     }
 }
 

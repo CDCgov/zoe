@@ -12,7 +12,7 @@ fn main() {
 
     FastaReader::from_filename(filename)
         .unwrap_or_die("Translate file error!")
-        .filter_map(|f| f.ok())
+        .flatten()
         .map(|r| r.translate())
         .for_each(|fasta_record| print!("{fasta_record}"));
 }

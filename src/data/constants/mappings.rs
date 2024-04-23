@@ -1,9 +1,7 @@
-#![allow(dead_code)]
 use super::alphas::{NUCLEIC_IUPAC, NUCLEIC_IUPAC_UNALIGNED};
-use lazy_static::lazy_static;
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::LazyLock};
 
-// Nucleotide reverse complement
+/// Maps bytes to themselves but valid IUPAC nucleotides to their reverse complement.
 #[allow(clippy::cast_possible_truncation)]
 pub(crate) const TO_REVERSE_COMPLEMENT: [u8; 256] = {
     let mut comp = [0u8; 256];
@@ -83,17 +81,122 @@ pub(crate) const TO_DNA_UC: [u8; 256] = {
     v
 };
 
+#[allow(clippy::cast_possible_truncation)]
+/// Used to convert any valid IUPAC DNA to uppercase ACGTN.
+pub(crate) const IUPAC_TO_DNA_CANONICAL_UPPER: [u8; 256] = {
+    const FROM_BYTE: &[u8; 32] = b"acgturyswkmbdhvnACGTURYSWKMBDHVN";
+    const DEST_BYTE: &[u8; 32] = b"ACGTTNNNNNNNNNNNACGTTNNNNNNNNNNN";
+
+    let mut v = [0u8; 256];
+    let mut i = 0;
+    while i < v.len() {
+        v[i] = i as u8;
+        i += 1;
+    }
+
+    while i < FROM_BYTE.len() {
+        // reserve 0 for invalid state
+        v[FROM_BYTE[i] as usize] = DEST_BYTE[i];
+        i += 1;
+    }
+    v
+};
+
+#[allow(clippy::cast_possible_truncation)]
+/// Used to convert any valid IUPAC DNA to ACGTN.
+pub(crate) const IUPAC_TO_DNA_CANONICAL: [u8; 256] = {
+    const FROM_BYTE: &[u8; 32] = b"acgturyswkmbdhvnACGTURYSWKMBDHVN";
+    const DEST_BYTE: &[u8; 32] = b"acgttnnnnnnnnnnnACGTTNNNNNNNNNNN";
+
+    let mut v = [0u8; 256];
+    let mut i = 0;
+    while i < v.len() {
+        v[i] = i as u8;
+        i += 1;
+    }
+
+    while i < FROM_BYTE.len() {
+        // reserve 0 for invalid state
+        v[FROM_BYTE[i] as usize] = DEST_BYTE[i];
+        i += 1;
+    }
+    v
+};
+
+/// Used to convert any byte to uppercase ACGTN. N is used as a catch-all.
+pub(crate) const ANY_TO_DNA_CANONICAL_UPPER: [u8; 256] = {
+    const FROM_BYTE: &[u8; 12] = b"acgtunACGTUN";
+    const DEST_BYTE: &[u8; 12] = b"ACGTTNACGTTN";
+
+    // Use N as the catch-all
+    let mut v = [b'N'; 256];
+    let mut i = 0;
+
+    while i < FROM_BYTE.len() {
+        // reserve 0 for invalid state
+        v[FROM_BYTE[i] as usize] = DEST_BYTE[i];
+        i += 1;
+    }
+    v
+};
+
+/// Used to convert any byte to `u8` indices where {0: A, 1: C, 2: G, 3: T, 4: N}.
+/// N is used as a catch-all.
+pub(crate) const TO_DNA_PROFILE_INDEX: [u8; 256] = {
+    const FROM_BYTE: &[u8; 12] = b"acgtunACGTUN";
+    const THE_INDEX: &[u8; 12] = b"012334012334"; //  b"123445123445";
+
+    let mut v = [4u8; 256]; // Use N as the catch-all for now
+    let mut i = 0;
+
+    while i < FROM_BYTE.len() {
+        // reserve 0 for invalid state
+        v[FROM_BYTE[i] as usize] = THE_INDEX[i] - b'0';
+        i += 1;
+    }
+    v
+};
+
+#[inline]
+/// Used to convert any byte to `usize` indices where {0: A, 1: C, 2: G, 3: T, 4: N}.
+/// N is used as a catch-all.
+pub const fn to_dna_profile_index(b: u8) -> usize {
+    TO_DNA_PROFILE_INDEX[b as usize] as usize
+}
+
+#[inline]
+/// Used to convert any byte to `u8` indices where {0: A, 1: C, 2: G, 3: T, 4: N}.
+/// N is used as a catch-all.
+pub const fn to_dna_index(b: u8) -> u8 {
+    TO_DNA_PROFILE_INDEX[b as usize]
+}
+
 macro_rules! fill_map {
     ($( $key: expr => $val: expr ),*) => {{
-        let mut map: HashMap<[u8; 3], u8, ahash::RandomState> = HashMap::default();
-        $( map.insert( (*$key), $val); )*
+        let rs = ahash::RandomState::with_seed(42);
+        let mut map: HashMap<u32, u8, ahash::RandomState> = ahash::HashMap::with_capacity_and_hasher(262, rs);
+        $( map.insert( ($key.to_upper_u32()), $val); )*
         map
    }}
 }
 
-// Assumes the library will uppercase input before hashing.
-lazy_static! {
-    pub(crate) static ref GENETIC_CODE: HashMap<[u8; 3], u8, ahash::RandomState> = fill_map!(
+/// A trait to convert codon to `u32` for faster hashing.
+pub(crate) trait CodonConvert {
+    fn to_upper_u32(&self) -> u32;
+}
+
+impl CodonConvert for [u8] {
+    /// Converts a codon represented by [u8; 3] to `u32` for faster hashing.
+    fn to_upper_u32(&self) -> u32 {
+        u32::from(self[2].to_ascii_uppercase())
+            | u32::from(self[1].to_ascii_uppercase()) << 8
+            | u32::from(self[0].to_ascii_uppercase()) << 16
+    }
+}
+
+/// Hash for the Genetic Code where ambiguous codons can be unambiguously translated.
+pub(crate) static GENETIC_CODE: LazyLock<HashMap<u32, u8, ahash::RandomState>> = LazyLock::new(|| {
+    fill_map!(
         b"TAA"=>b'*', b"TAG"=>b'*', b"TAR"=>b'*', b"TGA"=>b'*', b"TRA"=>b'*', b"GCA"=>b'A', b"GCB"=>b'A', b"GCC"=>b'A', b"GCD"=>b'A', b"GCG"=>b'A', b"GCH"=>b'A',
         b"GCK"=>b'A', b"GCM"=>b'A', b"GCN"=>b'A', b"GCR"=>b'A', b"GCS"=>b'A', b"GCT"=>b'A', b"GCV"=>b'A', b"GCW"=>b'A', b"GCY"=>b'A', b"TGC"=>b'C', b"TGT"=>b'C',
         b"TGY"=>b'C', b"GAC"=>b'D', b"GAT"=>b'D', b"GAY"=>b'D', b"GAA"=>b'E', b"GAG"=>b'E', b"GAR"=>b'E', b"TTC"=>b'F', b"TTT"=>b'F', b"TTY"=>b'F', b"GGA"=>b'G',
@@ -120,5 +223,5 @@ lazy_static! {
         b"UCM"=>b'S', b"UCN"=>b'S', b"UCR"=>b'S', b"UCS"=>b'S', b"UCU"=>b'S', b"UCV"=>b'S', b"UCW"=>b'S', b"UCY"=>b'S', b"ACU"=>b'T', b"GUA"=>b'V', b"GUB"=>b'V',
         b"GUC"=>b'V', b"GUD"=>b'V', b"GUG"=>b'V', b"GUH"=>b'V', b"GUK"=>b'V', b"GUM"=>b'V', b"GUN"=>b'V', b"GUR"=>b'V', b"GUS"=>b'V', b"GUU"=>b'V', b"GUV"=>b'V',
         b"GUW"=>b'V', b"GUY"=>b'V', b"UGG"=>b'W', b"UAC"=>b'Y', b"UAU"=>b'Y', b"UAY"=>b'Y'
-    );
-}
+    )
+});

@@ -1,10 +1,15 @@
 stages:
   - build
   - test
+  - deploy
+
+cache:
+  paths:
+    - target
 
 zoe-build:
   stage: build
-  tags: 
+  tags:
     - docker
     - scicomp
   image: rustlang/rust:nightly
@@ -13,10 +18,22 @@ zoe-build:
 
 zoe-test:
   stage: test
-  tags: 
+  tags:
     - docker
     - scicomp
   image: rustlang/rust:nightly
   script:
     - cargo test --verbose
-    
+
+pages:
+  stage: deploy
+  image: rustlang/rust:nightly
+  tags:
+    - pages
+  script:
+    - cargo doc --no-deps --document-private-items
+    - mv target/doc public/
+    - echo "<meta http-equiv=\"refresh\" content=\"0; url=${CI_PROJECT_TITLE}\">" > public/index.html
+  artifacts:
+    paths:
+      - public

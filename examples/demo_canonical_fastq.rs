@@ -7,15 +7,15 @@ fn main() {
     let filename = if args.len() == 2 {
         args[1].clone()
     } else {
-        "examples/example.fasta".to_owned()
+        "examples/example.fastq".to_owned()
     };
 
-    let fasta_reader = FastaReader::from_filename(filename)
-        .unwrap_or_die("RevComp file error!")
+    let fastq_reader = FastQReader::from_filename(filename)
+        .unwrap_or_die("FastQ file error!")
         .flatten();
 
-    for mut record in fasta_reader {
-        record.reverse_complement();
+    for mut record in fastq_reader {
+        record.recode_iupac_to_actgn();
         print!("{record}");
     }
 }

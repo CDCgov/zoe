@@ -12,7 +12,9 @@ macro_rules! impl_int {
         impl $ident for $ty {
             fn one() -> Self { 1 }
             fn zero() -> Self { 0 }
-        } )* }
+        } )*
+
+     }
 }
 
 impl_int!(Uint; u8, u16, u32, u64, usize);

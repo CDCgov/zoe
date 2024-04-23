@@ -1,13 +1,12 @@
 [package]
 edition = "2021"
 name = "zoe"
-version = "0.0.1"
+version = "0.0.2"
 
 [dependencies]
-ahash = "*"
+ahash = { version = "*", default-features = false, features = ["std"] }
 atoi = "*"
 itoa = "*"
-lazy_static = "*"
 rand_xoshiro = "*"
 
 [profile.release]

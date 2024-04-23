@@ -1,6 +1,5 @@
 use super::*;
 
-// Conversion
 impl AsRef<[u8]> for Nucleotides {
     #[inline]
     fn as_ref(&self) -> &[u8] {
@@ -84,7 +83,6 @@ impl FromIterator<u8> for Nucleotides {
     }
 }
 
-// Indexing
 impl std::ops::Index<usize> for Nucleotides {
     type Output = u8;
 
@@ -108,7 +106,6 @@ impl std::ops::Index<std::ops::Range<usize>> for Nucleotides {
     }
 }
 
-// Display
 impl std::fmt::Display for Nucleotides {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", String::from_utf8_lossy(&self.0))

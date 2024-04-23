@@ -97,8 +97,9 @@ impl SamData {
                 }
                 b'D' => {
                     for _ in 0..inc {
-                        // TO-DO: consider what is correct for q_aln deletion states
-                        q_aln.push(b' ');
+                        // We use the minimum value for deletions so that it can
+                        // still be parsed by other programs.
+                        q_aln.push(b'!');
                         aln.push(b'-');
                     }
                     ref_index += inc;
@@ -117,7 +118,7 @@ impl SamData {
                 b'S' => query_index += inc,
                 b'N' => {
                     for _ in 0..inc {
-                        q_aln.push(b' ');
+                        q_aln.push(b'!');
                         aln.push(b'N');
                     }
                     ref_index += inc;
@@ -190,6 +191,7 @@ impl SamData {
                             merged_quals.push(max(qx, qy));
                         }
                     } else {
+                        // x ≠ y
                         stats.variant_errors += 1;
                         merged_cigars.push(b'M');
 
@@ -207,36 +209,34 @@ impl SamData {
 
                             merged_seq.push(y);
                             merged_quals.push(qy);
-                        } else if x.is_base() && y.is_not_base() {
-                            if y == b'-' {
-                                stats.deletion_errors += 1;
-                            }
+                        // x ≠ y
+                        } else if y == b'-' {
+                            stats.deletion_errors += 1;
 
                             merged_seq.push(x);
                             merged_quals.push(qx);
-                        } else if y.is_base() && x.is_not_base() {
-                            if x == b'-' {
-                                stats.deletion_errors += 1;
-                            }
+                        } else if x == b'-' {
+                            stats.deletion_errors += 1;
 
+                            merged_seq.push(y);
+                            merged_quals.push(qy);
+
+                        // x, y ≠ r, x ≠ y
+                        } else if x.is_base_acgt() && y.is_not_base_acgt() {
+                            merged_seq.push(x);
+                            merged_quals.push(qx);
+                        } else if y.is_base_acgt() && x.is_not_base_acgt() {
                             merged_seq.push(y);
                             merged_quals.push(qy);
 
                         // Saturating isn't strictly necessary since the
                         // upper range would be 252 = (93 + 33) * 2
+                        //
+                        // NB: x, y must be bases
                         } else if qx > qy.saturating_add(4) {
-                            // Only if "N" vs. "-"
-                            if y == b'-' {
-                                stats.deletion_errors += 1;
-                            }
-
                             merged_seq.push(x);
                             merged_quals.push(qx);
                         } else if qy > qx.saturating_add(4) {
-                            if x == b'-' {
-                                stats.deletion_errors += 1;
-                            }
-
                             merged_seq.push(y);
                             merged_quals.push(qy);
                         } else {
@@ -592,9 +592,7 @@ impl<R: std::io::Read> Iterator for SAMReader<R> {
     type Item = std::io::Result<SamRow>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let Some(line) = self.sam_reader.next() else {
-            return None;
-        };
+        let line = self.sam_reader.next()?;
 
         match line {
             Ok(s) if s.starts_with('@') => Some(Ok(SamRow::Header(s))),

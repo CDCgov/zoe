@@ -1,13 +1,11 @@
 use super::*;
 use crate::data::alphas::NUCLEIC_IUPAC_UNALIGNED;
-use lazy_static::lazy_static;
+use std::sync::LazyLock;
 
 const N: usize = 1200;
 const SEED: u64 = 42;
 
-lazy_static! {
-    static ref SEQ: Vec<u8> = crate::generate::rand_sequence(NUCLEIC_IUPAC_UNALIGNED, N, SEED);
-}
+static SEQ: LazyLock<Vec<u8>> = LazyLock::new(|| crate::generate::rand_sequence(NUCLEIC_IUPAC_UNALIGNED, N, SEED));
 
 #[test]
 fn test_translate() {
