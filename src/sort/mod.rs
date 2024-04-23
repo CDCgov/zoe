@@ -79,7 +79,7 @@ mod test {
             s1.sort_unstable();
             assert_eq!(s1, s2);
 
-            s2 = og.clone();
+            s2 = og;
             count_sort_ascii_print(&mut s2);
             assert_eq!(s1, s2);
         }

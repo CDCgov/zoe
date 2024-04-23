@@ -5,4 +5,7 @@ examples/test*.rs
 *.fas
 *.fa
 examples/rosalind
-prototyping/
+/prototyping
+/comparison
+/asm
+/debug

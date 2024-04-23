@@ -1,7 +1,7 @@
 use crate::data::err::DistanceError;
 
 /// Amino Acid new type to help encourage type safety.
-#[derive(Debug, Clone, Default)]
+#[derive(Clone, Default, PartialEq)]
 #[repr(transparent)]
 pub struct AminoAcids(pub(crate) Vec<u8>);
 
@@ -184,6 +184,12 @@ impl FromIterator<u8> for AminoAcids {
 }
 
 impl std::fmt::Display for AminoAcids {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", String::from_utf8_lossy(&self.0))
+    }
+}
+
+impl std::fmt::Debug for AminoAcids {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", String::from_utf8_lossy(&self.0))
     }

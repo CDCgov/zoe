@@ -1,15 +1,13 @@
 use test::Bencher;
 extern crate test;
 use super::*;
-use crate::data::{alphas::ENGLISH, mappings::TO_UNALIGNED_DNA_UC};
-use lazy_static::lazy_static;
+use crate::data::alphas::ENGLISH;
+use std::sync::LazyLock;
 
 const N: usize = 1200;
 const SEED: u64 = 42;
 
-lazy_static! {
-    static ref SEQ: Vec<u8> = crate::generate::rand_sequence(ENGLISH, N, SEED);
-}
+static SEQ: LazyLock<Vec<u8>> = LazyLock::new(|| crate::generate::rand_sequence(ENGLISH, N, SEED));
 
 #[bench]
 fn translate_sequence_long(b: &mut Bencher) {
@@ -45,11 +43,11 @@ fn validate_filtermap_unaligned_base_uc(b: &mut Bencher) {
 }
 
 #[bench]
-fn scalar_revcomp(b: &mut Bencher) {
+fn revcomp_scalar(b: &mut Bencher) {
     b.iter(|| reverse_complement(&SEQ));
 }
 
 #[bench]
-fn simd_revcomp(b: &mut Bencher) {
+fn revcomp_simd32(b: &mut Bencher) {
     b.iter(|| reverse_complement_simd::<32>(&SEQ));
 }

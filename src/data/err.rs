@@ -1,5 +1,6 @@
 use std::fmt::Display;
 
+/// Trait for specifying getting exit codes from errors.
 pub trait GetCode {
     fn get_code(&self) -> i32 {
         1
@@ -14,6 +15,8 @@ impl GetCode for std::io::Error {
     }
 }
 
+/// Trait for providing more graceful [`expect()`](std::result::Result::expect)
+/// behavior but with a status code provided by [`GetCode`].
 pub trait OrFail<T> {
     fn unwrap_or_fail(self) -> T;
     fn unwrap_or_die(self, msg: &str) -> T;

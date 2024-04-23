@@ -1,6 +1,7 @@
 use std::simd::{prelude::*, LaneCount, SupportedLaneCount};
 
-pub(crate) trait SimdByteFunctions<const N: usize>
+#[allow(dead_code)]
+pub trait SimdByteFunctions<const N: usize>
 where
     LaneCount<N>: SupportedLaneCount, {
     fn is_ascii_uppercase(&self) -> Mask<i8, N>;

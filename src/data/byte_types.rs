@@ -1,3 +1,18 @@
+#![allow(dead_code)]
+
+use super::mappings::TO_DNA_PROFILE_INDEX;
+
+pub(crate) trait ByteMappings {
+    fn to_dna_index(self) -> usize;
+}
+
+impl ByteMappings for u8 {
+    #[inline]
+    fn to_dna_index(self) -> usize {
+        TO_DNA_PROFILE_INDEX[self as usize] as usize
+    }
+}
+
 pub(crate) trait ByteAvg {
     fn avg(self, other: u8) -> u8;
 }
@@ -11,18 +26,18 @@ impl ByteAvg for u8 {
 
 #[allow(clippy::wrong_self_convention)]
 pub(crate) trait IsBase {
-    fn is_base(self) -> bool;
-    fn is_not_base(self) -> bool;
+    fn is_base_acgt(self) -> bool;
+    fn is_not_base_acgt(self) -> bool;
 }
 
 impl IsBase for u8 {
     #[inline]
-    fn is_base(self) -> bool {
+    fn is_base_acgt(self) -> bool {
         self == b'A' || self == b'G' || self == b'T' || self == b'C'
     }
 
     #[inline]
-    fn is_not_base(self) -> bool {
-        !self.is_base()
+    fn is_not_base_acgt(self) -> bool {
+        !self.is_base_acgt()
     }
 }
