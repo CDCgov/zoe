@@ -7,7 +7,7 @@ use crate::{
             amino_acids::AminoAcids,
             nucleotides::{reverse_complement, Nucleotides},
         },
-        vec_types::ValidateSequence,
+        vec_types::{CheckSequence, ValidateSequence},
     },
     search::ByteSplitIter,
 };
@@ -258,18 +258,42 @@ impl<R: std::io::Read> Iterator for FastaReader<R> {
 
 impl std::fmt::Display for FastaSeq {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, ">{}\n{}\n", self.name, String::from_utf8_lossy(&self.sequence))
+        if self.sequence.is_ascii_simd::<16>() {
+            // SAFETY: we just checked it is ASCII using our fast SIMD function.
+            // ASCII is valid UTF8.
+            write!(f, ">{}\n{}\n", self.name, unsafe {
+                std::str::from_utf8_unchecked(&self.sequence)
+            })
+        } else {
+            write!(f, ">{}\n{}\n", self.name, String::from_utf8_lossy(&self.sequence))
+        }
     }
 }
 
 impl std::fmt::Display for FastaNT {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, ">{}\n{}\n", &self.name, String::from_utf8_lossy(&self.sequence.0))
+        if self.sequence.is_ascii_simd::<16>() {
+            // SAFETY: we just checked it is ASCII using our fast SIMD function.
+            // ASCII is valid UTF8.
+            write!(f, ">{}\n{}\n", self.name, unsafe {
+                std::str::from_utf8_unchecked(&self.sequence.0)
+            })
+        } else {
+            write!(f, ">{}\n{}\n", self.name, String::from_utf8_lossy(&self.sequence.0))
+        }
     }
 }
 
 impl std::fmt::Display for FastaAA {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, ">{}\n{}\n", self.name, String::from_utf8_lossy(&self.sequence.0))
+        if self.sequence.is_ascii_simd::<16>() {
+            // SAFETY: we just checked it is ASCII using our fast SIMD function.
+            // ASCII is valid UTF8.
+            write!(f, ">{}\n{}\n", self.name, unsafe {
+                std::str::from_utf8_unchecked(&self.sequence.0)
+            })
+        } else {
+            write!(f, ">{}\n{}\n", self.name, String::from_utf8_lossy(&self.sequence.0))
+        }
     }
 }

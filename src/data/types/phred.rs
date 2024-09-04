@@ -1,5 +1,8 @@
 #![allow(clippy::cast_precision_loss)]
 
+use crate::data::vec_types::CheckSequence;
+use std::io::{Error as IOError, ErrorKind};
+
 #[derive(Debug, Default, Clone)]
 pub struct QualityScores(pub(crate) Vec<EncodedQS>);
 
@@ -11,6 +14,30 @@ impl QualityScores {
     #[must_use]
     pub fn new() -> Self {
         QualityScores(Vec::new())
+    }
+
+    #[inline]
+    #[must_use]
+    /// Creates a `QualityScores` struct from a `Vec<u8>` without checking for
+    /// values being in the proper range (see `is_graphic_simd()`).
+    ///
+    /// # Safety
+    /// The `Vec<u8>` must be in range `!`..`~`.
+    pub unsafe fn from_vec_unchecked(v: Vec<EncodedQS>) -> Self {
+        QualityScores(v)
+    }
+
+    /// Truncates the length of the sequence to the specified `new_length`.
+    #[inline]
+    pub fn shorten_to(&mut self, new_length: usize) {
+        self.0.truncate(new_length);
+    }
+
+    /// Cuts the 5' end of the `QualityScores` just prior to the new starting
+    /// index (0-based). Be aware that this clones the internal buffer!
+    #[inline]
+    pub fn cut_to_start(&mut self, new_start: usize) {
+        *self = QualityScores(self.0.drain(new_start..).collect());
     }
 
     /// Reverse quality scores.
@@ -211,25 +238,33 @@ impl QualityScores {
 }
 
 impl std::fmt::Display for QualityScores {
+    // Safety: `QualityScores` is guaranteed to be utf8 because we checked that
+    // it is "graphic ascii", which will be valid utf8.
+    #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", String::from_utf8_lossy(&self.0))
+        write!(f, "{}", unsafe { std::str::from_utf8_unchecked(&self.0) })
     }
 }
 
-impl From<Vec<EncodedQS>> for QualityScores {
-    fn from(vec: Vec<EncodedQS>) -> Self {
-        QualityScores(vec)
-    }
-}
-impl From<&[EncodedQS]> for QualityScores {
-    fn from(bytes: &[EncodedQS]) -> Self {
-        QualityScores(bytes.to_vec())
+impl TryFrom<Vec<EncodedQS>> for QualityScores {
+    type Error = IOError;
+    fn try_from(encoded_scores: Vec<EncodedQS>) -> Result<Self, Self::Error> {
+        if encoded_scores.is_graphic_simd::<16>() {
+            Ok(QualityScores(encoded_scores))
+        } else {
+            Err(IOError::new(ErrorKind::InvalidData, "Quality scores contain invalid state!"))
+        }
     }
 }
 
-impl FromIterator<EncodedQS> for QualityScores {
-    fn from_iter<T: IntoIterator<Item = u8>>(iterable: T) -> Self {
-        QualityScores(iterable.into_iter().collect())
+impl TryFrom<&[EncodedQS]> for QualityScores {
+    type Error = IOError;
+    fn try_from(encoded_scores: &[EncodedQS]) -> Result<Self, Self::Error> {
+        if encoded_scores.is_graphic_simd::<16>() {
+            Ok(QualityScores(encoded_scores.to_vec()))
+        } else {
+            Err(IOError::new(ErrorKind::InvalidData, "Quality scores contain invalid state!"))
+        }
     }
 }
 

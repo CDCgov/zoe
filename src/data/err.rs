@@ -1,5 +1,15 @@
 use std::fmt::Display;
 
+#[macro_export]
+macro_rules! unwrap_or_return_some_err {
+    ($expression:expr) => {
+        match $expression {
+            Ok(v) => v,
+            Err(e) => return Some(Err(e)),
+        }
+    };
+}
+
 /// Trait for specifying getting exit codes from errors.
 pub trait GetCode {
     fn get_code(&self) -> i32 {

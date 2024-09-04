@@ -1,8 +1,10 @@
+/// Search and/or replace bytes.
 mod bytes;
-mod replace;
-mod subsequence;
+/// Search for fuzzy substrings
+mod inexact;
+/// Search byte substrings
+mod substring;
 
-pub use subsequence::*;
-
-pub(crate) use bytes::*;
-pub(crate) use replace::*;
+pub use bytes::*;
+pub use inexact::*;
+pub use substring::*;

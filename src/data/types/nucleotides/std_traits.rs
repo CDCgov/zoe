@@ -70,13 +70,6 @@ impl<'a> IntoIterator for &'a Nucleotides {
     }
 }
 
-#[allow(dead_code)]
-impl Nucleotides {
-    fn iter(&self) -> std::slice::Iter<'_, u8> {
-        <&Self as IntoIterator>::into_iter(self)
-    }
-}
-
 impl FromIterator<u8> for Nucleotides {
     fn from_iter<T: IntoIterator<Item = u8>>(iterable: T) -> Self {
         Nucleotides(iterable.into_iter().collect())

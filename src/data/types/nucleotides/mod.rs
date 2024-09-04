@@ -12,6 +12,7 @@ use crate::{
     simd::{SimdByteFunctions, SimdMaskFunctions},
 };
 use std::{
+    ops::Range,
     simd::{LaneCount, SupportedLaneCount},
     slice::ChunksExact,
 };
@@ -49,6 +50,7 @@ impl Nucleotides {
         self.0.is_empty()
     }
 
+    /// Obtains the bytes as a slice.
     #[inline]
     #[must_use]
     pub fn as_bytes(&self) -> &[u8] {
@@ -73,6 +75,12 @@ impl Nucleotides {
         &mut self.0
     }
 
+    #[inline]
+    /// Create an iterator over the nucleotides as `u8`.
+    pub fn iter(&self) -> std::slice::Iter<'_, u8> {
+        self.0.iter()
+    }
+
     /// Gets the base at the zero-based index, returning an `Option`.
     #[inline]
     pub fn get<I>(&self, index: I) -> Option<&I::Output>
@@ -90,17 +98,29 @@ impl Nucleotides {
         DNAProfileIndices(self.0)
     }
 
-    /// Replace a single byte of the stored sequence. Please the
-    /// *retain* and *recode* functions for a more wholistic approach.
+    /// Replaces the provided [`Range`] with the specified byte. If the range
+    /// does not exist, the function does nothing.
     #[inline]
-    pub fn replace_byte(&mut self, needle: u8, replacement: u8) {
-        crate::search::find_and_replace(&mut self.0, needle, replacement);
+    pub fn mask_if_exists(&mut self, range: Range<usize>, replacement: u8) {
+        if let Some(slice) = self.0.get_mut(range) {
+            for b in slice {
+                *b = replacement;
+            }
+        }
     }
 
-    /// Truncates the length of the sequence to the specified `new_length`.
+    /// Truncates the length of the sequence to the specified `new_length`. This
+    /// is equivalent to 3' trimming up to and including the index.
     #[inline]
     pub fn shorten_to(&mut self, new_length: usize) {
         self.0.truncate(new_length);
+    }
+
+    /// Cuts the 5' end of the [`Nucleotides`] just prior to the new starting
+    /// index (0-based). Be aware that this clones the internal buffer!
+    #[inline]
+    pub fn cut_to_start(&mut self, new_start: usize) {
+        *self = Nucleotides(self.0.drain(new_start..).collect());
     }
 
     /// Provides the count of G and C bases.
@@ -329,12 +349,12 @@ where
                 let lowercase = rev.is_ascii_lowercase();
                 rev = lowercase.make_selected_ascii_uppercase(&rev);
 
-                rev.swap_byte_pairs(b'T', b'A');
-                rev.swap_byte_pairs(b'G', b'C');
-                rev.swap_byte_pairs(b'R', b'Y');
-                rev.swap_byte_pairs(b'K', b'M');
-                rev.swap_byte_pairs(b'B', b'V');
-                rev.swap_byte_pairs(b'H', b'D');
+                rev.exchange_byte_pairs(b'T', b'A');
+                rev.exchange_byte_pairs(b'G', b'C');
+                rev.exchange_byte_pairs(b'R', b'Y');
+                rev.exchange_byte_pairs(b'K', b'M');
+                rev.exchange_byte_pairs(b'B', b'V');
+                rev.exchange_byte_pairs(b'H', b'D');
                 rev.if_value_then_replace(b'U', b'A');
 
                 rev = lowercase.make_selected_ascii_lowercase(&rev);

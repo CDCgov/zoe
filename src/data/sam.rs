@@ -1,10 +1,15 @@
-use crate::data::byte_types::{ByteAvg, IsBase};
-use crate::data::types::{
-    cigar::{Cigar, Ciglet, ExpandedCigar},
-    nucleotides::Nucleotides,
-    phred::QualityScores,
+use crate::data::ByteSubstring;
+use crate::{
+    data::{
+        byte_types::{ByteAvg, IsBase},
+        types::{
+            cigar::{Cigar, Ciglet, ExpandedCigar},
+            nucleotides::Nucleotides,
+            phred::QualityScores,
+        },
+    },
+    unwrap_or_return_some_err,
 };
-use crate::data::Subsequence;
 use std::cmp::{max, min};
 use std::io::{BufRead, Error as IOError, ErrorKind};
 use std::iter::repeat;
@@ -273,13 +278,13 @@ impl SamData {
                         merged_seq.extend_from_slice(insert1.to_ascii_lowercase().as_slice());
                         merged_quals.extend(quals1.iter().zip(quals2).map(|(q1, q2)| max(*q1, *q2)));
                         merged_cigars.extend(repeat(b'I').take(insert1.len()));
-                    } else if insert2.contains_subsequence(insert1) {
+                    } else if insert2.contains_substring(insert1) {
                         merged_seq.extend_from_slice(insert1.to_ascii_lowercase().as_slice());
                         merged_quals.extend_from_slice(quals1);
                         merged_cigars.extend(repeat(b'I').take(insert1.len()));
 
                         stats.insert_errors += 1;
-                    } else if insert1.contains_subsequence(insert2) {
+                    } else if insert1.contains_substring(insert2) {
                         merged_seq.extend_from_slice(insert2.to_ascii_lowercase().as_slice());
                         merged_quals.extend_from_slice(quals2);
                         merged_cigars.extend(repeat(b'I').take(insert2.len()));
@@ -340,7 +345,11 @@ impl SamData {
                 m_mapq,
                 merged_cigars,
                 merged_seq.into(),
-                merged_quals.into(),
+                // Safety: QualityScores guarantee being in range. The merge quality
+                // scores must be from either sequence OR the integer average, which
+                // must still be valid state. Even deletions, which have no quality
+                // score, is initialized to the minimum QS encoded value `!`.
+                unsafe { QualityScores::from_vec_unchecked(merged_quals) },
             ),
             stats,
         )
@@ -637,6 +646,8 @@ impl<R: std::io::Read> Iterator for SAMReader<R> {
                     }
                 };
 
+                let quality_scores: QualityScores = unwrap_or_return_some_err!(r[10].as_bytes().try_into());
+
                 let row = SamData {
                     qname: r[0].to_owned(),
                     flag:  read_bit_flags,
@@ -649,7 +660,7 @@ impl<R: std::io::Read> Iterator for SAMReader<R> {
                     tlen:  0,
                     // TO-DO: Where should casing be handled?
                     seq:   r[9].as_bytes().to_ascii_uppercase().into(),
-                    qual:  r[10].as_bytes().into(),
+                    qual:  quality_scores,
                 };
                 Some(Ok(SamRow::Data(Box::new(row))))
             }

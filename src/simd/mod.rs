@@ -4,8 +4,14 @@ use std::simd::{prelude::*, LaneCount, SupportedLaneCount};
 pub trait SimdByteFunctions<const N: usize>
 where
     LaneCount<N>: SupportedLaneCount, {
+    fn is_ascii(&self) -> Mask<i8, N>;
+
     fn is_ascii_uppercase(&self) -> Mask<i8, N>;
     fn is_ascii_lowercase(&self) -> Mask<i8, N>;
+    fn is_ascii_alphabetic(&self) -> Mask<i8, N>;
+    fn is_ascii_digit(&self) -> Mask<i8, N>;
+    fn is_ascii_whitespace(&self) -> Mask<i8, N>;
+    fn is_ascii_graphic(&self) -> Mask<i8, N>;
 
     fn to_ascii_uppercase(&self) -> Self;
     fn to_ascii_lowercase(&self) -> Self;
@@ -14,7 +20,7 @@ where
     fn make_ascii_lowercase(&mut self);
 
     fn if_value_then_replace(&mut self, find: u8, replace: u8);
-    fn swap_byte_pairs(&mut self, this: u8, that: u8);
+    fn exchange_byte_pairs(&mut self, this: u8, that: u8);
 }
 
 impl<const N: usize> SimdByteFunctions<N> for Simd<u8, N>
@@ -22,31 +28,51 @@ where
     LaneCount<N>: SupportedLaneCount,
 {
     #[inline]
-    fn is_ascii_uppercase(&self) -> Mask<i8, N>
-    where
-        LaneCount<N>: SupportedLaneCount, {
+    fn is_ascii(&self) -> Mask<i8, N> {
+        self.simd_lt(Simd::splat(128))
+    }
+
+    #[inline]
+    fn is_ascii_uppercase(&self) -> Mask<i8, N> {
         self.simd_ge(Simd::splat(b'A')) & self.simd_le(Simd::splat(b'Z'))
     }
 
     #[inline]
-    fn is_ascii_lowercase(&self) -> Mask<i8, N>
-    where
-        LaneCount<N>: SupportedLaneCount, {
+    fn is_ascii_lowercase(&self) -> Mask<i8, N> {
         self.simd_ge(Simd::splat(b'a')) & self.simd_le(Simd::splat(b'z'))
     }
 
     #[inline]
-    fn to_ascii_uppercase(&self) -> Self
-    where
-        LaneCount<N>: SupportedLaneCount, {
+    fn is_ascii_alphabetic(&self) -> Mask<i8, N> {
+        self.is_ascii_lowercase() & self.is_ascii_uppercase()
+    }
+
+    #[inline]
+    fn is_ascii_digit(&self) -> Mask<i8, N> {
+        self.simd_ge(Simd::splat(b'0')) & self.simd_le(Simd::splat(b'9'))
+    }
+
+    #[inline]
+    /// Checks for graphic ASCII characters from `!` (33) to `~` (126).
+    fn is_ascii_graphic(&self) -> Mask<i8, N> {
+        self.simd_ge(Simd::splat(b'!')) & self.simd_le(Simd::splat(b'~'))
+    }
+
+    #[inline]
+    /// Tests is bytes are tab, line feed,  vertical tab, form feed, carriage
+    /// return or space. This is different than in `std`.
+    fn is_ascii_whitespace(&self) -> Mask<i8, N> {
+        (self.simd_ge(Simd::splat(b'\t')) & self.simd_le(Simd::splat(b'\r'))) | self.simd_eq(Simd::splat(b' '))
+    }
+
+    #[inline]
+    fn to_ascii_uppercase(&self) -> Self {
         let mask = self.is_ascii_lowercase();
         mask.select(*self ^ Simd::splat(0b0010_0000), *self)
     }
 
     #[inline]
-    fn to_ascii_lowercase(&self) -> Self
-    where
-        LaneCount<N>: SupportedLaneCount, {
+    fn to_ascii_lowercase(&self) -> Self {
         let mask = self.is_ascii_uppercase();
         mask.select(*self | Simd::splat(0b0010_0000), *self)
     }
@@ -62,17 +88,13 @@ where
     }
 
     #[inline]
-    fn if_value_then_replace(&mut self, find: u8, replace: u8)
-    where
-        LaneCount<N>: SupportedLaneCount, {
+    fn if_value_then_replace(&mut self, find: u8, replace: u8) {
         let mask = self.simd_eq(Simd::splat(find));
         *self = mask.select(Simd::splat(replace), *self);
     }
 
     #[inline]
-    fn swap_byte_pairs(&mut self, this: u8, that: u8)
-    where
-        LaneCount<N>: SupportedLaneCount, {
+    fn exchange_byte_pairs(&mut self, this: u8, that: u8) {
         let splat_this = Simd::splat(this);
         let splat_that = Simd::splat(that);
 
@@ -89,6 +111,7 @@ where
     LaneCount<N>: SupportedLaneCount, {
     fn make_selected_ascii_uppercase(&self, bytes: &Simd<u8, N>) -> Simd<u8, N>;
     fn make_selected_ascii_lowercase(&self, bytes: &Simd<u8, N>) -> Simd<u8, N>;
+    fn bitmask_offset(&self) -> usize;
 }
 
 impl<const N: usize> SimdMaskFunctions<N> for Mask<i8, N>
@@ -105,6 +128,12 @@ where
     #[inline]
     fn make_selected_ascii_lowercase(&self, bytes: &Simd<u8, N>) -> Simd<u8, N> {
         self.select(*bytes | Simd::splat(0b0010_0000), *bytes)
+    }
+
+    #[must_use]
+    #[inline]
+    fn bitmask_offset(&self) -> usize {
+        self.to_bitmask().trailing_zeros() as usize
     }
 }
 

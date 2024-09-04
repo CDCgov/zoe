@@ -1,4 +1,5 @@
 fn_args_layout = "Compressed"
+fn_params_layout = "Compressed"
 comment_width = 100
 max_width = 125
 struct_field_align_threshold = 20
