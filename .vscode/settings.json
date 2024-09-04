@@ -13,5 +13,7 @@
         "ControlStructures::ProhibitDeepNests",
         "BuiltinFunctions::ProhibitStringySplit",
         "ValuesAndExpressions::ProhibitNoisyQuotes"
-    ]
+    ],
+    "rust-analyzer.checkOnSave": true,
+    "rust-analyzer.check.command": "clippy",
 }

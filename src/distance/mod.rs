@@ -40,9 +40,10 @@ use std::cmp::min;
 #[allow(clippy::wildcard_imports)]
 use std::simd::*;
 
-/// Calculates the number of differences at the byte (or base/residue) level. The
-/// argument `N` is the number of SIMD lanes to use at a time. Unless compiling
-/// for a specific platform, a choice of 16 is a good value.
+/// Calculates the number of differences at the byte (or base/residue) level.
+///
+/// The argument `N` is the number of SIMD lanes to use at a time. Unless
+/// compiling for a specific platform, a choice of 16 is a good value.
 ///
 /// # Example
 /// ```

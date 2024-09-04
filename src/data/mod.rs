@@ -19,7 +19,7 @@ pub mod sam;
 /// [`AminoAcids`][self::types::amino_acids::AminoAcids].
 pub mod types;
 
-pub use crate::search::Subsequence;
+pub use crate::search::ByteSubstring;
 pub use constants::matrices::{BiasedWeightMatrix, SymmetricWeightMatrix};
 
 /// A private module for helper functions on [`u8`].

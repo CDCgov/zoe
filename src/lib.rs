@@ -4,9 +4,11 @@
     clippy::module_name_repetitions,
     clippy::similar_names,
     clippy::wildcard_imports,
-    clippy::enum_glob_use
+    clippy::enum_glob_use,
+    stable_features
 )]
 #![feature(test, portable_simd, const_fn_floating_point_arithmetic, let_chains, lazy_cell)]
+#![forbid(incomplete_features)]
 
 /// Alignment functions
 pub mod alignment;
@@ -16,13 +18,13 @@ pub mod composition;
 pub mod data;
 /// Distance functions, especially for sequence data.
 pub mod distance;
+/// Sequence search and/or replacement.
+pub mod search;
 
 /// Generate sequences and other data.
 pub(crate) mod generate;
 /// Mathematical utilities.
 pub(crate) mod math;
-/// Sequence search and/or replacement.
-pub(crate) mod search;
 /// SIMD traits to extend portable SIMD.
 pub(crate) mod simd;
 /// Private sorting functions for ASCII use cases.
@@ -35,5 +37,5 @@ pub mod prelude {
     pub use crate::data::vec_types::PairwiseSequence;
     pub use crate::data::{convert::ToDNA, err::OrFail, fasta::FastaReader, fastq::FastQReader};
     pub use crate::generate::rand_sequence;
-    pub use crate::search::{Subsequence, VectorSubsequence};
+    pub use crate::search::{ByteSubstring, ByteSubstringMut};
 }

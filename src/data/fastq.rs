@@ -1,4 +1,8 @@
-use super::types::{nucleotides::Nucleotides, phred::QualityScores};
+use crate::{
+    data::types::{nucleotides::Nucleotides, phred::QualityScores},
+    unwrap_or_return_some_err,
+};
+
 use std::{
     fs::File,
     io::{BufRead, Error as IOError, ErrorKind},
@@ -80,7 +84,8 @@ impl FastQReader<std::fs::File> {
 }
 
 /// An iterator for buffered reading of a
-/// [FASTQ](https://en.wikipedia.org/wiki/FASTQ_format) file.
+/// [FASTQ](https://en.wikipedia.org/wiki/FASTQ_format) file. Guarantees quality
+/// scores are valid.
 impl<R: std::io::Read> Iterator for FastQReader<R> {
     type Item = std::io::Result<FastQ>;
 
@@ -161,7 +166,8 @@ impl<R: std::io::Read> Iterator for FastQReader<R> {
                     "Sequence and quality score length mismatch!",
                 )));
             }
-            QualityScores(self.fastq_buffer.clone())
+
+            unwrap_or_return_some_err!(QualityScores::try_from(self.fastq_buffer.as_slice()))
         } else {
             QualityScores::new()
         };

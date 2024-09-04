@@ -50,14 +50,19 @@ impl AminoAcids {
     }
 
     // Manipulation
-    #[inline]
-    pub fn find_and_replace(&mut self, needle: u8, replacement: u8) {
-        crate::search::find_and_replace(&mut self.0, needle, replacement);
-    }
 
+    /// Truncates the length of the sequence to the specified `new_length`. This
+    /// is equivalent to C-terminus trimming up to and including the index.
     #[inline]
     pub fn shorten_to(&mut self, new_length: usize) {
         self.0.truncate(new_length);
+    }
+
+    /// Cuts the N-terminus of the [`AminoAcids`] just prior to the new starting
+    /// index (0-based). Be aware that this clones the internal buffer!
+    #[inline]
+    pub fn cut_to_start(&mut self, new_start: usize) {
+        *self = Self(self.0.drain(new_start..).collect());
     }
 
     /// If the end has a stop codon, remove it. Takes and gives ownership for chaining.
