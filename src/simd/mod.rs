@@ -19,7 +19,27 @@ where
     fn make_ascii_uppercase(&mut self);
     fn make_ascii_lowercase(&mut self);
 
+    /// All instances of `find` are mapped to `replace`.
+    ///
+    /// # Examples:
+    /// ```ignore
+    ///     let mut s = Simd::from_array([1,2,4,1]);
+    ///     s.if_value_then_replace(1, 4);
+    ///
+    ///     assert_eq!(s, Simd::from_array([4,2,4,4]) );
+    /// ```
     fn if_value_then_replace(&mut self, find: u8, replace: u8);
+
+    /// All instances of `this` or `that` byte are swapped or exchanged.
+    ///
+    /// # Examples:
+    /// ```ignore
+    ///     let mut s = Simd::from_array([1,2,4,1]);
+    ///     s.exchange_byte_pairs(1, 4);
+    ///
+    ///     assert_eq!(s, Simd::from_array([4,2,1,4]) );
+    /// ```
+    ///
     fn exchange_byte_pairs(&mut self, this: u8, that: u8);
 }
 
