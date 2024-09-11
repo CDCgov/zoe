@@ -68,8 +68,8 @@ where
         for (v1, v2) in c1.by_ref().zip(c2.by_ref()) {
             let mut v1: Simd<u8, N> = Simd::from_slice(v1).to_ascii_uppercase();
             let mut v2: Simd<u8, N> = Simd::from_slice(v2).to_ascii_uppercase();
-            v1.exchange_byte_pairs(b'U', b'T');
-            v2.exchange_byte_pairs(b'U', b'T');
+            v1.if_value_then_replace(b'U', b'T');
+            v2.if_value_then_replace(b'U', b'T');
 
             let mut valid = Mask::from_array([false; N]);
             for a in alpha_v {
@@ -97,8 +97,8 @@ where
     for (v1, v2) in c1.by_ref().zip(c2.by_ref()) {
         let mut v1: Simd<u8, N> = Simd::from_slice(v1).to_ascii_uppercase();
         let mut v2: Simd<u8, N> = Simd::from_slice(v2).to_ascii_uppercase();
-        v1.exchange_byte_pairs(b'U', b'T');
-        v2.exchange_byte_pairs(b'U', b'T');
+        v1.if_value_then_replace(b'U', b'T');
+        v2.if_value_then_replace(b'U', b'T');
         let mut valid1 = Mask::from_array([false; N]);
         let mut valid2 = Mask::from_array([false; N]);
         for a in alpha_v {

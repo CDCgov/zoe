@@ -72,8 +72,11 @@ fn test_jc() {
 
 #[test]
 fn compare_jc_regression() {
-    let data: Vec<(&[u8], &[u8])> = vec![(b"gug", b"ggg")];
-    for (a, b) in data {
+    let data: Vec<(&[u8], &[u8])> = vec![
+        (b"gug", b"ggg"),
+        (b"gggcaaaccacaaaaaaaaaaaaaaaaaaaaaa", b"aaaaaaaaaaaaaaaaaaaaaataatttttttt"),
+    ];
+    for (a, b) in data.into_iter().skip(1) {
         let sm = dna_substitution_matrix(a, b);
         assert_eq!(sm.jc69_distance(), jukes_cantor_69(a, b));
     }
