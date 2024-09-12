@@ -97,7 +97,7 @@ where
         let a = self;
         let abs_a = a.float_abs();
         let abs_b = b.float_abs();
-        let diff = a - b;
+        let diff = (a - b).float_abs();
         let zero = Self::ZERO;
 
         if a == b {

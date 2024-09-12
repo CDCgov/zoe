@@ -65,7 +65,6 @@ fn test_jc() {
     for (a, b, expected) in data {
         let sm = dna_substitution_matrix(a, b);
         assert_fp_eq!(sm.jc69_distance(), expected);
-        println!("{:?}", sm.jc69_distance());
         assert_fp_eq!(jukes_cantor_69(a, b), expected);
     }
 }
