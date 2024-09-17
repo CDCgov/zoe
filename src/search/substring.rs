@@ -4,6 +4,7 @@ use std::{
 };
 
 use super::inexact::fuzzy_substring_match_simd;
+use super::k_repeating::find_k_repeating;
 
 ///
 /// Trait for searching byte substrings.
@@ -25,6 +26,9 @@ pub trait ByteSubstring {
     /// `DIFFERENCES_ALLOWED`. See [`fuzzy_substring_match_simd`] for
     /// more details.
     fn find_fuzzy_substring<const DIFFERENCES_ALLOWED: usize>(&self, needle: impl AsRef<[u8]>) -> Option<Range<usize>>;
+    /// Find contiguous, repeating byte characters in a byte slice. See [`find_k_repeating`]
+    /// for more details.
+    fn find_repeating_byte(&self, needle: u8, size: usize) -> Option<Range<usize>>;
 }
 
 impl<T: AsRef<[u8]> + ?Sized> ByteSubstring for T {
@@ -52,6 +56,14 @@ impl<T: AsRef<[u8]> + ?Sized> ByteSubstring for T {
         let needle = needle.as_ref();
 
         fuzzy_substring_match_simd::<32, DIFFERENCES_ALLOWED>(haystack, needle).map(|s| s..s + needle.len())
+    }
+
+    #[inline]
+    #[must_use]
+    fn find_repeating_byte(&self, needle: u8, size: usize) -> Option<Range<usize>> {
+        let haystack = self.as_ref();
+
+        find_k_repeating::<32>(haystack, needle, size).map(|s| s..s + size)
     }
 }
 
@@ -175,240 +187,6 @@ where
     }
 }
 
-/// Given a haystack, needle and the number of times the needle repeats itself
-/// in a row, find the starting index of the matching substring or return
-/// [`None`] otherwise.
-#[inline]
-#[must_use]
-pub fn find_k_repeating(haystack: &[u8], needle: u8, size: usize) -> Option<usize> {
-    let mut hits = 0usize;
-    let offset = if size > 0 { size - 1 } else { return None };
-
-    for (index, h) in haystack.iter().copied().enumerate() {
-        if needle == h {
-            hits += 1;
-        } else {
-            hits = 0;
-        }
-
-        if hits == size {
-            return Some(index - offset);
-        }
-    }
-
-    None
-}
-
-/// Similar to [`find_k_repeating`] but takes a const `N` parameter for the
-/// number of SIMD lanes. This algorithm is a simplified version of (1).
-///
-/// ### Limitations
-///
-/// Not optimized for needles >9bp.
-///
-/// ### Citation
-///
-/// 1. Tamanna Chhabra, Sukhpal Singh Ghuman, and Jorma Tarhio (2023). "String
-///    Searching with Mismatches Using Avx2 and Avx-512 Instructions." doi:
-///    <http://dx.doi.org/10.2139/ssrn.4662323>
-#[inline]
-#[must_use]
-pub fn find_k_repeating_simd<const N: usize>(haystack: &[u8], needle: u8, size: usize) -> Option<usize>
-where
-    LaneCount<N>: SupportedLaneCount, {
-    if size == 0 || size > haystack.len() {
-        return None;
-    } else if size == 1 {
-        return super::bytes::position_by_byte(haystack, needle);
-    }
-
-    let minimum_simd_length = size + N - 1;
-    if haystack.len() < minimum_simd_length {
-        return find_k_repeating(haystack, needle, size);
-    } else if size == haystack.len() {
-        let (p, m, s) = haystack.as_simd();
-        if p.iter().any(|b| *b != needle)
-            || s.iter().any(|b| *b != needle)
-            || super::bytes::position_simd::<N, 4, _>(m, |v| v.simd_ne(Simd::splat(needle))).is_some()
-        {
-            return None;
-        }
-        return Some(0);
-    }
-
-    let nv = Simd::from_array([needle; N]);
-    let mut i = 0;
-
-    'outer: while i < haystack.len() - minimum_simd_length {
-        let h1 = Simd::from_slice(&haystack[i..]);
-        let h2 = Simd::from_slice(&haystack[i + 1..]);
-        let mut found_final = (h1.simd_eq(nv) & h2.simd_eq(nv)).to_bitmask();
-
-        if found_final == 0 {
-            i += N;
-            continue 'outer;
-        }
-
-        for j in 2..size {
-            let h = Simd::from_slice(&haystack[i + j..]);
-
-            let bitmask = h.simd_eq(nv).to_bitmask();
-            found_final &= bitmask;
-
-            if found_final == 0 {
-                i += N;
-                continue 'outer;
-            }
-        }
-
-        return Some(i + found_final.trailing_zeros() as usize);
-    }
-
-    find_k_repeating(&haystack[i..], needle, size).map(|j| i + j)
-}
-
-/// Similar to [`find_k_repeating_simd`] but modifies the search for needles of
-/// size 3+ to use shift and count operations.
-#[inline]
-#[must_use]
-pub fn find_k_repeating_simd2<const N: usize>(haystack: &[u8], needle: u8, size: usize) -> Option<usize>
-where
-    LaneCount<N>: SupportedLaneCount, {
-    if size == 0 || size > haystack.len() {
-        return None;
-    } else if size == 1 {
-        return super::bytes::position_by_byte(haystack, needle);
-    }
-
-    let nv = Simd::splat(needle);
-    let chunks1 = haystack.chunks_exact(N);
-    let chunks2 = haystack[1..].chunks_exact(N);
-    let mut running_total = 0u32;
-    let mut i = 0;
-
-    for (c1, c2) in chunks1.map(Simd::from_slice).zip(chunks2.map(Simd::from_slice)) {
-        let mut mask = (nv.simd_eq(c1) & nv.simd_eq(c2)).to_bitmask();
-
-        if mask == 0 {
-            i += N;
-            running_total = 0;
-            continue;
-        }
-
-        let reset = mask & (1 << (N - 1)) == 0;
-        let mut bit_offset = 0;
-        if mask & 1 > 0 {
-            let previous = running_total;
-            bit_offset = mask.trailing_ones();
-            mask >>= bit_offset;
-            running_total += bit_offset;
-
-            if running_total as usize >= size - 1 {
-                return Some(i - previous as usize);
-            }
-        }
-
-        while mask > 0 {
-            let skip_count = mask.trailing_zeros();
-            mask >>= skip_count;
-            bit_offset += skip_count;
-
-            // Restart running total
-            running_total = mask.trailing_ones();
-            mask >>= running_total;
-
-            if running_total as usize >= size - 1 {
-                return Some(i + bit_offset as usize);
-            }
-
-            bit_offset += running_total;
-        }
-
-        if reset {
-            running_total = 0;
-        }
-
-        i += N;
-    }
-
-    for (j, b) in haystack[i..].iter().copied().enumerate() {
-        if b == needle {
-            running_total += 1;
-        } else {
-            running_total = 0;
-        }
-
-        if running_total as usize == size {
-            return Some(i + j - (size - 1));
-        }
-    }
-
-    None
-}
-
-/// Based on an original algorithm by W. D. Chettleburgh but modifies the verification stage to include some SIMD steps.
-///
-/// ### Limitations
-///
-/// Performs much better for longer needles than short ones.
-#[inline]
-#[must_use]
-pub fn find_k_repeating_simd3<const N: usize>(haystack: &[u8], needle: u8, size: usize) -> Option<usize>
-where
-    LaneCount<N>: SupportedLaneCount, {
-    // Handle edge-cases for inputs
-    if size == 0 || size > haystack.len() {
-        return None;
-    }
-
-    let mut idx = size - 1;
-    let mut left_limit = 0;
-
-    'outer: while idx < haystack.len() && idx < size + N {
-        if haystack[idx] == needle {
-            for prev_idx in (left_limit..idx).rev() {
-                if haystack[prev_idx] != needle {
-                    left_limit = idx + 1;
-                    idx = prev_idx + size;
-                    continue 'outer;
-                }
-            }
-            return Some(idx + 1 - size);
-        }
-
-        left_limit = idx + 1;
-        idx += size;
-    }
-
-    let nv = Simd::splat(needle);
-
-    'outer2: while idx < haystack.len() {
-        if haystack[idx] == needle {
-            let c = haystack[..idx].rchunks_exact(N).map(Simd::from_slice);
-
-            let mut offset = 1;
-            for v in c {
-                let ones = v.reverse().simd_eq(nv).to_bitmask().trailing_ones();
-
-                offset += ones as usize;
-                if offset >= size {
-                    return Some(idx + 1 - size);
-                }
-
-                if (ones as usize) < N {
-                    let mismatch_index = idx - offset;
-                    idx = mismatch_index + size;
-                    continue 'outer2;
-                }
-            }
-        } else {
-            idx += size;
-        }
-    }
-
-    None
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -450,129 +228,6 @@ mod test {
                 substring_match(&haystack, &needle),
                 substring_match_simd::<16>(&haystack, &needle)
             );
-        }
-    }
-
-    #[test]
-    fn find_k_repeating_regressions() {
-        let data = [
-            (b"0000".to_vec(), b'0', 4),
-            (b"caaaaaab".to_vec(), b'a', 6),
-            (b"aaaaaaabaa".to_vec(), b'a', 8),
-            (b"aabcaaaaa".to_vec(), b'a', 4),
-            (b"1100000001".to_vec(), b'0', 3),
-            (b"88000005000000".to_vec(), b'0', 8),
-            (b"0000000000".to_vec(), b'0', 10),
-            (b"AMMMMMMMMMMMMMMMMMMMMMMOMMML".to_vec(), b'M', 12),
-        ];
-        for (haystack, needle, size) in data.into_iter().skip(7) {
-            assert_eq!(
-                find_k_repeating(&haystack, needle, size),
-                find_k_repeating_simd::<8>(&haystack, needle, size)
-            );
-            assert_eq!(
-                find_k_repeating(&haystack, needle, size),
-                find_k_repeating_simd2::<8>(&haystack, needle, size)
-            );
-            assert_eq!(
-                find_k_repeating(&haystack, needle, size),
-                find_k_repeating_simd3::<8>(&haystack, needle, size)
-            );
-        }
-    }
-
-    #[test]
-    fn find_k_repeating_units() {
-        let mut s = b"aaaaaaab".repeat(15);
-        s.extend(b"bb");
-
-        assert_eq!(find_k_repeating(&s, b'b', 3), find_k_repeating_simd::<16>(&s, b'b', 3));
-        assert_eq!(find_k_repeating(&s, b'b', 3), find_k_repeating_simd2::<16>(&s, b'b', 3));
-        assert_eq!(find_k_repeating(&s, b'b', 3), find_k_repeating_simd3::<16>(&s, b'b', 3));
-    }
-}
-
-#[cfg(test)]
-mod bench {
-    use super::*;
-    use std::sync::LazyLock;
-    use test::Bencher;
-
-    extern crate test;
-
-    static WORST_REPEATING: LazyLock<Vec<u8>> = LazyLock::new(|| {
-        let mut s = b"bbabba".repeat(266);
-        s.extend(b"abbb");
-        s
-    });
-
-    static AVG_REPEATING: LazyLock<Vec<u8>> = LazyLock::new(|| {
-        let mut s = b"aaaaaaab".repeat(199);
-        s.extend(b"aaaaabbb");
-        s
-    });
-
-    mod find_k_repeating {
-        use super::*;
-
-        mod average {
-            use super::*;
-
-            #[bench]
-            fn using_substring_match(b: &mut Bencher) {
-                let needle = vec![b'b'; 3];
-                b.iter(|| substring_match_simd::<16>(&AVG_REPEATING, &needle));
-            }
-
-            #[bench]
-            fn scalar(b: &mut Bencher) {
-                b.iter(|| find_k_repeating(&AVG_REPEATING, b'b', 3));
-            }
-
-            #[bench]
-            fn simd(b: &mut Bencher) {
-                b.iter(|| find_k_repeating_simd::<16>(&AVG_REPEATING, b'b', 3));
-            }
-
-            #[bench]
-            fn simd2(b: &mut Bencher) {
-                b.iter(|| find_k_repeating_simd2::<16>(&AVG_REPEATING, b'b', 3));
-            }
-
-            #[bench]
-            fn simd3(b: &mut Bencher) {
-                b.iter(|| find_k_repeating_simd3::<16>(&AVG_REPEATING, b'b', 3));
-            }
-        }
-
-        mod worst {
-            use super::*;
-
-            #[bench]
-            fn using_substring_match(b: &mut Bencher) {
-                let needle = vec![b'b'; 3];
-                b.iter(|| substring_match_simd::<16>(&WORST_REPEATING, &needle));
-            }
-
-            #[bench]
-            fn scalar(b: &mut Bencher) {
-                b.iter(|| find_k_repeating(&WORST_REPEATING, b'b', 3));
-            }
-
-            #[bench]
-            fn simd(b: &mut Bencher) {
-                b.iter(|| find_k_repeating_simd::<16>(&WORST_REPEATING, b'b', 3));
-            }
-
-            #[bench]
-            fn simd2(b: &mut Bencher) {
-                b.iter(|| find_k_repeating_simd2::<16>(&WORST_REPEATING, b'b', 3));
-            }
-
-            #[bench]
-            fn simd3(b: &mut Bencher) {
-                b.iter(|| find_k_repeating_simd3::<16>(&WORST_REPEATING, b'b', 3));
-            }
         }
     }
 }

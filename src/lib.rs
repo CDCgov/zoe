@@ -23,6 +23,8 @@ pub mod search;
 
 /// Generate sequences and other data.
 pub(crate) mod generate;
+/// Iterator utilities.
+pub(crate) mod iter_utils;
 /// Mathematical utilities.
 pub(crate) mod math;
 /// SIMD traits to extend portable SIMD.
