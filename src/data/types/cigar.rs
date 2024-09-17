@@ -1,7 +1,12 @@
-use atoi::FromRadix10Checked;
-
 #[derive(Clone, PartialEq)]
 pub struct Cigar(pub(crate) Vec<u8>);
+
+#[cfg(target_pointer_width = "16")]
+const USIZE_WIDTH: usize = 5;
+#[cfg(target_pointer_width = "32")]
+const USIZE_WIDTH: usize = 10;
+#[cfg(target_pointer_width = "64")]
+const USIZE_WIDTH: usize = 20;
 
 impl Cigar {
     #[must_use]
@@ -28,6 +33,7 @@ impl Cigar {
     }
 }
 
+use core::str;
 use std::fmt;
 impl fmt::Display for Cigar {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -62,7 +68,7 @@ impl From<ExpandedCigar> for Cigar {
 }
 
 /// A single increment quantifier-operation pair.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Ciglet {
     pub inc: usize,
     pub op:  u8,
@@ -70,13 +76,14 @@ pub struct Ciglet {
 
 pub struct CigletIterator<'a> {
     buffer: &'a [u8],
-    offset: usize,
 }
 
 impl<'a> CigletIterator<'a> {
     #[inline]
     fn new(buffer: &'a [u8]) -> Self {
-        CigletIterator { buffer, offset: 0 }
+        CigletIterator {
+            buffer: buffer.trim_ascii_start(),
+        }
     }
 }
 
@@ -84,19 +91,40 @@ impl<'a> Iterator for CigletIterator<'a> {
     type Item = Ciglet;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(s) = self.buffer.get(self.offset..)
-            && let (Some(count), width) = usize::from_radix_10_checked(s)
-            && let Some(&state) = self.buffer.get(self.offset + width)
-        {
-            self.offset += width + 1;
-            if matches!(state, b'M' | b'I' | b'D' | b'N' | b'S' | b'H' | b'P' | b'X' | b'=') {
-                Some(Ciglet { inc: count, op: state })
+        let mut num = 0;
+        let mut index = 0;
+        let limit = std::cmp::min(self.buffer.len(), USIZE_WIDTH - 1);
+        while index != limit {
+            let b = self.buffer[index];
+
+            if b.is_ascii_digit() {
+                num *= 10;
+                num += usize::from(b - b'0');
+            } else if matches!(b, b'M' | b'I' | b'D' | b'N' | b'S' | b'H' | b'P' | b'X' | b'=') && num > 0 {
+                self.buffer = &self.buffer[index + 1..];
+                return Some(Ciglet { inc: num, op: b });
             } else {
-                self.next()
+                return None;
             }
-        } else {
-            None
+            index += 1;
         }
+
+        while index != self.buffer.len() {
+            let b = self.buffer[index];
+
+            if b.is_ascii_digit() {
+                num = num.checked_mul(10)?;
+                num = num.checked_add(usize::from(b - b'0'))?;
+            } else if matches!(b, b'M' | b'I' | b'D' | b'N' | b'S' | b'H' | b'P' | b'X' | b'=') && num > 0 {
+                self.buffer = &self.buffer[index + 1..];
+                return Some(Ciglet { inc: num, op: b });
+            } else {
+                return None;
+            }
+            index += 1;
+        }
+
+        None
     }
 }
 
@@ -205,6 +233,60 @@ mod tests {
     }
 
     #[test]
+    fn test_iter() {
+        let cigar: Cigar = "  1M22I333D4444N55555S6666H777P88X9=  ".into();
+        let mut cigar = cigar.into_iter();
+
+        assert_eq!(cigar.next(), Some(Ciglet { op: b'M', inc: 1 }));
+        assert_eq!(cigar.next(), Some(Ciglet { op: b'I', inc: 22 }));
+        assert_eq!(cigar.next(), Some(Ciglet { op: b'D', inc: 333 }));
+        assert_eq!(cigar.next(), Some(Ciglet { op: b'N', inc: 4444 }));
+        assert_eq!(cigar.next(), Some(Ciglet { op: b'S', inc: 55555 }));
+        assert_eq!(cigar.next(), Some(Ciglet { op: b'H', inc: 6666 }));
+        assert_eq!(cigar.next(), Some(Ciglet { op: b'P', inc: 777 }));
+        assert_eq!(cigar.next(), Some(Ciglet { op: b'X', inc: 88 }));
+        assert_eq!(cigar.next(), Some(Ciglet { op: b'=', inc: 9 }));
+        assert_eq!(cigar.next(), None);
+
+        // Illegal cigar op
+        let cigar: Cigar = "8K".into();
+        assert_eq!(cigar.into_iter().next(), None);
+
+        // Leading zeroes don't matter
+        let cigar: Cigar = "000000000000000000000000000000155M".into();
+        assert_eq!(cigar.into_iter().next(), Some(Ciglet { op: b'M', inc: 155 }));
+
+        // Overflows
+        let cigar: Cigar = "100000000000000000000000000000155M".into();
+        assert_eq!(cigar.into_iter().next(), None);
+
+        // Bad order
+        let cigar: Cigar = "M155M".into();
+        assert_eq!(cigar.into_iter().next(), None);
+
+        // usize == u64
+        if USIZE_WIDTH == 20 {
+            let cigar: Cigar = "18446744073709551615M".into();
+            assert_eq!(
+                cigar.into_iter().next(),
+                Some(Ciglet {
+                    op:  b'M',
+                    inc: 18_446_744_073_709_551_615,
+                })
+            );
+
+            let cigar: Cigar = "001234567890123456789M".into();
+            assert_eq!(
+                cigar.into_iter().next(),
+                Some(Ciglet {
+                    op:  b'M',
+                    inc: 1_234_567_890_123_456_789,
+                })
+            );
+        }
+    }
+
+    #[test]
     fn test_match_length() {
         let cigars = [
             ("4S10M2I2D3M4H4P", 15),
@@ -212,6 +294,7 @@ mod tests {
             ("3M2D1M", 6),
             ("255M", 255),
             ("3M1D4I8X9=4M", 25),
+            ("M", 0),
         ];
 
         for (c, l) in cigars {
