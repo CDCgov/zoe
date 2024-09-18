@@ -3,8 +3,8 @@ use crate::{
     composition::NucleotideCounts,
     data::{
         mappings::{
-            CodonConvert, ANY_TO_DNA_CANONICAL_UPPER, GENETIC_CODE, IS_IUPAC_BASE, IS_UNALIGNED_IUPAC_BASE,
-            IUPAC_TO_DNA_CANONICAL, IUPAC_TO_DNA_CANONICAL_UPPER, TO_DNA_UC, TO_REVERSE_COMPLEMENT, TO_UNALIGNED_DNA_UC,
+            ANY_TO_DNA_CANONICAL_UPPER, GENETIC_CODE, IS_IUPAC_BASE, IS_UNALIGNED_IUPAC_BASE, IUPAC_TO_DNA_CANONICAL,
+            IUPAC_TO_DNA_CANONICAL_UPPER, TO_DNA_UC, TO_REVERSE_COMPLEMENT, TO_UNALIGNED_DNA_UC,
         },
         types::{amino_acids::AminoAcids, Uint},
         vec_types::ValidateSequence,
@@ -253,6 +253,9 @@ impl MaybeNucleic for &[u8] {}
 #[inline]
 #[must_use]
 pub fn translate_sequence(s: &[u8]) -> Vec<u8> {
+    // TO-DO: this and the translation iterator can be made into array chunks
+    // for further performance, but best to wait until the feature is more
+    // likely to be adopted and/or needed by other functions in Zoe.
     let mut codons = s.chunks_exact(3);
     let mut aa_sequence = Vec::with_capacity(s.len() / 3 + 1);
 
@@ -260,7 +263,7 @@ pub fn translate_sequence(s: &[u8]) -> Vec<u8> {
         aa_sequence.push(if is_partial_codon(codon) {
             b'~'
         } else {
-            *GENETIC_CODE.get(&codon.to_upper_u32()).unwrap_or(&b'X')
+            GENETIC_CODE.get(codon).unwrap_or(b'X')
         });
     }
 
@@ -285,7 +288,7 @@ impl<'a> Iterator for TranslatedNucleotidesIter<'a> {
             if is_partial_codon(codon) {
                 Some(b'~')
             } else {
-                Some(*GENETIC_CODE.get(&codon.to_upper_u32()).unwrap_or(&b'X'))
+                Some(GENETIC_CODE.get(codon).unwrap_or(b'X'))
             }
         } else if self.has_remainder && is_partial_codon(self.codons.remainder()) {
             self.has_remainder = false;
