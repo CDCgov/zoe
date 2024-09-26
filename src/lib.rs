@@ -36,8 +36,9 @@ pub(crate) mod sort;
 pub mod prelude {
     pub use crate::composition::{AlignmentComposition, CreateConsensus, NucleotideCounts};
     pub use crate::data::types::{amino_acids::AminoAcids, nucleotides::Nucleotides};
-    pub use crate::data::vec_types::PairwiseSequence;
-    pub use crate::data::{convert::ToDNA, err::OrFail, fasta::FastaReader, fastq::FastQReader};
+    pub use crate::data::{
+        convert::ToDNA, err::OrFail, fasta::FastaReader, fastq::FastQReader, PairwiseSequence, StdForSequences,
+    };
     pub use crate::generate::rand_sequence;
     pub use crate::search::{ByteSubstring, ByteSubstringMut};
 }

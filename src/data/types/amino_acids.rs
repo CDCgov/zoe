@@ -1,7 +1,7 @@
 use crate::data::err::DistanceError;
 
 /// Amino Acid new type to help encourage type safety.
-#[derive(Clone, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq, Eq, Hash)]
 #[repr(transparent)]
 pub struct AminoAcids(pub(crate) Vec<u8>);
 
@@ -11,6 +11,14 @@ impl AminoAcids {
     #[must_use]
     pub fn new() -> Self {
         AminoAcids(Vec::new())
+    }
+
+    /// Consumes a [`Vec<u8>`] and return [`AminoAcids`] without checking for
+    /// validity.
+    #[inline]
+    #[must_use]
+    pub fn from_vec_unchecked(v: Vec<u8>) -> Self {
+        AminoAcids(v)
     }
 
     #[inline]
@@ -39,14 +47,8 @@ impl AminoAcids {
 
     #[inline]
     #[must_use]
-    pub fn as_vec(&self) -> &Vec<u8> {
-        &self.0
-    }
-
-    #[inline]
-    #[must_use]
-    pub fn as_mut_vec(&mut self) -> &mut Vec<u8> {
-        &mut self.0
+    pub fn into_vec(self) -> Vec<u8> {
+        self.0
     }
 
     // Manipulation
@@ -65,7 +67,8 @@ impl AminoAcids {
         *self = Self(self.0.drain(new_start..).collect());
     }
 
-    /// If the end has a stop codon, remove it. Takes and gives ownership for chaining.
+    /// If the end has a stop codon, remove it. Takes and gives ownership for
+    /// chaining.
     #[must_use]
     #[inline]
     pub fn chop_stop(mut self) -> Self {
