@@ -22,18 +22,26 @@ use std::{
 /// aligned or unaligned valid IUPAC letters.
 ///
 /// *NB: No type-state guarantees have been decided on at this time.*
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
 #[repr(transparent)]
 pub struct Nucleotides(pub(crate) Vec<u8>);
 
 impl Nucleotides {
     // std
 
-    /// Create a new `Nucleotides` empty object.
+    /// Create a new [`Nucleotides`] empty object.
     #[inline]
     #[must_use]
     pub fn new() -> Self {
         Nucleotides(Vec::new())
+    }
+
+    /// Consume a [`Vec<u8>`] and return [`Nucleotides`] without checking
+    /// validity.
+    #[inline]
+    #[must_use]
+    pub fn from_vec_unchecked(v: Vec<u8>) -> Self {
+        Nucleotides(v)
     }
 
     /// The length of the stored sequence.
@@ -65,14 +73,8 @@ impl Nucleotides {
 
     #[inline]
     #[must_use]
-    pub fn as_vec(&self) -> &Vec<u8> {
-        &self.0
-    }
-
-    #[inline]
-    #[must_use]
-    pub fn as_mut_vec(&mut self) -> &mut Vec<u8> {
-        &mut self.0
+    pub fn into_vec(self) -> Vec<u8> {
+        self.0
     }
 
     #[inline]
@@ -89,7 +91,7 @@ impl Nucleotides {
         self.0.get(index)
     }
 
-    /// The sequence is re-encoded as `DNAProfileIndices` in-place.
+    /// The sequence is re-encoded as [`DNAProfileIndices`] in-place.
     #[must_use]
     pub fn into_dna_profile_indices(mut self) -> DNAProfileIndices {
         for base in &mut self.0 {

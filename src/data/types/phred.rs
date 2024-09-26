@@ -18,11 +18,13 @@ impl QualityScores {
 
     #[inline]
     #[must_use]
-    /// Creates a `QualityScores` struct from a `Vec<u8>` without checking for
-    /// values being in the proper range (see `is_graphic_simd()`).
+    /// Creates a [`QualityScores`] struct from a `Vec<u8>` without checking for
+    /// values being in the proper range (see [`is_graphic_simd`]).
     ///
     /// # Safety
-    /// The `Vec<u8>` must be in range `!`..`~`.
+    /// The [`Vec<u8>`] must be in range `!`..=`~`.
+    ///
+    /// [`is_graphic_simd`]: crate::data::vec_types::CheckSequence::is_graphic_simd
     pub unsafe fn from_vec_unchecked(v: Vec<EncodedQS>) -> Self {
         QualityScores(v)
     }
@@ -33,7 +35,7 @@ impl QualityScores {
         self.0.truncate(new_length);
     }
 
-    /// Cuts the 5' end of the `QualityScores` just prior to the new starting
+    /// Cuts the 5' end of the [`QualityScores`] just prior to the new starting
     /// index (0-based). Be aware that this clones the internal buffer!
     #[inline]
     pub fn cut_to_start(&mut self, new_start: usize) {
@@ -114,7 +116,8 @@ impl QualityScores {
         }
     }
 
-    /// The geometric mean error represented as a phred quality score floating point value; equivalent to the arithmetic mean quality score.
+    /// The geometric mean error represented as a phred quality score floating
+    /// point value; equivalent to the arithmetic mean quality score.
     #[inline]
     #[must_use]
     pub fn geometric_mean(&self) -> Option<QScoreFloat> {
@@ -188,44 +191,38 @@ impl QualityScores {
         }
     }
 
-    /// Length of the `QualityScores`
+    /// Length of the [`QualityScores`]
     #[inline]
     #[must_use]
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
-    /// Is the `QualityScores` vector empty?
+    /// Is the [`QualityScores`] vector empty?
     #[inline]
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
 
-    /// Provide `QualityScores` as a reference to a raw byte slice (`EncodedQS`).
+    /// Provide [`QualityScores`] as a reference to a raw byte slice ([`EncodedQS`]).
     #[inline]
     #[must_use]
     pub fn as_bytes(&self) -> &[u8] {
         self.0.as_slice()
     }
 
-    /// Provide `QualityScores` as a mutable reference to a raw byte slice (`EncodedQS`)
+    /// Provide [`QualityScores`] as a mutable reference to a raw byte slice ([`EncodedQS`])
     #[inline]
     pub fn as_mut_bytes(&mut self) -> &mut [u8] {
         self.0.as_mut_slice()
     }
 
-    /// Obtains a the `EncodedQS` as a `&Vec<u8>`.
+    /// Consumes the [`EncodedQS`] and returns a [`Vec<u8>`].
     #[inline]
     #[must_use]
-    pub fn as_vec(&self) -> &Vec<u8> {
-        &self.0
-    }
-
-    /// Obtains a the `EncodedQS` as a `&mut Vec<u8>`.
-    #[inline]
-    pub fn as_mut_vec(&mut self) -> &mut Vec<u8> {
-        &mut self.0
+    pub fn into_vec(self) -> Vec<u8> {
+        self.0
     }
 
     /// Get quality scores for some index or range, returning an optional slice.
@@ -291,22 +288,22 @@ impl std::ops::Index<std::ops::Range<usize>> for QualityScores {
     }
 }
 
-/// Type alias for `QScore` when returned as f32
+/// Type alias for the quality score when returned as `f32`
 ///
 ///  Significant figures for Phred error probabilities is 6 (0.999999).
-/// `QScores`, being a log of the Phred error times a constant, must retain 6
+/// The quality score, being a log of the Phred error times a constant, must retain 6
 /// significant figures after the decimal. The maximum value is 60, so 8 digits
-/// must be retained at maximum. When converting usize/u64 to f32, 8 digits are
+/// must be retained at maximum. When converting `usize`/`u64` to `f32`, 8 digits are
 /// retained. Therefore, for type conversion and averages, which propogates
-/// significant figures, f32 should be a sufficient choice.
+/// significant figures, `f32` should be a sufficient choice.
 #[repr(transparent)]
 pub struct QScoreFloat(pub(crate) f32);
 
-/// Type alias for probabilities as f32
+/// Type alias for probabilities as `f32`
 type Probability = f32;
 
 impl QScoreFloat {
-    /// Obtain the f32 value for the `QScoreFloat`
+    /// Obtain the f32 value for the [`QScoreFloat`]
     #[inline]
     #[must_use]
     pub fn as_f32(&self) -> f32 {
@@ -321,13 +318,14 @@ impl From<EncodedQS> for QScoreFloat {
 }
 
 /// A single phred quality score in numeric (not ASCII encoded) range.
-/// The type is functionally a u8.
+/// The type is functionally a `u8`.
 #[repr(transparent)]
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct QScoreInt(pub(crate) u8);
 
 impl QScoreInt {
-    /// Calculated the expected rate of machine error from an encoded quality score value (u8).
+    /// Calculated the expected rate of machine error from an encoded quality
+    /// score value (`u8`).
     #[inline]
     #[must_use]
     pub fn encoded_qs_to_error(q: EncodedQS) -> Probability {
@@ -335,7 +333,7 @@ impl QScoreInt {
         BASE.powf(-f32::from(q - 33) / BASE)
     }
 
-    /// Calculate the `QScoreFloat` from the expected rate of machine error.
+    /// Calculate the [`QScoreFloat`] from the expected rate of machine error.
     #[inline]
     #[must_use]
     pub fn error_to_q(e: Probability) -> QScoreFloat {
@@ -343,7 +341,7 @@ impl QScoreInt {
         QScoreFloat(-BASE * e.log10())
     }
 
-    /// Calculate the expected rate of machine error from the `QScoreInt`
+    /// Calculate the expected rate of machine error from the [`QScoreInt`]
     #[inline]
     #[must_use]
     pub fn to_error(&self) -> Probability {
@@ -351,7 +349,7 @@ impl QScoreInt {
         BASE.powf(-f32::from(self.0) / BASE)
     }
 
-    /// Obtain the u8 value for the `QScoreInt`
+    /// Obtain the u8 value for the [`QScoreInt`]
     #[inline]
     #[must_use]
     pub fn as_u8(&self) -> u8 {

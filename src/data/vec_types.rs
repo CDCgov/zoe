@@ -109,6 +109,17 @@ where
     }
 }
 
+pub trait StdForSequences: AsMut<Vec<u8>> {
+    #[inline]
+    fn retain<F>(&mut self, f: F)
+    where
+        F: FnMut(&u8) -> bool, {
+        self.as_mut().retain(f);
+    }
+}
+impl StdForSequences for Nucleotides {}
+impl StdForSequences for AminoAcids {}
+
 #[cfg(test)]
 mod test {
     use super::CheckSequence;

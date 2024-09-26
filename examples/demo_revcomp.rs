@@ -10,11 +10,10 @@ fn main() {
         "examples/example.fasta".to_owned()
     };
 
-    let fasta_reader = FastaReader::from_filename(filename)
-        .unwrap_or_die("RevComp file error!")
-        .flatten();
+    let fasta_reader = FastaReader::from_filename(filename).unwrap_or_die("RevComp file error!");
 
-    for mut record in fasta_reader {
+    for record in fasta_reader {
+        let mut record = record.unwrap_or_die("RevComp FastaReader error.");
         record.reverse_complement();
         print!("{record}");
     }
