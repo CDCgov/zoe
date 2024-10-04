@@ -1,10 +1,8 @@
+use super::{inexact::fuzzy_substring_match_simd, k_repeating::find_k_repeating};
 use std::{
     ops::Range,
     simd::{prelude::*, LaneCount, SupportedLaneCount},
 };
-
-use super::inexact::fuzzy_substring_match_simd;
-use super::k_repeating::find_k_repeating;
 
 ///
 /// Trait for searching byte substrings.
@@ -135,6 +133,7 @@ pub fn substring_match(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 ///    Accessed September 3, 2024.
 #[inline]
 #[must_use]
+#[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
 pub fn substring_match_simd<const N: usize>(haystack: &[u8], needle: &[u8]) -> Option<usize>
 where
     LaneCount<N>: SupportedLaneCount, {

@@ -16,3 +16,17 @@ relevant for the sequencing of RNA viruses.
 - Avoiding large transitive dependency trees and binary sizes
 - Providing reasonably performant solutions while not sacrificing the above
 - Porting diverse, relevant methods and providing clear attribution to the original authors
+
+## Crate Features
+
+Zoe is designed to minimize large dependency trees and binary sizes while providing
+performant solutions. Several dependencies are optional and can be enabled as features
+at the user's discretion.
+
+### Default Features
+
+- **rand**: Enabled by default. This optional feature provides support for random sequence generation for nucleotides and amino acids. Adds the dependency [rand_xoshiro](https://docs.rs/rand_xoshiro/latest/rand_xoshiro/).
+
+### Optional Features
+
+- **multiversion**: This optional feature adds multiversioning of select Zoe SIMD functions using the [multiversion](https://docs.rs/multiversion/latest/multiversion/) crate.

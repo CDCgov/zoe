@@ -136,7 +136,10 @@ impl AminoAcids {
 
     // Associated functions
 
-    /// Generate a random AA sequence of given `length` and using a random `seed`.  Contains only uppercase, unaligned, non-ambiguous IUPAC codes.
+    /// Generate a random AA sequence of given `length` and using a random
+    /// `seed`.  Contains only uppercase, unaligned, non-ambiguous IUPAC codes.
+    /// Requires `rand` feature to be enabled.
+    #[cfg(feature = "rand")]
     #[must_use]
     pub fn generate_random_aa(length: usize, seed: u64) -> Self {
         AminoAcids(crate::generate::rand_sequence(

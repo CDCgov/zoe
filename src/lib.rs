@@ -21,6 +21,7 @@ pub mod distance;
 /// Sequence search and/or replacement.
 pub mod search;
 
+#[cfg(feature = "rand")]
 /// Generate sequences and other data.
 pub(crate) mod generate;
 /// Iterator utilities.
@@ -39,6 +40,7 @@ pub mod prelude {
     pub use crate::data::{
         convert::ToDNA, err::OrFail, fasta::FastaReader, fastq::FastQReader, PairwiseSequence, StdForSequences,
     };
+    #[cfg(feature = "rand")]
     pub use crate::generate::rand_sequence;
     pub use crate::search::{ByteSubstring, ByteSubstringMut};
 }

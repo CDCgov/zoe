@@ -22,6 +22,7 @@ where
 /// otherwise the scalar code auto-vectorizes to the same performance (N=32).
 /// For older targets, the fastest code may use N=16.
 #[inline]
+#[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
 pub fn replace_all_bytes_simd<const N: usize>(haystack: &mut [u8], needle: u8, replacement: u8)
 where
     LaneCount<N>: SupportedLaneCount, {
