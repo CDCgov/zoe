@@ -3,7 +3,7 @@
 use crate::data::vec_types::CheckSequence;
 use std::io::{Error as IOError, ErrorKind};
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct QualityScores(pub(crate) Vec<EncodedQS>);
 
 /// Alias for encoded Quality Score data

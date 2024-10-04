@@ -1,7 +1,4 @@
-use crate::{
-    data::types::{nucleotides::Nucleotides, phred::QualityScores},
-    unwrap_or_return_some_err,
-};
+use crate::data::types::{nucleotides::Nucleotides, phred::QualityScores};
 
 use std::{
     fs::File,
@@ -11,6 +8,7 @@ use std::{
 
 /// Holds data for a single [Read](https://en.wikipedia.org/wiki/Read_(biology))
 /// or [FASTQ](https://en.wikipedia.org/wiki/FASTQ_format) record.
+#[derive(Debug)]
 pub struct FastQ {
     pub header:   String,
     pub sequence: Nucleotides,
@@ -99,7 +97,6 @@ impl<R: std::io::Read> Iterator for FastQReader<R> {
             Err(e) => return Some(Err(e)),
         }
 
-        // Optimize flow
         if !self.fastq_buffer.starts_with(b"@") {
             return Some(Err(IOError::new(
                 ErrorKind::InvalidData,
@@ -107,69 +104,85 @@ impl<R: std::io::Read> Iterator for FastQReader<R> {
             )));
         }
 
-        let header = if self.fastq_buffer.len() > 1 {
-            if self.fastq_buffer.ends_with(b"\n") {
+        if self.fastq_buffer.ends_with(b"\n") {
+            self.fastq_buffer.pop();
+
+            if self.fastq_buffer.ends_with(b"\r") {
                 self.fastq_buffer.pop();
             }
+        }
 
-            match String::from_utf8(self.fastq_buffer.clone()) {
-                Ok(s) => s,
-                Err(e) => return Some(Err(IOError::new(ErrorKind::InvalidData, e))),
-            }
-        } else {
-            String::new()
+        // Since '@' is in the header, header must be > 1 in length
+        if self.fastq_buffer.len() <= 1 {
+            return Some(Err(IOError::new(ErrorKind::InvalidData, "Missing FastQ header!")));
+        }
+
+        let header = match String::from_utf8(self.fastq_buffer.clone()) {
+            Ok(s) => s,
+            Err(e) => return Some(Err(IOError::new(ErrorKind::InvalidData, e))),
         };
+
         self.fastq_buffer.clear();
 
         // Read SEQUENCE line
-        match self.fastq_reader.read_until(b'\n', &mut self.fastq_buffer) {
-            Ok(0) => return None,
-            Ok(_) => {}
-            Err(e) => return Some(Err(e)),
+        if let Err(e) = self.fastq_reader.read_until(b'\n', &mut self.fastq_buffer) {
+            return Some(Err(e));
         }
 
-        let sequence = if self.fastq_buffer.len() > 1 {
-            if self.fastq_buffer.ends_with(b"\n") {
+        if self.fastq_buffer.ends_with(b"\n") {
+            self.fastq_buffer.pop();
+
+            if self.fastq_buffer.ends_with(b"\r") {
                 self.fastq_buffer.pop();
             }
+        }
 
-            Nucleotides(self.fastq_buffer.clone())
-        } else {
-            Nucleotides::new()
-        };
+        if self.fastq_buffer.is_empty() {
+            return Some(Err(IOError::new(ErrorKind::InvalidData, "Missing FastQ sequence!")));
+        }
+
+        let sequence = Nucleotides(self.fastq_buffer.clone());
+
         self.fastq_buffer.clear();
 
         // Read "+" line
-        match self.fastq_reader.read_until(b'\n', &mut self.fastq_buffer) {
-            Ok(0) => return None,
-            Ok(_) => {}
-            Err(e) => return Some(Err(e)),
+        if let Err(e) = self.fastq_reader.read_until(b'\n', &mut self.fastq_buffer) {
+            return Some(Err(e));
+        }
+
+        if !self.fastq_buffer.starts_with(b"+") {
+            return Some(Err(IOError::new(ErrorKind::InvalidData, "Missing '+' line!")));
         }
 
         self.fastq_buffer.clear();
 
         // Read QUALITY line
-        match self.fastq_reader.read_until(b'\n', &mut self.fastq_buffer) {
-            Ok(0) => return None,
-            Ok(_) => {}
-            Err(e) => return Some(Err(e)),
+        if let Err(e) = self.fastq_reader.read_until(b'\n', &mut self.fastq_buffer) {
+            return Some(Err(e));
         }
 
-        let quality = if self.fastq_buffer.len() > 1 {
-            if self.fastq_buffer.ends_with(b"\n") {
+        if self.fastq_buffer.ends_with(b"\n") {
+            self.fastq_buffer.pop();
+
+            if self.fastq_buffer.ends_with(b"\r") {
                 self.fastq_buffer.pop();
             }
+        }
 
-            if self.fastq_buffer.len() != sequence.len() {
-                return Some(Err(IOError::new(
-                    ErrorKind::InvalidData,
-                    "Sequence and quality score length mismatch!",
-                )));
+        if self.fastq_buffer.len() != sequence.len() {
+            if self.fastq_buffer.is_empty() {
+                return Some(Err(IOError::new(ErrorKind::InvalidData, "Missing FastQ quality scores!")));
             }
 
-            unwrap_or_return_some_err!(QualityScores::try_from(self.fastq_buffer.as_slice()))
-        } else {
-            QualityScores::new()
+            return Some(Err(IOError::new(
+                ErrorKind::InvalidData,
+                "Sequence and quality score length mismatch!",
+            )));
+        }
+
+        let quality = match QualityScores::try_from(self.fastq_buffer.as_slice()) {
+            Ok(s) => s,
+            Err(e) => return Some(Err(IOError::new(ErrorKind::InvalidData, e))),
         };
 
         Some(Ok(FastQ {
@@ -179,3 +192,6 @@ impl<R: std::io::Read> Iterator for FastQReader<R> {
         }))
     }
 }
+
+#[cfg(test)]
+mod test;
