@@ -3,13 +3,28 @@ edition = "2021"
 name = "zoe"
 version = "0.0.7"
 
+[features]
+
+default = ["rand"]
+
+# An optional feature for generating random nucleotide and amino acid sequences
+rand = ["dep:rand_xoshiro"]
+
+# An optional feature that provides SIMD multiversioning of selected Zoe
+# functions
+multiversion = ["dep:multiversion"]
+
 [dependencies]
+multiversion = { version = "*", optional = true }
+rand_xoshiro = { version = "*", optional = true }
 itoa = "*"
-rand_xoshiro = "*"
 
 [profile.release]
 strip = true
 lto = "thin"
 
 [package.metadata.docs.rs]
+
+# needed for rand docs
+features = ["rand"]
 rustdoc-args = ["--html-in-header", "./assets/docs-header.html"]

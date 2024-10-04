@@ -67,11 +67,14 @@ pub(crate) fn fuzzy_substring_match_scalar(haystack: &[u8], needle: &[u8], diffe
 ///
 #[allow(clippy::cast_possible_truncation)]
 #[must_use]
+#[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
 pub fn fuzzy_substring_match_simd<const N: usize, const K: usize>(haystack: &[u8], needle: &[u8]) -> Option<usize>
 where
     LaneCount<N>: SupportedLaneCount, {
     // Scalar version takes u8
-    const { assert!(K <= u8::MAX as usize) };
+    const {
+        assert!(K <= u8::MAX as usize);
+    };
 
     if needle.len() > haystack.len() || needle.is_empty() || haystack.is_empty() {
         return None;

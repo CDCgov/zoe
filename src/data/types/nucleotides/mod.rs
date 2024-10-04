@@ -238,6 +238,8 @@ impl Nucleotides {
 
     /// Generate a random DNA sequence of given `length` and using a random
     /// `seed`.  Canonical DNA only contains A, C, G, or T.
+    /// Requires `rand` feature to be enabled.
+    #[cfg(feature = "rand")]
     #[must_use]
     pub fn generate_random_dna(length: usize, seed: u64) -> Self {
         Nucleotides(crate::generate::rand_sequence(b"AGCT", length, seed))

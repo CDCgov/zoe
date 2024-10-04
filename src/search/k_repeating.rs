@@ -71,7 +71,7 @@ where
 /// const parameter `N` is used to specify the number of SIMD lanes for the
 /// search.
 ///
-/// For larger needle sizes (`size` >= 21), a scalar implementation
+/// For larger needle sizes (`size` ≥ 21), a scalar implementation
 /// is used, enabling faster skipping through the string in a similar manner
 /// to the Boyer-Moore algorithm.
 ///
@@ -83,13 +83,16 @@ where
 #[allow(clippy::cast_possible_truncation)]
 #[inline]
 #[must_use]
+#[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
 pub fn find_k_repeating<const N: usize>(haystack: &[u8], needle: u8, size: usize) -> Option<usize>
 where
     LaneCount<N>: SupportedLaneCount, {
     const SCALAR_THRESHOLD: usize = 21;
 
     // TODO: fix when we have better const generics
-    const { assert!(N > 2, "`find_k_repeating_simd` requires N > 2") }
+    const {
+        assert!(N > 2, "`find_k_repeating_simd` requires N > 2");
+    };
 
     if size == 0 || size > haystack.len() {
         return None;

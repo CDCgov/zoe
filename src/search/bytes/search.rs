@@ -83,6 +83,7 @@ where
 ///
 #[must_use]
 #[inline]
+#[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
 pub fn position_by_byte<const N: usize>(haystack: &[u8], b: u8) -> Option<usize>
 where
     LaneCount<N>: SupportedLaneCount, {
@@ -104,6 +105,7 @@ where
 ///
 #[must_use]
 #[inline]
+#[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
 pub fn position_by_byte2<const N: usize>(haystack: &[u8], b1: u8, b2: u8) -> Option<usize>
 where
     LaneCount<N>: SupportedLaneCount, {
@@ -129,6 +131,7 @@ where
 ///
 #[must_use]
 #[inline]
+#[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
 pub fn position_by_byte3<const N: usize>(haystack: &[u8], b1: u8, b2: u8, b3: u8) -> Option<usize>
 where
     LaneCount<N>: SupportedLaneCount, {

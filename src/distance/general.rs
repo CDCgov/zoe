@@ -42,6 +42,7 @@ pub fn hamming_u32(a: &[u8], b: &[u8]) -> u32 {
 
 #[allow(clippy::cast_precision_loss)]
 #[must_use]
+#[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
 pub fn p_distance_acgt<const N: usize>(x: &[u8], y: &[u8]) -> Option<f64>
 where
     LaneCount<N>: SupportedLaneCount, {
@@ -161,6 +162,7 @@ where
 /// ```
 ///
 #[must_use]
+#[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
 pub fn hamming_simd<const N: usize>(x: &[u8], y: &[u8]) -> usize
 where
     LaneCount<N>: SupportedLaneCount, {
