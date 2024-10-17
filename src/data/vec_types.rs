@@ -157,3 +157,20 @@ mod bench {
         b.iter(|| SEQ.is_ascii_simd::<16>());
     }
 }
+
+pub(crate) trait ChopLineBreak {
+    fn chop_line_break(&mut self);
+}
+
+impl ChopLineBreak for Vec<u8> {
+    #[inline]
+    fn chop_line_break(&mut self) {
+        if self.ends_with(b"\n") {
+            self.pop();
+
+            if self.ends_with(b"\r") {
+                self.pop();
+            }
+        }
+    }
+}

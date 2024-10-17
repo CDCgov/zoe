@@ -1,4 +1,7 @@
-use crate::data::types::{nucleotides::Nucleotides, phred::QualityScores};
+use crate::data::{
+    types::{nucleotides::Nucleotides, phred::QualityScores},
+    vec_types::ChopLineBreak,
+};
 
 use std::{
     fs::File,
@@ -104,13 +107,7 @@ impl<R: std::io::Read> Iterator for FastQReader<R> {
             )));
         }
 
-        if self.fastq_buffer.ends_with(b"\n") {
-            self.fastq_buffer.pop();
-
-            if self.fastq_buffer.ends_with(b"\r") {
-                self.fastq_buffer.pop();
-            }
-        }
+        self.fastq_buffer.chop_line_break();
 
         // Since '@' is in the header, header must be > 1 in length
         if self.fastq_buffer.len() <= 1 {
@@ -129,13 +126,7 @@ impl<R: std::io::Read> Iterator for FastQReader<R> {
             return Some(Err(e));
         }
 
-        if self.fastq_buffer.ends_with(b"\n") {
-            self.fastq_buffer.pop();
-
-            if self.fastq_buffer.ends_with(b"\r") {
-                self.fastq_buffer.pop();
-            }
-        }
+        self.fastq_buffer.chop_line_break();
 
         if self.fastq_buffer.is_empty() {
             return Some(Err(IOError::new(ErrorKind::InvalidData, "Missing FastQ sequence!")));
@@ -161,13 +152,7 @@ impl<R: std::io::Read> Iterator for FastQReader<R> {
             return Some(Err(e));
         }
 
-        if self.fastq_buffer.ends_with(b"\n") {
-            self.fastq_buffer.pop();
-
-            if self.fastq_buffer.ends_with(b"\r") {
-                self.fastq_buffer.pop();
-            }
-        }
+        self.fastq_buffer.chop_line_break();
 
         if self.fastq_buffer.len() != sequence.len() {
             if self.fastq_buffer.is_empty() {

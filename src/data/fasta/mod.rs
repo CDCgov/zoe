@@ -7,7 +7,7 @@ use crate::{
             amino_acids::AminoAcids,
             nucleotides::{reverse_complement, Nucleotides},
         },
-        vec_types::{CheckSequence, ValidateSequence},
+        vec_types::{CheckSequence, ChopLineBreak, ValidateSequence},
     },
     search::ByteSplitIter,
 };
@@ -193,17 +193,7 @@ impl<R: std::io::Read> FastaReader<R> {
             if let Some(&first) = self.fasta_buffer.first()
                 && first == b'>'
             {
-                // Trim line endings
-                if let Some(last) = self.fasta_buffer.last()
-                    && *last == b'\n'
-                {
-                    self.fasta_buffer.pop();
-                    if let Some(last) = self.fasta_buffer.last()
-                        && *last == b'\r'
-                    {
-                        self.fasta_buffer.pop();
-                    }
-                }
+                self.fasta_buffer.chop_line_break();
 
                 let h = &self.fasta_buffer[1..];
                 if h.is_empty() {
