@@ -5,6 +5,8 @@
     clippy::similar_names,
     clippy::wildcard_imports,
     clippy::enum_glob_use,
+    clippy::needless_lifetimes, // Remove in Rust 2024
+    clippy::manual_div_ceil,    // Remove after merging Striped SW
     stable_features
 )]
 #![feature(test, portable_simd, const_fn_floating_point_arithmetic, let_chains, lazy_cell)]
