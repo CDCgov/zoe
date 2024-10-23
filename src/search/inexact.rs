@@ -47,6 +47,24 @@ pub(crate) fn fuzzy_substring_match_scalar(haystack: &[u8], needle: &[u8], diffe
     None
 }
 
+#[inline]
+#[must_use]
+#[allow(clippy::cast_possible_truncation)]
+const fn create_masks<const N: usize>() -> [Simd<u8, N>; 256]
+where
+    LaneCount<N>: SupportedLaneCount, {
+    const {
+        let mut masks: [Simd<u8, N>; 256] = [Simd::from_array([0; N]); 256];
+        let mut i = 0;
+        while i < 256 {
+            // This is safe because `i` is always less than 256.
+            masks[i] = Simd::from_array([i as u8; N]);
+            i += 1;
+        }
+        masks
+    }
+}
+
 /// Similar to [`fuzzy_substring_match`] but takes a const `N` parameter for the
 /// number of SIMD lanes and a second const parameter `K` for the number of
 /// differences allowed.
@@ -98,21 +116,21 @@ where
         return fuzzy_substring_match_scalar(haystack, needle, K as u8);
     }
 
-    let needles: Vec<_> = needle.iter().copied().map(|b| Simd::from_array([b; N])).collect();
+    // The mappings get `const` folded anyway.
+    let masks = create_masks();
     let mut i = 0;
-    let (left, right) = needles.split_at(K);
+    let (left, right) = needle.split_at(K + 1);
 
     'outer: while i < haystack.len() - minimum_simd_length {
         // This is necessary because of incomplete `const_generic_exprs`
         let mut found = [u64::MAX; K];
         let mut found_final = u64::MAX;
 
-        for (j, &b) in left.iter().enumerate() {
+        for (j, b) in left.iter().map(|i| masks[*i as usize]).enumerate() {
             let h = Simd::from_slice(&haystack[i + j..]);
             let c = h.simd_eq(b).to_bitmask();
 
             for k in (1..j).rev() {
-                // j < left.len() < K
                 found[k] &= found[k - 1] | c;
             }
             found[0] &= found_final | c;
@@ -124,7 +142,12 @@ where
             continue 'outer;
         }
 
-        for (j, &b) in right.iter().enumerate().map(|(j, v)| (j + K, v)) {
+        for (j, b) in right
+            .iter()
+            .map(|i| masks[*i as usize])
+            .enumerate()
+            .map(|(j, v)| (j + K + 1, v))
+        {
             let h = Simd::from_slice(&haystack[i + j..]);
             let c = h.simd_eq(b).to_bitmask();
 
