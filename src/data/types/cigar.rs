@@ -1,4 +1,5 @@
-#[derive(Clone, PartialEq)]
+/// A CIGAR string.
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Cigar(pub(crate) Vec<u8>);
 
 #[cfg(target_pointer_width = "16")]
@@ -68,12 +69,14 @@ impl From<ExpandedCigar> for Cigar {
 }
 
 /// A single increment quantifier-operation pair.
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Ciglet {
     pub inc: usize,
     pub op:  u8,
 }
 
+/// An iterator over a CIGAR string.
+#[derive(Debug)]
 pub struct CigletIterator<'a> {
     buffer: &'a [u8],
 }
@@ -142,7 +145,7 @@ impl fmt::Debug for Ciglet {
     }
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(Clone, PartialEq)]
 pub(crate) struct ExpandedCigar(Vec<u8>);
 
 impl ExpandedCigar {

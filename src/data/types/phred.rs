@@ -3,7 +3,7 @@
 use crate::data::vec_types::CheckSequence;
 use std::io::{Error as IOError, ErrorKind};
 
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Hash, Debug, Default)]
 pub struct QualityScores(pub(crate) Vec<EncodedQS>);
 
 /// Alias for encoded Quality Score data
@@ -297,6 +297,7 @@ impl std::ops::Index<std::ops::Range<usize>> for QualityScores {
 /// retained. Therefore, for type conversion and averages, which propogates
 /// significant figures, `f32` should be a sufficient choice.
 #[repr(transparent)]
+#[derive(Copy, Clone, PartialEq, PartialOrd, Debug)]
 pub struct QScoreFloat(pub(crate) f32);
 
 /// Type alias for probabilities as `f32`
@@ -320,7 +321,7 @@ impl From<EncodedQS> for QScoreFloat {
 /// A single phred quality score in numeric (not ASCII encoded) range.
 /// The type is functionally a `u8`.
 #[repr(transparent)]
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct QScoreInt(pub(crate) u8);
 
 impl QScoreInt {

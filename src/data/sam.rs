@@ -20,12 +20,16 @@ use std::{fs::File, path::Path};
 // We define `index` to be 1-based and `position` to be 0-based to avoid
 // off-by-one errors and encourage better semantics
 
+/// Enum for holding either a SAM header or data record.
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub enum SamRow {
     Header(String),
     Data(Box<SamData>),
 }
 
-#[derive(Debug, Clone)]
+/// Struct holding the data for a single
+/// [SAM](https://en.wikipedia.org/wiki/SAM_(file_format)) record.
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub struct SamData {
     /// Query name.
     pub qname: String,
@@ -41,7 +45,7 @@ pub struct SamData {
     pub cigar: Cigar,
     /// Reference name of the mate / next read. Currently not implemented and set to `*`.
     rnext:     char,
-    /// Position of the mate / next read. Currently not implemented and st to `0`.
+    /// Position of the mate / next read. Currently not implemented and set to `0`.
     pnext:     u32,
     /// So-called "observed template length." Currently not implemented and always set to `0`.
     tlen:      i32,
@@ -372,6 +376,8 @@ impl SamData {
     }
 }
 
+/// Makes a merged qname for paired-end reads based on a provided qname plus
+/// adding or replacing `3` as the read side. Used in IRMA.
 fn make_merged_qname(s: &str) -> String {
     let mut merged = String::with_capacity(s.len() + 2);
     if let Some(index) = s.find(' ') {
@@ -439,7 +445,19 @@ fn make_merged_qname(s: &str) -> String {
     merged
 }
 
-#[derive(Default, Clone, Debug, Copy)]
+/// [`PairedMergeStats`] holds statistics related to read pair merging
+/// operations.
+///
+/// * `observations`    - The total number of overlapping or paired bases.
+/// * `true_variations` - Paired bases that agree with each other but disagree
+///                       with consensus.
+/// * `variant_errors`  - Paired bases that disagree with each other.
+/// * `deletion_errors` - Paired bases where one is a deletion and one is not.
+/// * `insert_obs`      - The total number of paired insertions, in agreement or
+///                       otherwise.
+/// * `insert_errors`   - The total number of mismatching paired insertions,
+///                       including disagreement in insertion presence.
+#[derive(Copy, Clone, Debug, Default)]
 pub struct PairedMergeStats {
     pub observations:    u64,
     pub true_variations: u64,
@@ -477,7 +495,16 @@ impl AddAssign for PairedMergeStats {
     }
 }
 
-#[derive(Debug, Clone)]
+/// Represents a single insertion in a [`SamAligned`] record.
+/// 
+/// * `ref_index`   - The reference index (0-based) before which the insertion
+///                   occurs.
+/// * `query_start` - The starting index (0-based) of the insertion in the query
+///                   sequence.
+/// * `query_end`   - The ending index (0-based, non-inclusive) of the insertion
+///                   in the query sequence.
+// TODO: revise for Rust 2024
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub struct SamInsertion {
     pub ref_index:   usize,
     pub query_start: usize,
@@ -492,7 +519,7 @@ impl SamInsertion {
 }
 
 /// Struct holding the alignment information of a SAM query sequence to some reference.
-#[derive(Debug, Clone)]
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub struct SamAligned {
     /// Query bases aligned to the reference (insertions removed, deletions added).
     pub aligned:    Vec<u8>,
@@ -585,6 +612,9 @@ impl From<&SamData> for SamAligned {
     }
 }
 
+/// An iterator for buffered reading of a SAM file. Guarantees quality scores
+/// are valid.
+#[derive(Debug)]
 pub struct SAMReader<R: std::io::Read> {
     pub sam_reader: std::io::Lines<std::io::BufReader<R>>,
 }

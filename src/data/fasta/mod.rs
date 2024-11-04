@@ -19,7 +19,7 @@ use std::{
 
 /// Provides a container struct for data from a generic
 /// [FASTA](https://en.wikipedia.org/wiki/FASTA_format) file.
-#[derive(Debug)]
+#[derive(Clone, Eq, PartialEq, Hash, Debug, Default)]
 pub struct FastaSeq {
     pub name:     String,
     pub sequence: Vec<u8>,
@@ -27,6 +27,7 @@ pub struct FastaSeq {
 
 /// Similar to [`FastaSeq`] but assumes that the `sequence` contains valid
 /// [`Nucleotides`].
+#[derive(Clone, Eq, PartialEq, Hash, Debug, Default)]
 pub struct FastaNT {
     pub name:     String,
     pub sequence: Nucleotides,
@@ -34,12 +35,14 @@ pub struct FastaNT {
 
 /// Similar to [`FastaSeq`] but assumes that the `sequence` contains valid
 /// [`AminoAcids`].
+#[derive(Clone, Eq, PartialEq, Hash, Debug, Default)]
 pub struct FastaAA {
     pub name:     String,
     pub sequence: AminoAcids,
 }
 
 /// Structure for buffered reading of `FASTA` files.
+#[derive(Debug)]
 pub struct FastaReader<R: std::io::Read> {
     fasta_reader: std::io::BufReader<R>,
     fasta_buffer: Vec<u8>,
@@ -98,7 +101,7 @@ impl FastaNT {
         self.sequence = self.sequence.reverse_complement();
     }
 
-    /// Translates the stored [Nucleotides] to [`AminoAcids`] using a new buffer.
+    /// Translates the stored [`Nucleotides`] to [`AminoAcids`] using a new buffer.
     #[must_use]
     pub fn translate(self) -> FastaAA {
         FastaAA {
@@ -116,7 +119,8 @@ impl FastaNT {
     }
 }
 
-/// A struct for containing an [`FastaNT`] + owned `taxon` [String].
+/// A struct for containing an [`FastaNT`] + owned `taxon` [`String`].
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub struct FastaNTAnnot {
     pub name:     String,
     pub sequence: Nucleotides,
