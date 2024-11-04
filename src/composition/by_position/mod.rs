@@ -4,7 +4,7 @@ use std::ops::{Add, AddAssign};
 use std::simd::prelude::*;
 
 /// Nucleotide count statistics for A, C, G, T/U, N, -, other, invalid.
-#[derive(Debug, Clone, Copy)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct NucleotideCounts<T: Uint> {
     inner: [T; 8],
 }
@@ -104,27 +104,18 @@ where
         self.inner[0..7].iter().fold(T::zero(), |acc, &v| acc + v)
     }
 
-    /// The most frequent allele for A
+    /// The most frequent allele for A, C, G, T, N
     #[inline]
     pub fn plurality_acgtn(&self) -> u8 {
-        const TO_BASE: &[u8; 6] = b"ACGTN-";
-        const N: usize = length_needed(b'N');
-
-        let mut counts = [BaseCount {
-            base:  0,
-            count: T::zero(),
-            index: 0,
-        }; N];
-        for i in 0..N {
-            counts[i] = BaseCount {
-                base:  TO_BASE[i],
-                count: self.inner[i],
-                index: i,
-            };
+        let mut max_count = self.inner[0];
+        let mut max_idx = 0;
+        for i in 1..5 {
+            if self.inner[i] > max_count {
+                max_count = self.inner[i];
+                max_idx = i;
+            }
         }
-
-        counts.sort_by(|a, b| b.cmp(a));
-        counts[0].base
+        b"ACGTN"[max_idx]
     }
 }
 
@@ -136,31 +127,6 @@ where
 {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Default)]
-struct BaseCount<T> {
-    base:  u8,
-    count: T,
-    index: usize,
-}
-
-impl<T> PartialOrd for BaseCount<T>
-where
-    T: PartialOrd,
-{
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.count.partial_cmp(&other.count)
-    }
-}
-
-impl<T> Ord for BaseCount<T>
-where
-    T: Ord + Eq,
-{
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.count.cmp(&other.count).then_with(|| self.index.cmp(&other.index))
     }
 }
 
@@ -294,10 +260,6 @@ const fn base_to_inner_index(b: u8) -> usize {
     TO_INNER[b as usize] as usize
 }
 
-const fn length_needed(b: u8) -> usize {
-    base_to_inner_index(b) + 1
-}
-
 pub trait CreateConsensus {
     fn plurality_acgtn(&self) -> Nucleotides;
 }
@@ -310,3 +272,6 @@ where
         self.iter().map(NucleotideCounts::plurality_acgtn).collect()
     }
 }
+
+#[cfg(test)]
+mod test;

@@ -6,12 +6,16 @@ macro_rules! impl_int {
         pub trait $ident: SimdElement + Ord + Add + AddAssign {
             fn one() -> Self;
             fn zero() -> Self;
+            const MAX: Self;
+            const MIN: Self;
         }
 
         $(
         impl $ident for $ty {
             fn one() -> Self { 1 }
             fn zero() -> Self { 0 }
+            const MAX: $ty = <$ty>::MAX;
+            const MIN: $ty = <$ty>::MIN;
         } )*
 
      }

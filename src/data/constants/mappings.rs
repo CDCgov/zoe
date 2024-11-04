@@ -185,6 +185,7 @@ macro_rules! fill_map {
 /// acid in all cases, then it is also included in the hashmap. Stop codons are
 /// translated to `*`, and the codons `...`, `---`, and `NNN` are translated to
 /// `.`, `-`, and `X` respectively.
+#[derive(Debug)]
 pub struct CodonTranslator {
     table: Vec<u32>,
 }

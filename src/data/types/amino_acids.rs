@@ -1,7 +1,7 @@
 use crate::data::err::DistanceError;
 
 /// Amino Acid new type to help encourage type safety.
-#[derive(Clone, Default, PartialEq, Eq, Hash)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Default)]
 #[repr(transparent)]
 pub struct AminoAcids(pub(crate) Vec<u8>);
 

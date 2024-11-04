@@ -62,7 +62,7 @@ pub(crate) static PHYSIOCHEMICAL_FACTORS: [[Option<f32>; 256]; 256] = {
     while aa1 < 43 {
         let mut aa2: usize = 0;
         while aa2 < 43 {
-            pcd[AA[aa1] as usize][AA[aa2] as usize] = if AA[aa1].to_ascii_uppercase() == AA[aa2].to_ascii_uppercase() {
+            pcd[AA[aa1] as usize][AA[aa2] as usize] = if AA[aa1].eq_ignore_ascii_case(&AA[aa2]) {
                 Some(0.0)
             } else {
                 let mut d: f64 = 0.0;

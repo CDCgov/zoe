@@ -42,13 +42,13 @@ pub(crate) trait Float:
     const MAX: Self;
     const ZERO: Self;
 
-    /// Generic absolute value for [Float]
+    /// Generic absolute value for [`Float`]
     fn float_abs(&self) -> Self;
-    /// Generic minimum of 2 values for [Float]
+    /// Generic minimum of 2 values for [`Float`]
     fn float_min(&self, other: Self) -> Self;
-    /// Generic `is_nan` calculation for [Float]
+    /// Generic `is_nan` calculation for [`Float`]
     fn float_is_nan(&self) -> bool;
-    /// Generic `is_infinite` for [Float]
+    /// Generic `is_infinite` for [`Float`]
     fn float_is_infinite(&self) -> bool;
 }
 
@@ -128,7 +128,7 @@ where
     }
 }
 
-/// Utlity trait for mapping floats to [Option].
+/// Utlity trait for mapping floats to [`Option`].
 pub(crate) trait MapFloat: Float {
     #[inline]
     fn into_option(self) -> Option<Self> {

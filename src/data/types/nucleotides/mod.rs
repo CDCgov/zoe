@@ -22,7 +22,7 @@ use std::{
 /// aligned or unaligned valid IUPAC letters.
 ///
 /// *NB: No type-state guarantees have been decided on at this time.*
-#[derive(Debug, Clone, Default, PartialEq, Eq, Hash)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
 #[repr(transparent)]
 pub struct Nucleotides(pub(crate) Vec<u8>);
 
@@ -188,7 +188,7 @@ impl Nucleotides {
         Self(reverse_complement(&self.0))
     }
 
-    /// Translate the stored [Nucleotides] to [`AminoAcids`].
+    /// Translate the stored [`Nucleotides`] to [`AminoAcids`].
     #[inline]
     #[must_use]
     pub fn translate(&self) -> AminoAcids {
@@ -213,7 +213,7 @@ impl Nucleotides {
 
     /// # Distance
     ///
-    /// Calculates hamming distance between [self] and another sequence.
+    /// Calculates hamming distance between [`self`] and another sequence.
     ///
     /// # Example
     /// ```
@@ -279,7 +279,7 @@ pub fn translate_sequence(s: &[u8]) -> Vec<u8> {
     aa_sequence
 }
 
-/// Iterator for translating [Nucleotides] into [`AminoAcids`].
+/// Iterator for translating [`Nucleotides`] into [`AminoAcids`].
 pub struct TranslatedNucleotidesIter<'a> {
     codons:        ChunksExact<'a, u8>,
     has_remainder: bool,

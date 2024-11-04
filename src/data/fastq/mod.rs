@@ -11,7 +11,7 @@ use std::{
 
 /// Holds data for a single [Read](https://en.wikipedia.org/wiki/Read_(biology))
 /// or [FASTQ](https://en.wikipedia.org/wiki/FASTQ_format) record.
-#[derive(Debug)]
+#[derive(Clone, Eq, PartialEq, Hash, Debug, Default)]
 pub struct FastQ {
     pub header:   String,
     pub sequence: Nucleotides,
@@ -56,6 +56,9 @@ impl FastQ {
     }
 }
 
+/// A buffered reader for reading
+/// [FASTQ](https://en.wikipedia.org/wiki/FASTQ_format)
+#[derive(Debug)]
 pub struct FastQReader<R: std::io::Read> {
     pub fastq_reader: std::io::BufReader<R>,
     pub fastq_buffer: Vec<u8>,
