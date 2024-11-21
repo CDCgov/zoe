@@ -1,5 +1,5 @@
 use super::*;
-use crate::math::NearlyEqual;
+use crate::assert_fp_eq;
 
 // Tests were ran against MEGA 11 (where possible) and the ape library in R
 
@@ -14,22 +14,6 @@ static SHORT_READ_1: &[u8] = b"ATCGATCGATCG";
 static SHORT_READ_2: &[u8] = b"ATCGATCGATCA";
 static MID_READ_GAPS_1: &[u8] = b"ATGGAGAAAATAGTGCT-CTTCTTGCAATAGTCAGTATTGTTAAAAGTGATCAGATTTGCATTGGTTACCATGCAAACAACTCAACAGAGCAGGTTGACACAATAATGGAAAAGAACGTCACTGTTACACACGCTCAAGACATACTGGAAAAGACACACAACGGGAAACTCTGCGATCTAGATGGAGTGAAGCCTCTAATTTTAAGAGATTGTAGTGTAGCTGGATGGCTCCTCGG----"; // >KP326324.1 |Influenza A virus (A/chicken/Egypt/Fadllah-7/2014(H5N1)) segment 4 hemagglutinin (HA) gene, complete cds
 static MID_READ_GAPS_2: &[u8] = b"ATGGAGAAAATAGTGCTTCTTTTTGCAATAGTCAGTCTTGTTAA--GTGATCAGATTTGCATTGGTTACCATGCAAACAACTCGACAGAGCAGGTTGACACAATAATGGAAAAGAACGTTACTGTTACACATGCCC---ACATACTGGAAAAGACACACAACGGGAAGCTCTGCGATCTAGATGGAGTGAAGCCTCTGATTTTGAGAGATTGTAGTGTAGCTGGATGGCTCCTCGGAAAC"; // >KC684446.1 |Influenza A virus (A/chicken/Malaysia/5744/2004(H5N1)) segment 4 hemagglutinin (HA) gene, complete cds
-
-macro_rules! assert_fp_eq {
-    ($a:expr, $b:expr) => {
-        assert_fp_eq!($a, $b, 1e-8); // Default epsilon
-    };
-    ($a:expr, $expected:expr, $epsilon:expr) => {
-        let found = $a;
-        assert!(
-            found.nearly_equal($expected, $epsilon),
-            "assertion failed: `(found ≈ expected)`\n left:\t`{:?}`,\n right:\t`{:?}`,\n eps:\t`{}`",
-            found,
-            $expected,
-            $epsilon
-        );
-    };
-}
 
 #[test]
 fn test_hamming_from_matrix() {

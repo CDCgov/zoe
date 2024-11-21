@@ -5,8 +5,11 @@
     clippy::similar_names,
     clippy::wildcard_imports,
     clippy::enum_glob_use,
-    clippy::needless_lifetimes, // Remove in Rust 2024
-    clippy::manual_div_ceil,    // Remove after merging Striped SW
+    clippy::comparison_chain,
+    clippy::needless_lifetimes,     // Remove in Rust 2024
+    clippy::manual_div_ceil,        // Remove with merging of Striped SW
+    clippy::manual_ignore_case_cmp, // Remove with merging of Striped SW
+    clippy::large_const_arrays,     // Remove with merging of Striped SW 
     stable_features
 )]
 #![feature(test, portable_simd, const_fn_floating_point_arithmetic, let_chains, lazy_cell)]
@@ -32,8 +35,6 @@ pub(crate) mod iter_utils;
 pub(crate) mod math;
 /// SIMD traits to extend portable SIMD.
 pub(crate) mod simd;
-/// Private sorting functions for ASCII use cases.
-pub(crate) mod sort;
 
 /// Common structures and traits re-exported
 pub mod prelude {
