@@ -142,3 +142,20 @@ pub(crate) trait MapFloat: Float {
 
 impl MapFloat for f64 {}
 impl MapFloat for f32 {}
+
+#[macro_export]
+macro_rules! assert_fp_eq {
+    ($a:expr, $b:expr) => {
+        assert_fp_eq!($a, $b, 1e-8); // Default epsilon
+    };
+    ($a:expr, $expected:expr, $epsilon:expr) => {
+        let found = $a;
+        assert!(
+            $crate::math::NearlyEqual::nearly_equal(found, $expected, $epsilon),
+            "assertion failed: `(found ≈ expected)`\n left:\t`{:?}`,\n right:\t`{:?}`,\n eps:\t`{}`",
+            found,
+            $expected,
+            $epsilon
+        );
+    };
+}
