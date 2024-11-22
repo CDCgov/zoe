@@ -158,6 +158,8 @@ pub mod composition;
 pub mod data;
 /// Distance functions, especially for sequence data.
 pub mod distance;
+/// Kmer processing, searching, and counting.
+pub mod kmer;
 /// Sequence search and/or replacement.
 pub mod search;
 
@@ -180,5 +182,6 @@ pub mod prelude {
     };
     #[cfg(feature = "rand")]
     pub use crate::generate::rand_sequence;
+    pub use crate::kmer::{encoder::KmerEncoder, kmer_counter::KmerCounter, kmer_set::KmerSet};
     pub use crate::search::{ByteSubstring, ByteSubstringMut};
 }
