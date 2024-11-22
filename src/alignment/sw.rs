@@ -304,8 +304,7 @@ where
             //let mut E = *e_ref;
             let mut E = e_scores[j];
 
-            H += scores_vec[j];
-            H = H.saturating_sub(biases);
+            H = H.saturating_add(scores_vec[j]).saturating_sub(biases);
 
             max_scores = max_scores.simd_max(H);
 
@@ -333,6 +332,7 @@ where
             store[j] = H;
 
             // Update E in case H is greater
+            // TODO: Remove this when we determine an API to guarantee it isn't necessary
             e_scores[j] = e_scores[j].simd_max(H.saturating_sub(gap_opens));
 
             F = F.saturating_sub(gap_extends);
@@ -418,13 +418,8 @@ mod test {
     #[test]
     fn sw_simd() {
         let matrix = SimpleWeightMatrix::new(b"ACGTN", 2, -5, Some(b'N')).into_biased_matrix();
-        let profile = StripedDNAProfile::new(REFERENCE, &matrix);
-        let score = sw_simd_score::<u8, 16, _>(
-            QUERY,
-            &profile,
-            GAP_OPEN.unsigned_abs() as u8,
-            GAP_EXTEND.unsigned_abs() as u8,
-        );
+        let profile = StripedDNAProfile::<u8, 16>::new(REFERENCE, &matrix);
+        let score = profile.smith_waterman_score(QUERY, GAP_OPEN_U8, GAP_EXTEND_U8);
         assert_eq!(Some(37), score);
     }
 
@@ -432,9 +427,8 @@ mod test {
     fn sw_simd_poly_a() {
         let v: Vec<_> = std::iter::repeat(b'A').take(100).collect();
         let matrix = SimpleWeightMatrix::<5>::new_dna_matrix(2, -5, Some(b'N')).into_biased_matrix();
-        let profile = StripedDNAProfile::new(&v, &matrix);
-        let score =
-            sw_simd_score::<u16, 16, _>(&v, &profile, GAP_OPEN.unsigned_abs() as u16, GAP_EXTEND.unsigned_abs() as u16);
+        let profile = StripedDNAProfile::<u16, 16>::new(&v, &matrix);
+        let score = profile.smith_waterman_score(&v, GAP_OPEN_U8, GAP_EXTEND_U8);
         assert_eq!(Some(200), score);
     }
 
@@ -455,6 +449,17 @@ mod test {
         let profile = StripedDNAProfile::<u16, 4>::new(query, &matrix);
         let score = profile.smith_waterman_score(reference, 5, 5);
         assert_eq!(Some(15), score);
+    }
+
+    #[test]
+    fn sw_simd_overflow_check() {
+        let query = b"AAAA";
+        let reference = b"AAAA";
+
+        let matrix = SimpleWeightMatrix::new(b"ACGTN", 127, 0, Some(b'N')).into_biased_matrix();
+        let profile = StripedDNAProfile::<u8, 8>::new(query, &matrix);
+        let score = profile.smith_waterman_score(reference, GAP_OPEN_U8, GAP_OPEN_U8);
+        assert!(score.is_none());
     }
 
     #[test]

@@ -167,7 +167,7 @@ impl<const N: usize> SimpleWeightMatrix<N> {
         min
     }
 
-    #[allow(clippy::cast_sign_loss)]
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     #[must_use]
     pub const fn into_biased_matrix(self) -> BiasedWeightMatrix<N> {
         let bias = self.get_bias();
@@ -179,7 +179,7 @@ impl<const N: usize> SimpleWeightMatrix<N> {
             let mut j = 0;
             while j < N {
                 // This quantity must be non-negative.
-                mapping[i][j] = (self.mapping[i][j] - bias) as u8;
+                mapping[i][j] = (self.mapping[i][j] as i16 - bias as i16) as u8;
                 j += 1;
             }
             i += 1;
