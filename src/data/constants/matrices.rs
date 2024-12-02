@@ -1,3 +1,5 @@
+use super::mappings::{ResidueMapping, DNA_RESIDUE_MAPPING};
+
 // Physiochemical distance matrix using the euclidean distance between all amino acid factors.
 pub(crate) static PHYSIOCHEMICAL_FACTORS: [[Option<f32>; 256]; 256] = {
     const AA: [u8; 43] = [
@@ -83,35 +85,34 @@ pub(crate) static PHYSIOCHEMICAL_FACTORS: [[Option<f32>; 256]; 256] = {
     pcd
 };
 
+// TODO: Provide get_weight function
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-pub struct BiasedWeightMatrix<const N: usize> {
-    pub(crate) mapping: [[u8; N]; N],
-    pub(crate) index:   &'static [u8; N],
+pub struct BiasedWeightMatrix<const S: usize> {
+    pub(crate) weights: [[u8; S]; S],
+    pub(crate) mapping: &'static ResidueMapping<S>,
     pub(crate) bias:    u8,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct SimpleWeightMatrix<const N: usize> {
-    pub mapping: [[i8; N]; N],
-    pub index:   &'static [u8; N],
+pub struct SimpleWeightMatrix<const S: usize> {
+    pub weights: [[i8; S]; S],
+    pub mapping: &'static ResidueMapping<S>,
 }
 
-impl<const N: usize> SimpleWeightMatrix<N> {
+impl<const S: usize> SimpleWeightMatrix<S> {
     /// Builds a simple Weight matrix for alignment. The `index` byte string
     /// represents the states and must match the matrix dimension.
-    ///
-    /// ### Panics
-    /// Uppercase ASCII is expected for the `index` byte string.
     #[must_use]
-    pub const fn new(index: &'static [u8; N], matching: i8, mismatch: i8, ignoring: Option<u8>) -> Self {
-        let mut mapping = [[0i8; N]; N];
+    pub const fn new(mapping: &'static ResidueMapping<S>, matching: i8, mismatch: i8, ignoring: Option<u8>) -> Self {
+        let mut weights = [[0i8; S]; S];
 
         let mut k = 0;
         let mut skip_index = None;
 
         if let Some(letter) = ignoring {
-            while k < index.len() {
-                if index[k] == letter {
+            while k < mapping.index.len() {
+                if mapping.index[k] == letter {
                     skip_index = Some(k);
                 }
                 k += 1;
@@ -119,10 +120,9 @@ impl<const N: usize> SimpleWeightMatrix<N> {
         }
 
         let mut i = 0;
-        while i < N {
-            assert!(index[i].is_ascii_uppercase());
+        while i < S {
             let mut j = 0;
-            while j < N {
+            while j < S {
                 if let Some(k) = skip_index
                     && (k == i || k == j)
                 {
@@ -131,9 +131,9 @@ impl<const N: usize> SimpleWeightMatrix<N> {
                 }
 
                 if i == j {
-                    mapping[i][j] = matching;
+                    weights[i][j] = matching;
                 } else {
-                    mapping[i][j] = mismatch;
+                    weights[i][j] = mismatch;
                 }
 
                 j += 1;
@@ -141,12 +141,12 @@ impl<const N: usize> SimpleWeightMatrix<N> {
             i += 1;
         }
 
-        SimpleWeightMatrix { mapping, index }
+        SimpleWeightMatrix { weights, mapping }
     }
 
     #[must_use]
-    pub const fn new_dna_matrix(matching: i8, mismatch: i8, ignoring: Option<u8>) -> SimpleWeightMatrix<5> {
-        SimpleWeightMatrix::new(b"ACTGN", matching, mismatch, ignoring)
+    pub const fn get_weight(&self, reference_base: u8, query_base: u8) -> i8 {
+        self.weights[self.mapping.get_index(reference_base)][self.mapping.get_index(query_base)]
     }
 
     #[must_use]
@@ -154,11 +154,11 @@ impl<const N: usize> SimpleWeightMatrix<N> {
     const fn get_bias(&self) -> i8 {
         let mut min = 0;
         let mut i = 0;
-        while i < N {
+        while i < S {
             let mut j = i;
-            while j < N {
-                if self.mapping[i][j] < min {
-                    min = self.mapping[i][j];
+            while j < S {
+                if self.weights[i][j] < min {
+                    min = self.weights[i][j];
                 }
                 j += 1;
             }
@@ -169,17 +169,17 @@ impl<const N: usize> SimpleWeightMatrix<N> {
 
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     #[must_use]
-    pub const fn into_biased_matrix(self) -> BiasedWeightMatrix<N> {
+    pub const fn into_biased_matrix(self) -> BiasedWeightMatrix<S> {
         let bias = self.get_bias();
-        let mut mapping = [[0u8; N]; N];
-        let index = self.index;
+        let mut weights = [[0u8; S]; S];
+        let mapping = self.mapping;
 
         let mut i = 0;
-        while i < N {
+        while i < S {
             let mut j = 0;
-            while j < N {
+            while j < S {
                 // This quantity must be non-negative.
-                mapping[i][j] = (self.mapping[i][j] as i16 - bias as i16) as u8;
+                weights[i][j] = (self.weights[i][j] as i16 - bias as i16) as u8;
                 j += 1;
             }
             i += 1;
@@ -188,7 +188,14 @@ impl<const N: usize> SimpleWeightMatrix<N> {
         // We can provide the bias as the unsigned version.
         let bias = bias.unsigned_abs();
 
-        BiasedWeightMatrix { mapping, index, bias }
+        BiasedWeightMatrix { weights, mapping, bias }
+    }
+}
+
+impl SimpleWeightMatrix<5> {
+    #[must_use]
+    pub const fn new_dna_matrix(matching: i8, mismatch: i8, ignoring: Option<u8>) -> Self {
+        SimpleWeightMatrix::new(&DNA_RESIDUE_MAPPING, matching, mismatch, ignoring)
     }
 }
 
@@ -198,12 +205,14 @@ mod test {
 
     #[test]
     fn create_simple() {
+        static RESIDUE_MAP: ResidueMapping<2> = ResidueMapping::new(*b"AB", b'A');
+
         let result1 = SimpleWeightMatrix {
-            mapping: [[0, 1], [1, 0]],
-            index:   b"AB",
+            weights: [[1, 0], [0, 1]],
+            mapping: &RESIDUE_MAP,
         };
 
-        let result2 = SimpleWeightMatrix::new(b"AB", 0, 1, None);
+        let result2 = SimpleWeightMatrix::new(&RESIDUE_MAP, 1, 0, None);
         assert_eq!(result1, result2);
     }
 
@@ -211,17 +220,17 @@ mod test {
     #[test]
     fn create_IRMA_matrix() {
         let result1 = SimpleWeightMatrix {
-            mapping: [
+            weights: [
                 [2, -5, -5, -5, 0],
                 [-5, 2, -5, -5, 0],
                 [-5, -5, 2, -5, 0],
                 [-5, -5, -5, 2, 0],
                 [0, 0, 0, 0, 0],
             ],
-            index:   b"ACGTN",
+            mapping: &DNA_RESIDUE_MAPPING,
         };
 
-        let result2 = SimpleWeightMatrix::new(b"ACGTN", 2, -5, Some(b'N'));
+        let result2 = SimpleWeightMatrix::new(&DNA_RESIDUE_MAPPING, 2, -5, Some(b'N'));
 
         assert_eq!(result1, result2);
     }

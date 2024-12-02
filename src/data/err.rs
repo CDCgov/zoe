@@ -75,3 +75,22 @@ impl Display for DistanceError {
 }
 
 impl std::error::Error for DistanceError {}
+
+#[derive(Debug)]
+pub enum AlignmentError {
+    EmptyQuery,
+    BadGapWeights,
+}
+
+impl Display for AlignmentError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let message = match self {
+            AlignmentError::EmptyQuery => "The alignment query was empty",
+            AlignmentError::BadGapWeights => "The gap extend penalty was greater than the gap open penalty",
+        };
+
+        write!(f, "{message}")
+    }
+}
+
+impl std::error::Error for AlignmentError {}

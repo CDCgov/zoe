@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use super::mappings::TO_DNA_PROFILE_INDEX;
+use super::mappings::DNA_RESIDUE_MAPPING;
 
 pub(crate) trait ByteMappings {
     fn to_dna_index(self) -> usize;
@@ -9,7 +9,7 @@ pub(crate) trait ByteMappings {
 impl ByteMappings for u8 {
     #[inline]
     fn to_dna_index(self) -> usize {
-        TO_DNA_PROFILE_INDEX[self as usize] as usize
+        DNA_RESIDUE_MAPPING[self] as usize
     }
 }
 

@@ -23,7 +23,10 @@ pub use crate::{
     data::vec_types::{CheckSequence, PairwiseSequence, StdForSequences},
     search::ByteSubstring,
 };
-pub use constants::matrices::{BiasedWeightMatrix, SimpleWeightMatrix};
+pub use constants::{
+    mappings::{ResidueMapping, DNA_RESIDUE_MAPPING},
+    matrices::{BiasedWeightMatrix, SimpleWeightMatrix},
+};
 
 /// A private module for helper functions on [`u8`].
 pub(crate) mod byte_types;

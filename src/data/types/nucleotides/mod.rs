@@ -3,8 +3,8 @@ use crate::{
     composition::NucleotideCounts,
     data::{
         mappings::{
-            ANY_TO_DNA_CANONICAL_UPPER, GENETIC_CODE, IS_IUPAC_BASE, IS_UNALIGNED_IUPAC_BASE, IUPAC_TO_DNA_CANONICAL,
-            IUPAC_TO_DNA_CANONICAL_UPPER, TO_DNA_UC, TO_REVERSE_COMPLEMENT, TO_UNALIGNED_DNA_UC,
+            ANY_TO_DNA_CANONICAL_UPPER, DNA_RESIDUE_MAPPING, GENETIC_CODE, IS_IUPAC_BASE, IS_UNALIGNED_IUPAC_BASE,
+            IUPAC_TO_DNA_CANONICAL, IUPAC_TO_DNA_CANONICAL_UPPER, TO_DNA_UC, TO_REVERSE_COMPLEMENT, TO_UNALIGNED_DNA_UC,
         },
         types::{amino_acids::AminoAcids, Uint},
         vec_types::ValidateSequence,
@@ -95,7 +95,7 @@ impl Nucleotides {
     #[must_use]
     pub fn into_dna_profile_indices(mut self) -> DNAProfileIndices {
         for base in &mut self.0 {
-            *base = crate::data::mappings::TO_DNA_PROFILE_INDEX[*base as usize];
+            *base = DNA_RESIDUE_MAPPING[*base];
         }
         DNAProfileIndices(self.0)
     }

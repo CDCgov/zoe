@@ -1,5 +1,5 @@
 use super::alphas::{NUCLEIC_IUPAC, NUCLEIC_IUPAC_UNALIGNED};
-use std::sync::LazyLock;
+use std::{ops::Index, sync::LazyLock};
 
 /// Maps bytes to themselves but valid IUPAC nucleotides to their reverse complement.
 #[allow(clippy::cast_possible_truncation)]
@@ -140,36 +140,86 @@ pub(crate) const ANY_TO_DNA_CANONICAL_UPPER: [u8; 256] = {
     v
 };
 
-/// Used to convert any byte to `u8` indices where {0: A, 1: C, 2: G, 3: T, 4: N}.
-/// N is used as a catch-all.
-pub(crate) const TO_DNA_PROFILE_INDEX: [u8; 256] = {
-    const FROM_BYTE: &[u8; 12] = b"acgtunACGTUN";
-    const THE_INDEX: &[u8; 12] = b"012334012334"; //  b"123445123445";
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub struct ResidueMapping<const S: usize> {
+    pub(crate) mapping: [u8; 256],
+    pub(crate) index:   [u8; S],
+}
 
-    let mut v = [4u8; 256]; // Use N as the catch-all for now
-    let mut i = 0;
+impl<const S: usize> ResidueMapping<S> {
+    /// Create a new [`ResidueMapping`] struct to represent a mapping between
+    /// residues and indices. For DNA bases, you may consider using
+    /// [`DNA_RESIDUE_MAPPING`], which uniquely represents `ACGTN` with `N`
+    /// being a catch-all.
+    ///
+    /// # Panics
+    /// Uppercase ASCII is expected for the `index` byte string and the
+    /// `catch_all` value. The `catch_all` value must be present in `index`, and
+    /// no duplicates can be present in `index`.
+    #[allow(clippy::cast_possible_truncation)]
+    #[must_use]
+    pub const fn new(index: [u8; S], catch_all: u8) -> Self {
+        assert!(catch_all.is_ascii_uppercase());
 
-    while i < FROM_BYTE.len() {
-        // reserve 0 for invalid state
-        v[FROM_BYTE[i] as usize] = THE_INDEX[i] - b'0';
-        i += 1;
+        let mut catch_all_index = None;
+        let mut i = 0;
+        while i < index.len() {
+            assert!(index[i].is_ascii_uppercase());
+
+            let mut j = i + 1;
+            while j < index.len() {
+                assert!(index[i] != index[j]);
+                j += 1;
+            }
+
+            if index[i] == catch_all {
+                catch_all_index = Some(i);
+            }
+
+            i += 1;
+        }
+
+        // If this unwrap fails, it means catch_all wasn't present in index
+        let mut mapping = [catch_all_index.unwrap() as u8; 256];
+
+        let mut i = 0;
+        while i < index.len() {
+            // Truncation will not occur because i cannot exceed index.len(),
+            // and index must contain unique u8 values
+            mapping[index[i] as usize] = i as u8;
+            mapping[index[i].to_ascii_lowercase() as usize] = i as u8;
+
+            i += 1;
+        }
+        ResidueMapping { mapping, index }
     }
-    v
-};
 
-#[inline]
-/// Used to convert any byte to `usize` indices where {0: A, 1: C, 2: G, 3: T, 4: N}.
-/// N is used as a catch-all.
-pub const fn to_dna_profile_index(b: u8) -> usize {
-    TO_DNA_PROFILE_INDEX[b as usize] as usize
+    #[inline]
+    #[must_use]
+    #[allow(clippy::len_without_is_empty)]
+    pub const fn len(&self) -> usize {
+        self.index.len()
+    }
+
+    #[inline]
+    #[must_use]
+    pub const fn get_index(&self, b: u8) -> usize {
+        self.mapping[b as usize] as usize
+    }
 }
 
-#[inline]
+impl<const S: usize> Index<u8> for ResidueMapping<S> {
+    type Output = u8;
+
+    #[inline]
+    fn index(&self, index: u8) -> &u8 {
+        &self.mapping[index as usize]
+    }
+}
+
 /// Used to convert any byte to `u8` indices where {0: A, 1: C, 2: G, 3: T, 4: N}.
 /// N is used as a catch-all.
-pub const fn to_dna_index(b: u8) -> u8 {
-    TO_DNA_PROFILE_INDEX[b as usize]
-}
+pub const DNA_RESIDUE_MAPPING: ResidueMapping<5> = ResidueMapping::new(*b"ACGTN", b'N');
 
 macro_rules! fill_map {
     ($( $key: expr => $val: expr ),*) => {{
