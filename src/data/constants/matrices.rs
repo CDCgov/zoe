@@ -1,4 +1,10 @@
-use super::mappings::{ResidueMapping, DNA_RESIDUE_MAPPING};
+use crate::{
+    alignment::StripedProfile,
+    data::{err::QueryProfileError, types::Uint},
+};
+
+use super::mappings::{ByteIndexMap, DNA_PROFILE_MAP};
+use std::simd::{LaneCount, SupportedLaneCount};
 
 // Physiochemical distance matrix using the euclidean distance between all amino acid factors.
 pub(crate) static PHYSIOCHEMICAL_FACTORS: [[Option<f32>; 256]; 256] = {
@@ -90,29 +96,55 @@ pub(crate) static PHYSIOCHEMICAL_FACTORS: [[Option<f32>; 256]; 256] = {
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct BiasedWeightMatrix<const S: usize> {
     pub(crate) weights: [[u8; S]; S],
-    pub(crate) mapping: &'static ResidueMapping<S>,
+    pub(crate) mapping: &'static ByteIndexMap<S>,
     pub(crate) bias:    u8,
+}
+
+impl BiasedWeightMatrix<5> {
+    #[inline]
+    #[must_use]
+    pub const fn new_biased_dna_matrix(matching: i8, mismatch: i8, ignoring: Option<u8>) -> Self {
+        SimpleWeightMatrix::new(&DNA_PROFILE_MAP, matching, mismatch, ignoring).into_biased_matrix()
+    }
+}
+
+impl<const S: usize> BiasedWeightMatrix<S> {
+    /// Converts the weight matrix to a striped profile.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an `AlignmentError` if the striped profile cannot
+    /// be created.
+    #[inline]
+    pub fn to_striped_profile<T, const N: usize>(
+        &self, query: &[u8], gap_open: T, gap_extend: T,
+    ) -> Result<StripedProfile<T, N, S>, QueryProfileError>
+    where
+        T: From<u8> + Uint,
+        LaneCount<N>: SupportedLaneCount, {
+        StripedProfile::new(query, self, gap_open, gap_extend)
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct SimpleWeightMatrix<const S: usize> {
     pub weights: [[i8; S]; S],
-    pub mapping: &'static ResidueMapping<S>,
+    pub mapping: &'static ByteIndexMap<S>,
 }
 
 impl<const S: usize> SimpleWeightMatrix<S> {
     /// Builds a simple Weight matrix for alignment. The `index` byte string
     /// represents the states and must match the matrix dimension.
     #[must_use]
-    pub const fn new(mapping: &'static ResidueMapping<S>, matching: i8, mismatch: i8, ignoring: Option<u8>) -> Self {
+    pub const fn new(mapping: &'static ByteIndexMap<S>, matching: i8, mismatch: i8, ignoring: Option<u8>) -> Self {
         let mut weights = [[0i8; S]; S];
 
         let mut k = 0;
         let mut skip_index = None;
 
         if let Some(letter) = ignoring {
-            while k < mapping.index.len() {
-                if mapping.index[k] == letter {
+            while k < mapping.byte_keys.len() {
+                if mapping.byte_keys[k] == letter {
                     skip_index = Some(k);
                 }
                 k += 1;
@@ -146,7 +178,7 @@ impl<const S: usize> SimpleWeightMatrix<S> {
 
     #[must_use]
     pub const fn get_weight(&self, reference_base: u8, query_base: u8) -> i8 {
-        self.weights[self.mapping.get_index(reference_base)][self.mapping.get_index(query_base)]
+        self.weights[self.mapping.to_index(reference_base)][self.mapping.to_index(query_base)]
     }
 
     #[must_use]
@@ -195,7 +227,7 @@ impl<const S: usize> SimpleWeightMatrix<S> {
 impl SimpleWeightMatrix<5> {
     #[must_use]
     pub const fn new_dna_matrix(matching: i8, mismatch: i8, ignoring: Option<u8>) -> Self {
-        SimpleWeightMatrix::new(&DNA_RESIDUE_MAPPING, matching, mismatch, ignoring)
+        SimpleWeightMatrix::new(&DNA_PROFILE_MAP, matching, mismatch, ignoring)
     }
 }
 
@@ -205,7 +237,7 @@ mod test {
 
     #[test]
     fn create_simple() {
-        static RESIDUE_MAP: ResidueMapping<2> = ResidueMapping::new(*b"AB", b'A');
+        static RESIDUE_MAP: ByteIndexMap<2> = ByteIndexMap::new(*b"AB", b'A');
 
         let result1 = SimpleWeightMatrix {
             weights: [[1, 0], [0, 1]],
@@ -227,10 +259,10 @@ mod test {
                 [-5, -5, -5, 2, 0],
                 [0, 0, 0, 0, 0],
             ],
-            mapping: &DNA_RESIDUE_MAPPING,
+            mapping: &DNA_PROFILE_MAP,
         };
 
-        let result2 = SimpleWeightMatrix::new(&DNA_RESIDUE_MAPPING, 2, -5, Some(b'N'));
+        let result2 = SimpleWeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N'));
 
         assert_eq!(result1, result2);
     }

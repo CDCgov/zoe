@@ -1,5 +1,5 @@
 use super::{validate_profile_args, StripedProfile};
-use crate::data::{err::AlignmentError, matrices::BiasedWeightMatrix, types::nucleotides::MaybeNucleic};
+use crate::data::{err::QueryProfileError, matrices::BiasedWeightMatrix};
 use std::{
     cell::OnceCell,
     simd::{LaneCount, SupportedLaneCount},
@@ -35,9 +35,9 @@ where
     /// [`AlignmentError::BadGapWeights`] if `gap_extend` is greater than
     /// `gap_open`.
     #[inline]
-    pub fn new<T: AsRef<[u8]> + MaybeNucleic + ?Sized>(
+    pub fn new<T: AsRef<[u8]> + ?Sized>(
         query: &'a T, matrix: &'a BiasedWeightMatrix<S>, gap_open: u8, gap_extend: u8,
-    ) -> Result<Self, AlignmentError> {
+    ) -> Result<Self, QueryProfileError> {
         validate_profile_args(query.as_ref(), gap_open, gap_extend)?;
 
         Ok(LocalProfile {
@@ -61,9 +61,9 @@ where
     /// [`AlignmentError::BadGapWeights`] if `gap_extend` is greater than
     /// `gap_open`.
     #[inline]
-    pub fn new_with_u8<T: AsRef<[u8]> + MaybeNucleic + ?Sized>(
+    pub fn new_with_u8<T: AsRef<[u8]> + ?Sized>(
         query: &'a T, matrix: &'a BiasedWeightMatrix<S>, gap_open: u8, gap_extend: u8,
-    ) -> Result<Self, AlignmentError> {
+    ) -> Result<Self, QueryProfileError> {
         let p = LocalProfile::new(query, matrix, gap_open, gap_extend)?;
         p.get_u8();
         Ok(p)
@@ -78,9 +78,9 @@ where
     /// [`AlignmentError::BadGapWeights`] if `gap_extend` is greater than
     /// `gap_open`.
     #[inline]
-    pub fn new_with_u16<T: AsRef<[u8]> + MaybeNucleic + ?Sized>(
+    pub fn new_with_u16<T: AsRef<[u8]> + ?Sized>(
         query: &'a T, matrix: &'a BiasedWeightMatrix<S>, gap_open: u8, gap_extend: u8,
-    ) -> Result<Self, AlignmentError> {
+    ) -> Result<Self, QueryProfileError> {
         let p = LocalProfile::new(query, matrix, gap_open, gap_extend)?;
         p.get_u16();
         Ok(p)
@@ -89,47 +89,55 @@ where
     /// Get or initialize [`StripedProfile`] with elements of `u8` and `N` SIMD
     /// lanes and returns a reference to the field.
     #[inline]
-    #[allow(clippy::missing_panics_doc)]
     pub fn get_u8(&self) -> &StripedProfile<u8, N, S> {
-        // Unwrap will not panic since we already validated profile
+        // We already validated profile
         self.profile_u8.get_or_init(|| {
-            StripedProfile::<u8, N, S>::new(self.query, self.matrix, self.gap_open, self.gap_extend).unwrap()
+            StripedProfile::<u8, N, S>::new_unchecked(self.query, self.matrix, self.gap_open, self.gap_extend)
         })
     }
 
     /// Get or initialize [`StripedProfile`] with elements of `u16` and `N` SIMD
     /// lanes and returns a reference to the field.
     #[inline]
-    #[allow(clippy::missing_panics_doc)]
     pub fn get_u16(&self) -> &StripedProfile<u16, N, S> {
-        // Unwrap will not panic since we already validated profile
+        // We already validated profile
         self.profile_u16.get_or_init(|| {
-            StripedProfile::<u16, N, S>::new(self.query, self.matrix, u16::from(self.gap_open), u16::from(self.gap_extend))
-                .unwrap()
+            StripedProfile::<u16, N, S>::new_unchecked(
+                self.query,
+                self.matrix,
+                u16::from(self.gap_open),
+                u16::from(self.gap_extend),
+            )
         })
     }
 
     /// Get or initialize [`StripedProfile`] with elements of `u32` and `N` SIMD
     /// lanes and returns a reference to the field.
     #[inline]
-    #[allow(clippy::missing_panics_doc)]
     pub fn get_u32(&self) -> &StripedProfile<u32, N, S> {
-        // Unwrap will not panic since we already validated profile
+        // We already validated profile
         self.profile_u32.get_or_init(|| {
-            StripedProfile::<u32, N, S>::new(self.query, self.matrix, u32::from(self.gap_open), u32::from(self.gap_extend))
-                .unwrap()
+            StripedProfile::<u32, N, S>::new_unchecked(
+                self.query,
+                self.matrix,
+                u32::from(self.gap_open),
+                u32::from(self.gap_extend),
+            )
         })
     }
 
     /// Get or initialize [`StripedProfile`] with elements of `u64` and `N` SIMD
     /// lanes and returns a reference to the field.
     #[inline]
-    #[allow(clippy::missing_panics_doc)]
     pub fn get_u64(&self) -> &StripedProfile<u64, N, S> {
-        // Unwrap will not panic since we already validated profile
+        // We already validated profile
         self.profile_u64.get_or_init(|| {
-            StripedProfile::<u64, N, S>::new(self.query, self.matrix, u64::from(self.gap_open), u64::from(self.gap_extend))
-                .unwrap()
+            StripedProfile::<u64, N, S>::new_unchecked(
+                self.query,
+                self.matrix,
+                u64::from(self.gap_open),
+                u64::from(self.gap_extend),
+            )
         })
     }
 
@@ -139,7 +147,7 @@ where
     /// overflows the profile's integer range.
     #[must_use]
     #[inline]
-    pub fn smith_waterman_score_from_u8<T: AsRef<[u8]> + MaybeNucleic + ?Sized>(&self, query: &T) -> Option<u64> {
+    pub fn smith_waterman_score_from_u8<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u64> {
         let query = query.as_ref();
         self.get_u8()
             .smith_waterman_score(query)
@@ -154,7 +162,7 @@ where
     /// the score returned no longer overflows the profile's integer range.
     #[must_use]
     #[inline]
-    pub fn smith_waterman_score_from_u16<T: AsRef<[u8]> + MaybeNucleic + ?Sized>(&self, query: &T) -> Option<u64> {
+    pub fn smith_waterman_score_from_u16<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u64> {
         let query = query.as_ref();
         self.get_u16()
             .smith_waterman_score(query)
@@ -169,7 +177,7 @@ where
     /// profile's integer range.
     #[must_use]
     #[inline]
-    pub fn smith_waterman_score_from_u32<T: AsRef<[u8]> + MaybeNucleic + ?Sized>(&self, query: &T) -> Option<u64> {
+    pub fn smith_waterman_score_from_u32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u64> {
         let query = query.as_ref();
         self.get_u32()
             .smith_waterman_score(query)
@@ -209,7 +217,7 @@ where
     #[inline]
     pub fn new(
         query: Box<[u8]>, matrix: &'a BiasedWeightMatrix<S>, gap_open: u8, gap_extend: u8,
-    ) -> Result<Self, AlignmentError> {
+    ) -> Result<Self, QueryProfileError> {
         validate_profile_args(&query, gap_open, gap_extend)?;
 
         Ok(SharedProfile {
@@ -235,7 +243,7 @@ where
     #[inline]
     pub fn new_with_u8(
         query: Box<[u8]>, matrix: &'a BiasedWeightMatrix<S>, gap_open: u8, gap_extend: u8,
-    ) -> Result<Self, AlignmentError> {
+    ) -> Result<Self, QueryProfileError> {
         let p = SharedProfile::new(query, matrix, gap_open, gap_extend)?;
         p.get_u8();
         Ok(p)
@@ -252,7 +260,7 @@ where
     #[inline]
     pub fn new_with_u16(
         query: Box<[u8]>, matrix: &'a BiasedWeightMatrix<S>, gap_open: u8, gap_extend: u8,
-    ) -> Result<Self, AlignmentError> {
+    ) -> Result<Self, QueryProfileError> {
         let p = SharedProfile::new(query, matrix, gap_open, gap_extend)?;
         p.get_u16();
         Ok(p)
@@ -261,47 +269,55 @@ where
     /// Get or initialize [`StripedProfile`] with elements of `u8` and `N`
     /// SIMD lanes and returns a reference to the field.
     #[inline]
-    #[allow(clippy::missing_panics_doc)]
     pub fn get_u8(&self) -> &StripedProfile<u8, N, S> {
-        // Unwrap will not panic since we already validated profile
+        // We already validated profile
         self.profile_u8.get_or_init(|| {
-            StripedProfile::<u8, N, S>::new(&self.query, self.matrix, self.gap_open, self.gap_extend).unwrap()
+            StripedProfile::<u8, N, S>::new_unchecked(&self.query, self.matrix, self.gap_open, self.gap_extend)
         })
     }
 
     /// Get or initialize [`StripedProfile`] with elements of `u16` and `N`
     /// SIMD lanes and returns a reference to the field.
     #[inline]
-    #[allow(clippy::missing_panics_doc)]
     pub fn get_u16(&self) -> &StripedProfile<u16, N, S> {
         self.profile_u16.get_or_init(|| {
-            // Unwrap will not panic since we already validated profile
-            StripedProfile::<u16, N, S>::new(&self.query, self.matrix, u16::from(self.gap_open), u16::from(self.gap_extend))
-                .unwrap()
+            // We already validated profile
+            StripedProfile::<u16, N, S>::new_unchecked(
+                &self.query,
+                self.matrix,
+                u16::from(self.gap_open),
+                u16::from(self.gap_extend),
+            )
         })
     }
 
     /// Get or initialize [`StripedProfile`] with elements of `u32` and `N`
     /// SIMD lanes and returns a reference to the field.
     #[inline]
-    #[allow(clippy::missing_panics_doc)]
     pub fn get_u32(&self) -> &StripedProfile<u32, N, S> {
         self.profile_u32.get_or_init(|| {
-            // Unwrap will not panic since we already validated profile
-            StripedProfile::<u32, N, S>::new(&self.query, self.matrix, u32::from(self.gap_open), u32::from(self.gap_extend))
-                .unwrap()
+            // We already validated profile
+            StripedProfile::<u32, N, S>::new_unchecked(
+                &self.query,
+                self.matrix,
+                u32::from(self.gap_open),
+                u32::from(self.gap_extend),
+            )
         })
     }
 
     /// Get or initialize [`StripedProfile`] with elements of `u64` and `N`
     /// SIMD lanes and returns a reference to the field.
     #[inline]
-    #[allow(clippy::missing_panics_doc)]
     pub fn get_u64(&self) -> &StripedProfile<u64, N, S> {
         self.profile_u64.get_or_init(|| {
-            // Unwrap will not panic since we already validated profile
-            StripedProfile::<u64, N, S>::new(&self.query, self.matrix, u64::from(self.gap_open), u64::from(self.gap_extend))
-                .unwrap()
+            // We already validated profile
+            StripedProfile::<u64, N, S>::new_unchecked(
+                &self.query,
+                self.matrix,
+                u64::from(self.gap_open),
+                u64::from(self.gap_extend),
+            )
         })
     }
 
@@ -311,7 +327,7 @@ where
     /// the score returned no longer overflows the profile's integer range.
     #[must_use]
     #[inline]
-    pub fn smith_waterman_score_from_u8<T: AsRef<[u8]> + MaybeNucleic + ?Sized>(&self, query: &T) -> Option<u64> {
+    pub fn smith_waterman_score_from_u8<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u64> {
         let query = query.as_ref();
         self.get_u8()
             .smith_waterman_score(query)
@@ -326,7 +342,7 @@ where
     /// the score returned no longer overflows the profile's integer range.
     #[must_use]
     #[inline]
-    pub fn smith_waterman_score_from_u16<T: AsRef<[u8]> + MaybeNucleic + ?Sized>(&self, query: &T) -> Option<u64> {
+    pub fn smith_waterman_score_from_u16<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u64> {
         let query = query.as_ref();
         self.get_u16()
             .smith_waterman_score(query)
@@ -341,7 +357,7 @@ where
     /// profile's integer range.
     #[must_use]
     #[inline]
-    pub fn smith_waterman_score_from_u32<T: AsRef<[u8]> + MaybeNucleic + ?Sized>(&self, query: &T) -> Option<u64> {
+    pub fn smith_waterman_score_from_u32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u64> {
         let query = query.as_ref();
         self.get_u32()
             .smith_waterman_score(query)

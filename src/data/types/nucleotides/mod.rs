@@ -1,11 +1,13 @@
 use crate::{
-    alignment::DNAProfileIndices,
+    alignment::profile_set::{LocalProfile, SharedProfile},
     composition::NucleotideCounts,
     data::{
+        err::QueryProfileError,
         mappings::{
-            ANY_TO_DNA_CANONICAL_UPPER, DNA_RESIDUE_MAPPING, GENETIC_CODE, IS_IUPAC_BASE, IS_UNALIGNED_IUPAC_BASE,
-            IUPAC_TO_DNA_CANONICAL, IUPAC_TO_DNA_CANONICAL_UPPER, TO_DNA_UC, TO_REVERSE_COMPLEMENT, TO_UNALIGNED_DNA_UC,
+            ANY_TO_DNA_CANONICAL_UPPER, GENETIC_CODE, IS_IUPAC_BASE, IS_UNALIGNED_IUPAC_BASE, IUPAC_TO_DNA_CANONICAL,
+            IUPAC_TO_DNA_CANONICAL_UPPER, TO_DNA_UC, TO_REVERSE_COMPLEMENT, TO_UNALIGNED_DNA_UC,
         },
+        matrices::BiasedWeightMatrix,
         types::{amino_acids::AminoAcids, Uint},
         vec_types::ValidateSequence,
     },
@@ -89,15 +91,6 @@ impl Nucleotides {
     where
         I: std::slice::SliceIndex<[u8]>, {
         self.0.get(index)
-    }
-
-    /// The sequence is re-encoded as [`DNAProfileIndices`] in-place.
-    #[must_use]
-    pub fn into_dna_profile_indices(mut self) -> DNAProfileIndices {
-        for base in &mut self.0 {
-            *base = DNA_RESIDUE_MAPPING[*base];
-        }
-        DNAProfileIndices(self.0)
     }
 
     /// Replaces the provided [`Range`] with the specified byte. If the range
@@ -193,6 +186,38 @@ impl Nucleotides {
     #[must_use]
     pub fn translate(&self) -> AminoAcids {
         AminoAcids(translate_sequence(&self.0))
+    }
+
+    /// Creates a [`LocalProfile`] for alignment.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`AlignmentError`] if the profile creation fails due to invalid
+    /// sequence data or unsupported parameters.
+    #[inline]
+    pub fn into_local_profile<'a, 'b, const N: usize, const S: usize>(
+        &'b self, matrix: &'a BiasedWeightMatrix<S>, gap_open: u8, gap_extend: u8,
+    ) -> Result<LocalProfile<'a, N, S>, QueryProfileError>
+    where
+        LaneCount<N>: SupportedLaneCount,
+        'b: 'a, {
+        LocalProfile::new(self, matrix, gap_open, gap_extend)
+    }
+
+    /// Creates a [`SharedProfile`] for alignment.
+    ///
+    /// # Errors
+    ///
+    /// Returns an [`AlignmentError`] if the profile creation fails due to invalid
+    /// sequence data or unsupported parameters.
+    #[inline]
+    pub fn into_shared_profile<'a, const N: usize, const S: usize>(
+        &self, matrix: &'a BiasedWeightMatrix<S>, gap_open: u8, gap_extend: u8,
+    ) -> Result<SharedProfile<'a, N, S>, QueryProfileError>
+    where
+        LaneCount<N>: SupportedLaneCount, {
+        let s = self.0.as_slice();
+        SharedProfile::new(s.into(), matrix, gap_open, gap_extend)
     }
 
     /// Creates an iterator for [`AminoAcids`] translation.

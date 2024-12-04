@@ -1,4 +1,4 @@
-use crate::data::mappings::DNA_RESIDUE_MAPPING;
+use crate::data::byte_types::ByteMappings;
 
 #[must_use]
 /// ## Generates a 4x4 substitution matrix from two aligned sequences of the type `&[u8]`.
@@ -22,8 +22,8 @@ use crate::data::mappings::DNA_RESIDUE_MAPPING;
 pub fn dna_substitution_matrix(seq1: &[u8], seq2: &[u8]) -> [[u32; 4]; 4] {
     let mut sub_matrix = [[0u32; 4]; 4];
     std::iter::zip(
-        seq1.iter().copied().map(|x| DNA_RESIDUE_MAPPING.get_index(x)),
-        seq2.iter().copied().map(|x| DNA_RESIDUE_MAPPING.get_index(x)),
+        seq1.iter().copied().map(ByteMappings::to_dna_index),
+        seq2.iter().copied().map(ByteMappings::to_dna_index),
     )
     .filter(|(a, b)| *a < 4 && *b < 4)
     .for_each(|(a, b)| sub_matrix[a][b] += 1);

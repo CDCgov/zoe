@@ -8,7 +8,7 @@ use crate::{
 };
 use std::{
     ops::{AddAssign, Shl},
-    simd::{prelude::*, LaneCount, MaskElement, SupportedLaneCount},
+    simd::{prelude::*, LaneCount, SimdElement, SupportedLaneCount},
 };
 
 /// Smith-Waterman algorithm, yielding the optimal score.
@@ -41,7 +41,7 @@ use std::{
 ///    correct?" bioRxiv 031500. doi: <https://doi.org/10.1101/031500>
 ///
 #[must_use]
-pub fn sw_scalar_score<const S: usize>(reference: &[u8], query_profile: &ScalarProfile<S>) -> i32 {
+pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S>) -> i32 {
     struct SWCells {
         matching:   i32,
         endgap_up:  i32,
@@ -49,7 +49,7 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query_profile: &ScalarP
     }
 
     let mut best_score = 0;
-    let mut current: Vec<_> = query_profile
+    let mut current: Vec<_> = query
         .query
         .iter()
         .copied()
@@ -58,20 +58,20 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query_profile: &ScalarP
             // first row
             SWCells {
                 matching:  0,
-                endgap_up: query_profile.gap_open + (c as i32) * query_profile.gap_extend,
+                endgap_up: query.gap_open + (c as i32) * query.gap_extend,
                 query_base:     q
             })
         .collect();
 
     for (r, reference_base) in reference.iter().copied().enumerate() {
         // first column
-        let mut endgap_left = query_profile.gap_open + (r as i32) * query_profile.gap_extend;
+        let mut endgap_left = query.gap_open + (r as i32) * query.gap_extend;
         let mut diag = 0;
 
         for curr in &mut current {
             // matching is the default direction
 
-            let match_score = i32::from(query_profile.matrix.get_weight(reference_base, curr.query_base));
+            let match_score = i32::from(query.matrix.get_weight(reference_base, curr.query_base));
             let mut score = diag + match_score;
             let mut endgap_up = curr.endgap_up;
 
@@ -81,9 +81,9 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query_profile: &ScalarP
             curr.matching = score;
             best_score = best_score.max(score);
 
-            score += query_profile.gap_open;
-            endgap_up += query_profile.gap_extend;
-            endgap_left += query_profile.gap_extend;
+            score += query.gap_open;
+            endgap_up += query.gap_extend;
+            endgap_left += query.gap_extend;
 
             endgap_left = endgap_left.max(score);
             curr.endgap_up = endgap_up.max(score);
@@ -129,28 +129,28 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query_profile: &ScalarP
 ///    correct?" bioRxiv 031500. doi: <https://doi.org/10.1101/031500>
 ///
 #[must_use]
-pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query_profile: &ScalarProfile<S>) -> (usize, Cigar, i32) {
-    let mut current = vec![ScoreCell::default(); query_profile.query.len() + 1];
-    let mut backtrack = BacktrackMatrix::new(reference.len() + 1, query_profile.query.len() + 1);
+pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfile<S>) -> (usize, Cigar, i32) {
+    let mut current = vec![ScoreCell::default(); query.query.len() + 1];
+    let mut backtrack = BacktrackMatrix::new(reference.len() + 1, query.query.len() + 1);
     let mut best_score = BestScore::new();
 
-    for c in 1..=query_profile.query.len() {
+    for c in 1..=query.query.len() {
         // first row
-        current[c].endgap_up = query_profile.gap_open + (c as i32 - 1) * query_profile.gap_extend;
+        current[c].endgap_up = query.gap_open + (c as i32 - 1) * query.gap_extend;
     }
 
     backtrack.stop();
 
     for r in 1..=reference.len() {
         // first column
-        let mut endgap_left = query_profile.gap_open + (r as i32 - 1) * query_profile.gap_extend;
+        let mut endgap_left = query.gap_open + (r as i32 - 1) * query.gap_extend;
         let mut diag = 0;
 
-        for c in 1..=query_profile.query.len() {
+        for c in 1..=query.query.len() {
             // matching is the default direction
 
             backtrack.move_to(r, c);
-            let match_score = i32::from(query_profile.matrix.get_weight(reference[r - 1], query_profile.query[c - 1]));
+            let match_score = i32::from(query.matrix.get_weight(reference[r - 1], query.query[c - 1]));
             let mut score = diag + match_score;
             let mut endgap_up = current[c].endgap_up;
 
@@ -173,11 +173,11 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query_profile: &Sca
             current[c].matching = score;
             best_score.add_score(r, c, score);
 
-            score += query_profile.gap_open;
-            endgap_up += query_profile.gap_extend;
-            endgap_left += query_profile.gap_extend;
+            score += query.gap_open;
+            endgap_up += query.gap_extend;
+            endgap_left += query.gap_extend;
 
-            if score != query_profile.gap_open {
+            if score != query.gap_open {
                 if endgap_up > score {
                     backtrack.up_extending();
                 }
@@ -197,7 +197,7 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query_profile: &Sca
     let (mut r, mut c, best_score) = best_score.get_best_score();
     // soft clip 3'
     backtrack.move_to(r, c);
-    states.soft_clip(query_profile.query.len() - c);
+    states.soft_clip(query.query.len() - c);
 
     while !backtrack.is_stop() && r > 0 && c > 0 {
         if op == b'D' && backtrack.is_up_extending() {
@@ -259,31 +259,32 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query_profile: &Sca
 #[allow(non_snake_case)]
 #[must_use]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
-pub fn sw_simd_score<T, const N: usize, const S: usize, TM>(
-    reference: &[u8], query_profile: &StripedProfile<T, N, S>,
-) -> Option<T>
+pub fn sw_simd_score<T, const N: usize, const S: usize>(reference: &[u8], query: &StripedProfile<T, N, S>) -> Option<T>
 where
     T: Uint + Default + PartialEq + std::ops::Add<Output = T> + std::fmt::Debug,
-    TM: MaskElement,
     LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdUint<Scalar = T>
         + Shl<T, Output = Simd<T, N>>
         + AddAssign<Simd<T, N>>
         + SimdOrd
-        + SimdPartialEq<Mask = Mask<TM, N>>, {
-    let num_vecs = query_profile.number_vectors();
-    let profile: &Vec<Simd<T, N>> = &query_profile.profile;
+        + SimdPartialEq<Mask = Mask<<T as SimdElement>::Mask, N>>, {
+    let num_vecs = query.number_vectors();
+    let profile: &Vec<Simd<T, N>> = &query.profile;
 
     let zero = T::zero();
+    let gap_opens = Simd::splat(query.gap_open);
+    let gap_extends = Simd::splat(query.gap_extend);
     let zeroes = Simd::splat(T::zero());
-    let biases = Simd::splat(query_profile.bias);
+    let biases = Simd::splat(query.bias);
 
-    let mut load = vec![zeroes; num_vecs]; // use single alloc?
-    let mut store = vec![zeroes; num_vecs]; // use single alloc?
-    let mut e_scores = vec![zeroes; num_vecs]; // use single alloc?
+    let mut load = vec![zeroes; num_vecs];
+    let mut store = vec![zeroes; num_vecs];
+    let mut e_scores = vec![zeroes; num_vecs];
     let mut max_scores = zeroes; // Minimum value for unsigned
 
-    for ref_index in reference.iter().copied().map(|x| query_profile.mapping.get_index(x)) {
+    let map = query.mapping;
+
+    for ref_index in reference.iter().copied().map(|r| map.to_index(r)) {
         let mut F = zeroes;
         let mut H = store[num_vecs - 1].shift_elements_right_z::<1>(zero);
 
@@ -293,7 +294,6 @@ where
         let scores_vec = &profile[(ref_index * num_vecs)..(ref_index * num_vecs + num_vecs)];
 
         for j in 0..num_vecs {
-            //let mut E = *e_ref;
             let mut E = e_scores[j];
 
             H = H.saturating_add(scores_vec[j]).saturating_sub(biases);
@@ -303,9 +303,9 @@ where
             H = H.simd_max(E).simd_max(F);
             store[j] = H;
 
-            H = H.saturating_sub(query_profile.gap_opens);
-            E = E.saturating_sub(query_profile.gap_extends).simd_max(H);
-            F = F.saturating_sub(query_profile.gap_extends).simd_max(H);
+            H = H.saturating_sub(gap_opens);
+            E = E.saturating_sub(gap_extends).simd_max(H);
+            F = F.saturating_sub(gap_extends).simd_max(H);
 
             // Store E; Load H
             e_scores[j] = E;
@@ -317,7 +317,7 @@ where
         F = F.shift_elements_right_z::<1>(zero);
 
         // (F - (H - Go)) --> 0
-        let mut mask = F.saturating_sub(H.saturating_sub(query_profile.gap_opens)).simd_eq(zeroes);
+        let mut mask = F.saturating_sub(H.saturating_sub(gap_opens)).simd_eq(zeroes);
         while !mask.all() {
             // Update & save H
             H = H.simd_max(F);
@@ -325,9 +325,9 @@ where
 
             // Update E in case H is greater
             // TODO: Remove this when we determine an API to guarantee it isn't necessary
-            e_scores[j] = e_scores[j].simd_max(H.saturating_sub(query_profile.gap_opens));
+            e_scores[j] = e_scores[j].simd_max(H.saturating_sub(gap_opens));
 
-            F = F.saturating_sub(query_profile.gap_extends);
+            F = F.saturating_sub(gap_extends);
 
             j += 1;
             if j >= num_vecs {
@@ -338,7 +338,7 @@ where
             // New J here
             H = store[j];
 
-            mask = F.saturating_sub(H.saturating_sub(query_profile.gap_opens)).simd_eq(zeroes);
+            mask = F.saturating_sub(H.saturating_sub(gap_opens)).simd_eq(zeroes);
         }
     }
 
@@ -346,13 +346,8 @@ where
 
     // If we would have overflowed, return none, otherwise return the best score
     // We add one because we care if the value is equal to the MAX.
-    best.checked_addition(query_profile.bias + T::one()).map(|_| best)
+    best.checked_addition(query.bias + T::one()).map(|_| best)
 }
-
-//#[must_use]
-//pub fn show_asm(reference: &[u8], query: &QueryProfileStripedDNA<u16, 16>, gap_open: u8, gap_extend: u8) -> Option<u16> {
-//    sw_simd_score(reference, query, gap_open.into(), gap_extend.into())
-//}
 
 #[cfg(test)]
 pub(crate) mod test_data {
@@ -377,7 +372,7 @@ mod test {
     use super::{test_data::*, *};
     use crate::alignment::profile::StripedProfile;
     use crate::data::constants::matrices::SimpleWeightMatrix;
-    use crate::data::mappings::DNA_RESIDUE_MAPPING;
+    use crate::data::mappings::DNA_PROFILE_MAP;
 
     #[test]
     fn sw() {
@@ -397,9 +392,10 @@ mod test {
 
     #[test]
     fn sw_simd() {
-        let matrix = SimpleWeightMatrix::new(&DNA_RESIDUE_MAPPING, 2, -5, Some(b'N')).into_biased_matrix();
-        let profile =
-            StripedProfile::<u8, 16, 5>::new(REFERENCE, &matrix, GAP_OPEN, GAP_EXTEND).expect("Sequence is non-empty");
+        let matrix = SimpleWeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N')).into_biased_matrix();
+        let profile = matrix
+            .to_striped_profile::<u8, 16>(REFERENCE, GAP_OPEN, GAP_EXTEND)
+            .expect("Sequence is non-empty");
         let score = profile.smith_waterman_score(QUERY);
         assert_eq!(Some(37), score);
     }
@@ -418,7 +414,8 @@ mod test {
     fn sw_simd_single() {
         let v: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/CY137594.txt"));
         let matrix = SimpleWeightMatrix::<5>::new_dna_matrix(2, -5, Some(b'N')).into_biased_matrix();
-        let profile = StripedProfile::<u16, 16, 5>::new(v, &matrix, GAP_OPEN.into(), GAP_EXTEND.into())
+        let profile = matrix
+            .to_striped_profile::<u16, 16>(v, GAP_OPEN.into(), GAP_EXTEND.into())
             .expect("Sequence is non-empty");
         let score = profile.smith_waterman_score(v);
         assert_eq!(Some(3372), score);
@@ -428,8 +425,10 @@ mod test {
     fn sw_simd_regression() {
         let query = b"AGA";
         let reference = b"AA";
-        let matrix = SimpleWeightMatrix::new(&DNA_RESIDUE_MAPPING, 10, -10, Some(b'N')).into_biased_matrix();
-        let profile = StripedProfile::<u16, 4, 5>::new(query, &matrix, 5, 5).expect("Sequence is non-empty");
+        let matrix = SimpleWeightMatrix::new(&DNA_PROFILE_MAP, 10, -10, Some(b'N')).into_biased_matrix();
+        let profile = matrix
+            .to_striped_profile::<u16, 4>(query, 5, 5)
+            .expect("Sequence is non-empty");
         let score = profile.smith_waterman_score(reference);
         assert_eq!(Some(15), score);
     }
@@ -439,8 +438,10 @@ mod test {
         let query = b"AAAA";
         let reference = b"AAAA";
 
-        let matrix = SimpleWeightMatrix::new(&DNA_RESIDUE_MAPPING, 127, 0, Some(b'N')).into_biased_matrix();
-        let profile = StripedProfile::<u8, 8, 5>::new(query, &matrix, GAP_OPEN, GAP_EXTEND).expect("Sequence is non-empty");
+        let matrix = SimpleWeightMatrix::new(&DNA_PROFILE_MAP, 127, 0, Some(b'N')).into_biased_matrix();
+        let profile = matrix
+            .to_striped_profile::<u8, 8>(query, GAP_OPEN, GAP_EXTEND)
+            .expect("Sequence is non-empty");
         let score = profile.smith_waterman_score(reference);
         assert!(score.is_none());
     }
@@ -477,26 +478,26 @@ mod bench {
     #[bench]
     fn sw_simd_no_profile_n16u8(b: &mut Bencher) {
         let query_profile = StripedProfile::new(REFERENCE, &BIASED_WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-        b.iter(|| sw_simd_score::<u8, 16, 5, _>(QUERY, &query_profile));
+        b.iter(|| sw_simd_score::<u8, 16, 5>(QUERY, &query_profile));
     }
 
     #[bench]
     fn sw_simd_no_profile_n16u16(b: &mut Bencher) {
         let query_profile =
             StripedProfile::new(REFERENCE, &BIASED_WEIGHTS, u16::from(GAP_OPEN), u16::from(GAP_EXTEND)).unwrap();
-        b.iter(|| sw_simd_score::<u16, 16, 5, _>(QUERY, &query_profile));
+        b.iter(|| sw_simd_score::<u16, 16, 5>(QUERY, &query_profile));
     }
 
     #[bench]
     fn sw_simd_no_profile_n32u8(b: &mut Bencher) {
         let query_profile = StripedProfile::new(REFERENCE, &BIASED_WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-        b.iter(|| sw_simd_score::<u8, 32, 5, _>(QUERY, &query_profile));
+        b.iter(|| sw_simd_score::<u8, 32, 5>(QUERY, &query_profile));
     }
 
     #[bench]
     fn sw_simd_no_profile_n32u16(b: &mut Bencher) {
         let query_profile =
             StripedProfile::new(REFERENCE, &BIASED_WEIGHTS, u16::from(GAP_OPEN), u16::from(GAP_EXTEND)).unwrap();
-        b.iter(|| sw_simd_score::<u16, 32, 5, _>(QUERY, &query_profile));
+        b.iter(|| sw_simd_score::<u16, 32, 5>(QUERY, &query_profile));
     }
 }

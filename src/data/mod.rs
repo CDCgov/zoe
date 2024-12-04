@@ -24,7 +24,7 @@ pub use crate::{
     search::ByteSubstring,
 };
 pub use constants::{
-    mappings::{ResidueMapping, DNA_RESIDUE_MAPPING},
+    mappings::{ByteIndexMap, DNA_PROFILE_MAP},
     matrices::{BiasedWeightMatrix, SimpleWeightMatrix},
 };
 

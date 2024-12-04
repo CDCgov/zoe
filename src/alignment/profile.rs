@@ -1,10 +1,10 @@
 use crate::{
     alignment::sw::{sw_scalar_score, sw_simd_score},
     data::{
-        err::AlignmentError,
-        mappings::{ResidueMapping, DNA_RESIDUE_MAPPING},
+        err::QueryProfileError,
+        mappings::{ByteIndexMap, DNA_PROFILE_MAP},
         matrices::BiasedWeightMatrix,
-        types::{Int, Uint},
+        types::Uint,
         SimpleWeightMatrix,
     },
 };
@@ -17,11 +17,11 @@ use std::{
 #[inline]
 pub(crate) fn validate_profile_args<T: Uint, Q: AsRef<[u8]>>(
     query: Q, gap_open: T, gap_extend: T,
-) -> Result<(), AlignmentError> {
+) -> Result<(), QueryProfileError> {
     if query.as_ref().is_empty() {
-        Err(AlignmentError::EmptyQuery)
+        Err(QueryProfileError::EmptyQuery)
     } else if gap_extend > gap_open {
-        Err(AlignmentError::BadGapWeights)
+        Err(QueryProfileError::BadGapWeights)
     } else {
         Ok(())
     }
@@ -45,7 +45,7 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// `gap_open`.
     pub fn new<Q: AsRef<[u8]> + ?Sized>(
         query: &'a Q, matrix: SimpleWeightMatrix<S>, gap_open: u8, gap_extend: u8,
-    ) -> Result<Self, AlignmentError> {
+    ) -> Result<Self, QueryProfileError> {
         validate_profile_args(query, gap_open, gap_extend)?;
 
         Ok(ScalarProfile {
@@ -78,11 +78,11 @@ pub struct StripedProfile<T, const N: usize, const S: usize>
 where
     T: SimdElement,
     LaneCount<N>: SupportedLaneCount, {
-    pub(crate) profile:     Vec<Simd<T, N>>,
-    pub(crate) gap_opens:   Simd<T, N>,
-    pub(crate) gap_extends: Simd<T, N>,
-    pub(crate) bias:        T,
-    pub(crate) mapping:     &'static ResidueMapping<S>,
+    pub(crate) profile:    Vec<Simd<T, N>>,
+    pub(crate) gap_open:   T,
+    pub(crate) gap_extend: T,
+    pub(crate) bias:       T,
+    pub(crate) mapping:    &'static ByteIndexMap<S>,
 }
 
 impl<T, const N: usize, const S: usize> StripedProfile<T, N, S>
@@ -99,11 +99,19 @@ where
     /// Will return [`AlignmentError::EmptyQuery`] if `query` is empty or
     /// [`AlignmentError::BadGapWeights`] if `gap_extend` is greater than
     /// `gap_open`.
-    pub fn new(query: &[u8], matrix: &BiasedWeightMatrix<S>, gap_open: T, gap_extend: T) -> Result<Self, AlignmentError>
+    pub fn new(query: &[u8], matrix: &BiasedWeightMatrix<S>, gap_open: T, gap_extend: T) -> Result<Self, QueryProfileError>
     where
-        T: From<u8> + Int, {
+        T: From<u8>, {
         validate_profile_args(query, gap_open, gap_extend)?;
+        Ok(Self::new_unchecked(query, matrix, gap_open, gap_extend))
+    }
 
+    /// Creates a new striped profile from a sequence and scoring matrix.
+    ///
+    /// See: [`BiasedWeightMatrix`]
+    pub(crate) fn new_unchecked(query: &[u8], matrix: &BiasedWeightMatrix<S>, gap_open: T, gap_extend: T) -> Self
+    where
+        T: From<u8>, {
         // SupportedLaneCount cannot presently be zero.
         let number_vectors = query.len().div_ceil(N);
         let total_lanes = N * number_vectors;
@@ -112,12 +120,12 @@ where
         let biases = Simd::splat(bias);
         let mut profile = vec![biases; S * number_vectors];
 
-        for ref_index in 0..DNA_RESIDUE_MAPPING.len() {
+        for ref_index in 0..DNA_PROFILE_MAP.len() {
             for v in 0..number_vectors {
                 let mut vector = biases;
                 for (i, q) in (v..total_lanes).step_by(number_vectors).enumerate() {
                     if q < query.len() {
-                        let query_index = matrix.mapping.get_index(query[q]);
+                        let query_index = matrix.mapping.to_index(query[q]);
                         vector[i] = matrix.weights[ref_index][query_index].into();
                     }
                 }
@@ -125,16 +133,13 @@ where
             }
         }
 
-        let gap_opens = Simd::splat(gap_open);
-        let gap_extends = Simd::splat(gap_extend);
-
-        Ok(StripedProfile {
+        StripedProfile {
             profile,
-            gap_opens,
-            gap_extends,
+            gap_open,
+            gap_extend,
             bias,
             mapping: matrix.mapping,
-        })
+        }
     }
 
     /// Returns the number of SIMD vectors in the profile.
@@ -156,7 +161,7 @@ where
     #[inline]
     #[must_use]
     pub fn smith_waterman_score(&self, seq: &[u8]) -> Option<u64> {
-        sw_simd_score::<u8, N, S, _>(seq, self).map(Into::into)
+        sw_simd_score::<u8, N, S>(seq, self).map(Into::into)
     }
 }
 
@@ -171,7 +176,7 @@ where
     #[inline]
     #[must_use]
     pub fn smith_waterman_score(&self, seq: &[u8]) -> Option<u64> {
-        sw_simd_score::<u16, N, S, _>(seq, self).map(Into::into)
+        sw_simd_score::<u16, N, S>(seq, self).map(Into::into)
     }
 }
 
@@ -186,7 +191,7 @@ where
     #[inline]
     #[must_use]
     pub fn smith_waterman_score(&self, seq: &[u8]) -> Option<u64> {
-        sw_simd_score::<u32, N, S, _>(seq, self).map(Into::into)
+        sw_simd_score::<u32, N, S>(seq, self).map(Into::into)
     }
 }
 
@@ -201,7 +206,7 @@ where
     #[inline]
     #[must_use]
     pub fn smith_waterman_score(&self, seq: &[u8]) -> Option<u64> {
-        sw_simd_score::<u64, N, S, _>(seq, self)
+        sw_simd_score::<u64, N, S>(seq, self)
     }
 }
 
@@ -211,10 +216,10 @@ mod bench {
     extern crate test;
     use super::*;
     use crate::alignment::sw::test_data::{GAP_EXTEND, GAP_OPEN};
-    use crate::data::{constants::matrices::SimpleWeightMatrix, mappings::DNA_RESIDUE_MAPPING};
+    use crate::data::{constants::matrices::SimpleWeightMatrix, mappings::DNA_PROFILE_MAP};
     pub(crate) static DATA: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/KJ907631.1.txt")); // H5 HA, complete CDS
     pub(crate) static MATRIX: BiasedWeightMatrix<5> =
-        SimpleWeightMatrix::new(&DNA_RESIDUE_MAPPING, 2, -5, Some(b'N')).into_biased_matrix();
+        SimpleWeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N')).into_biased_matrix();
 
     #[bench]
     fn build_profile_u8(b: &mut Bencher) {

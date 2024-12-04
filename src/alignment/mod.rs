@@ -7,4 +7,3 @@ pub(crate) use util::*;
 
 pub use profile::*;
 pub use profile_set::*;
-pub use util::DNAProfileIndices;
