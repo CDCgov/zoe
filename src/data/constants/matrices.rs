@@ -117,7 +117,7 @@ impl<const S: usize> BiasedWeightMatrix<S> {
     /// be created.
     #[inline]
     pub fn to_striped_profile<T, const N: usize>(
-        &self, query: &[u8], gap_open: T, gap_extend: T,
+        &self, query: &[u8], gap_open: u8, gap_extend: u8,
     ) -> Result<StripedProfile<T, N, S>, QueryProfileError>
     where
         T: From<u8> + Uint,
@@ -187,7 +187,7 @@ impl<const S: usize> SimpleWeightMatrix<S> {
         let mut min = 0;
         let mut i = 0;
         while i < S {
-            let mut j = i;
+            let mut j = 0;
             while j < S {
                 if self.weights[i][j] < min {
                     min = self.weights[i][j];

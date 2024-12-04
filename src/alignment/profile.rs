@@ -1,12 +1,6 @@
 use crate::{
     alignment::sw::{sw_scalar_score, sw_simd_score},
-    data::{
-        err::QueryProfileError,
-        mappings::{ByteIndexMap, DNA_PROFILE_MAP},
-        matrices::BiasedWeightMatrix,
-        types::Uint,
-        SimpleWeightMatrix,
-    },
+    data::{err::QueryProfileError, mappings::ByteIndexMap, matrices::BiasedWeightMatrix, types::Uint, SimpleWeightMatrix},
 };
 use std::{
     convert::Into,
@@ -15,8 +9,8 @@ use std::{
 };
 
 #[inline]
-pub(crate) fn validate_profile_args<T: Uint, Q: AsRef<[u8]>>(
-    query: Q, gap_open: T, gap_extend: T,
+pub(crate) fn validate_profile_args<Q: AsRef<[u8]>>(
+    query: Q, gap_open: u8, gap_extend: u8,
 ) -> Result<(), QueryProfileError> {
     if query.as_ref().is_empty() {
         Err(QueryProfileError::EmptyQuery)
@@ -87,7 +81,7 @@ where
 
 impl<T, const N: usize, const S: usize> StripedProfile<T, N, S>
 where
-    T: Uint,
+    T: Uint + From<u8>,
     LaneCount<N>: SupportedLaneCount,
 {
     /// Creates a new striped profile from a sequence and scoring matrix.
@@ -99,9 +93,9 @@ where
     /// Will return [`AlignmentError::EmptyQuery`] if `query` is empty or
     /// [`AlignmentError::BadGapWeights`] if `gap_extend` is greater than
     /// `gap_open`.
-    pub fn new(query: &[u8], matrix: &BiasedWeightMatrix<S>, gap_open: T, gap_extend: T) -> Result<Self, QueryProfileError>
-    where
-        T: From<u8>, {
+    pub fn new(
+        query: &[u8], matrix: &BiasedWeightMatrix<S>, gap_open: u8, gap_extend: u8,
+    ) -> Result<Self, QueryProfileError> {
         validate_profile_args(query, gap_open, gap_extend)?;
         Ok(Self::new_unchecked(query, matrix, gap_open, gap_extend))
     }
@@ -109,18 +103,16 @@ where
     /// Creates a new striped profile from a sequence and scoring matrix.
     ///
     /// See: [`BiasedWeightMatrix`]
-    pub(crate) fn new_unchecked(query: &[u8], matrix: &BiasedWeightMatrix<S>, gap_open: T, gap_extend: T) -> Self
-    where
-        T: From<u8>, {
+    pub(crate) fn new_unchecked(query: &[u8], matrix: &BiasedWeightMatrix<S>, gap_open: u8, gap_extend: u8) -> Self {
         // SupportedLaneCount cannot presently be zero.
         let number_vectors = query.len().div_ceil(N);
         let total_lanes = N * number_vectors;
 
-        let bias: T = matrix.bias.into();
+        let bias = matrix.bias.into();
         let biases = Simd::splat(bias);
         let mut profile = vec![biases; S * number_vectors];
 
-        for ref_index in 0..DNA_PROFILE_MAP.len() {
+        for ref_index in 0..matrix.mapping.len() {
             for v in 0..number_vectors {
                 let mut vector = biases;
                 for (i, q) in (v..total_lanes).step_by(number_vectors).enumerate() {
@@ -135,8 +127,8 @@ where
 
         StripedProfile {
             profile,
-            gap_open,
-            gap_extend,
+            gap_open: gap_open.into(),
+            gap_extend: gap_extend.into(),
             bias,
             mapping: matrix.mapping,
         }

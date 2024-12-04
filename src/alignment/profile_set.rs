@@ -102,12 +102,7 @@ where
     pub fn get_u16(&self) -> &StripedProfile<u16, N, S> {
         // We already validated profile
         self.profile_u16.get_or_init(|| {
-            StripedProfile::<u16, N, S>::new_unchecked(
-                self.query,
-                self.matrix,
-                u16::from(self.gap_open),
-                u16::from(self.gap_extend),
-            )
+            StripedProfile::<u16, N, S>::new_unchecked(self.query, self.matrix, self.gap_open, self.gap_extend)
         })
     }
 
@@ -117,12 +112,7 @@ where
     pub fn get_u32(&self) -> &StripedProfile<u32, N, S> {
         // We already validated profile
         self.profile_u32.get_or_init(|| {
-            StripedProfile::<u32, N, S>::new_unchecked(
-                self.query,
-                self.matrix,
-                u32::from(self.gap_open),
-                u32::from(self.gap_extend),
-            )
+            StripedProfile::<u32, N, S>::new_unchecked(self.query, self.matrix, self.gap_open, self.gap_extend)
         })
     }
 
@@ -132,12 +122,7 @@ where
     pub fn get_u64(&self) -> &StripedProfile<u64, N, S> {
         // We already validated profile
         self.profile_u64.get_or_init(|| {
-            StripedProfile::<u64, N, S>::new_unchecked(
-                self.query,
-                self.matrix,
-                u64::from(self.gap_open),
-                u64::from(self.gap_extend),
-            )
+            StripedProfile::<u64, N, S>::new_unchecked(self.query, self.matrix, self.gap_open, self.gap_extend)
         })
     }
 
@@ -282,12 +267,7 @@ where
     pub fn get_u16(&self) -> &StripedProfile<u16, N, S> {
         self.profile_u16.get_or_init(|| {
             // We already validated profile
-            StripedProfile::<u16, N, S>::new_unchecked(
-                &self.query,
-                self.matrix,
-                u16::from(self.gap_open),
-                u16::from(self.gap_extend),
-            )
+            StripedProfile::<u16, N, S>::new_unchecked(&self.query, self.matrix, self.gap_open, self.gap_extend)
         })
     }
 
@@ -297,12 +277,7 @@ where
     pub fn get_u32(&self) -> &StripedProfile<u32, N, S> {
         self.profile_u32.get_or_init(|| {
             // We already validated profile
-            StripedProfile::<u32, N, S>::new_unchecked(
-                &self.query,
-                self.matrix,
-                u32::from(self.gap_open),
-                u32::from(self.gap_extend),
-            )
+            StripedProfile::<u32, N, S>::new_unchecked(&self.query, self.matrix, self.gap_open, self.gap_extend)
         })
     }
 
@@ -312,12 +287,7 @@ where
     pub fn get_u64(&self) -> &StripedProfile<u64, N, S> {
         self.profile_u64.get_or_init(|| {
             // We already validated profile
-            StripedProfile::<u64, N, S>::new_unchecked(
-                &self.query,
-                self.matrix,
-                u64::from(self.gap_open),
-                u64::from(self.gap_extend),
-            )
+            StripedProfile::<u64, N, S>::new_unchecked(&self.query, self.matrix, self.gap_open, self.gap_extend)
         })
     }
 

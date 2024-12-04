@@ -261,7 +261,7 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
 pub fn sw_simd_score<T, const N: usize, const S: usize>(reference: &[u8], query: &StripedProfile<T, N, S>) -> Option<T>
 where
-    T: Uint + Default + PartialEq + std::ops::Add<Output = T> + std::fmt::Debug,
+    T: Uint + From<u8> + Default + PartialEq + std::ops::Add<Output = T> + std::fmt::Debug,
     LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdUint<Scalar = T>
         + Shl<T, Output = Simd<T, N>>
@@ -404,8 +404,7 @@ mod test {
     fn sw_simd_poly_a() {
         let v: Vec<_> = std::iter::repeat(b'A').take(100).collect();
         let matrix = SimpleWeightMatrix::new_dna_matrix(2, -5, Some(b'N')).into_biased_matrix();
-        let profile = StripedProfile::<u16, 16, 5>::new(&v, &matrix, GAP_OPEN.into(), GAP_EXTEND.into())
-            .expect("Sequence is non-empty");
+        let profile = StripedProfile::<u16, 16, 5>::new(&v, &matrix, GAP_OPEN, GAP_EXTEND).expect("Sequence is non-empty");
         let score = profile.smith_waterman_score(&v);
         assert_eq!(Some(200), score);
     }
@@ -415,7 +414,7 @@ mod test {
         let v: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/CY137594.txt"));
         let matrix = SimpleWeightMatrix::<5>::new_dna_matrix(2, -5, Some(b'N')).into_biased_matrix();
         let profile = matrix
-            .to_striped_profile::<u16, 16>(v, GAP_OPEN.into(), GAP_EXTEND.into())
+            .to_striped_profile::<u16, 16>(v, GAP_OPEN, GAP_EXTEND)
             .expect("Sequence is non-empty");
         let score = profile.smith_waterman_score(v);
         assert_eq!(Some(3372), score);
@@ -483,8 +482,7 @@ mod bench {
 
     #[bench]
     fn sw_simd_no_profile_n16u16(b: &mut Bencher) {
-        let query_profile =
-            StripedProfile::new(REFERENCE, &BIASED_WEIGHTS, u16::from(GAP_OPEN), u16::from(GAP_EXTEND)).unwrap();
+        let query_profile = StripedProfile::new(REFERENCE, &BIASED_WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
         b.iter(|| sw_simd_score::<u16, 16, 5>(QUERY, &query_profile));
     }
 
@@ -496,8 +494,7 @@ mod bench {
 
     #[bench]
     fn sw_simd_no_profile_n32u16(b: &mut Bencher) {
-        let query_profile =
-            StripedProfile::new(REFERENCE, &BIASED_WEIGHTS, u16::from(GAP_OPEN), u16::from(GAP_EXTEND)).unwrap();
+        let query_profile = StripedProfile::new(REFERENCE, &BIASED_WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
         b.iter(|| sw_simd_score::<u16, 32, 5>(QUERY, &query_profile));
     }
 }
