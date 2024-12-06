@@ -323,10 +323,6 @@ where
             H = H.simd_max(F);
             store[j] = H;
 
-            // Update E in case H is greater
-            // TODO: Remove this when we determine an API to guarantee it isn't necessary
-            e_scores[j] = e_scores[j].simd_max(H.saturating_sub(gap_opens));
-
             F = F.saturating_sub(gap_extends);
 
             j += 1;
