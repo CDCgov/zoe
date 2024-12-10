@@ -105,7 +105,7 @@ pub fn pairwise_align_with_cigar(reference: &[u8], query: &[u8], cigar: &Cigar, 
                 ref_index += inc;
             }
             b'H' => continue,
-            // TO-DO: Replace with a continue if type-state is adopted.
+            // TODO: Replace with a continue if type-state is adopted.
             _ => eprintln!("Extended CIGAR {op} not yet supported.\n"),
         }
     }

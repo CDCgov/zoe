@@ -1,12 +1,20 @@
 use crate::{
     alignment::sw::{sw_scalar_score, sw_simd_score},
-    data::{err::QueryProfileError, mappings::ByteIndexMap, matrices::BiasedWeightMatrix, types::Uint, SimpleWeightMatrix},
+    data::{
+        err::QueryProfileError,
+        mappings::ByteIndexMap,
+        matrices::BiasedWeightMatrix,
+        types::{cigar::Cigar, Uint},
+        SimpleWeightMatrix,
+    },
 };
 use std::{
     convert::Into,
     simd::{prelude::*, LaneCount, SimdElement, SupportedLaneCount},
     vec,
 };
+
+use super::sw::sw_scalar_alignment;
 
 #[inline]
 pub(crate) fn validate_profile_args<Q: AsRef<[u8]>>(
@@ -21,6 +29,14 @@ pub(crate) fn validate_profile_args<Q: AsRef<[u8]>>(
     }
 }
 
+/// A profile for DNA sequence alignment using scalar operations.
+///
+/// The profile stores the query, weight matrix, and gap penalties to be used in
+/// an alignment. The API mirrors that of [`StripedProfile`], but this profile
+/// does not use SIMD or create a striped layout.
+///
+/// # Type Parameters
+/// * `S` - The size of the alphabet (usually 5 for DNA including *N*)
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScalarProfile<'a, const S: usize> {
     pub(crate) query:      &'a [u8],
@@ -34,8 +50,8 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     ///
     /// # Errors
     ///
-    /// Will return [`AlignmentError::EmptyQuery`] if `query` is empty or
-    /// [`AlignmentError::BadGapWeights`] if `gap_extend` is greater than
+    /// Will return [`QueryProfileError::EmptyQuery`] if `query` is empty or
+    /// [`QueryProfileError::BadGapWeights`] if `gap_extend` is greater than
     /// `gap_open`.
     pub fn new<Q: AsRef<[u8]> + ?Sized>(
         query: &'a Q, matrix: SimpleWeightMatrix<S>, gap_open: u8, gap_extend: u8,
@@ -50,10 +66,55 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
         })
     }
 
+    /// Computes the Smith-Waterman local alignment score between the profile
+    /// and a passed sequence.
+    ///
+    /// For more info, see: [`sw_scalar_score`].
+    ///
+    /// ### Example
+    ///
+    /// ```
+    /// # use zoe::{alignment::{ScalarProfile, sw::sw_scalar_score}, data::SimpleWeightMatrix};
+    /// let reference: &[u8] = b"GGCCACAGGATTGAG";
+    /// let query: &[u8] = b"CTCAGATTG";
+    ///
+    /// const WEIGHTS: SimpleWeightMatrix<5> = SimpleWeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
+    ///
+    /// let profile = ScalarProfile::<5>::new(query, WEIGHTS, 3, 1).unwrap();
+    /// let score = profile.smith_waterman_score(reference);
+    /// assert_eq!(score, 27);
+    /// ```
     #[inline]
     #[must_use]
     pub fn smith_waterman_score(&self, seq: &[u8]) -> i32 {
         sw_scalar_score(seq, self)
+    }
+
+    /// Computes the Smith-Waterman local alignment between the profile and a
+    /// passed sequence, yielding the reference starting position (indexed from
+    /// 1), cigar, and optimal score.
+    ///
+    /// For more info, see: [`sw_scalar_alignment`].
+    ///
+    /// ### Example
+    ///
+    /// ```
+    /// # use zoe::{alignment::{ScalarProfile, sw::sw_scalar_score}, data::SimpleWeightMatrix};
+    /// let reference: &[u8] = b"GGCCACAGGATTGAG";
+    /// let query: &[u8] = b"CTCAGATTG";
+    ///
+    /// const WEIGHTS: SimpleWeightMatrix<5> = SimpleWeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
+    ///
+    /// let profile = ScalarProfile::<5>::new(query, WEIGHTS, 3, 1).unwrap();
+    /// let (start, cigar, score) = profile.smith_waterman_alignment(reference);
+    /// assert_eq!(start, 4);
+    /// assert_eq!(cigar, b"5M1D4M".into());
+    /// assert_eq!(score, 27);
+    /// ```
+    #[inline]
+    #[must_use]
+    pub fn smith_waterman_alignment(&self, seq: &[u8]) -> (usize, Cigar, i32) {
+        sw_scalar_alignment(seq, self)
     }
 }
 
@@ -66,7 +127,7 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
 /// # Type Parameters
 /// * `T` - The numeric type used for scores (u8, u16, u32, or u64)
 /// * `N` - The number of SIMD lanes (usually 16, 32 or 64)
-/// * `S` - The size of the alphabet (usually 5 for DNA including N)
+/// * `S` - The size of the alphabet (usually 5 for DNA including *N*)
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct StripedProfile<T, const N: usize, const S: usize>
 where
@@ -90,8 +151,8 @@ where
     ///
     /// # Errors
     ///
-    /// Will return [`AlignmentError::EmptyQuery`] if `query` is empty or
-    /// [`AlignmentError::BadGapWeights`] if `gap_extend` is greater than
+    /// Will return [`QueryProfileError::EmptyQuery`] if `query` is empty or
+    /// [`QueryProfileError::BadGapWeights`] if `gap_extend` is greater than
     /// `gap_open`.
     pub fn new(
         query: &[u8], matrix: &BiasedWeightMatrix<S>, gap_open: u8, gap_extend: u8,
@@ -146,10 +207,24 @@ impl<const N: usize, const S: usize> StripedProfile<u8, N, S>
 where
     LaneCount<N>: SupportedLaneCount,
 {
-    /// Computes the Smith-Waterman alignment score between the `u8` profile and
-    /// a passed sequence. Returns [`None`] if the score overflowed.
+    /// Computes the Smith-Waterman local alignment score between the `u8`
+    /// profile and a passed sequence. Returns [`None`] if the score overflowed.
     ///
     /// For more info, see: [`sw_simd_score`].
+    ///
+    /// ### Example
+    ///
+    /// ```
+    /// # use zoe::{alignment::{StripedProfile, sw::sw_simd_score}, data::BiasedWeightMatrix};
+    /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
+    /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
+    ///
+    /// const WEIGHTS: BiasedWeightMatrix<5> = BiasedWeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
+    ///
+    /// let profile = StripedProfile::<u8, 32, 5>::new(query, &WEIGHTS, 3, 1).unwrap();
+    /// let score = profile.smith_waterman_score(reference).unwrap();
+    /// assert_eq!(score, 26);
+    /// ```
     #[inline]
     #[must_use]
     pub fn smith_waterman_score(&self, seq: &[u8]) -> Option<u64> {
@@ -161,10 +236,24 @@ impl<const N: usize, const S: usize> StripedProfile<u16, N, S>
 where
     LaneCount<N>: SupportedLaneCount,
 {
-    /// Computes the Smith-Waterman alignment score between the `u16` profile
-    /// and a passed sequence. Returns [`None`] if the score overflowed.
+    /// Computes the Smith-Waterman local alignment score between the `u16`
+    /// profile and a passed sequence. Returns [`None`] if the score overflowed.
     ///
     /// For more info, see: [`sw_simd_score`].
+    ///
+    /// ### Example
+    ///
+    /// ```
+    /// # use zoe::{alignment::{StripedProfile, sw::sw_simd_score}, data::BiasedWeightMatrix};
+    /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
+    /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
+    ///
+    /// const WEIGHTS: BiasedWeightMatrix<5> = BiasedWeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
+    ///
+    /// let profile = StripedProfile::<u16, 32, 5>::new(query, &WEIGHTS, 3, 1).unwrap();
+    /// let score = profile.smith_waterman_score(reference).unwrap();
+    /// assert_eq!(score, 26);
+    /// ```
     #[inline]
     #[must_use]
     pub fn smith_waterman_score(&self, seq: &[u8]) -> Option<u64> {
@@ -176,10 +265,24 @@ impl<const N: usize, const S: usize> StripedProfile<u32, N, S>
 where
     LaneCount<N>: SupportedLaneCount,
 {
-    /// Computes the Smith-Waterman alignment score between the `u32` profile and
-    /// a passed sequence. Returns [`None`] if the score overflowed.
+    /// Computes the Smith-Waterman local alignment score between the `u32`
+    /// profile and a passed sequence. Returns [`None`] if the score overflowed.
     ///
     /// For more info, see: [`sw_simd_score`].
+    ///
+    /// ### Example
+    ///
+    /// ```
+    /// # use zoe::{alignment::{StripedProfile, sw::sw_simd_score}, data::BiasedWeightMatrix};
+    /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
+    /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
+    ///
+    /// const WEIGHTS: BiasedWeightMatrix<5> = BiasedWeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
+    ///
+    /// let profile = StripedProfile::<u32, 32, 5>::new(query, &WEIGHTS, 3, 1).unwrap();
+    /// let score = profile.smith_waterman_score(reference).unwrap();
+    /// assert_eq!(score, 26);
+    /// ```
     #[inline]
     #[must_use]
     pub fn smith_waterman_score(&self, seq: &[u8]) -> Option<u64> {
@@ -191,10 +294,24 @@ impl<const N: usize, const S: usize> StripedProfile<u64, N, S>
 where
     LaneCount<N>: SupportedLaneCount,
 {
-    /// Computes the Smith-Waterman alignment score between the `u64` profile and
-    /// a passed sequence. Returns [`None`] if the score overflowed.
+    /// Computes the Smith-Waterman local alignment score between the `u64`
+    /// profile and a passed sequence. Returns [`None`] if the score overflowed.
     ///
     /// For more info, see: [`sw_simd_score`].
+    ///
+    /// ### Example
+    ///
+    /// ```
+    /// # use zoe::{alignment::{StripedProfile, sw::sw_simd_score}, data::BiasedWeightMatrix};
+    /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
+    /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
+    ///
+    /// const WEIGHTS: BiasedWeightMatrix<5> = BiasedWeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
+    ///
+    /// let profile = StripedProfile::<u64, 32, 5>::new(query, &WEIGHTS, 3, 1).unwrap();
+    /// let score = profile.smith_waterman_score(reference).unwrap();
+    /// assert_eq!(score, 26);
+    /// ```
     #[inline]
     #[must_use]
     pub fn smith_waterman_score(&self, seq: &[u8]) -> Option<u64> {

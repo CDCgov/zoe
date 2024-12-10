@@ -6,9 +6,15 @@ use std::{
     sync::OnceLock,
 };
 
-/// Creates a lazy set of striped profiles for local (thread-specific) use.
-/// The number of SIMD lanes `N` must be specified.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// A lazily-evaluated set of striped alignment profiles for local
+/// (thread-specific) use. This is an abstraction around [`StripedProfile`],
+/// providing convenience methods for automatically increasing the integer width
+/// and rerunning the alignment when overflow occurs. The number of SIMD lanes
+/// `N` must be specified.
+///
+/// If it is necessary to share between multiple threads, consider using
+/// [`SharedProfile`].
+#[derive(Debug, Clone)]
 pub struct LocalProfile<'a, const N: usize, const S: usize>
 where
     LaneCount<N>: SupportedLaneCount, {
@@ -31,8 +37,8 @@ where
     ///
     /// # Errors
     ///
-    /// Will return [`AlignmentError::EmptyQuery`] if `query` is empty or
-    /// [`AlignmentError::BadGapWeights`] if `gap_extend` is greater than
+    /// Will return [`QueryProfileError::EmptyQuery`] if `query` is empty or
+    /// [`QueryProfileError::BadGapWeights`] if `gap_extend` is greater than
     /// `gap_open`.
     #[inline]
     pub fn new<T: AsRef<[u8]> + ?Sized>(
@@ -52,13 +58,13 @@ where
         })
     }
 
-    /// Creates an empty [`LocalProfile`] and eagerly initializes the
-    /// `u8` profile.
+    /// Creates an empty [`LocalProfile`] and eagerly initializes the `u8`
+    /// profile.
     ///
     /// # Errors
     ///
-    /// Will return [`AlignmentError::EmptyQuery`] if `query` is empty or
-    /// [`AlignmentError::BadGapWeights`] if `gap_extend` is greater than
+    /// Will return [`QueryProfileError::EmptyQuery`] if `query` is empty or
+    /// [`QueryProfileError::BadGapWeights`] if `gap_extend` is greater than
     /// `gap_open`.
     #[inline]
     pub fn new_with_u8<T: AsRef<[u8]> + ?Sized>(
@@ -69,13 +75,13 @@ where
         Ok(p)
     }
 
-    /// Creates an empty [`LocalProfile`] and eagerly initializes the
-    /// `u16` profile.
+    /// Creates an empty [`LocalProfile`] and eagerly initializes the `u16`
+    /// profile.
     ///
     /// # Errors
     ///
-    /// Will return [`AlignmentError::EmptyQuery`] if `query` is empty or
-    /// [`AlignmentError::BadGapWeights`] if `gap_extend` is greater than
+    /// Will return [`QueryProfileError::EmptyQuery`] if `query` is empty or
+    /// [`QueryProfileError::BadGapWeights`] if `gap_extend` is greater than
     /// `gap_open`.
     #[inline]
     pub fn new_with_u16<T: AsRef<[u8]> + ?Sized>(
@@ -130,6 +136,20 @@ where
     /// the `u8` profile. Lazily initializes the profiles and works its way up
     /// to the `u64` profile. Execution stops when the score returned no longer
     /// overflows the profile's integer range.
+    ///
+    /// ### Example
+    ///
+    /// ```
+    /// # use zoe::{alignment::{LocalProfile, sw::sw_simd_score}, data::BiasedWeightMatrix};
+    /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
+    /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
+    ///
+    /// const WEIGHTS: BiasedWeightMatrix<5> = BiasedWeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
+    ///
+    /// let profile = LocalProfile::<32, 5>::new_with_u8(query, &WEIGHTS, 3, 1).unwrap();
+    /// let score = profile.smith_waterman_score_from_u8(reference).unwrap();
+    /// assert_eq!(score, 26);
+    /// ```
     #[must_use]
     #[inline]
     pub fn smith_waterman_score_from_u8<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u64> {
@@ -145,6 +165,20 @@ where
     /// the `u16` profile, skipping the `u8` profile. Lazily initializes the
     /// profiles and works its way up to the `u64` profile. Execution stops when
     /// the score returned no longer overflows the profile's integer range.
+    ///
+    /// ### Example
+    ///
+    /// ```
+    /// # use zoe::{alignment::{LocalProfile, sw::sw_simd_score}, data::BiasedWeightMatrix};
+    /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
+    /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
+    ///
+    /// const WEIGHTS: BiasedWeightMatrix<5> = BiasedWeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
+    ///
+    /// let profile = LocalProfile::<32, 5>::new_with_u16(query, &WEIGHTS, 3, 1).unwrap();
+    /// let score = profile.smith_waterman_score_from_u16(reference).unwrap();
+    /// assert_eq!(score, 26);
+    /// ```
     #[must_use]
     #[inline]
     pub fn smith_waterman_score_from_u16<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u64> {
@@ -160,6 +194,20 @@ where
     /// initializes the profiles and works its way up to the `u64` profile.
     /// Execution stops when the score returned no longer overflows the
     /// profile's integer range.
+    ///
+    /// ### Example
+    ///
+    /// ```
+    /// # use zoe::{alignment::{LocalProfile, sw::sw_simd_score}, data::BiasedWeightMatrix};
+    /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
+    /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
+    ///
+    /// const WEIGHTS: BiasedWeightMatrix<5> = BiasedWeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
+    ///
+    /// let profile = LocalProfile::<32, 5>::new(query, &WEIGHTS, 3, 1).unwrap();
+    /// let score = profile.smith_waterman_score_from_u32(reference).unwrap();
+    /// assert_eq!(score, 26);
+    /// ```
     #[must_use]
     #[inline]
     pub fn smith_waterman_score_from_u32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u64> {
@@ -170,9 +218,15 @@ where
     }
 }
 
-/// Creates a thread-safe, lazy set of striped profiles that can be shared
-/// across threads. The number of SIMD lanes `N` must be specified.
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// A lazily-evaluated set of striped alignment profiles which can be shared
+/// across threads. This is an abstraction around [`StripedProfile`], providing
+/// convenience methods for automatically increasing the integer width and
+/// rerunning the alignment when overflow occurs. The number of SIMD lanes `N`
+/// must be specified.
+///
+/// When sharing between threads is not needed, consider using [`LocalProfile`]
+/// instead.
+#[derive(Debug, Clone)]
 pub struct SharedProfile<'a, const N: usize, const S: usize>
 where
     LaneCount<N>: SupportedLaneCount, {
@@ -196,8 +250,8 @@ where
     ///
     /// # Errors
     ///
-    /// Will return [`AlignmentError::EmptyQuery`] if `query` is empty or
-    /// [`AlignmentError::BadGapWeights`] if `gap_extend` is greater than
+    /// Will return [`QueryProfileError::EmptyQuery`] if `query` is empty or
+    /// [`QueryProfileError::BadGapWeights`] if `gap_extend` is greater than
     /// `gap_open`.
     #[inline]
     pub fn new(
@@ -222,8 +276,8 @@ where
     ///
     /// # Errors
     ///
-    /// Will return [`AlignmentError::EmptyQuery`] if `query` is empty or
-    /// [`AlignmentError::BadGapWeights`] if `gap_extend` is greater than
+    /// Will return [`QueryProfileError::EmptyQuery`] if `query` is empty or
+    /// [`QueryProfileError::BadGapWeights`] if `gap_extend` is greater than
     /// `gap_open`.
     #[inline]
     pub fn new_with_u8(
@@ -234,13 +288,13 @@ where
         Ok(p)
     }
 
-    /// Creates an empty [`SharedProfile`] and eagerly initializes the
-    /// `u16` profile.
+    /// Creates an empty [`SharedProfile`] and eagerly initializes the `u16`
+    /// profile.
     ///
     /// # Errors
     ///
-    /// Will return [`AlignmentError::EmptyQuery`] if `query` is empty or
-    /// [`AlignmentError::BadGapWeights`] if `gap_extend` is greater than
+    /// Will return [`QueryProfileError::EmptyQuery`] if `query` is empty or
+    /// [`QueryProfileError::BadGapWeights`] if `gap_extend` is greater than
     /// `gap_open`.
     #[inline]
     pub fn new_with_u16(
@@ -251,8 +305,8 @@ where
         Ok(p)
     }
 
-    /// Get or initialize [`StripedProfile`] with elements of `u8` and `N`
-    /// SIMD lanes and returns a reference to the field.
+    /// Get or initialize [`StripedProfile`] with elements of `u8` and `N` SIMD
+    /// lanes and returns a reference to the field.
     #[inline]
     pub fn get_u8(&self) -> &StripedProfile<u8, N, S> {
         // We already validated profile
@@ -261,8 +315,8 @@ where
         })
     }
 
-    /// Get or initialize [`StripedProfile`] with elements of `u16` and `N`
-    /// SIMD lanes and returns a reference to the field.
+    /// Get or initialize [`StripedProfile`] with elements of `u16` and `N` SIMD
+    /// lanes and returns a reference to the field.
     #[inline]
     pub fn get_u16(&self) -> &StripedProfile<u16, N, S> {
         self.profile_u16.get_or_init(|| {
@@ -271,8 +325,8 @@ where
         })
     }
 
-    /// Get or initialize [`StripedProfile`] with elements of `u32` and `N`
-    /// SIMD lanes and returns a reference to the field.
+    /// Get or initialize [`StripedProfile`] with elements of `u32` and `N` SIMD
+    /// lanes and returns a reference to the field.
     #[inline]
     pub fn get_u32(&self) -> &StripedProfile<u32, N, S> {
         self.profile_u32.get_or_init(|| {
@@ -281,8 +335,8 @@ where
         })
     }
 
-    /// Get or initialize [`StripedProfile`] with elements of `u64` and `N`
-    /// SIMD lanes and returns a reference to the field.
+    /// Get or initialize [`StripedProfile`] with elements of `u64` and `N` SIMD
+    /// lanes and returns a reference to the field.
     #[inline]
     pub fn get_u64(&self) -> &StripedProfile<u64, N, S> {
         self.profile_u64.get_or_init(|| {
@@ -292,9 +346,23 @@ where
     }
 
     /// Lazily execute [`StripedProfile::smith_waterman_score`] starting with
-    /// the `u8` profile, skipping the `u8` profile. Lazily initializes the
-    /// profiles and works its way up to the `u64` profile. Execution stops when
-    /// the score returned no longer overflows the profile's integer range.
+    /// the `u8` profile. Lazily initializes the profiles and works its way up
+    /// to the `u64` profile. Execution stops when the score returned no longer
+    /// overflows the profile's integer range.
+    ///
+    /// ### Example
+    ///
+    /// ```
+    /// # use zoe::{alignment::{SharedProfile, sw::sw_simd_score}, data::BiasedWeightMatrix};
+    /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
+    /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
+    ///
+    /// const WEIGHTS: BiasedWeightMatrix<5> = BiasedWeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
+    ///
+    /// let profile = SharedProfile::<32, 5>::new(query.into(), &WEIGHTS, 3, 1).unwrap();
+    /// let score = profile.smith_waterman_score_from_u8(reference).unwrap();
+    /// assert_eq!(score, 26);
+    /// ```
     #[must_use]
     #[inline]
     pub fn smith_waterman_score_from_u8<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u64> {
@@ -310,6 +378,20 @@ where
     /// the `u16` profile, skipping the `u8` profile. Lazily initializes the
     /// profiles and works its way up to the `u64` profile. Execution stops when
     /// the score returned no longer overflows the profile's integer range.
+    ///
+    /// ### Example
+    ///
+    /// ```
+    /// # use zoe::{alignment::{SharedProfile, sw::sw_simd_score}, data::BiasedWeightMatrix};
+    /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
+    /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
+    ///
+    /// const WEIGHTS: BiasedWeightMatrix<5> = BiasedWeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
+    ///
+    /// let profile = SharedProfile::<32, 5>::new(query.into(), &WEIGHTS, 3, 1).unwrap();
+    /// let score = profile.smith_waterman_score_from_u16(reference).unwrap();
+    /// assert_eq!(score, 26);
+    /// ```
     #[must_use]
     #[inline]
     pub fn smith_waterman_score_from_u16<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u64> {
@@ -325,6 +407,20 @@ where
     /// initializes the profiles and works its way up to the `u64` profile.
     /// Execution stops when the score returned no longer overflows the
     /// profile's integer range.
+    ///
+    /// ### Example
+    ///
+    /// ```
+    /// # use zoe::{alignment::{SharedProfile, sw::sw_simd_score}, data::BiasedWeightMatrix};
+    /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
+    /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
+    ///
+    /// const WEIGHTS: BiasedWeightMatrix<5> = BiasedWeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
+    ///
+    /// let profile = SharedProfile::<32, 5>::new(query.into(), &WEIGHTS, 3, 1).unwrap();
+    /// let score = profile.smith_waterman_score_from_u32(reference).unwrap();
+    /// assert_eq!(score, 26);
+    /// ```
     #[must_use]
     #[inline]
     pub fn smith_waterman_score_from_u32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u64> {

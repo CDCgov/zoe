@@ -192,8 +192,22 @@ impl Nucleotides {
     ///
     /// # Errors
     ///
-    /// Returns an [`AlignmentError`] if the profile creation fails due to invalid
-    /// sequence data or unsupported parameters.
+    /// Returns an [`QueryProfileError`] if the profile creation fails due to
+    /// invalid sequence data or unsupported parameters.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use zoe::{data::BiasedWeightMatrix, prelude::Nucleotides};
+    /// let reference: &[u8] = b"GGCCACAGGATTGAG";
+    /// let query: Nucleotides = b"CTCAGATTG".into();
+    ///
+    /// const WEIGHTS: BiasedWeightMatrix<5> = BiasedWeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
+    ///
+    /// let profile = query.into_local_profile::<32, 5>(&WEIGHTS, 3, 1).unwrap();
+    /// let score = profile.smith_waterman_score_from_u8(reference).unwrap();
+    /// assert_eq!(score, 27);
+    /// ```
     #[inline]
     pub fn into_local_profile<'a, 'b, const N: usize, const S: usize>(
         &'b self, matrix: &'a BiasedWeightMatrix<S>, gap_open: u8, gap_extend: u8,
@@ -208,8 +222,22 @@ impl Nucleotides {
     ///
     /// # Errors
     ///
-    /// Returns an [`AlignmentError`] if the profile creation fails due to invalid
+    /// Returns an [`QueryProfileError`] if the profile creation fails due to invalid
     /// sequence data or unsupported parameters.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use zoe::{data::BiasedWeightMatrix, prelude::Nucleotides};
+    /// let reference: &[u8] = b"GGCCACAGGATTGAG";
+    /// let query: Nucleotides = b"CTCAGATTG".into();
+    ///
+    /// const WEIGHTS: BiasedWeightMatrix<5> = BiasedWeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
+    ///
+    /// let profile = query.into_shared_profile::<32, 5>(&WEIGHTS, 3, 1).unwrap();
+    /// let score = profile.smith_waterman_score_from_u8(reference).unwrap();
+    /// assert_eq!(score, 27);
+    /// ```
     #[inline]
     pub fn into_shared_profile<'a, const N: usize, const S: usize>(
         &self, matrix: &'a BiasedWeightMatrix<S>, gap_open: u8, gap_extend: u8,
@@ -282,7 +310,7 @@ impl MaybeNucleic for &[u8] {}
 #[inline]
 #[must_use]
 pub fn translate_sequence(s: &[u8]) -> Vec<u8> {
-    // TO-DO: this and the translation iterator can be made into array chunks
+    // TODO: this and the translation iterator can be made into array chunks
     // for further performance, but best to wait until the feature is more
     // likely to be adopted and/or needed by other functions in Zoe.
     let mut codons = s.chunks_exact(3);

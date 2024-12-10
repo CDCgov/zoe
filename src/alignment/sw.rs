@@ -1,5 +1,5 @@
 #![allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation, clippy::needless_range_loop)]
-// TO-DO: revisit truncation issues
+// TODO: revisit truncation issues
 
 use super::*;
 use crate::{
@@ -18,8 +18,22 @@ use std::{
 /// al.*](https://cme.h-its.org/exelixis/web/software/alignment/correct.html)
 /// (3).
 ///
-/// We use the affine gap formula of $W(k) = u(k-1) + v$. In order to use $W(k) =
-/// uk + v$, simply pass gap open as the gap open plus gap extension.
+/// We use the affine gap formula of $W(k) = u(k-1) + v$. In order to use $W(k)
+/// = uk + v$, simply pass gap open as the gap open plus gap extension.
+///
+/// ### Example
+///
+/// ```
+/// # use zoe::{alignment::{ScalarProfile, sw::sw_scalar_score}, data::SimpleWeightMatrix};
+/// let reference: &[u8] = b"GGCCACAGGATTGAG";
+/// let query: &[u8] = b"CTCAGATTG";
+///
+/// const WEIGHTS: SimpleWeightMatrix<5> = SimpleWeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
+///
+/// let profile = ScalarProfile::<5>::new(query, WEIGHTS, 3, 1).unwrap();
+/// let score = sw_scalar_score(&reference, &profile);
+/// assert_eq!(score, 27);
+/// ```
 ///
 /// ### Complexity
 ///
@@ -37,8 +51,9 @@ use std::{
 ///    sequences". Journal of Molecular Biology. 162 (3): 705–708.
 ///
 /// 3. Tomáš Flouri, Kassian Kobert, Torbjørn Rognes, Alexandros
-///    Stamatakis(2015). "Are all global alignment algorithms and implementations
-///    correct?" bioRxiv 031500. doi: <https://doi.org/10.1101/031500>
+///    Stamatakis(2015). "Are all global alignment algorithms and
+///    implementations correct?" bioRxiv 031500. doi:
+///    <https://doi.org/10.1101/031500>
 ///
 #[must_use]
 pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S>) -> i32 {
@@ -93,8 +108,8 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
     best_score
 }
 
-/// Smith-Waterman alignment, yielding the reference starting position, cigar,
-/// and optimal score.
+/// Smith-Waterman alignment, yielding the reference starting position (indexed
+/// from 1), cigar, and optimal score.
 ///
 /// Provides the locally optimal sequence alignment (1) for affine gaps (2) with
 /// improvements and corrections by (3-4). Our implementation adapts the
@@ -102,8 +117,24 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 /// al.*](https://cme.h-its.org/exelixis/web/software/alignment/correct.html)
 /// (4).
 ///
-/// We use the affine gap formula of $W(k) = u(k-1) + v$. In order to use $W(k) =
-/// uk + v$, simply pass gap open as the gap open plus gap extension.
+/// We use the affine gap formula of $W(k) = u(k-1) + v$. In order to use $W(k)
+/// = uk + v$, simply pass gap open as the gap open plus gap extension.
+///
+/// ### Example
+///
+///  ```
+/// # use zoe::{alignment::{ScalarProfile, sw::sw_scalar_alignment}, data::SimpleWeightMatrix};
+/// let reference: &[u8] = b"GGCCACAGGATTGAG";
+/// let query: &[u8] = b"CTCAGATTG";
+///
+/// const WEIGHTS: SimpleWeightMatrix<5> = SimpleWeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
+///
+/// let profile = ScalarProfile::<5>::new(query, WEIGHTS, 3, 1).unwrap();
+/// let (start, cigar, score) = sw_scalar_alignment(&reference, &profile);
+/// assert_eq!(start, 4);
+/// assert_eq!(cigar, b"5M1D4M".into());
+/// assert_eq!(score, 27);
+/// ```
 ///
 /// ### Complexity
 ///
@@ -125,8 +156,9 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 ///    (5–6): 603–616.
 ///
 /// 4. Tomáš Flouri, Kassian Kobert, Torbjørn Rognes, Alexandros
-///    Stamatakis(2015). "Are all global alignment algorithms and implementations
-///    correct?" bioRxiv 031500. doi: <https://doi.org/10.1101/031500>
+///    Stamatakis(2015). "Are all global alignment algorithms and
+///    implementations correct?" bioRxiv 031500. doi:
+///    <https://doi.org/10.1101/031500>
 ///
 #[must_use]
 pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfile<S>) -> (usize, Cigar, i32) {
@@ -234,14 +266,36 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
 /// Provides the locally optimal sequence alignment (1) for affine gaps (2). We
 /// adapt Farrar's striped SIMD implemention (3) for portable SIMD.
 ///
-/// We use the affine gap formula of $W(k) = u(k-1) + v$. In order to use $W(k) =
-/// uk + v$, simply pass gap open as the gap open plus gap extension.
+/// We use the affine gap formula of $W(k) = u(k-1) + v$. In order to use $W(k)
+/// = uk + v$, simply pass gap open as the gap open plus gap extension.
+///
+/// ### Example
+///
+/// ```
+/// # use zoe::{alignment::{StripedProfile, sw::sw_simd_score}, data::BiasedWeightMatrix};
+/// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
+/// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
+///
+/// const WEIGHTS: BiasedWeightMatrix<5> = BiasedWeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
+///
+/// let profile = StripedProfile::<u8, 32, 5>::new(query, &WEIGHTS, 3, 1).unwrap();
+/// let score = sw_simd_score(&reference, &profile).unwrap();
+/// assert_eq!(score, 26);
+/// ```
 ///
 /// ### Complexity
 ///
 /// Time: $O(mn)$, with the average case as $mn/N$ for $N$ SIMD lanes
 ///
 /// Space: $O(n)$
+///
+/// ### Limitations
+///
+/// The SIMD algorithm used here may not perform as well when both the query and
+/// reference are short. If the query and reference are both shorter than 25
+/// bases, ensure that this algorithm is called with `N=16` or less. If the
+/// query and reference are both shorter than 10 bases, consider using the
+/// scalar algorithm [`sw_scalar_score`].
 ///
 /// ### Citations
 ///
@@ -389,9 +443,8 @@ mod test {
     #[test]
     fn sw_simd() {
         let matrix = SimpleWeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N')).into_biased_matrix();
-        let profile = matrix
-            .to_striped_profile::<u8, 16>(REFERENCE, GAP_OPEN, GAP_EXTEND)
-            .expect("Sequence is non-empty");
+        let profile =
+            StripedProfile::<u8, 16, 5>::new(REFERENCE, &matrix, GAP_OPEN, GAP_EXTEND).expect("Sequence is non-empty");
         let score = profile.smith_waterman_score(QUERY);
         assert_eq!(Some(37), score);
     }
@@ -409,9 +462,7 @@ mod test {
     fn sw_simd_single() {
         let v: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/CY137594.txt"));
         let matrix = SimpleWeightMatrix::<5>::new_dna_matrix(2, -5, Some(b'N')).into_biased_matrix();
-        let profile = matrix
-            .to_striped_profile::<u16, 16>(v, GAP_OPEN, GAP_EXTEND)
-            .expect("Sequence is non-empty");
+        let profile = StripedProfile::<u16, 16, 5>::new(v, &matrix, GAP_OPEN, GAP_EXTEND).expect("Sequence is non-empty");
         let score = profile.smith_waterman_score(v);
         assert_eq!(Some(3372), score);
     }
@@ -421,9 +472,7 @@ mod test {
         let query = b"AGA";
         let reference = b"AA";
         let matrix = SimpleWeightMatrix::new(&DNA_PROFILE_MAP, 10, -10, Some(b'N')).into_biased_matrix();
-        let profile = matrix
-            .to_striped_profile::<u16, 4>(query, 5, 5)
-            .expect("Sequence is non-empty");
+        let profile = StripedProfile::<u16, 4, 5>::new(query, &matrix, 5, 5).expect("Sequence is non-empty");
         let score = profile.smith_waterman_score(reference);
         assert_eq!(Some(15), score);
     }
@@ -434,9 +483,7 @@ mod test {
         let reference = b"AAAA";
 
         let matrix = SimpleWeightMatrix::new(&DNA_PROFILE_MAP, 127, 0, Some(b'N')).into_biased_matrix();
-        let profile = matrix
-            .to_striped_profile::<u8, 8>(query, GAP_OPEN, GAP_EXTEND)
-            .expect("Sequence is non-empty");
+        let profile = StripedProfile::<u8, 8, 5>::new(query, &matrix, GAP_OPEN, GAP_EXTEND).expect("Sequence is non-empty");
         let score = profile.smith_waterman_score(reference);
         assert!(score.is_none());
     }
