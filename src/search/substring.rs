@@ -127,7 +127,7 @@ pub fn substring_match(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 ///
 /// ### Citation
 ///
-/// 1. Muła, Wojciech (2018). "SIMD-friendly algorithms for substring searching".
+/// 1. Muła, Wojciech (2018). "SIMD-friendly algorithms for substring searching."
 ///    Available at:
 ///    <http://0x80.pl/articles/simd-strfind.html#algorithm-1-generic-simd>.
 ///    Accessed September 3, 2024.

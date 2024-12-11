@@ -12,7 +12,8 @@
     clippy::large_const_arrays,     // Remove with merging of Striped SW 
     stable_features
 )]
-#![feature(test, portable_simd, const_fn_floating_point_arithmetic, let_chains, lazy_cell)]
+#![cfg_attr(test, feature(test))]
+#![feature(portable_simd, const_fn_floating_point_arithmetic, let_chains, lazy_cell)]
 #![forbid(incomplete_features)]
 
 /// Alignment functions

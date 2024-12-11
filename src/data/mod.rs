@@ -20,7 +20,7 @@ pub mod sam;
 pub mod types;
 
 pub use crate::{
-    data::vec_types::{PairwiseSequence, StdForSequences},
+    data::vec_types::{CheckSequence, PairwiseSequence, StdForSequences},
     search::ByteSubstring,
 };
 pub use constants::matrices::{BiasedWeightMatrix, SymmetricWeightMatrix};

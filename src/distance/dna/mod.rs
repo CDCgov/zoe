@@ -22,7 +22,8 @@ use super::tabulation::{dna_substitution_matrix, hamming_dist_from_sub_matrix, t
 ///
 /// ### Citations
 ///
-/// 1. Jukes, T., & Cantor, C. (1969). “Evolution of Protein Molecules.” Mammalian Protein Metabolism, New York: Academic Press, III(3), 21–132.
+/// - Jukes, T., and Cantor, C. (1969). "Evolution of Protein Molecules."
+///   Mammalian Protein Metabolism, New York: Academic Press, III(3), 21–132.
 pub fn jukes_cantor_69(seq1: &[u8], seq2: &[u8]) -> Option<f64> {
     if seq1.is_empty() || seq2.is_empty() {
         return None;
@@ -55,7 +56,9 @@ pub fn jukes_cantor_69(seq1: &[u8], seq2: &[u8]) -> Option<f64> {
 ///
 /// ### Citations
 ///
-/// 1. Kimura, M. (1980). "A simple method for estimating evolutionary rates of base substitutions through comparative studies of nucleotide sequences". Journal of Molecular Evolution. 16, 111-120.
+/// - Kimura, M. (1980). "A simple method for estimating evolutionary rates of
+///   base substitutions through comparative studies of nucleotide sequences."
+///   Journal of Molecular Evolution. 16, 111-120.
 pub fn kimura_80(seq1: &[u8], seq2: &[u8]) -> Option<f64> {
     if seq1.is_empty() || seq2.is_empty() {
         return None;
@@ -90,7 +93,8 @@ pub fn kimura_80(seq1: &[u8], seq2: &[u8]) -> Option<f64> {
 ///
 /// ### Citations
 ///
-/// 1. Kimura, M.  1981. Estimation of evolutionary distances between homologous nucleotide sequences.  Proc. Natl. Acad. Sci. U.S.A. 78, 454–458.
+/// - Kimura, M.  1981. "Estimation of evolutionary distances between homologous
+///   nucleotide sequences."  Proc. Natl. Acad. Sci. U.S.A. 78, 454–458.
 pub fn kimura_81(seq1: &[u8], seq2: &[u8]) -> Option<f64> {
     if seq1.is_empty() || seq2.is_empty() {
         return None;
@@ -121,7 +125,8 @@ pub fn kimura_81(seq1: &[u8], seq2: &[u8]) -> Option<f64> {
 ///
 /// ### Citations
 ///
-/// Felsenstein, J.  1981. Evolutionary trees from DNA sequences: a maximum likelihood approach.  J. Mol. Evol. 17, 368–376.
+/// - Felsenstein, J.  1981. "Evolutionary trees from DNA sequences: a maximum
+///   likelihood approach."  J. Mol. Evol. 17, 368–376.
 pub fn felsenstein_81(seq1: &[u8], seq2: &[u8]) -> Option<f64> {
     if seq1.is_empty() || seq2.is_empty() {
         return None;
@@ -163,7 +168,9 @@ pub fn felsenstein_81(seq1: &[u8], seq2: &[u8]) -> Option<f64> {
 ///
 /// ### Citations
 ///
-/// Tamura, K., and M. Nei.  1993. Estimation of the number of nucleotide substitutions in the control region of mitochondrial DNA in humans and chimpanzees.  Mol. Biol. Evol. 10, 512–526.
+/// - Tamura, K., and M. Nei.  1993. "Estimation of the number of nucleotide
+///   substitutions in the control region of mitochondrial DNA in humans and
+///   chimpanzees."  Mol. Biol. Evol. 10, 512–526.
 pub fn tamura_nei_93(seq1: &[u8], seq2: &[u8]) -> Option<f64> {
     if seq1.is_empty() || seq2.is_empty() {
         return None;
