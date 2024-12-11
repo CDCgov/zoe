@@ -6,6 +6,7 @@ macro_rules! impl_int {
         pub trait $ident: SimdElement + Ord + Add + AddAssign {
             fn one() -> Self;
             fn zero() -> Self;
+            fn checked_addition(&self,other: Self) -> Option<Self>;
             const MAX: Self;
             const MIN: Self;
         }
@@ -14,6 +15,11 @@ macro_rules! impl_int {
         impl $ident for $ty {
             fn one() -> Self { 1 }
             fn zero() -> Self { 0 }
+
+            #[inline]
+            fn checked_addition(&self,other: Self) -> Option<Self> {
+                self.checked_add(other)
+            }
             const MAX: $ty = <$ty>::MAX;
             const MIN: $ty = <$ty>::MIN;
         } )*
