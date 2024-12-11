@@ -1,10 +1,4 @@
-#![allow(dead_code)]
-
-use crate::data::types::{
-    cigar::{Cigar, Ciglet},
-    Uint,
-};
-use std::fmt::Write;
+use crate::data::types::cigar::{Cigar, Ciglet};
 
 #[derive(Clone, Debug)]
 pub(crate) struct AlignmentStates(Vec<Ciglet>);
@@ -111,7 +105,7 @@ pub fn pairwise_align_with_cigar(reference: &[u8], query: &[u8], cigar: &Cigar, 
                 ref_index += inc;
             }
             b'H' => continue,
-            // TO-DO: Replace with a continue if type-state is adopted.
+            // TODO: Replace with a continue if type-state is adopted.
             _ => eprintln!("Extended CIGAR {op} not yet supported.\n"),
         }
     }
@@ -123,14 +117,6 @@ pub fn pairwise_align_with_cigar(reference: &[u8], query: &[u8], cigar: &Cigar, 
 pub(crate) struct ScoreCell {
     pub endgap_up: i32,
     pub matching:  i32,
-}
-
-#[derive(Debug, Clone, Copy, Default)]
-pub(crate) struct ScoreCellU<T>
-where
-    T: Uint, {
-    pub endgap_up: T,
-    pub matching:  T,
 }
 
 pub(crate) struct BestScore {
@@ -165,67 +151,6 @@ impl BestScore {
 impl Default for BestScore {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-#[repr(transparent)]
-pub(crate) struct BackTrackCell(u8);
-
-impl BackTrackCell {
-    const UP: u8 = 1;
-    const UP_EXTENDING: u8 = 2;
-    const LEFT: u8 = 4;
-    const LEFT_EXTENDING: u8 = 8;
-    const STOP: u8 = 16;
-
-    #[inline]
-    pub(crate) fn up(&mut self) {
-        self.0 |= Self::UP;
-    }
-
-    #[inline]
-    pub(crate) fn left(&mut self) {
-        self.0 |= Self::LEFT;
-    }
-
-    #[inline]
-    pub(crate) fn up_extending(&mut self) {
-        self.0 |= Self::UP_EXTENDING;
-    }
-
-    #[inline]
-    pub(crate) fn left_extending(&mut self) {
-        self.0 |= Self::LEFT_EXTENDING;
-    }
-
-    #[inline]
-    pub(crate) fn stop(&mut self) {
-        self.0 = Self::STOP;
-    }
-
-    #[inline]
-    pub(crate) fn is_up(&self) -> bool {
-        self.0 & Self::UP > 0
-    }
-
-    #[inline]
-    pub(crate) fn is_left(&self) -> bool {
-        self.0 & Self::LEFT > 0
-    }
-
-    #[inline]
-    pub(crate) fn is_left_extending(&self) -> bool {
-        self.0 & Self::LEFT_EXTENDING > 0
-    }
-
-    #[inline]
-    pub(crate) fn is_up_extending(&self) -> bool {
-        self.0 & Self::UP_EXTENDING > 0
-    }
-
-    #[inline]
-    pub(crate) fn is_stop(&self) -> bool {
-        self.0 & Self::STOP > 0
     }
 }
 
@@ -303,21 +228,6 @@ impl BacktrackMatrix {
     #[inline]
     pub(crate) fn is_stop(&self) -> bool {
         self.data[self.cursor] & Self::STOP > 0
-    }
-}
-
-#[repr(transparent)]
-pub struct DNAProfileIndices(pub(crate) Vec<u8>);
-
-impl std::fmt::Debug for BacktrackMatrix {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for v in self.data.chunks_exact(self.cols) {
-            for c in v {
-                write!(f, " {c:05b}")?;
-            }
-            f.write_char('\n')?;
-        }
-        Ok(())
     }
 }
 

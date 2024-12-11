@@ -1,5 +1,5 @@
 use super::alphas::{NUCLEIC_IUPAC, NUCLEIC_IUPAC_UNALIGNED};
-use std::sync::LazyLock;
+use std::{ops::Index, sync::LazyLock};
 
 /// Maps bytes to themselves but valid IUPAC nucleotides to their reverse complement.
 #[allow(clippy::cast_possible_truncation)]
@@ -140,36 +140,89 @@ pub(crate) const ANY_TO_DNA_CANONICAL_UPPER: [u8; 256] = {
     v
 };
 
-/// Used to convert any byte to `u8` indices where {0: A, 1: C, 2: G, 3: T, 4: N}.
-/// N is used as a catch-all.
-pub(crate) const TO_DNA_PROFILE_INDEX: [u8; 256] = {
-    const FROM_BYTE: &[u8; 12] = b"acgtunACGTUN";
-    const THE_INDEX: &[u8; 12] = b"012334012334"; //  b"123445123445";
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub struct ByteIndexMap<const KEYS: usize> {
+    pub(crate) index_map: [u8; 256],
+    pub(crate) byte_keys: [u8; KEYS],
+}
 
-    let mut v = [4u8; 256]; // Use N as the catch-all for now
-    let mut i = 0;
+impl<const S: usize> ByteIndexMap<S> {
+    /// Create a new [`ByteIndexMap`] struct to represent a mapping between
+    /// bytes and indices. For example, DNA alphabet to profile indices.
+    ///
+    /// # Panics
+    /// Uppercase ASCII is expected for the `index` byte string and the
+    /// `catch_all` value. The `catch_all` value must be present in `index`, and
+    /// no duplicates can be present in `index`.
+    #[allow(clippy::cast_possible_truncation)]
+    #[must_use]
+    pub const fn new(byte_keys: [u8; S], catch_all: u8) -> Self {
+        assert!(catch_all.is_ascii_uppercase());
 
-    while i < FROM_BYTE.len() {
-        // reserve 0 for invalid state
-        v[FROM_BYTE[i] as usize] = THE_INDEX[i] - b'0';
-        i += 1;
+        let mut catch_all_index = None;
+        let mut i = 0;
+        while i < byte_keys.len() {
+            assert!(byte_keys[i].is_ascii_uppercase());
+
+            let mut j = i + 1;
+            while j < byte_keys.len() {
+                assert!(byte_keys[i] != byte_keys[j]);
+                j += 1;
+            }
+
+            if byte_keys[i] == catch_all {
+                catch_all_index = Some(i);
+            }
+
+            i += 1;
+        }
+
+        // If this unwrap fails, it means catch_all wasn't present in index
+        let mut index_map = [catch_all_index.unwrap() as u8; 256];
+
+        let mut i = 0;
+        while i < byte_keys.len() {
+            // Truncation will not occur because i cannot exceed index.len(),
+            // and index must contain unique u8 values
+            index_map[byte_keys[i] as usize] = i as u8;
+            index_map[byte_keys[i].to_ascii_lowercase() as usize] = i as u8;
+
+            i += 1;
+        }
+        ByteIndexMap { index_map, byte_keys }
     }
-    v
-};
 
-#[inline]
-/// Used to convert any byte to `usize` indices where {0: A, 1: C, 2: G, 3: T, 4: N}.
-/// N is used as a catch-all.
-pub const fn to_dna_profile_index(b: u8) -> usize {
-    TO_DNA_PROFILE_INDEX[b as usize] as usize
+    #[inline]
+    #[must_use]
+    pub const fn len(&self) -> usize {
+        self.byte_keys.len()
+    }
+
+    #[inline]
+    #[must_use]
+    pub const fn is_empty(&self) -> bool {
+        self.byte_keys.is_empty()
+    }
+
+    #[inline]
+    #[must_use]
+    pub const fn to_index(&self, b: u8) -> usize {
+        self.index_map[b as usize] as usize
+    }
 }
 
-#[inline]
+impl<const S: usize> Index<u8> for ByteIndexMap<S> {
+    type Output = u8;
+
+    #[inline]
+    fn index(&self, index: u8) -> &u8 {
+        &self.index_map[index as usize]
+    }
+}
+
 /// Used to convert any byte to `u8` indices where {0: A, 1: C, 2: G, 3: T, 4: N}.
 /// N is used as a catch-all.
-pub const fn to_dna_index(b: u8) -> u8 {
-    TO_DNA_PROFILE_INDEX[b as usize]
-}
+pub const DNA_PROFILE_MAP: ByteIndexMap<5> = ByteIndexMap::new(*b"ACGTN", b'N');
 
 macro_rules! fill_map {
     ($( $key: expr => $val: expr ),*) => {{
