@@ -1,7 +1,10 @@
 use crate::simd::SimdByteFunctions;
 use std::simd::{prelude::*, LaneCount, SupportedLaneCount};
 
-pub(crate) fn gc_content_simd<const N: usize>(s: &[u8]) -> usize
+/// Calculates GC content using SIMD operations for better performance. Returns
+/// count of G and C nucleotides in the sequence.
+#[must_use]
+pub fn gc_content_simd<const N: usize>(s: &[u8]) -> usize
 where
     LaneCount<N>: SupportedLaneCount, {
     let g = Simd::splat(b'G');
@@ -20,7 +23,10 @@ where
     count + gc_content(pre) + gc_content(sfx)
 }
 
-pub(crate) fn gc_content(s: &[u8]) -> usize {
+/// Calculates GC content using scalar operations. Returns count of G and C
+/// nucleotides in the sequence
+#[must_use]
+pub fn gc_content(s: &[u8]) -> usize {
     s.iter()
         .map(|&b| b.to_ascii_uppercase())
         .filter(|&b| b == b'G' || b == b'C')

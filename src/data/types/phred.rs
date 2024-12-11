@@ -170,20 +170,20 @@ impl QualityScores {
         self.0.is_empty()
     }
 
-    /// Provide [`QualityScores`] as a reference to a raw byte slice ([`EncodedQS`]).
+    /// Provide [`QualityScores`] as a reference to a raw byte slice (ASCII encoded quality scores).
     #[inline]
     #[must_use]
     pub fn as_bytes(&self) -> &[u8] {
         self.0.as_slice()
     }
 
-    /// Provide [`QualityScores`] as a mutable reference to a raw byte slice ([`EncodedQS`])
+    /// Provide [`QualityScores`] as a mutable reference to a raw byte slice (ASCII encoded quality scores).
     #[inline]
     pub fn as_mut_bytes(&mut self) -> &mut [u8] {
         self.0.as_mut_slice()
     }
 
-    /// Consumes the [`EncodedQS`] and returns a [`Vec<u8>`].
+    /// Consumes [`QualityScores`] and returns a [`Vec<u8>`].
     #[inline]
     #[must_use]
     pub fn into_vec(self) -> Vec<u8> {

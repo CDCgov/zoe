@@ -4,10 +4,13 @@ use crate::prelude::{AminoAcids, Nucleotides};
 use crate::simd::SimdByteFunctions;
 use std::simd::{prelude::*, LaneCount, SupportedLaneCount};
 
-/// Utility trait for sequence validation using byte-wise mappings.
+/// Provides methods for validating and transforming sequence data using byte mappings
 pub trait ValidateSequence {
+    /// Retains only bytes that are marked as valid in the validation mapping
     fn retain_by_validation(&mut self, validation_mapping: [bool; 256]);
+    /// Retains and transforms bytes using the transformation mapping, removing any that map to 0
     fn retain_by_recoding(&mut self, transformation_mapping: [u8; 256]);
+    /// Transforms bytes in-place using the provided transformation mapping
     fn recode(&mut self, transformation_mapping: [u8; 256]);
 }
 
@@ -36,9 +39,11 @@ impl ValidateSequence for Vec<u8> {
     }
 }
 
-/// A trait for expanding a sequence to its aligned state.
+/// Enables sequence expansion based on alignment information
 pub trait PairwiseSequence {
     type Output;
+    /// Aligns two sequences using a CIGAR string starting at the
+    /// given reference position.
     fn align_with_cigar(&self, query: &Self, cigar: &Cigar, position: usize) -> (Self::Output, Self::Output);
 }
 
@@ -76,11 +81,14 @@ impl PairwiseSequence for AminoAcids {
     }
 }
 
+/// Provides SIMD-accelerated sequence validation methods
 pub trait CheckSequence {
+    /// Checks if all bytes in the sequence are ASCII using SIMD operations
     fn is_ascii_simd<const N: usize>(&self) -> bool
     where
         LaneCount<N>: SupportedLaneCount;
 
+    /// Checks if all bytes in the sequence are printable ASCII using SIMD operations
     fn is_graphic_simd<const N: usize>(&self) -> bool
     where
         LaneCount<N>: SupportedLaneCount;
@@ -109,6 +117,7 @@ where
     }
 }
 
+/// Provides pass through functionality for the standard library.
 pub trait StdForSequences: AsMut<Vec<u8>> {
     #[inline]
     fn retain<F>(&mut self, f: F)
@@ -119,6 +128,24 @@ pub trait StdForSequences: AsMut<Vec<u8>> {
 }
 impl StdForSequences for Nucleotides {}
 impl StdForSequences for AminoAcids {}
+
+pub(crate) trait ChopLineBreak {
+    /// Removes trailing `\n` or `\r\n`
+    fn chop_line_break(&mut self);
+}
+
+impl ChopLineBreak for Vec<u8> {
+    #[inline]
+    fn chop_line_break(&mut self) {
+        if self.ends_with(b"\n") {
+            self.pop();
+
+            if self.ends_with(b"\r") {
+                self.pop();
+            }
+        }
+    }
+}
 
 #[cfg(test)]
 mod test {
@@ -155,22 +182,5 @@ mod bench {
         let (p, m, s) = SEQ.as_simd::<16>();
         eprintln!("{p} {m} {s}", p = p.len(), m = m.len(), s = s.len());
         b.iter(|| SEQ.is_ascii_simd::<16>());
-    }
-}
-
-pub(crate) trait ChopLineBreak {
-    fn chop_line_break(&mut self);
-}
-
-impl ChopLineBreak for Vec<u8> {
-    #[inline]
-    fn chop_line_break(&mut self) {
-        if self.ends_with(b"\n") {
-            self.pop();
-
-            if self.ends_with(b"\r") {
-                self.pop();
-            }
-        }
     }
 }
