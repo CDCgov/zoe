@@ -83,7 +83,7 @@ pub(crate) static PHYSIOCHEMICAL_FACTORS: [[Option<f32>; 256]; 256] = {
     pcd
 };
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct BiasedWeightMatrix<const N: usize> {
     pub(crate) mapping: [[u8; N]; N],
     pub(crate) index:   &'static [u8; N],
@@ -91,12 +91,12 @@ pub struct BiasedWeightMatrix<const N: usize> {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct SymmetricWeightMatrix<const N: usize> {
-    pub(crate) mapping: [[i8; N]; N],
-    pub(crate) index:   &'static [u8; N],
+pub struct SimpleWeightMatrix<const N: usize> {
+    pub mapping: [[i8; N]; N],
+    pub index:   &'static [u8; N],
 }
 
-impl<const N: usize> SymmetricWeightMatrix<N> {
+impl<const N: usize> SimpleWeightMatrix<N> {
     /// Builds a simple Weight matrix for alignment. The `index` byte string
     /// represents the states and must match the matrix dimension.
     ///
@@ -141,7 +141,12 @@ impl<const N: usize> SymmetricWeightMatrix<N> {
             i += 1;
         }
 
-        SymmetricWeightMatrix { mapping, index }
+        SimpleWeightMatrix { mapping, index }
+    }
+
+    #[must_use]
+    pub const fn new_dna_matrix(matching: i8, mismatch: i8, ignoring: Option<u8>) -> SimpleWeightMatrix<5> {
+        SimpleWeightMatrix::new(b"ACTGN", matching, mismatch, ignoring)
     }
 
     #[must_use]
@@ -193,19 +198,19 @@ mod test {
 
     #[test]
     fn create_simple() {
-        let result1 = SymmetricWeightMatrix {
+        let result1 = SimpleWeightMatrix {
             mapping: [[0, 1], [1, 0]],
             index:   b"AB",
         };
 
-        let result2 = SymmetricWeightMatrix::new(b"AB", 0, 1, None);
+        let result2 = SimpleWeightMatrix::new(b"AB", 0, 1, None);
         assert_eq!(result1, result2);
     }
 
     #[allow(non_snake_case)]
     #[test]
     fn create_IRMA_matrix() {
-        let result1 = SymmetricWeightMatrix {
+        let result1 = SimpleWeightMatrix {
             mapping: [
                 [2, -5, -5, -5, 0],
                 [-5, 2, -5, -5, 0],
@@ -216,7 +221,7 @@ mod test {
             index:   b"ACGTN",
         };
 
-        let result2 = SymmetricWeightMatrix::new(b"ACGTN", 2, -5, Some(b'N'));
+        let result2 = SimpleWeightMatrix::new(b"ACGTN", 2, -5, Some(b'N'));
 
         assert_eq!(result1, result2);
     }

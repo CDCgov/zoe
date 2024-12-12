@@ -1,37 +1,35 @@
-#![allow(
-    clippy::cast_possible_wrap,
-    clippy::cast_possible_truncation,
-    clippy::needless_range_loop,
-    unused_imports
-)]
+#![allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation, clippy::needless_range_loop)]
 // TO-DO: revisit truncation issues
 
 use super::*;
-use crate::data::{
-    byte_types::ByteMappings,
-    mappings::{to_dna_index, to_dna_profile_index},
-    types::{cigar::Cigar, Uint},
+use crate::{
+    data::{
+        byte_types::ByteMappings,
+        mappings::to_dna_index,
+        types::{cigar::Cigar, Uint},
+    },
+    simd::SimdExt,
 };
 use std::{
-    iter::zip,
     ops::{AddAssign, Shl},
-    simd::{prelude::*, LaneCount, SupportedLaneCount},
+    simd::{prelude::*, LaneCount, MaskElement, SupportedLaneCount},
 };
 
-/// Smith-Waterman algorithm, yielding the **ENDING** reference and query position and optimal score.
+/// Smith-Waterman algorithm, yielding the optimal score.
 ///
-/// Locally optimal sequence alignment (1) for affine gaps (2) with improvements
-/// and corrections by (3-4). Our implementation adapts the corrected algorithm
-/// provided by [*Flouri et al.*](https://cme.h-its.org/exelixis/web/software/alignment/correct.html) (4).
+/// Provides the locally optimal sequence alignment (1) for affine gaps (2). Our
+/// implementation adapts the algorithm provided by [*Flouri et
+/// al.*](https://cme.h-its.org/exelixis/web/software/alignment/correct.html)
+/// (3).
 ///
-/// We use the affine gap formula of `W(k) = u(k-1) + v`. In order to use `W(k) =
-/// uk + v`, simply pass gap open as the gap open plus gap extension.
+/// We use the affine gap formula of $W(k) = u(k-1) + v$. In order to use $W(k) =
+/// uk + v$, simply pass gap open as the gap open plus gap extension.
 ///
 /// ### Complexity
 ///
-/// Time: *O(mn)*
+/// Time: $O(mn)$
 ///
-/// Space: *O(mn)*
+/// Space: $O(m)$ where $m$ is the length of the query
 ///
 /// ### Citations
 ///
@@ -42,62 +40,12 @@ use std::{
 /// 2. Osamu Gotoh (1982). "An improved algorithm for matching biological
 ///    sequences". Journal of Molecular Biology. 162 (3): 705–708.
 ///
-/// 3. Stephen F. Altschul & Bruce W. Erickson (1986). "Optimal sequence
-///    alignment using affine gap costs". Bulletin of Mathematical Biology. 48
-///    (5–6): 603–616.
-///
-/// 4. Tomáš Flouri, Kassian Kobert, Torbjørn Rognes, Alexandros
+/// 3. Tomáš Flouri, Kassian Kobert, Torbjørn Rognes, Alexandros
 ///    Stamatakis(2015). "Are all global alignment algorithms and implementations
 ///    correct?" bioRxiv 031500. doi: <https://doi.org/10.1101/031500>
 ///
 #[must_use]
-pub fn sw_score(
-    reference: &[u8], query: &[u8], gap_open: i32, gap_extend: i32, substitution_matrix: &[[i32; 256]; 256],
-) -> (usize, usize, i32) {
-    let mut current = vec![ScoreCell::default(); query.len() + 1];
-    let mut best_score = BestScore::new();
-
-    for c in 1..=query.len() {
-        // first row
-        current[c].endgap_up = gap_open + (c as i32 - 1) * gap_extend;
-    }
-
-    for r in 1..=reference.len() {
-        // first column
-        let mut endgap_left = gap_open + (r as i32 - 1) * gap_extend;
-        let mut diag = 0;
-
-        for c in 1..=query.len() {
-            // matching is the default direction
-
-            let match_score = substitution_matrix[reference[r - 1] as usize][query[c - 1] as usize];
-            let mut score = diag + match_score;
-            let mut endgap_up = current[c].endgap_up;
-
-            score = score.max(endgap_up).max(endgap_left).max(0);
-
-            diag = current[c].matching;
-            current[c].matching = score;
-            best_score.add_score(r, c, score);
-
-            score += gap_open;
-            endgap_up += gap_extend;
-            endgap_left += gap_extend;
-
-            endgap_left = endgap_left.max(score);
-            current[c].endgap_up = endgap_up.max(score);
-        }
-    }
-
-    best_score.get_best_score()
-}
-
-/// An alternative Smith-Waterman implementation for benching and testing.
-#[must_use]
-#[allow(dead_code)]
-pub(crate) fn sw_score_alt(
-    reference: &[u8], query: &[u8], gap_open: i32, gap_extend: i32, matching: i32, mismatching: i32,
-) -> i32 {
+pub fn sw_score(reference: &[u8], query: &[u8], gap_open: i32, gap_extend: i32, matching: i32, mismatching: i32) -> i32 {
     struct SWCells {
         matching:  i32,
         endgap_up: i32,
@@ -149,20 +97,23 @@ pub(crate) fn sw_score_alt(
     best_score
 }
 
-/// Smith-Waterman alignment, yielding the reference starting position, cigar, and optimal score.
+/// Smith-Waterman alignment, yielding the reference starting position, cigar,
+/// and optimal score.
 ///
-/// Locally optimal sequence alignment (1) for affine gaps (2) with improvements
-/// and corrections by (3-4). Our implementation adapts the corrected algorithm
-/// provided by [*Flouri et al.*](https://cme.h-its.org/exelixis/web/software/alignment/correct.html) (4).
+/// Provides the locally optimal sequence alignment (1) for affine gaps (2) with
+/// improvements and corrections by (3-4). Our implementation adapts the
+/// corrected algorithm provided by [*Flouri et
+/// al.*](https://cme.h-its.org/exelixis/web/software/alignment/correct.html)
+/// (4).
 ///
-/// We use the affine gap formula of `W(k) = u(k-1) + v`. In order to use `W(k) =
-/// uk + v`, simply pass gap open as the gap open plus gap extension.
+/// We use the affine gap formula of $W(k) = u(k-1) + v$. In order to use $W(k) =
+/// uk + v$, simply pass gap open as the gap open plus gap extension.
 ///
 /// ### Complexity
 ///
-/// Time: *O(mn)*
+/// Time: $O(mn)$
 ///
-/// Space: *O(mn)*
+/// Space: $O(mn)$
 ///
 /// ### Citations
 ///
@@ -284,74 +235,145 @@ pub fn sw_alignment(
     (r + 1, cigar, best_score)
 }
 
-/*
-#[allow(dead_code, unused_variables, unused_mut, non_snake_case)]
-fn sw_simd_score<T, const N: usize>(
-    reference: &[u8], query: &QueryProfileStripedDNA<T, N>, gap_open: T, gap_extend: T,
-    substitution_matrix: &[[i32; 256]; 256],
-) -> (usize, usize, T)
+/// Smith-Waterman algorithm (vectorized), yielding the optimal score.
+///
+/// Provides the locally optimal sequence alignment (1) for affine gaps (2). We
+/// adapt Farrar's striped SIMD implemention (3) for portable SIMD.
+///
+/// We use the affine gap formula of $W(k) = u(k-1) + v$. In order to use $W(k) =
+/// uk + v$, simply pass gap open as the gap open plus gap extension.
+///
+/// ### Complexity
+///
+/// Time: $O(mn)$, with the average case as $mn/N$ for $N$ SIMD lanes
+///
+/// Space: $O(n)$
+///
+/// ### Citations
+///
+/// 1. Smith, Temple F. & Waterman, Michael S. (1981). "Identification of Common
+///    Molecular Subsequences" (PDF). Journal of Molecular Biology. 147 (1):
+///    195–197.
+///
+/// 2. Osamu Gotoh (1982). "An improved algorithm for matching biological
+///    sequences". Journal of Molecular Biology. 162 (3): 705–708.
+///
+/// 3. Farrar, Michael (2006). "Striped Smith-Waterman speeds database searches
+///    six times over other SIMD implementations". Bioinformatics, 23(2),
+///    156-161. doi: <https://doi.org/10.1093/bioinformatics/btl582>
+///
+#[allow(non_snake_case)]
+#[must_use]
+#[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
+pub fn sw_simd_score<T, const N: usize, TM>(
+    reference: &[u8], query: &StripedDNAProfile<T, N>, gap_open: T, gap_extend: T,
+) -> Option<T>
 where
-    T: Uint,
+    T: Uint + Default + PartialEq + std::ops::Add<Output = T> + std::fmt::Debug,
+    TM: MaskElement,
     LaneCount<N>: SupportedLaneCount,
-    Simd<T, N>: SimdUint<Scalar = T> + Shl<u8, Output = Simd<T, N>> + AddAssign<Simd<T, N>>, {
-    let gap_open = Simd::from_array([gap_open; N]);
-    let gap_extend = Simd::from_array([gap_extend; N]);
-    let zeroes = Simd::from_array([T::zero(); N]);
-    let mut max_scores = zeroes;
-
-    let num_vecs = query.profile.len();
+    Simd<T, N>: SimdUint<Scalar = T>
+        + Shl<T, Output = Simd<T, N>>
+        + AddAssign<Simd<T, N>>
+        + SimdOrd
+        + SimdPartialEq<Mask = Mask<TM, N>>, {
+    let num_vecs = query.number_vectors();
     let profile: &Vec<Simd<T, N>> = &query.profile;
-    let mut load = vec![zeroes; num_vecs];
-    let mut store = vec![zeroes; num_vecs];
-    let mut e_scores = vec![zeroes; num_vecs];
+
+    let zero = T::zero();
+    let gap_opens = Simd::splat(gap_open);
+    let gap_extends = Simd::splat(gap_extend);
+    let zeroes = Simd::splat(T::zero());
+    let biases = Simd::splat(query.bias);
+
+    let mut load = vec![zeroes; num_vecs]; // use single alloc?
+    let mut store = vec![zeroes; num_vecs]; // use single alloc?
+    let mut e_scores = vec![zeroes; num_vecs]; // use single alloc?
+    let mut max_scores = zeroes; // Minimum value for unsigned
 
     for ref_index in reference.iter().copied().map(ByteMappings::to_dna_index) {
         let mut F = zeroes;
-        let mut H = store[num_vecs - 1] << 1;
+        let mut H = store[num_vecs - 1].shift_elements_right_z::<1>(zero);
+
         (load, store) = (store, load);
 
-        let scores = &profile[(ref_index * num_vecs)..(ref_index * num_vecs + num_vecs)];
-        for (score, (e_ref, (storing, loading))) in
-            zip(scores, zip(e_scores.iter_mut(), zip(store.iter_mut(), load.iter_mut())))
-        {
-            H += *score;
-            max_scores = max_scores.max(H);
+        // This statement helps with bounds checks.
+        let scores_vec = &profile[(ref_index * num_vecs)..(ref_index * num_vecs + num_vecs)];
 
-            let mut E = *e_ref;
-            H = H.max(E).max(F);
-            *storing = H;
+        for j in 0..num_vecs {
+            //let mut E = *e_ref;
+            let mut E = e_scores[j];
 
-            H = H.saturating_sub(gap_open);
+            H += scores_vec[j];
+            H = H.saturating_sub(biases);
 
-            E = E.saturating_sub(gap_extend);
-            E = E.max(H);
+            max_scores = max_scores.simd_max(H);
 
-            F = F.saturating_sub(gap_extend);
-            F = F.max(H);
+            H = H.simd_max(E).simd_max(F);
+            store[j] = H;
+
+            H = H.saturating_sub(gap_opens);
+            E = E.saturating_sub(gap_extends).simd_max(H);
+            F = F.saturating_sub(gap_extends).simd_max(H);
 
             // Store E; Load H
-            *e_ref = E;
-            H = *loading;
+            e_scores[j] = E;
+            H = load[j];
+        }
+
+        let mut j = 0;
+        H = store[j];
+        F = F.shift_elements_right_z::<1>(zero);
+
+        // (F - (H - Go)) --> 0
+        let mut mask = F.saturating_sub(H.saturating_sub(gap_opens)).simd_eq(zeroes);
+        while !mask.all() {
+            // Update & save H
+            H = H.simd_max(F);
+            store[j] = H;
+
+            // Update E in case H is greater
+            e_scores[j] = e_scores[j].simd_max(H.saturating_sub(gap_opens));
+
+            F = F.saturating_sub(gap_extends);
+
+            j += 1;
+            if j >= num_vecs {
+                j = 0;
+                F = F.shift_elements_right_z::<1>(zero);
+            }
+
+            // New J here
+            H = store[j];
+
+            mask = F.saturating_sub(H.saturating_sub(gap_opens)).simd_eq(zeroes);
         }
     }
 
-    let best = max_scores.saturating_sub(Simd::splat(query.bias)).reduce_max();
-    (0, 0, best)
+    let best = max_scores.reduce_max();
+
+    // If we would have overflowed, return none, otherwise return the best score
+    // We add one because we care if the value is equal to the MAX.
+    best.checked_addition(query.bias + T::one()).map(|_| best)
 }
-*/
+
+//#[must_use]
+//pub fn show_asm(reference: &[u8], query: &QueryProfileStripedDNA<u16, 16>, gap_open: u8, gap_extend: u8) -> Option<u16> {
+//    sw_simd_score(reference, query, gap_open.into(), gap_extend.into())
+//}
 
 #[cfg(test)]
 pub(crate) mod test_data {
-    // H5 HA: <https://www.ncbi.nlm.nih.gov/nuccore/NC_007362.1>
-    pub(crate) static REFERENCE: &[u8] = b"GCAGGGGTATAATCTGTCAAAATGGAGAAAATAGTGCTTCTTCTTGCAATAGTCAGTCTTGTCAAAAGTGATCAGATTTGCATTGGTTACCATGCAAACAACTCGACAGAGCAGGTTGACACAATAATGGAAAAGAACGTTACTGTTACACATGCCCAAGACATACTGGAAAAGACACACAATGGGAAGCTCTGCGATCTAAATGGAGTGAAGCCTCTCATTTTGAGAGATTGTAGTGTAGCTGGATGGCTCCTCGGAAACCCTATGTGTGACGAATTCATCAATGTGCCGGAATGGTCTTACATAGTGGAGAAGGCCAGTCCAGCCAATGACCTCTGTTACCCAGGGGATTTCAACGACTATGAAGAACTGAAACACCTATTGAGCAGAACAAACCATTTTGAGAAAATTCAGATCATCCCCAAAAGTTCTTGGTCCAATCATGATGCCTCATCAGGGGTGAGCTCAGCATGTCCATACCATGGGAGGTCCTCCTTTTTCAGAAATGTGGTATGGCTTATCAAAAAGAACAGTGCATACCCAACAATAAAGAGGAGCTACAATAATACCAACCAAGAAGATCTTTTAGTACTGTGGGGGATTCACCATCCTAATGATGCGGCAGAGCAGACAAAGCTCTATCAAAACCCAACCACTTACATTTCCGTTGGAACATCAACACTGAACCAGAGATTGGTTCCAGAAATAGCTACTAGACCCAAAGTAAACGGGCAAAGTGGAAGAATGGAGTTCTTCTGGACAATTTTAAAGCCGAATGATGCCATCAATTTCGAGAGTAATGGAAATTTCATTGCTCCAGAATATGCATACAAAATTGTCAAGAAAGGGGACTCAGCAATTATGAAAAGTGAATTGGAATATGGTAACTGCAACACCAAGTGTCAAACTCCAATGGGGGCGATAAACTCTAGTATGCCATTCCACAACATACACCCCCTCACCATCGGGGAATGCCCCAAATATGTGAAATCAAACAGATTAGTCCTTGCGACTGGACTCAGAAATACCCCTCAGAGAGAGAGAAGAAGAAAAAAGAGAGGACTATTTGGAGCTATAGCAGGTTTTATAGAGGGAGGATGGCAGGGAATGGTAGATGGTTGGTATGGGTACCACCATAGCAATGAGCAGGGGAGTGGATACGCTGCAGACAAAGAATCCACTCAAAAGGCAATAGATGGAGTCACCAATAAGGTCAACTCGATCATTGACAAAATGAACACTCAGTTTGAGGCCGTTGGAAGGGAATTTAATAACTTGGAAAGGAGGATAGAGAATTTAAACAAGCAGATGGAAGACGGATTCCTAGATGTCTGGACTTATAATGCTGAACTTCTGGTTCTCATGGAAAATGAGAGAACTCTAGACTTTCATGACTCAAATGTCAAGAACCTTTATGACAAGGTCCGACTACAGCTTAGGGATAATGCAAAGGAGCTGGGTAATGGTTGTTTCGAGTTCTATCACAAATGTGATAATGAATGTATGGAAAGTGTAAAAAACGGAACGTATGACTACCCGCAGTATTCAGAAGAAGCAAGACTAAACAGAGAGGAAATAAGTGGAGTAAAATTGGAATCAATGGGAACTTACCAAATACTGTCAATTTATTCAACAGTGGCGAGTTCCCTAGCACTGGCAATCATGGTAGCTGGTCTATCTTTATGGATGTGCTCCAATGGATCGTTACAATGCAGAATTTGCATTTAAATTTGTGAGTTCAGATTGTAGTTAAAAACACC";
-
-    /// H1 HA1: <https://www.ncbi.nlm.nih.gov/nuccore/NC_026433.1>
-    pub(crate) static QUERY: &[u8] = b"gacacattatgtataggttatcatgcgaacaattcaacagacactgtagacacagtactagaaaagaatgtaacagtaacacactctgttaaccttctagaagacaagcataacgggaaactatgcaaactaagaggggtagccccattgcatttgggtaaatgtaacattgctggctggatcctgggaaatccagagtgtgaatcactctccacagcaagctcatggtcctacattgtggaaacacctagttcagacaatggaacgtgttacccaggagatttcatcgattatgaggagctaagagagcaattgagctcagtgtcatcatttgaaaggtttgagatattccccaagacaagttcatggcccaatcatgactcgaacaaaggtgtaacggcagcatgtcctcatgctggagcaaaaagcttctacaaaaatttaatatggctagttaaaaaaggaaattcatacccaaagctcagcaaatcctacattaatgataaagggaaagaagtcctcgtgctatggggcattcaccatccatctactagtgctgaccaacaaagtctctatcagaatgcagatgcatatgtttttgtggggtcatcaagatacagcaagaagttcaagccggaaatagcaataagacccaaagtgagggatcaagaagggagaatgaactattactggacactagtagagccgggagacaaaataacattcgaagcaactggaaatctagtggtaccgagatatgcattcgcaatggaaagaaatgctggatctggtattatcatttcagatacaccagtccacgattgcaatacaacttgtcaaacacccaagggtgctataaacaccagcctcccatttcagaatatacatccgatcacaattggaaaatgtccaaaatatgtaaaaagcacaaaattgagactggccacaggattgaggaatatcccgtctattcaatctaga";
+    pub(crate) static REFERENCE: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/NC_007362.1.txt")); // H5 HA
+    pub(crate) static QUERY: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/NC_026433.1.txt")); // H1 HA1
 
     pub(crate) const GAP_OPEN: i32 = -10;
     pub(crate) const GAP_EXTEND: i32 = -1;
 
-    pub(crate) const SM: [[i32; 256]; 256] = {
+    pub(crate) const GAP_OPEN_U8: u8 = 10;
+    pub(crate) const GAP_EXTEND_U8: u8 = 1;
+
+    pub(crate) static SM: [[i32; 256]; 256] = {
         const MISMATCH: i32 = -5;
         const MATCH: i32 = 2;
         let mut bytes = [[0i32; 256]; 256];
@@ -361,12 +383,11 @@ pub(crate) mod test_data {
         while i < bases.len() {
             let mut j = 0;
             while j < bases.len() {
-                bytes[bases[i] as usize][bases[j] as usize] =
-                    if bases[i].to_ascii_uppercase() == bases[j].to_ascii_uppercase() {
-                        MATCH
-                    } else {
-                        MISMATCH
-                    };
+                bytes[bases[i] as usize][bases[j] as usize] = if bases[i].eq_ignore_ascii_case(&bases[j]) {
+                    MATCH
+                } else {
+                    MISMATCH
+                };
                 j += 1;
             }
             i += 1;
@@ -378,19 +399,71 @@ pub(crate) mod test_data {
 #[cfg(test)]
 mod test {
     use super::{test_data::*, *};
+    use crate::alignment::profile::StripedDNAProfile;
+    use crate::data::constants::matrices::SimpleWeightMatrix;
 
     #[test]
     fn sw() {
-        let (r, cigar, score) = sw_alignment(REFERENCE, QUERY, GAP_OPEN, GAP_EXTEND, &SM);
+        let (r, _, score) = sw_alignment(REFERENCE, QUERY, GAP_OPEN, GAP_EXTEND, &SM);
         assert_eq!((337, 37), (r, score));
 
-        let matches = cigar.match_length();
-
-        let (r, _, score) = sw_score(REFERENCE, QUERY, GAP_OPEN, GAP_EXTEND, &SM);
-        assert_eq!((337, 37), (r - matches + 1, score));
-
-        let score = sw_score_alt(REFERENCE, QUERY, GAP_OPEN, GAP_EXTEND, 2, -5);
+        let score = sw_score(REFERENCE, QUERY, GAP_OPEN, GAP_EXTEND, 2, -5);
         assert_eq!(37, score);
+
+        let v: Vec<_> = std::iter::repeat(b'A').take(100).collect();
+        let score = sw_score(&v, &v, GAP_OPEN, GAP_EXTEND, 2, -5);
+        assert_eq!(200, score);
+    }
+
+    #[test]
+    fn sw_simd() {
+        let matrix = SimpleWeightMatrix::new(b"ACGTN", 2, -5, Some(b'N')).into_biased_matrix();
+        let profile = StripedDNAProfile::new(REFERENCE, &matrix);
+        let score = sw_simd_score::<u8, 16, _>(
+            QUERY,
+            &profile,
+            GAP_OPEN.unsigned_abs() as u8,
+            GAP_EXTEND.unsigned_abs() as u8,
+        );
+        assert_eq!(Some(37), score);
+    }
+
+    #[test]
+    fn sw_simd_poly_a() {
+        let v: Vec<_> = std::iter::repeat(b'A').take(100).collect();
+        let matrix = SimpleWeightMatrix::<5>::new_dna_matrix(2, -5, Some(b'N')).into_biased_matrix();
+        let profile = StripedDNAProfile::new(&v, &matrix);
+        let score =
+            sw_simd_score::<u16, 16, _>(&v, &profile, GAP_OPEN.unsigned_abs() as u16, GAP_EXTEND.unsigned_abs() as u16);
+        assert_eq!(Some(200), score);
+    }
+
+    #[test]
+    fn sw_simd_single() {
+        let v: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/CY137594.txt"));
+        let matrix = SimpleWeightMatrix::<5>::new_dna_matrix(2, -5, Some(b'N')).into_biased_matrix();
+        let profile = StripedDNAProfile::<u16, 16>::new(v, &matrix);
+        let score = profile.smith_waterman_score(v, GAP_OPEN_U8, GAP_EXTEND_U8);
+        assert_eq!(Some(3372), score);
+    }
+
+    #[test]
+    fn sw_simd_regression() {
+        let query = b"AGA";
+        let reference = b"AA";
+        let matrix = SimpleWeightMatrix::new(b"ACGTN", 10, -10, Some(b'N')).into_biased_matrix();
+        let profile = StripedDNAProfile::<u16, 4>::new(query, &matrix);
+        let score = profile.smith_waterman_score(reference, 5, 5);
+        assert_eq!(Some(15), score);
+    }
+
+    #[test]
+    fn sw_simd_profile_set() {
+        let v: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/CY137594.txt"));
+        let matrix = SimpleWeightMatrix::<5>::new_dna_matrix(2, -5, Some(b'N')).into_biased_matrix();
+        let profile = LocalDNAProfile::<16>::new(&v, &matrix);
+        let score = profile.smith_waterman_score_from_u8(&v, GAP_OPEN_U8, GAP_EXTEND_U8);
+        assert_eq!(Some(3372), score);
     }
 }
 
@@ -398,6 +471,8 @@ mod test {
 mod bench {
     extern crate test;
     use super::{test_data::*, *};
+    use crate::alignment::profile::StripedDNAProfile;
+    use crate::data::constants::matrices::SimpleWeightMatrix;
     use test::Bencher;
 
     #[bench]
@@ -407,11 +482,66 @@ mod bench {
 
     #[bench]
     fn sw_score_scalar(b: &mut Bencher) {
-        b.iter(|| sw_score(REFERENCE, QUERY, GAP_OPEN, GAP_EXTEND, &SM));
+        b.iter(|| sw_score(REFERENCE, QUERY, GAP_OPEN, GAP_EXTEND, 2, -5));
     }
 
     #[bench]
-    fn sw_score_scalar_alt(b: &mut Bencher) {
-        b.iter(|| sw_score_alt(REFERENCE, QUERY, GAP_OPEN, GAP_EXTEND, 2, -5));
+    fn sw_simd_no_profile_n16u8(b: &mut Bencher) {
+        let matrix = SimpleWeightMatrix::new(b"ACGTN", 2, -5, Some(b'N')).into_biased_matrix();
+        let profile = StripedDNAProfile::new(REFERENCE, &matrix);
+
+        b.iter(|| {
+            sw_simd_score::<u8, 16, _>(
+                QUERY,
+                &profile,
+                GAP_OPEN.unsigned_abs() as u8,
+                GAP_EXTEND.unsigned_abs() as u8,
+            )
+        });
+    }
+
+    #[bench]
+    fn sw_simd_no_profile_n16u16(b: &mut Bencher) {
+        let matrix = SimpleWeightMatrix::new(b"ACGTN", 2, -5, Some(b'N')).into_biased_matrix();
+        let profile = StripedDNAProfile::new(REFERENCE, &matrix);
+
+        b.iter(|| {
+            sw_simd_score::<u16, 16, _>(
+                QUERY,
+                &profile,
+                GAP_OPEN.unsigned_abs() as u16,
+                GAP_EXTEND.unsigned_abs() as u16,
+            )
+        });
+    }
+
+    #[bench]
+    fn sw_simd_no_profile_n32u8(b: &mut Bencher) {
+        let matrix = SimpleWeightMatrix::new(b"ACGTN", 2, -5, Some(b'N')).into_biased_matrix();
+        let profile = StripedDNAProfile::new(REFERENCE, &matrix);
+
+        b.iter(|| {
+            sw_simd_score::<u8, 32, _>(
+                QUERY,
+                &profile,
+                GAP_OPEN.unsigned_abs() as u8,
+                GAP_EXTEND.unsigned_abs() as u8,
+            )
+        });
+    }
+
+    #[bench]
+    fn sw_simd_no_profile_n32u16(b: &mut Bencher) {
+        let matrix = SimpleWeightMatrix::new(b"ACGTN", 2, -5, Some(b'N')).into_biased_matrix();
+        let profile = StripedDNAProfile::new(REFERENCE, &matrix);
+
+        b.iter(|| {
+            sw_simd_score::<u16, 32, _>(
+                QUERY,
+                &profile,
+                GAP_OPEN.unsigned_abs() as u16,
+                GAP_EXTEND.unsigned_abs() as u16,
+            )
+        });
     }
 }
