@@ -6,10 +6,7 @@
     clippy::wildcard_imports,
     clippy::enum_glob_use,
     clippy::comparison_chain,
-    clippy::needless_lifetimes,     // Remove in Rust 2024
-    clippy::manual_div_ceil,        // Remove with merging of Striped SW
-    clippy::manual_ignore_case_cmp, // Remove with merging of Striped SW
-    clippy::large_const_arrays,     // Remove with merging of Striped SW 
+    clippy::needless_lifetimes, // Remove in Rust 2024
     stable_features
 )]
 #![cfg_attr(test, feature(test))]
