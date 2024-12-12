@@ -62,12 +62,6 @@ impl From<&[u8]> for Cigar {
     }
 }
 
-impl<const N: usize> From<&[u8; N]> for Cigar {
-    fn from(v: &[u8; N]) -> Self {
-        Cigar(v.to_vec())
-    }
-}
-
 impl From<ExpandedCigar> for Cigar {
     fn from(c: ExpandedCigar) -> Cigar {
         c.condense_to_cigar()
@@ -225,12 +219,6 @@ impl From<&str> for ExpandedCigar {
 
 impl From<&[u8]> for ExpandedCigar {
     fn from(v: &[u8]) -> Self {
-        ExpandedCigar(v.to_vec())
-    }
-}
-
-impl<const N: usize> From<&[u8; N]> for ExpandedCigar {
-    fn from(v: &[u8; N]) -> Self {
         ExpandedCigar(v.to_vec())
     }
 }

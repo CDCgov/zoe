@@ -1,53 +1,4 @@
-use std::simd::{prelude::*, LaneCount, SimdElement, SupportedLaneCount, Swizzle};
-
-#[allow(dead_code)]
-pub trait SimdExt<T> {
-    // based on rotate_elements_left and rotate_elements_right
-    fn shift_elements_left_z<const OFFSET: usize>(self, padding: T) -> Self;
-    fn shift_elements_right_z<const OFFSET: usize>(self, padding: T) -> Self;
-}
-
-impl<T, const N: usize> SimdExt<T> for Simd<T, N>
-where
-    T: SimdElement,
-    LaneCount<N>: SupportedLaneCount,
-{
-    fn shift_elements_left_z<const OFFSET: usize>(self, padding: T) -> Self {
-        struct Shift<const OFFSET: usize>;
-
-        impl<const OFFSET: usize, const N: usize> Swizzle<N> for Shift<OFFSET> {
-            const INDEX: [usize; N] = const {
-                let mut index = [N; N];
-                let mut i = 0;
-                while i + OFFSET < N {
-                    index[i] = i + OFFSET;
-                    i += 1;
-                }
-                index
-            };
-        }
-
-        Shift::<OFFSET>::concat_swizzle(self, Simd::splat(padding))
-    }
-
-    fn shift_elements_right_z<const OFFSET: usize>(self, padding: T) -> Self {
-        struct Shift<const OFFSET: usize>;
-
-        impl<const OFFSET: usize, const N: usize> Swizzle<N> for Shift<OFFSET> {
-            const INDEX: [usize; N] = const {
-                let mut index = [N; N];
-                let mut i = OFFSET;
-                while i < N {
-                    index[i] = i - OFFSET;
-                    i += 1;
-                }
-                index
-            };
-        }
-
-        Shift::<OFFSET>::concat_swizzle(self, Simd::splat(padding))
-    }
-}
+use std::simd::{prelude::*, LaneCount, SupportedLaneCount};
 
 #[allow(dead_code)]
 pub trait SimdByteFunctions<const N: usize>
@@ -219,23 +170,5 @@ mod tests {
             String::from_utf8_lossy(&test1.to_ascii_uppercase()),
             String::from_utf8_lossy(simd.to_ascii_uppercase().as_array())
         );
-    }
-
-    #[test]
-    fn test_shift_elements_left() {
-        let v = Simd::from_array([1, 2, 3, 4, 5, 6, 7, 8]);
-        assert_eq!(v.shift_elements_left_z::<1>(0).to_array(), [2, 3, 4, 5, 6, 7, 8, 0]);
-        assert_eq!(v.shift_elements_left_z::<3>(0).to_array(), [4, 5, 6, 7, 8, 0, 0, 0]);
-        assert_eq!(v.shift_elements_left_z::<7>(0).to_array(), [8, 0, 0, 0, 0, 0, 0, 0]);
-        assert_eq!(v.shift_elements_left_z::<17>(0).to_array(), [0, 0, 0, 0, 0, 0, 0, 0]);
-    }
-
-    #[test]
-    fn test_shift_elements_right() {
-        let v = Simd::from_array([1, 2, 3, 4, 5, 6, 7, 8]);
-        assert_eq!(v.shift_elements_right_z::<1>(0).to_array(), [0, 1, 2, 3, 4, 5, 6, 7]);
-        assert_eq!(v.shift_elements_right_z::<3>(0).to_array(), [0, 0, 0, 1, 2, 3, 4, 5]);
-        assert_eq!(v.shift_elements_right_z::<7>(0).to_array(), [0, 0, 0, 0, 0, 0, 0, 1]);
-        assert_eq!(v.shift_elements_right_z::<17>(0).to_array(), [0, 0, 0, 0, 0, 0, 0, 0]);
     }
 }

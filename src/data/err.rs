@@ -75,22 +75,3 @@ impl Display for DistanceError {
 }
 
 impl std::error::Error for DistanceError {}
-
-#[derive(Debug)]
-pub enum QueryProfileError {
-    EmptyQuery,
-    BadGapWeights,
-}
-
-impl Display for QueryProfileError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let message = match self {
-            QueryProfileError::EmptyQuery => "The alignment query was empty",
-            QueryProfileError::BadGapWeights => "The gap extend penalty was greater than the gap open penalty",
-        };
-
-        write!(f, "{message}")
-    }
-}
-
-impl std::error::Error for QueryProfileError {}
