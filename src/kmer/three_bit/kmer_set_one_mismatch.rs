@@ -12,6 +12,8 @@ use std::{
     hash::{BuildHasher, RandomState},
 };
 
+use super::encoder::EncodedKmer;
+
 /// A [`KmerSet`] utilizing [`ThreeBitKmerEncoder`] as its encoder, but where
 /// all insertions add all k-mers of Hamming distance at most 1. This is useful
 /// for fuzzy matching. The encoder allows for `A`, `C`, `G`, `T`, and `N` to
@@ -19,7 +21,7 @@ use std::{
 /// between `T` and `U`. `N` is used as a catch-all for bases that are not
 /// `ACGTUNacgtun`.
 pub struct ThreeBitOneMismatchKmerSet<S = RandomState> {
-    set:     HashSet<u64, S>,
+    set:     HashSet<EncodedKmer, S>,
     encoder: ThreeBitKmerEncoder,
 }
 
@@ -58,7 +60,7 @@ impl<S> ThreeBitOneMismatchKmerSet<S> {
 }
 
 impl<S: BuildHasher> KmerSet for ThreeBitOneMismatchKmerSet<S> {
-    type Kmer = u64;
+    type Kmer = EncodedKmer;
     type Encoder = ThreeBitKmerEncoder;
 
     /// Get the encoder used for the [`ThreeBitOneMismatchKmerSet`].
@@ -72,7 +74,7 @@ impl<S: BuildHasher> KmerSet for ThreeBitOneMismatchKmerSet<S> {
     /// must have been generated using the encoder associated with this
     /// [`ThreeBitOneMismatchKmerSet`].
     #[inline]
-    fn insert_encoded_kmer(&mut self, encoded_kmer: u64) {
+    fn insert_encoded_kmer(&mut self, encoded_kmer: EncodedKmer) {
         self.set.insert(encoded_kmer);
         for variant in self.get_encoder().get_variants_one_mismatch(encoded_kmer) {
             self.set.insert(variant);
@@ -83,19 +85,18 @@ impl<S: BuildHasher> KmerSet for ThreeBitOneMismatchKmerSet<S> {
     /// must have been generated using the encoder associated with this
     /// [`ThreeBitOneMismatchKmerSet`].
     #[inline]
-    fn contains_encoded(&self, kmer: u64) -> bool {
+    fn contains_encoded(&self, kmer: EncodedKmer) -> bool {
         self.set.contains(&kmer)
     }
 }
 
 impl<S> IntoIterator for ThreeBitOneMismatchKmerSet<S> {
-    type Item = Nucleotides;
+    type Item = EncodedKmer;
     type IntoIter = ThreeBitKmerSetIntoIter<S>;
 
     #[inline]
     fn into_iter(self) -> ThreeBitKmerSetIntoIter<S> {
         ThreeBitKmerSetIntoIter {
-            encoder:       self.encoder,
             set_into_iter: self.set.into_iter(),
         }
     }

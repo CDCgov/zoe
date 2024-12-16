@@ -1,9 +1,6 @@
-use crate::{
-    kmer::{
-        encoder::KmerEncoder, errors::KmerError, kmer_counter::KmerCounter, kmer_set::KmerSet,
-        three_bit::encoder::ThreeBitKmerEncoder,
-    },
-    prelude::Nucleotides,
+use crate::kmer::{
+    encoder::KmerEncoder, errors::KmerError, kmer_counter::KmerCounter, kmer_set::KmerSet,
+    three_bit::encoder::ThreeBitKmerEncoder,
 };
 use std::{
     collections::HashMap,
@@ -11,12 +8,14 @@ use std::{
     ops::Index,
 };
 
+use super::encoder::EncodedKmer;
+
 /// A [`KmerCounter`] utilizing [`ThreeBitKmerEncoder`] as its encoder. This
 /// allows for `A`, `C`, `G`, `T`, and `N` to all be represented. This counter
 /// does not preserve case or the distinction between `T` and `U`. `N` is used
 /// as a catch-all for bases that are not `ACGTUNacgtun`.
 pub struct ThreeBitKmerCounter<S = RandomState> {
-    map:     HashMap<u64, usize, S>,
+    map:     HashMap<EncodedKmer, usize, S>,
     encoder: ThreeBitKmerEncoder,
 }
 
@@ -51,7 +50,7 @@ impl<S> ThreeBitKmerCounter<S> {
 }
 
 impl<S: BuildHasher> KmerSet for ThreeBitKmerCounter<S> {
-    type Kmer = u64;
+    type Kmer = EncodedKmer;
     type Encoder = ThreeBitKmerEncoder;
 
     /// Get the encoder used for the [`ThreeBitKmerCounter`].
@@ -64,7 +63,7 @@ impl<S: BuildHasher> KmerSet for ThreeBitKmerCounter<S> {
     /// k-mer must have been generated using the encoder associated with this
     /// [`ThreeBitKmerCounter`].
     #[inline]
-    fn insert_encoded_kmer(&mut self, encoded_kmer: u64) {
+    fn insert_encoded_kmer(&mut self, encoded_kmer: EncodedKmer) {
         *self.map.entry(encoded_kmer).or_default() += 1;
     }
 
@@ -72,16 +71,16 @@ impl<S: BuildHasher> KmerSet for ThreeBitKmerCounter<S> {
     /// k-mer must have been generated using the encoder associated with this
     /// [`ThreeBitKmerCounter`].
     #[inline]
-    fn contains_encoded(&self, kmer: u64) -> bool {
+    fn contains_encoded(&self, kmer: EncodedKmer) -> bool {
         self.map.contains_key(&kmer)
     }
 }
 
-impl<S: BuildHasher> Index<u64> for ThreeBitKmerCounter<S> {
+impl<S: BuildHasher> Index<EncodedKmer> for ThreeBitKmerCounter<S> {
     type Output = usize;
 
     #[inline]
-    fn index(&self, index: u64) -> &Self::Output {
+    fn index(&self, index: EncodedKmer) -> &Self::Output {
         &self.map[&index]
     }
 }
@@ -97,13 +96,12 @@ impl<S: BuildHasher> KmerCounter for ThreeBitKmerCounter<S> {
 }
 
 impl<S> IntoIterator for ThreeBitKmerCounter<S> {
-    type Item = (Nucleotides, usize);
+    type Item = (EncodedKmer, usize);
     type IntoIter = ThreeBitKmerCounterIntoIter<S>;
 
     #[inline]
     fn into_iter(self) -> ThreeBitKmerCounterIntoIter<S> {
         ThreeBitKmerCounterIntoIter {
-            encoder:       self.encoder,
             map_into_iter: self.map.into_iter(),
         }
     }
@@ -112,16 +110,14 @@ impl<S> IntoIterator for ThreeBitKmerCounter<S> {
 /// An iterator over a [`ThreeBitKmerCounter`] yielding decoded k-mers and their
 /// counts.
 pub struct ThreeBitKmerCounterIntoIter<S> {
-    pub(crate) encoder:       ThreeBitKmerEncoder,
-    pub(crate) map_into_iter: <HashMap<u64, usize, S> as IntoIterator>::IntoIter,
+    pub(crate) map_into_iter: <HashMap<EncodedKmer, usize, S> as IntoIterator>::IntoIter,
 }
 
 impl<S> Iterator for ThreeBitKmerCounterIntoIter<S> {
-    type Item = (Nucleotides, usize);
+    type Item = (EncodedKmer, usize);
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        let (encoded_kmer, count) = self.map_into_iter.next()?;
-        Some((Nucleotides(self.encoder.decode_kmer(encoded_kmer)), count))
+        self.map_into_iter.next()
     }
 }
