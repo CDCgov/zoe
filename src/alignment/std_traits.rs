@@ -4,7 +4,7 @@ use std::{
     simd::{LaneCount, SupportedLaneCount},
 };
 
-impl<'a, const N: usize, const S: usize> PartialEq for LocalProfile<'a, N, S>
+impl<const N: usize, const S: usize> PartialEq for LocalProfile<'_, N, S>
 where
     LaneCount<N>: SupportedLaneCount,
 {
@@ -16,9 +16,9 @@ where
     }
 }
 
-impl<'a, const N: usize, const S: usize> Eq for LocalProfile<'a, N, S> where LaneCount<N>: SupportedLaneCount {}
+impl<const N: usize, const S: usize> Eq for LocalProfile<'_, N, S> where LaneCount<N>: SupportedLaneCount {}
 
-impl<'a, const N: usize, const S: usize> Hash for LocalProfile<'a, N, S>
+impl<const N: usize, const S: usize> Hash for LocalProfile<'_, N, S>
 where
     LaneCount<N>: SupportedLaneCount,
 {
@@ -30,7 +30,7 @@ where
     }
 }
 
-impl<'a, const N: usize, const S: usize> PartialEq for SharedProfile<'a, N, S>
+impl<const N: usize, const S: usize> PartialEq for SharedProfile<'_, N, S>
 where
     LaneCount<N>: SupportedLaneCount,
 {
@@ -42,9 +42,9 @@ where
     }
 }
 
-impl<'a, const N: usize, const S: usize> Eq for SharedProfile<'a, N, S> where LaneCount<N>: SupportedLaneCount {}
+impl<const N: usize, const S: usize> Eq for SharedProfile<'_, N, S> where LaneCount<N>: SupportedLaneCount {}
 
-impl<'a, const N: usize, const S: usize> Hash for SharedProfile<'a, N, S>
+impl<const N: usize, const S: usize> Hash for SharedProfile<'_, N, S>
 where
     LaneCount<N>: SupportedLaneCount,
 {

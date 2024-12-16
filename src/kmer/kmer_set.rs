@@ -1,8 +1,8 @@
 use crate::kmer::encoder::KmerEncoder;
 
-/// [`KmerSet`] represents a set of encoded kmers along with relevant methods
+/// [`KmerSet`] represents a set of encoded k-mers along with relevant methods
 /// that can be applied using it. For instance, a [`KmerSet`] can be used to
-/// find the leftmost or rightmost occurrence of kmers in a sequence, using
+/// find the leftmost or rightmost occurrence of k-mers in a sequence, using
 /// [`find_kmers`] and [`find_kmers_rev`]. A [`KmerSet`] can also be constructed
 /// in efficient ways, such as using [`insert_from_sequence`].
 ///
@@ -18,18 +18,18 @@ pub trait KmerSet: IntoIterator {
     /// Get the encoder used for the [`KmerSet`].
     fn get_encoder(&self) -> &Self::Encoder;
 
-    /// Insert an encoded kmer into the set. The encoded kmer must have been
+    /// Insert an encoded k-mer into the set. The encoded k-mer must have been
     /// generated using the encoder associated with this [`KmerSet`].
     fn insert_encoded_kmer(&mut self, encoded_kmer: Self::Kmer);
 
-    /// Return whether an encoded kmer is present in the set. The encoded kmer
+    /// Return whether an encoded k-mer is present in the set. The encoded k-mer
     /// must have been generated using the encoder associated with this
     /// [`KmerSet`].
     fn contains_encoded(&self, kmer: Self::Kmer) -> bool;
 
-    /// Insert a kmer into the set. The bases and kmer length are assumed to be
+    /// Insert a k-mer into the set. The bases and k-mer length are assumed to be
     /// valid for the [`KmerEncoder`] associated with this [`KmerSet`]. Consider
-    /// [`insert_kmer_checked`] when it is not known whether the bases and kmer
+    /// [`insert_kmer_checked`] when it is not known whether the bases and k-mer
     /// length will be valid.
     ///
     /// [`insert_kmer_checked`]: KmerSet::insert_kmer_checked
@@ -38,7 +38,7 @@ pub trait KmerSet: IntoIterator {
         self.insert_encoded_kmer(self.get_encoder().encode_kmer(kmer));
     }
 
-    /// Insert a kmer into the set. If the bases and kmer length are not valid
+    /// Insert a k-mer into the set. If the bases and k-mer length are not valid
     /// for the [`KmerEncoder`] associated with this [`KmerSet`], then `false`
     /// is returned and no insertion is performed.
     #[inline]
@@ -50,20 +50,20 @@ pub trait KmerSet: IntoIterator {
         true
     }
 
-    /// Insert all kmers from a sequence into the [`KmerSet`]. The bases in the
+    /// Insert all k-mers from a sequence into the [`KmerSet`]. The bases in the
     /// sequence must be valid for the [`KmerEncoder`] associated with this
     /// [`KmerSet`].
     #[inline]
-    fn insert_from_sequence(&mut self, seq: &[u8]) {
-        for encoded_kmer in self.get_encoder().iter_from_sequence(seq) {
+    fn insert_from_sequence<S: AsRef<[u8]>>(&mut self, seq: S) {
+        for encoded_kmer in self.get_encoder().iter_from_sequence(seq.as_ref()) {
             self.insert_encoded_kmer(encoded_kmer);
         }
     }
 
-    /// Return whether a kmer is present in the set. The bases and kmer length
+    /// Return whether a k-mer is present in the set. The bases and k-mer length
     /// are assumed to be valid for the [`KmerEncoder`] associated with this
     /// [`KmerSet`]. Consider [`contains_checked`] when it is not known whether
-    /// the bases and kmer length will be valid.
+    /// the bases and k-mer length will be valid.
     ///
     /// [`contains_checked`]: KmerSet::contains_checked
     #[inline]
@@ -71,7 +71,7 @@ pub trait KmerSet: IntoIterator {
         self.contains_encoded(self.get_encoder().encode_kmer(kmer))
     }
 
-    /// Return whether a kmer is present in the set. If the bases and kmer
+    /// Return whether a k-mer is present in the set. If the bases and k-mer
     /// length are not valid for the [`KmerEncoder`] associated with this
     /// [`KmerSet`], then `None` is returned.
     #[inline]
@@ -79,12 +79,12 @@ pub trait KmerSet: IntoIterator {
         Some(self.contains_encoded(self.get_encoder().encode_kmer_checked(kmer)?))
     }
 
-    /// Return the starting index of the leftmost occurrence of any of the kmers
+    /// Return the starting index of the leftmost occurrence of any of the k-mers
     /// in this set within a provided sequence. The bases in the
     /// sequence must be valid for the [`KmerEncoder`] associated with this
     /// [`KmerSet`]. If no occurrence is found, then `None` is returned.
-    fn find_kmers(&self, seq: &[u8]) -> Option<usize> {
-        for (i, kmer) in self.get_encoder().iter_from_sequence(seq).enumerate() {
+    fn find_kmers<S: AsRef<[u8]>>(&self, seq: S) -> Option<usize> {
+        for (i, kmer) in self.get_encoder().iter_from_sequence(seq.as_ref()).enumerate() {
             if self.contains_encoded(kmer) {
                 return Some(i);
             }
@@ -93,13 +93,13 @@ pub trait KmerSet: IntoIterator {
     }
 
     /// Return the starting index of the rightmost occurrence of any of the
-    /// kmers in this set within a provided sequence. The bases in the sequence
+    /// k-mers in this set within a provided sequence. The bases in the sequence
     /// must be valid for the [`KmerEncoder`] associated with this [`KmerSet`].
     /// If no occurrence is found, then `None` is returned.
-    fn find_kmers_rev(&self, seq: &[u8]) -> Option<usize> {
-        for (i, kmer) in self.get_encoder().iter_from_sequence_rev(seq).enumerate() {
+    fn find_kmers_rev<S: AsRef<[u8]>>(&self, seq: S) -> Option<usize> {
+        for (i, kmer) in self.get_encoder().iter_from_sequence_rev(seq.as_ref()).enumerate() {
             if self.contains_encoded(kmer) {
-                return Some(seq.len() - self.get_encoder().get_kmer_length() - i);
+                return Some(seq.as_ref().len() - self.get_encoder().get_kmer_length() - i);
             }
         }
         None

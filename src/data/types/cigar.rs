@@ -96,7 +96,7 @@ impl<'a> CigletIterator<'a> {
     }
 }
 
-impl<'a> Iterator for CigletIterator<'a> {
+impl Iterator for CigletIterator<'_> {
     type Item = Ciglet;
 
     fn next(&mut self) -> Option<Self::Item> {

@@ -1,4 +1,7 @@
-use crate::kmer::{encoder::KmerEncoder, errors::KmerError, kmer_set::KmerSet, three_bit::encoder::ThreeBitKmerEncoder};
+use crate::{
+    kmer::{encoder::KmerEncoder, errors::KmerError, kmer_set::KmerSet, three_bit::encoder::ThreeBitKmerEncoder},
+    prelude::Nucleotides,
+};
 use std::{
     collections::HashSet,
     hash::{BuildHasher, RandomState},
@@ -14,7 +17,7 @@ pub struct ThreeBitKmerSet<S = RandomState> {
 }
 
 impl ThreeBitKmerSet {
-    /// Creates a new [`ThreeBitKmerSet`] with the specified kmer length.
+    /// Creates a new [`ThreeBitKmerSet`] with the specified k-mer length.
     ///
     /// # Errors
     ///
@@ -30,7 +33,7 @@ impl ThreeBitKmerSet {
 }
 
 impl<S> ThreeBitKmerSet<S> {
-    /// Creates a new [`ThreeBitKmerSet`] with the specified kmer length and
+    /// Creates a new [`ThreeBitKmerSet`] with the specified k-mer length and
     /// hasher.
     ///
     /// # Errors
@@ -56,14 +59,14 @@ impl<S: BuildHasher> KmerSet for ThreeBitKmerSet<S> {
         &self.encoder
     }
 
-    /// Insert an encoded kmer into the set. The encoded kmer must have been
+    /// Insert an encoded k-mer into the set. The encoded k-mer must have been
     /// generated using the encoder associated with this [`ThreeBitKmerSet`].
     #[inline]
     fn insert_encoded_kmer(&mut self, encoded_kmer: u64) {
         self.set.insert(encoded_kmer);
     }
 
-    /// Return whether an encoded kmer is present in the set. The encoded kmer
+    /// Return whether an encoded k-mer is present in the set. The encoded k-mer
     /// must have been generated using the encoder associated with this
     /// [`ThreeBitKmerSet`].
     #[inline]
@@ -73,7 +76,7 @@ impl<S: BuildHasher> KmerSet for ThreeBitKmerSet<S> {
 }
 
 impl<S> IntoIterator for ThreeBitKmerSet<S> {
-    type Item = Vec<u8>;
+    type Item = Nucleotides;
     type IntoIter = ThreeBitKmerSetIntoIter<S>;
 
     #[inline]
@@ -86,7 +89,7 @@ impl<S> IntoIterator for ThreeBitKmerSet<S> {
 }
 
 /// An iterator over a [`ThreeBitKmerSet`] or [`ThreeBitOneMismatchKmerSet`]
-/// yielding decoded kmers.
+/// yielding decoded k-mers.
 ///
 /// [`ThreeBitOneMismatchKmerSet`]:
 ///     super::kmer_set_one_mismatch::ThreeBitOneMismatchKmerSet
@@ -96,10 +99,10 @@ pub struct ThreeBitKmerSetIntoIter<S> {
 }
 
 impl<S> Iterator for ThreeBitKmerSetIntoIter<S> {
-    type Item = Vec<u8>;
+    type Item = Nucleotides;
 
     #[inline]
-    fn next(&mut self) -> Option<Vec<u8>> {
-        Some(self.encoder.decode_kmer(self.set_into_iter.next()?))
+    fn next(&mut self) -> Option<Self::Item> {
+        Some(Nucleotides(self.encoder.decode_kmer(self.set_into_iter.next()?)))
     }
 }

@@ -1,13 +1,16 @@
-use crate::kmer::{
-    encoder::KmerEncoder,
-    errors::KmerError,
-    kmer_set::KmerSet,
-    three_bit::{encoder::ThreeBitKmerEncoder, kmer_set::ThreeBitKmerSetIntoIter},
+use crate::{
+    kmer::{
+        encoder::KmerEncoder,
+        errors::KmerError,
+        kmer_set::KmerSet,
+        three_bit::{encoder::ThreeBitKmerEncoder, kmer_set::ThreeBitKmerSetIntoIter},
+    },
+    prelude::Nucleotides,
 };
 use std::{collections::HashSet, hash::RandomState};
 
 /// A [`KmerSet`] utilizing [`ThreeBitKmerEncoder`] as its encoder, but where
-/// all insertions add all kmers of Hamming distance at most 1. This is useful
+/// all insertions add all k-mers of Hamming distance at most 1. This is useful
 /// for fuzzy matching. The encoder allows for `A`, `C`, `G`, `T`, and `N` to
 /// all be represented. This set does not preserve case or the distinction
 /// between `T` and `U`. `N` is used as a catch-all for bases that are not
@@ -18,7 +21,7 @@ pub struct ThreeBitOneMismatchKmerSet<S = RandomState> {
 }
 
 impl ThreeBitOneMismatchKmerSet {
-    /// Creates a new [`ThreeBitOneMismatchKmerSet`] with the specified kmer
+    /// Creates a new [`ThreeBitOneMismatchKmerSet`] with the specified k-mer
     /// length.
     ///
     /// # Errors
@@ -35,7 +38,7 @@ impl ThreeBitOneMismatchKmerSet {
 }
 
 impl<S> ThreeBitOneMismatchKmerSet<S> {
-    /// Creates a new [`ThreeBitOneMismatchKmerSet`] with the specified kmer
+    /// Creates a new [`ThreeBitOneMismatchKmerSet`] with the specified k-mer
     /// length and hasher.
     ///
     /// # Errors
@@ -61,9 +64,9 @@ impl KmerSet for ThreeBitOneMismatchKmerSet {
         &self.encoder
     }
 
-    /// Insert an encoded kmer into the set. This will insert all kmers with
-    /// Hamming distance at most 1 from the provided kmer. The encoded kmer must
-    /// have been generated using the encoder associated with this
+    /// Insert an encoded k-mer into the set. This will insert all k-mers with
+    /// Hamming distance at most 1 from the provided k-mer. The encoded k-mer
+    /// must have been generated using the encoder associated with this
     /// [`ThreeBitOneMismatchKmerSet`].
     #[inline]
     fn insert_encoded_kmer(&mut self, encoded_kmer: u64) {
@@ -73,7 +76,7 @@ impl KmerSet for ThreeBitOneMismatchKmerSet {
         }
     }
 
-    /// Return whether an encoded kmer is present in the set. The encoded kmer
+    /// Return whether an encoded k-mer is present in the set. The encoded k-mer
     /// must have been generated using the encoder associated with this
     /// [`ThreeBitOneMismatchKmerSet`].
     #[inline]
@@ -83,7 +86,7 @@ impl KmerSet for ThreeBitOneMismatchKmerSet {
 }
 
 impl<S> IntoIterator for ThreeBitOneMismatchKmerSet<S> {
-    type Item = Vec<u8>;
+    type Item = Nucleotides;
     type IntoIter = ThreeBitKmerSetIntoIter<S>;
 
     #[inline]

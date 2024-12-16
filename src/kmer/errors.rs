@@ -1,3 +1,4 @@
+use crate::data::err::GetCode;
 use std::{error::Error, fmt};
 
 #[non_exhaustive]
@@ -22,3 +23,5 @@ impl fmt::Debug for KmerError {
 }
 
 impl Error for KmerError {}
+
+impl GetCode for KmerError {}

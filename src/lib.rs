@@ -6,7 +6,6 @@
     clippy::wildcard_imports,
     clippy::enum_glob_use,
     clippy::comparison_chain,
-    clippy::needless_lifetimes, // Remove in Rust 2024
     stable_features
 )]
 #![cfg_attr(test, feature(test))]
@@ -158,7 +157,7 @@ pub mod composition;
 pub mod data;
 /// Distance functions, especially for sequence data.
 pub mod distance;
-/// Kmer processing, searching, and counting.
+/// K-mer processing, searching, and counting.
 pub mod kmer;
 /// Sequence search and/or replacement.
 pub mod search;

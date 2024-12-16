@@ -338,7 +338,7 @@ pub struct TranslatedNucleotidesIter<'a> {
     has_remainder: bool,
 }
 
-impl<'a> Iterator for TranslatedNucleotidesIter<'a> {
+impl Iterator for TranslatedNucleotidesIter<'_> {
     type Item = u8;
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(codon) = self.codons.next() {

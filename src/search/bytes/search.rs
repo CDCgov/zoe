@@ -32,7 +32,7 @@ where
     pub(crate) b2:       u8,
 }
 
-impl<'a, const N: usize> SplitByByte2<'a, N>
+impl<const N: usize> SplitByByte2<'_, N>
 where
     LaneCount<N>: SupportedLaneCount,
 {

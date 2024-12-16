@@ -1,6 +1,9 @@
-use crate::kmer::{
-    encoder::KmerEncoder, errors::KmerError, kmer_counter::KmerCounter, kmer_set::KmerSet,
-    three_bit::encoder::ThreeBitKmerEncoder,
+use crate::{
+    kmer::{
+        encoder::KmerEncoder, errors::KmerError, kmer_counter::KmerCounter, kmer_set::KmerSet,
+        three_bit::encoder::ThreeBitKmerEncoder,
+    },
+    prelude::Nucleotides,
 };
 use std::{
     collections::HashMap,
@@ -18,7 +21,7 @@ pub struct ThreeBitKmerCounter<S = RandomState> {
 }
 
 impl ThreeBitKmerCounter {
-    /// Creates a new [`ThreeBitKmerCounter`] with the specified kmer length.
+    /// Creates a new [`ThreeBitKmerCounter`] with the specified k-mer length.
     ///
     /// # Errors
     ///
@@ -33,7 +36,7 @@ impl ThreeBitKmerCounter {
 }
 
 impl<S> ThreeBitKmerCounter<S> {
-    /// Creates a new [`ThreeBitKmerCounter`] with the specified kmer length and hasher.
+    /// Creates a new [`ThreeBitKmerCounter`] with the specified k-mer length and hasher.
     ///
     /// # Errors
     ///
@@ -57,16 +60,16 @@ impl<S: BuildHasher> KmerSet for ThreeBitKmerCounter<S> {
         &self.encoder
     }
 
-    /// Increment the count of an encoded kmer in this counter. The encoded
-    /// kmer must have been generated using the encoder associated with this
+    /// Increment the count of an encoded k-mer in this counter. The encoded
+    /// k-mer must have been generated using the encoder associated with this
     /// [`ThreeBitKmerCounter`].
     #[inline]
     fn insert_encoded_kmer(&mut self, encoded_kmer: u64) {
         *self.map.entry(encoded_kmer).or_default() += 1;
     }
 
-    /// Return whether an encoded kmer is present in this counter. The encoded
-    /// kmer must have been generated using the encoder associated with this
+    /// Return whether an encoded k-mer is present in this counter. The encoded
+    /// k-mer must have been generated using the encoder associated with this
     /// [`ThreeBitKmerCounter`].
     #[inline]
     fn contains_encoded(&self, kmer: u64) -> bool {
@@ -84,8 +87,8 @@ impl<S: BuildHasher> Index<u64> for ThreeBitKmerCounter<S> {
 }
 
 impl<S: BuildHasher> KmerCounter for ThreeBitKmerCounter<S> {
-    /// Get the count of an encoded kmer. If the kmer is not present in the
-    /// counter, then `0` is returned. The encoded kmer must have been generated
+    /// Get the count of an encoded k-mer. If the k-mer is not present in the
+    /// counter, then `0` is returned. The encoded k-mer must have been generated
     /// using the encoder associated with this [`ThreeBitKmerCounter`].
     #[inline]
     fn get_encoded(&self, kmer: Self::Kmer) -> usize {
@@ -94,7 +97,7 @@ impl<S: BuildHasher> KmerCounter for ThreeBitKmerCounter<S> {
 }
 
 impl<S> IntoIterator for ThreeBitKmerCounter<S> {
-    type Item = (Vec<u8>, usize);
+    type Item = (Nucleotides, usize);
     type IntoIter = ThreeBitKmerCounterIntoIter<S>;
 
     #[inline]
@@ -106,7 +109,7 @@ impl<S> IntoIterator for ThreeBitKmerCounter<S> {
     }
 }
 
-/// An iterator over a [`ThreeBitKmerCounter`] yielding decoded kmers and their
+/// An iterator over a [`ThreeBitKmerCounter`] yielding decoded k-mers and their
 /// counts.
 pub struct ThreeBitKmerCounterIntoIter<S> {
     pub(crate) encoder:       ThreeBitKmerEncoder,
@@ -114,11 +117,11 @@ pub struct ThreeBitKmerCounterIntoIter<S> {
 }
 
 impl<S> Iterator for ThreeBitKmerCounterIntoIter<S> {
-    type Item = (Vec<u8>, usize);
+    type Item = (Nucleotides, usize);
 
     #[inline]
-    fn next(&mut self) -> Option<(Vec<u8>, usize)> {
+    fn next(&mut self) -> Option<Self::Item> {
         let (encoded_kmer, count) = self.map_into_iter.next()?;
-        Some((self.encoder.decode_kmer(encoded_kmer), count))
+        Some((Nucleotides(self.encoder.decode_kmer(encoded_kmer)), count))
     }
 }

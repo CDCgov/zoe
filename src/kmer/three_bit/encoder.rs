@@ -21,7 +21,7 @@ impl KmerEncoder for ThreeBitKmerEncoder {
     type SeqIterRev<'a> = ThreeBitKmerIteratorRev<'a>;
     type OneMismatchIter = ThreeBitOneMismatchIter;
 
-    /// Creates a new [`ThreeBitKmerEncoder`] with the specified kmer length.
+    /// Creates a new [`ThreeBitKmerEncoder`] with the specified k-mer length.
     ///
     /// # Errors
     /// Returns [`KmerError::InvalidLength`] if `kmer_length` is 0 or greater
@@ -38,7 +38,7 @@ impl KmerEncoder for ThreeBitKmerEncoder {
         }
     }
 
-    /// Retrieve the kmer length associated with this [`ThreeBitKmerEncoder`].
+    /// Retrieve the k-mer length associated with this [`ThreeBitKmerEncoder`].
     #[inline]
     fn get_kmer_length(&self) -> usize {
         self.kmer_length
@@ -84,7 +84,7 @@ impl KmerEncoder for ThreeBitKmerEncoder {
         b"ACGTN".get(encoded_base as usize).copied()
     }
 
-    /// Encode a kmer. The length of `kmer` must match the `kmer_length` of the
+    /// Encode a k-mer. The length of `kmer` must match the `kmer_length` of the
     /// [`ThreeBitKmerEncoder`], otherwise unexpected results can occur.
     /// Consider [`encode_kmer_checked`] when it is not known whether `kmer` has
     /// the appropriate length.
@@ -101,7 +101,7 @@ impl KmerEncoder for ThreeBitKmerEncoder {
         encoded_kmer
     }
 
-    /// Encode a kmer. If the length of `kmer` does not match the `kmer_length`
+    /// Encode a k-mer. If the length of `kmer` does not match the `kmer_length`
     /// of the [`ThreeBitKmerEncoder`], then `None` is returned.
     #[inline]
     fn encode_kmer_checked(&self, kmer: &[u8]) -> Option<u64> {
@@ -112,13 +112,13 @@ impl KmerEncoder for ThreeBitKmerEncoder {
         }
     }
 
-    /// Decode a kmer. The bases and kmer length are assumed to be valid for the
+    /// Decode a k-mer. The bases and k-mer length are assumed to be valid for the
     /// given [`ThreeBitKmerEncoder`]. If an invalid base is encountered (a
     /// three-bit value outside `0..=4`), then this function will panic. If the
-    /// length of the encoded kmer does not agree with the `kmer_length` of the
+    /// length of the encoded k-mer does not agree with the `kmer_length` of the
     /// [`ThreeBitKmerEncoder`], then either some bases may be truncated, or
     /// erroneous extra bases may appear in the output. Consider
-    /// [`decode_kmer_checked`] when it is not known whether the bases and kmer
+    /// [`decode_kmer_checked`] when it is not known whether the bases and k-mer
     /// length will be valid.
     ///
     /// # Panics
@@ -137,8 +137,8 @@ impl KmerEncoder for ThreeBitKmerEncoder {
         kmer
     }
 
-    /// Decode a kmer. If an erroneous base outside `0..=4` is found, or if the
-    /// encoding represents a longer kmer than the `kmer_length` of the
+    /// Decode a k-mer. If an erroneous base outside `0..=4` is found, or if the
+    /// encoding represents a longer k-mer than the `kmer_length` of the
     /// [`ThreeBitKmerEncoder`], then `None` is returned.
     fn decode_kmer_checked(&self, mut encoded_kmer: u64) -> Option<Vec<u8>> {
         let mut kmer = vec![0; self.kmer_length];
@@ -154,16 +154,16 @@ impl KmerEncoder for ThreeBitKmerEncoder {
         }
     }
 
-    /// Get an iterator over all encoded kmers that are exactly a Hamming
-    /// distance of one away from the provided kmer. This involves replacing
-    /// each base with the other bases in `ACGTN`. The original kmer is not
+    /// Get an iterator over all encoded k-mers that are exactly a Hamming
+    /// distance of one away from the provided k-mer. This involves replacing
+    /// each base with the other bases in `ACGTN`. The original k-mer is not
     /// included in the iterator.
     #[inline]
     fn get_variants_one_mismatch(&self, encoded_kmer: u64) -> ThreeBitOneMismatchIter {
         ThreeBitOneMismatchIter::new(encoded_kmer, self.kmer_length)
     }
 
-    /// Get an iterator over the encoded overlapping kmers in a sequence, from
+    /// Get an iterator over the encoded overlapping k-mers in a sequence, from
     /// left to right. If the sequence is shorter than the `kmer_length` of the
     /// [`ThreeBitKmerEncoder`], then the iterator will be empty.
     #[inline]
@@ -186,7 +186,7 @@ impl KmerEncoder for ThreeBitKmerEncoder {
         }
     }
 
-    /// Get an iterator over the encoded overlapping kmers in a sequence, from
+    /// Get an iterator over the encoded overlapping k-mers in a sequence, from
     /// right to left. If the sequence is shorter than the `kmer_length` of the
     /// [`ThreeBitKmerEncoder`], then the iterator will be empty.
     #[inline]
@@ -210,8 +210,8 @@ impl KmerEncoder for ThreeBitKmerEncoder {
     }
 }
 
-/// An iterator over the three-bit encoded overlapping kmers in a sequence, from
-/// left to right.
+/// An iterator over the three-bit encoded overlapping k-mers in a sequence,
+/// from left to right.
 pub struct ThreeBitKmerIterator<'a> {
     current_kmer: u64,
     remaining:    std::slice::Iter<'a, u8>,
@@ -223,13 +223,13 @@ impl Iterator for ThreeBitKmerIterator<'_> {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        // Extract the next base to add on the right end of the kmer
+        // Extract the next base to add on the right end of the k-mer
         let base = *self.remaining.next()?;
         let encoded_base = u64::from(ThreeBitKmerEncoder::encode_base(base));
-        // Shift the kmer to the left to make room for the new base
+        // Shift the k-mer to the left to make room for the new base
         let shifted_kmer = self.current_kmer << ThreeBitKmerEncoder::BITS_PER_BASE;
         // Add the new base and remove the leftmost base (to preserve the
-        // length of the kmer)
+        // length of the k-mer)
         self.current_kmer = (shifted_kmer | encoded_base) & self.kmer_mask;
         Some(self.current_kmer)
     }
@@ -242,8 +242,8 @@ impl Iterator for ThreeBitKmerIterator<'_> {
 
 impl ExactSizeIterator for ThreeBitKmerIterator<'_> {}
 
-/// An iterator over the three-bit encoded overlapping kmers in a sequence, from
-/// right to left.
+/// An iterator over the three-bit encoded overlapping k-mers in a sequence,
+/// from right to left.
 pub struct ThreeBitKmerIteratorRev<'a> {
     current_kmer: u64,
     remaining:    std::slice::Iter<'a, u8>,
@@ -255,12 +255,12 @@ impl Iterator for ThreeBitKmerIteratorRev<'_> {
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        // Extract the next base to add on the left end of the kmer
+        // Extract the next base to add on the left end of the k-mer
         let base = *self.remaining.next_back()?;
         let encoded_base = u64::from(ThreeBitKmerEncoder::encode_base(base));
         // Shift the new base to the proper position
         let shifted_encoded_base = encoded_base << (3 * (self.kmer_length - 1));
-        // Shift the kmer to the right to make room for the new base and remove
+        // Shift the k-mer to the right to make room for the new base and remove
         // the rightmost base, then add the new base
         self.current_kmer = (self.current_kmer >> ThreeBitKmerEncoder::BITS_PER_BASE) | shifted_encoded_base;
         Some(self.current_kmer)
@@ -274,9 +274,9 @@ impl Iterator for ThreeBitKmerIteratorRev<'_> {
 
 impl ExactSizeIterator for ThreeBitKmerIteratorRev<'_> {}
 
-/// An iterator over all three-bit encoded kmers that are exactly a Hamming
-/// distance of one away from a provided kmer. The original kmer is not included in
-/// the iterator.
+/// An iterator over all three-bit encoded k-mers that are exactly a Hamming
+/// distance of one away from a provided k-mer. The original k-mer is not
+/// included in the iterator.
 pub struct ThreeBitOneMismatchIter {
     encoded_kmer:       u64,
     kmer_length:        usize,
