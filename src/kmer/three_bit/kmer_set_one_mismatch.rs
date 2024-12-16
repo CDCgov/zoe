@@ -1,11 +1,8 @@
-use crate::{
-    kmer::{
-        encoder::KmerEncoder,
-        errors::KmerError,
-        kmer_set::KmerSet,
-        three_bit::{encoder::ThreeBitKmerEncoder, kmer_set::ThreeBitKmerSetIntoIter},
-    },
-    prelude::Nucleotides,
+use crate::kmer::{
+    encoder::KmerEncoder,
+    errors::KmerError,
+    kmer_set::KmerSet,
+    three_bit::{encoder::ThreeBitKmerEncoder, kmer_set::ThreeBitKmerSetIntoIter},
 };
 use std::{
     collections::HashSet,

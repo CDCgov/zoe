@@ -1,7 +1,4 @@
-use crate::{
-    kmer::{encoder::KmerEncoder, errors::KmerError, kmer_set::KmerSet, three_bit::encoder::ThreeBitKmerEncoder},
-    prelude::Nucleotides,
-};
+use crate::kmer::{encoder::KmerEncoder, errors::KmerError, kmer_set::KmerSet, three_bit::encoder::ThreeBitKmerEncoder};
 use std::{
     collections::HashSet,
     hash::{BuildHasher, RandomState},

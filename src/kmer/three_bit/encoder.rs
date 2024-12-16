@@ -34,7 +34,8 @@ impl std::fmt::Display for EncodedKmer {
             buffer[start] = ThreeBitKmerEncoder::decode_base(encoded_base as u8);
             kmer >>= ThreeBitKmerEncoder::BITS_PER_BASE;
         }
-        f.write_str(&String::from_utf8_lossy(&buffer))
+        // SAFETY: decode_base() can only return ASCII.
+        f.write_str(unsafe { std::str::from_utf8_unchecked(&buffer[start..]) })
     }
 }
 
