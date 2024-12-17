@@ -7,7 +7,10 @@ use crate::{
     },
     prelude::Nucleotides,
 };
-use std::{collections::HashSet, hash::RandomState};
+use std::{
+    collections::HashSet,
+    hash::{BuildHasher, RandomState},
+};
 
 /// A [`KmerSet`] utilizing [`ThreeBitKmerEncoder`] as its encoder, but where
 /// all insertions add all k-mers of Hamming distance at most 1. This is useful
@@ -54,7 +57,7 @@ impl<S> ThreeBitOneMismatchKmerSet<S> {
     }
 }
 
-impl KmerSet for ThreeBitOneMismatchKmerSet {
+impl<S: BuildHasher> KmerSet for ThreeBitOneMismatchKmerSet<S> {
     type Kmer = u64;
     type Encoder = ThreeBitKmerEncoder;
 
