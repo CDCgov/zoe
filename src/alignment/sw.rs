@@ -441,6 +441,17 @@ mod test {
     }
 
     #[test]
+    fn sw_t_u_check() {
+        let profile = ScalarProfile::new(b"ACGTUNacgtun", WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+        let score = sw_scalar_score(b"ACGTTNACGTTN", &profile);
+        assert_eq!(score, 20);
+
+        let profile = StripedProfile::<u16, 16, 5>::new(b"ACGTUNacgtun", &BIASED_WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+        let score = sw_simd_score(b"ACGTTNACGTTN", &profile);
+        assert_eq!(score, Some(20));
+    }
+
+    #[test]
     fn sw_simd() {
         let matrix = SimpleWeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N')).into_biased_matrix();
         let profile =

@@ -148,24 +148,28 @@ pub struct ByteIndexMap<const KEYS: usize> {
 
 impl<const S: usize> ByteIndexMap<S> {
     /// Create a new [`ByteIndexMap`] struct to represent a mapping between
-    /// bytes and indices. For example, DNA alphabet to profile indices.
+    /// bytes and indices. For example, this could be a map from DNA bases to
+    /// profile indices.
     ///
     /// # Panics
-    /// Uppercase ASCII is expected for the `index` byte string and the
-    /// `catch_all` value. The `catch_all` value must be present in `index`, and
-    /// no duplicates can be present in `index`.
+    /// Uppercase ASCII is expected for `byte_keys` and the `catch_all` value.
+    /// The `catch_all` value must be present in `byte_keys`, and no duplicates
+    /// can be present in `byte_keys`.
     #[allow(clippy::cast_possible_truncation)]
     #[must_use]
     pub const fn new(byte_keys: [u8; S], catch_all: u8) -> Self {
+        // catch_all must be uppercase
         assert!(catch_all.is_ascii_uppercase());
 
         let mut catch_all_index = None;
         let mut i = 0;
         while i < byte_keys.len() {
+            // All elements of byte_keys must be uppercase
             assert!(byte_keys[i].is_ascii_uppercase());
 
             let mut j = i + 1;
             while j < byte_keys.len() {
+                // No duplicates can be present in byte_keys
                 assert!(byte_keys[i] != byte_keys[j]);
                 j += 1;
             }
@@ -178,18 +182,68 @@ impl<const S: usize> ByteIndexMap<S> {
         }
 
         // If this unwrap fails, it means catch_all wasn't present in index
-        let mut index_map = [catch_all_index.unwrap() as u8; 256];
+        let mut out = ByteIndexMap {
+            index_map: [catch_all_index.unwrap() as u8; 256],
+            byte_keys,
+        };
 
         let mut i = 0;
         while i < byte_keys.len() {
             // Truncation will not occur because i cannot exceed index.len(),
             // and index must contain unique u8 values
-            index_map[byte_keys[i] as usize] = i as u8;
-            index_map[byte_keys[i].to_ascii_lowercase() as usize] = i as u8;
+            out.set_byte(byte_keys[i], i as u8);
 
             i += 1;
         }
-        ByteIndexMap { index_map, byte_keys }
+        out
+    }
+
+    /// Case-insensitively set the index for a byte.
+    ///
+    /// # Panics
+    /// Uppercase ASCII is expected for `byte`.
+    #[inline]
+    const fn set_byte(&mut self, byte: u8, index: u8) {
+        assert!(byte.is_ascii_uppercase());
+        self.index_map[byte as usize] = index;
+        self.index_map[byte.to_ascii_lowercase() as usize] = index;
+    }
+
+    /// Change the [`ByteIndexMap`] so that `new_byte` maps to the same thing as
+    /// `byte_key`.
+    ///
+    /// # Panics
+    /// Uppercase ASCII is expected for `new_byte` and `byte_key`. `byte_key`
+    /// should not be the same as `new_byte`. `new_byte` should not be present
+    /// in `byte_keys`, and `byte_key` must be present in `byte_keys`.
+    #[inline]
+    #[must_use]
+    pub const fn add_synonym(mut self, new_byte: u8, byte_key: u8) -> Self {
+        // new_byte must be uppercase
+        assert!(new_byte.is_ascii_uppercase());
+        // byte_key must be uppercase
+        assert!(byte_key.is_ascii_uppercase());
+        // new_byte and byte_key must be distinct
+        assert!(new_byte != byte_key);
+
+        let mut j = 0;
+        let mut new_byte_found = false;
+        let mut byte_key_found = false;
+        while j < self.byte_keys.len() {
+            if self.byte_keys[j] == new_byte {
+                new_byte_found = true;
+            } else if self.byte_keys[j] == byte_key {
+                byte_key_found = true;
+            }
+            j += 1;
+        }
+        // new_byte should not be present in byte_keys
+        assert!(!new_byte_found);
+        // byte_key must be in byte_keys
+        assert!(byte_key_found);
+
+        self.set_byte(new_byte, self.index_map[byte_key as usize]);
+        self
     }
 
     #[inline]
@@ -221,8 +275,8 @@ impl<const S: usize> Index<u8> for ByteIndexMap<S> {
 }
 
 /// Used to convert any byte to `u8` indices where {0: A, 1: C, 2: G, 3: T, 4: N}.
-/// N is used as a catch-all.
-pub const DNA_PROFILE_MAP: ByteIndexMap<5> = ByteIndexMap::new(*b"ACGTN", b'N');
+/// N is used as a catch-all. U is treated as T.
+pub const DNA_PROFILE_MAP: ByteIndexMap<5> = ByteIndexMap::new(*b"ACGTN", b'N').add_synonym(b'U', b'T');
 
 macro_rules! fill_map {
     ($( $key: expr => $val: expr ),*) => {{
