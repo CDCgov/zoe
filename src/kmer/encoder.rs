@@ -1,4 +1,4 @@
-use crate::kmer::errors::KmerError;
+use crate::{kmer::errors::KmerError, prelude::Nucleotides};
 
 /// [`KmerEncoder`] represents an encoder/decoder used to represent bases and
 /// k-mers in a more efficienct form. While individual bases and k-mers can be
@@ -12,8 +12,6 @@ use crate::kmer::errors::KmerError;
 pub trait KmerEncoder
 where
     Self: Sized, {
-    /// The number of bits used to represent each base.
-    const BITS_PER_BASE: usize;
     /// The maximum possible k-mer length representable with this
     /// [`KmerEncoder`].
     const MAX_KMER_LENGTH: usize;
@@ -70,22 +68,22 @@ where
     /// not known whether the bases and k-mer length will be valid.
     ///
     /// [`encode_kmer_checked`]: KmerEncoder::encode_kmer_checked
-    fn encode_kmer(&self, kmer: &[u8]) -> Self::EncodedKmer;
+    fn encode_kmer<S: AsRef<[u8]>>(&self, kmer: S) -> Self::EncodedKmer;
 
     /// Encode a k-mer. If the bases and k-mer length are not valid for the
     /// given [`KmerEncoder`], then `None` is returned.
-    fn encode_kmer_checked(&self, kmer: &[u8]) -> Option<Self::EncodedKmer>;
+    fn encode_kmer_checked<S: AsRef<[u8]>>(&self, kmer: S) -> Option<Self::EncodedKmer>;
 
     /// Decode a k-mer. The bases and k-mer length are assumed to be valid for
     /// the given [`KmerEncoder`]. Consider [`decode_kmer_checked`] when it is
     /// not known whether the bases and k-mer length will be valid.
     ///
     /// [`decode_kmer_checked`]: KmerEncoder::decode_kmer_checked
-    fn decode_kmer(&self, encoded_kmer: Self::EncodedKmer) -> Vec<u8>;
+    fn decode_kmer(&self, encoded_kmer: Self::EncodedKmer) -> Nucleotides;
 
     /// Decode a k-mer. If the bases and k-mer length are not valid for the
     /// given [`KmerEncoder`], then `None` is returned.
-    fn decode_kmer_checked(&self, encoded_kmer: Self::EncodedKmer) -> Option<Vec<u8>>;
+    fn decode_kmer_checked(&self, encoded_kmer: Self::EncodedKmer) -> Option<Nucleotides>;
 
     /// Get an iterator over all encoded k-mers that are exactly a Hamming
     /// distance of one away from the provided k-mer. The original k-mer is not
@@ -96,11 +94,11 @@ where
     /// left to right. If the sequence is shorter than the k-mer length of the
     /// [`KmerEncoder`], then the iterator will be empty. The sequence should
     /// only contain valid bases for the given [`KmerEncoder`].
-    fn iter_from_sequence<'a>(&self, seq: &'a [u8]) -> Self::SeqIter<'a>;
+    fn iter_from_sequence<'a, S: AsRef<[u8]>>(&self, seq: &'a S) -> Self::SeqIter<'a>;
 
     /// Get an iterator over the encoded overlapping k-mers in a sequence, from
     /// right to left. If the sequence is shorter than the k-mer length of the
     /// [`KmerEncoder`], then the iterator will be empty. The sequence should
     /// only contain valid bases for the given [`KmerEncoder`].
-    fn iter_from_sequence_rev<'a>(&self, seq: &'a [u8]) -> Self::SeqIterRev<'a>;
+    fn iter_from_sequence_rev<'a, S: AsRef<[u8]>>(&self, seq: &'a S) -> Self::SeqIterRev<'a>;
 }

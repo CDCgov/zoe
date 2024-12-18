@@ -1,16 +1,18 @@
-use crate::kmer::{
-    encoder::KmerEncoder, errors::KmerError, kmer_counter::KmerCounter, kmer_set::KmerSet,
-    three_bit::encoder::ThreeBitKmerEncoder,
+use super::{
+    encoder::ThreeBitEncodedKmer,
+    int_mappings::{KmerLen, SupportedThreeBitKmerLen},
+};
+use crate::{
+    kmer::{
+        encoder::KmerEncoder, errors::KmerError, kmer_counter::KmerCounter, kmer_set::KmerSet,
+        three_bit::encoder::ThreeBitKmerEncoder,
+    },
+    prelude::Nucleotides,
 };
 use std::{
-    collections::HashMap,
+    collections::{hash_map, HashMap},
     hash::{BuildHasher, RandomState},
     ops::Index,
-};
-
-use super::{
-    encoder::EncodedKmer,
-    int_mappings::{KmerLen, SupportedThreeBitKmerLen},
 };
 
 /// A [`KmerCounter`] utilizing [`ThreeBitKmerEncoder`] as its encoder. This
@@ -20,7 +22,7 @@ use super::{
 pub struct ThreeBitKmerCounter<const MAX_LEN: usize, S = RandomState>
 where
     KmerLen<MAX_LEN>: SupportedThreeBitKmerLen, {
-    map:     HashMap<EncodedKmer<MAX_LEN>, usize, S>,
+    map:     HashMap<ThreeBitEncodedKmer<MAX_LEN>, usize, S>,
     encoder: ThreeBitKmerEncoder<MAX_LEN>,
 }
 
@@ -64,8 +66,16 @@ impl<const MAX_LEN: usize, S: BuildHasher> KmerSet for ThreeBitKmerCounter<MAX_L
 where
     KmerLen<MAX_LEN>: SupportedThreeBitKmerLen,
 {
-    type EncodedKmer = EncodedKmer<MAX_LEN>;
+    type EncodedKmer = ThreeBitEncodedKmer<MAX_LEN>;
     type Encoder = ThreeBitKmerEncoder<MAX_LEN>;
+    type DecodedIter<'a>
+        = ThreeBitKmerCounterDecodedIter<'a, MAX_LEN>
+    where
+        S: 'a;
+    type EncodedIter<'a>
+        = hash_map::Iter<'a, ThreeBitEncodedKmer<MAX_LEN>, usize>
+    where
+        S: 'a;
 
     /// Get the encoder used for the [`ThreeBitKmerCounter`].
     #[inline]
@@ -85,19 +95,34 @@ where
     /// k-mer must have been generated using the encoder associated with this
     /// [`ThreeBitKmerCounter`].
     #[inline]
-    fn contains_encoded(&self, kmer: EncodedKmer<MAX_LEN>) -> bool {
+    fn contains_encoded(&self, kmer: ThreeBitEncodedKmer<MAX_LEN>) -> bool {
         self.map.contains_key(&kmer)
+    }
+
+    /// Iterate over the decoded k-mers and counts in the counter.
+    #[inline]
+    fn iter_decoded(&self) -> Self::DecodedIter<'_> {
+        Self::DecodedIter {
+            map_into_iter: self.map.iter(),
+            encoder:       &self.encoder,
+        }
+    }
+
+    /// Iterate over the encoded k-mers and counts in the counter.
+    #[inline]
+    fn iter_encoded(&self) -> Self::EncodedIter<'_> {
+        self.map.iter()
     }
 }
 
-impl<const MAX_LEN: usize, S: BuildHasher> Index<EncodedKmer<MAX_LEN>> for ThreeBitKmerCounter<MAX_LEN, S>
+impl<const MAX_LEN: usize, S: BuildHasher> Index<ThreeBitEncodedKmer<MAX_LEN>> for ThreeBitKmerCounter<MAX_LEN, S>
 where
     KmerLen<MAX_LEN>: SupportedThreeBitKmerLen,
 {
     type Output = usize;
 
     #[inline]
-    fn index(&self, index: EncodedKmer<MAX_LEN>) -> &Self::Output {
+    fn index(&self, index: ThreeBitEncodedKmer<MAX_LEN>) -> &Self::Output {
         &self.map[&index]
     }
 }
@@ -119,33 +144,56 @@ impl<const MAX_LEN: usize, S> IntoIterator for ThreeBitKmerCounter<MAX_LEN, S>
 where
     KmerLen<MAX_LEN>: SupportedThreeBitKmerLen,
 {
-    type Item = (EncodedKmer<MAX_LEN>, usize);
-    type IntoIter = ThreeBitKmerCounterIntoIter<MAX_LEN, S>;
+    type Item = (Nucleotides, usize);
+    type IntoIter = ThreeBitKmerCounterDecodedIntoIter<MAX_LEN, S>;
 
     #[inline]
-    fn into_iter(self) -> ThreeBitKmerCounterIntoIter<MAX_LEN, S> {
-        ThreeBitKmerCounterIntoIter {
+    fn into_iter(self) -> Self::IntoIter {
+        Self::IntoIter {
             map_into_iter: self.map.into_iter(),
+            encoder:       self.encoder,
         }
     }
 }
 
 /// An iterator over a [`ThreeBitKmerCounter`] yielding decoded k-mers and their
-/// counts.
-pub struct ThreeBitKmerCounterIntoIter<const MAX_LEN: usize, S>
+/// counts. The iterator consumes the original counter.
+pub struct ThreeBitKmerCounterDecodedIntoIter<const MAX_LEN: usize, S>
 where
     KmerLen<MAX_LEN>: SupportedThreeBitKmerLen, {
-    pub(crate) map_into_iter: <HashMap<EncodedKmer<MAX_LEN>, usize, S> as IntoIterator>::IntoIter,
+    pub(crate) map_into_iter: <HashMap<ThreeBitEncodedKmer<MAX_LEN>, usize, S> as IntoIterator>::IntoIter,
+    pub(crate) encoder:       ThreeBitKmerEncoder<MAX_LEN>,
 }
 
-impl<const MAX_LEN: usize, S> Iterator for ThreeBitKmerCounterIntoIter<MAX_LEN, S>
+impl<const MAX_LEN: usize, S> Iterator for ThreeBitKmerCounterDecodedIntoIter<MAX_LEN, S>
 where
     KmerLen<MAX_LEN>: SupportedThreeBitKmerLen,
 {
-    type Item = (EncodedKmer<MAX_LEN>, usize);
+    type Item = (Nucleotides, usize);
 
     #[inline]
-    fn next(&mut self) -> Option<Self::Item> {
-        self.map_into_iter.next()
+    fn next(&mut self) -> Option<(Nucleotides, usize)> {
+        self.map_into_iter.next().map(|(x, c)| (self.encoder.decode_kmer(x), c))
+    }
+}
+
+/// An iterator over a [`ThreeBitKmerCounter`] yielding decoded k-mers and their
+/// counts. The iterator takes the original counter by reference.
+pub struct ThreeBitKmerCounterDecodedIter<'a, const MAX_LEN: usize>
+where
+    KmerLen<MAX_LEN>: SupportedThreeBitKmerLen, {
+    pub(crate) map_into_iter: hash_map::Iter<'a, ThreeBitEncodedKmer<MAX_LEN>, usize>,
+    pub(crate) encoder:       &'a ThreeBitKmerEncoder<MAX_LEN>,
+}
+
+impl<const MAX_LEN: usize> Iterator for ThreeBitKmerCounterDecodedIter<'_, MAX_LEN>
+where
+    KmerLen<MAX_LEN>: SupportedThreeBitKmerLen,
+{
+    type Item = (Nucleotides, usize);
+
+    #[inline]
+    fn next(&mut self) -> Option<(Nucleotides, usize)> {
+        self.map_into_iter.next().map(|(x, &c)| (self.encoder.decode_kmer(*x), c))
     }
 }

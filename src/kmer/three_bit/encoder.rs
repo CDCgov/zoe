@@ -1,10 +1,10 @@
+use super::int_mappings::{KmerLen, MaxLenToType, SupportedThreeBitKmerLen};
 use crate::data::types::Int;
+use crate::prelude::Nucleotides;
 use crate::{
     data::{types::Uint, DNA_PROFILE_MAP},
     kmer::{encoder::KmerEncoder, errors::KmerError},
 };
-
-use super::int_mappings::{KmerLen, MaxLenToType, SupportedThreeBitKmerLen};
 
 /// A [`KmerEncoder`] using three bits to represent each base. This allows for
 /// `A`, `C`, `G`, `T`, and `N` to all be represented. This encoder does not
@@ -19,11 +19,11 @@ where
 
 #[derive(PartialEq, Eq, Hash, Clone, Copy)]
 #[repr(transparent)]
-pub struct EncodedKmer<const MAX_LEN: usize>(MaxLenToType<MAX_LEN>)
+pub struct ThreeBitEncodedKmer<const MAX_LEN: usize>(MaxLenToType<MAX_LEN>)
 where
     KmerLen<MAX_LEN>: SupportedThreeBitKmerLen;
 
-impl<const MAX_LEN: usize, T: Uint> From<T> for EncodedKmer<MAX_LEN>
+impl<const MAX_LEN: usize, T: Uint> From<T> for ThreeBitEncodedKmer<MAX_LEN>
 where
     KmerLen<MAX_LEN>: SupportedThreeBitKmerLen<T = T>,
 {
@@ -33,20 +33,19 @@ where
     }
 }
 
-impl<const MAX_LEN: usize, T: Uint> std::fmt::Display for EncodedKmer<MAX_LEN>
+impl<const MAX_LEN: usize, T: Uint> std::fmt::Display for ThreeBitEncodedKmer<MAX_LEN>
 where
     KmerLen<MAX_LEN>: SupportedThreeBitKmerLen<T = T>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut kmer = self.0;
-        // TODO: Cannot use array because the capacity/length would rely on
-        // generic T
-        let mut buffer = Vec::with_capacity(ThreeBitKmerEncoder::<MAX_LEN>::MAX_KMER_LENGTH);
-        let i = buffer.len() - 1;
-        while kmer != T::zero() {
-            let encoded_base = kmer & T::bit_0b111(); //0b111
-            buffer[i] = ThreeBitKmerEncoder::<MAX_LEN>::decode_base(encoded_base);
-            kmer >>= ThreeBitKmerEncoder::<MAX_LEN>::BITS_PER_BASE;
+        let mut buffer = [0; MAX_LEN];
+        let mut start = MAX_LEN;
+        while kmer != T::ZERO && start > 0 {
+            start -= 1;
+            let encoded_base = kmer & T::from_literal(0b111);
+            buffer[start] = ThreeBitKmerEncoder::decode_base(encoded_base);
+            kmer >>= 3;
         }
         // SAFETY: decode_base() can only return ASCII.
         f.write_str(unsafe { std::str::from_utf8_unchecked(&buffer[start..]) })
@@ -57,10 +56,9 @@ impl<const MAX_LEN: usize, T: Uint> KmerEncoder for ThreeBitKmerEncoder<MAX_LEN>
 where
     KmerLen<MAX_LEN>: SupportedThreeBitKmerLen<T = T>,
 {
-    const BITS_PER_BASE: usize = 3;
     const MAX_KMER_LENGTH: usize = MAX_LEN;
     type EncodedBase = T;
-    type EncodedKmer = EncodedKmer<MAX_LEN>;
+    type EncodedKmer = ThreeBitEncodedKmer<MAX_LEN>;
     type SeqIter<'a> = ThreeBitKmerIterator<'a, MAX_LEN>;
     type SeqIterRev<'a> = ThreeBitKmerIteratorRev<'a, MAX_LEN>;
     type OneMismatchIter = ThreeBitOneMismatchIter<MAX_LEN>;
@@ -68,14 +66,15 @@ where
     /// Creates a new [`ThreeBitKmerEncoder`] with the specified k-mer length.
     ///
     /// # Errors
-    /// Returns [`KmerError::InvalidLength`] if `kmer_length` is 0 or greater
-    /// than 21.
+    ///
+    /// Returns [`KmerError::InvalidLength`] if `kmer_length` is less than 2 or
+    /// greater than the specified `MAX_LEN`.
     #[inline]
     fn new(kmer_length: usize) -> Result<Self, KmerError> {
-        if kmer_length <= Self::MAX_KMER_LENGTH && kmer_length > 0 {
+        if kmer_length <= MAX_LEN && kmer_length > 1 {
             Ok(Self {
                 kmer_length,
-                kmer_mask: (T::one() << (Self::BITS_PER_BASE * kmer_length)) - T::one(),
+                kmer_mask: (T::ONE << (3 * kmer_length)) - T::ONE,
             })
         } else {
             Err(KmerError::InvalidLength)
@@ -113,19 +112,22 @@ where
     /// # Panics
     ///
     /// The [`ThreeBitKmerEncoder`] represents each base by a `u8` in `0..=4`.
-    /// Any input of this range will panic.
+    /// Any input outside of this range will panic.
     ///
     /// [`decode_base_checked`]: ThreeBitKmerEncoder::decode_base_checked
     #[inline]
     fn decode_base(encoded_base: Self::EncodedBase) -> u8 {
-        b"ACGTN"[(encoded_base - T::one()).as_usize()]
+        // as_usize is valid since encoded_base will be in `0..=4`
+        b"ACGTN"[(encoded_base - T::ONE).as_usize()]
     }
 
     /// Decode a single base. If the base is not in `0..=4`, then `None` is
     /// returned.
     #[inline]
     fn decode_base_checked(encoded_base: Self::EncodedBase) -> Option<u8> {
-        b"ACGTN".get((encoded_base - T::one()).as_usize()).copied()
+        // as_usize is valid since encoded_base will be in `0..=4`
+        // TODO: This is false!
+        b"ACGTN".get((encoded_base - T::ONE).as_usize()).copied()
     }
 
     /// Encode a k-mer. The length of `kmer` must match the `kmer_length` of the
@@ -135,21 +137,21 @@ where
     ///
     /// [`encode_kmer_checked`]: ThreeBitKmerEncoder::encode_kmer_checked
     #[inline]
-    fn encode_kmer(&self, kmer: &[u8]) -> Self::EncodedKmer {
-        let mut encoded_kmer = T::zero();
+    fn encode_kmer<S: AsRef<[u8]>>(&self, kmer: S) -> Self::EncodedKmer {
+        let mut encoded_kmer = T::ZERO;
 
-        for &base in kmer {
-            encoded_kmer = (encoded_kmer << Self::BITS_PER_BASE) | Self::encode_base(base);
+        for &base in kmer.as_ref() {
+            encoded_kmer = (encoded_kmer << 3) | Self::encode_base(base);
         }
 
-        EncodedKmer(encoded_kmer)
+        ThreeBitEncodedKmer(encoded_kmer)
     }
 
     /// Encode a k-mer. If the length of `kmer` does not match the `kmer_length`
     /// of the [`ThreeBitKmerEncoder`], then `None` is returned.
     #[inline]
-    fn encode_kmer_checked(&self, kmer: &[u8]) -> Option<Self::EncodedKmer> {
-        if kmer.len() == self.kmer_length {
+    fn encode_kmer_checked<S: AsRef<[u8]>>(&self, kmer: S) -> Option<Self::EncodedKmer> {
+        if kmer.as_ref().len() == self.kmer_length {
             Some(self.encode_kmer(kmer))
         } else {
             None
@@ -171,28 +173,28 @@ where
     /// then this function will panic.
     ///
     /// [`decode_kmer_checked`]: ThreeBitKmerEncoder::decode_kmer_checked
-    fn decode_kmer(&self, mut encoded_kmer: Self::EncodedKmer) -> Vec<u8> {
+    fn decode_kmer(&self, mut encoded_kmer: Self::EncodedKmer) -> Nucleotides {
         let mut kmer = vec![0; self.kmer_length];
         for i in (0..kmer.len()).rev() {
-            let encoded_base = encoded_kmer.0 & T::bit_0b111(); // 0b111
+            let encoded_base = encoded_kmer.0 & T::from_literal(0b111);
             kmer[i] = Self::decode_base(encoded_base);
-            encoded_kmer.0 >>= Self::BITS_PER_BASE;
+            encoded_kmer.0 >>= 3;
         }
-        kmer
+        Nucleotides(kmer)
     }
 
     /// Decode a k-mer. If an erroneous base outside `0..=4` is found, or if the
     /// encoding represents a longer k-mer than the `kmer_length` of the
     /// [`ThreeBitKmerEncoder`], then `None` is returned.
-    fn decode_kmer_checked(&self, mut encoded_kmer: Self::EncodedKmer) -> Option<Vec<u8>> {
+    fn decode_kmer_checked(&self, mut encoded_kmer: Self::EncodedKmer) -> Option<Nucleotides> {
         let mut kmer = vec![0; self.kmer_length];
         for i in (0..kmer.len()).rev() {
-            let encoded_base = encoded_kmer.0 & T::bit_0b111();
+            let encoded_base = encoded_kmer.0 & T::from_literal(0b111);
             kmer[i] = Self::decode_base_checked(encoded_base)?;
-            encoded_kmer.0 >>= Self::BITS_PER_BASE;
+            encoded_kmer.0 >>= 3;
         }
-        if encoded_kmer.0 == T::zero() {
-            Some(kmer)
+        if encoded_kmer.0 == T::ZERO {
+            Some(Nucleotides(kmer))
         } else {
             None
         }
@@ -203,7 +205,7 @@ where
     /// each base with the other bases in `ACGTN`. The original k-mer is not
     /// included in the iterator.
     #[inline]
-    fn get_variants_one_mismatch(&self, encoded_kmer: Self::EncodedKmer) -> ThreeBitOneMismatchIter<MAX_LEN> {
+    fn get_variants_one_mismatch(&self, encoded_kmer: Self::EncodedKmer) -> Self::OneMismatchIter {
         ThreeBitOneMismatchIter::new(encoded_kmer, self.kmer_length)
     }
 
@@ -211,10 +213,11 @@ where
     /// left to right. If the sequence is shorter than the `kmer_length` of the
     /// [`ThreeBitKmerEncoder`], then the iterator will be empty.
     #[inline]
-    fn iter_from_sequence<'a>(&self, seq: &'a [u8]) -> ThreeBitKmerIterator<'a, MAX_LEN> {
+    fn iter_from_sequence<'a, S: AsRef<[u8]>>(&self, seq: &'a S) -> Self::SeqIter<'a> {
+        let seq = seq.as_ref();
         if seq.len() < self.kmer_length {
             ThreeBitKmerIterator {
-                current_kmer: EncodedKmer(T::zero()),
+                current_kmer: ThreeBitEncodedKmer(T::ZERO),
                 remaining:    [].iter(),
                 kmer_mask:    self.kmer_mask,
             }
@@ -234,16 +237,17 @@ where
     /// right to left. If the sequence is shorter than the `kmer_length` of the
     /// [`ThreeBitKmerEncoder`], then the iterator will be empty.
     #[inline]
-    fn iter_from_sequence_rev<'a>(&self, seq: &'a [u8]) -> ThreeBitKmerIteratorRev<'a, MAX_LEN> {
+    fn iter_from_sequence_rev<'a, S: AsRef<[u8]>>(&self, seq: &'a S) -> Self::SeqIterRev<'a> {
+        let seq = seq.as_ref();
         if seq.len() < self.kmer_length {
             ThreeBitKmerIteratorRev {
-                current_kmer: T::zero().into(),
+                current_kmer: T::ZERO.into(),
                 remaining:    [].iter(),
                 kmer_length:  self.kmer_length,
             }
         } else {
             let index = seq.len() + 1 - self.kmer_length;
-            let pre_last_kmer = self.encode_kmer(&seq[index..]).0 << Self::BITS_PER_BASE;
+            let pre_last_kmer = self.encode_kmer(&seq[index..]).0 << 3;
 
             ThreeBitKmerIteratorRev {
                 current_kmer: pre_last_kmer.into(),
@@ -259,7 +263,7 @@ where
 pub struct ThreeBitKmerIterator<'a, const MAX_LEN: usize>
 where
     KmerLen<MAX_LEN>: SupportedThreeBitKmerLen, {
-    current_kmer: EncodedKmer<MAX_LEN>,
+    current_kmer: ThreeBitEncodedKmer<MAX_LEN>,
     remaining:    std::slice::Iter<'a, u8>,
     kmer_mask:    MaxLenToType<MAX_LEN>,
 }
@@ -268,7 +272,7 @@ impl<const MAX_LEN: usize, T: Uint> Iterator for ThreeBitKmerIterator<'_, MAX_LE
 where
     KmerLen<MAX_LEN>: SupportedThreeBitKmerLen<T = T>,
 {
-    type Item = EncodedKmer<MAX_LEN>;
+    type Item = ThreeBitEncodedKmer<MAX_LEN>;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -276,7 +280,7 @@ where
         let base = *self.remaining.next()?;
         let encoded_base = ThreeBitKmerEncoder::encode_base(base);
         // Shift the k-mer to the left to make room for the new base
-        let shifted_kmer = self.current_kmer.0 << ThreeBitKmerEncoder::<MAX_LEN>::BITS_PER_BASE;
+        let shifted_kmer = self.current_kmer.0 << 3;
         // Add the new base and remove the leftmost base (to preserve the
         // length of the k-mer)
         self.current_kmer = ((shifted_kmer | encoded_base) & self.kmer_mask).into();
@@ -299,7 +303,7 @@ impl<const MAX_LEN: usize> ExactSizeIterator for ThreeBitKmerIterator<'_, MAX_LE
 pub struct ThreeBitKmerIteratorRev<'a, const MAX_LEN: usize>
 where
     KmerLen<MAX_LEN>: SupportedThreeBitKmerLen, {
-    current_kmer: EncodedKmer<MAX_LEN>,
+    current_kmer: ThreeBitEncodedKmer<MAX_LEN>,
     remaining:    std::slice::Iter<'a, u8>,
     kmer_length:  usize,
 }
@@ -308,7 +312,7 @@ impl<const MAX_LEN: usize, T: Uint> Iterator for ThreeBitKmerIteratorRev<'_, MAX
 where
     KmerLen<MAX_LEN>: SupportedThreeBitKmerLen<T = T>,
 {
-    type Item = EncodedKmer<MAX_LEN>;
+    type Item = ThreeBitEncodedKmer<MAX_LEN>;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
@@ -319,8 +323,7 @@ where
         let shifted_encoded_base = encoded_base << (3 * (self.kmer_length - 1));
         // Shift the k-mer to the right to make room for the new base and remove
         // the rightmost base, then add the new base
-        self.current_kmer =
-            ((self.current_kmer.0 >> ThreeBitKmerEncoder::<MAX_LEN>::BITS_PER_BASE) | shifted_encoded_base).into();
+        self.current_kmer = ((self.current_kmer.0 >> 3) | shifted_encoded_base).into();
         Some(self.current_kmer)
     }
 
@@ -341,9 +344,9 @@ impl<const MAX_LEN: usize> ExactSizeIterator for ThreeBitKmerIteratorRev<'_, MAX
 pub struct ThreeBitOneMismatchIter<const MAX_LEN: usize>
 where
     KmerLen<MAX_LEN>: SupportedThreeBitKmerLen, {
-    encoded_kmer:       EncodedKmer<MAX_LEN>,
+    encoded_kmer:       ThreeBitEncodedKmer<MAX_LEN>,
     kmer_length:        usize,
-    current_kmer:       EncodedKmer<MAX_LEN>,
+    current_kmer:       ThreeBitEncodedKmer<MAX_LEN>,
     current_index:      usize,
     current_base_num:   usize,
     set_mask_third_bit: MaxLenToType<MAX_LEN>,
@@ -359,14 +362,14 @@ where
     /// iterator.
     #[inline]
     #[must_use]
-    pub fn new(encoded_kmer: EncodedKmer<MAX_LEN>, kmer_length: usize) -> Self {
+    pub fn new(encoded_kmer: ThreeBitEncodedKmer<MAX_LEN>, kmer_length: usize) -> Self {
         Self {
             encoded_kmer,
             kmer_length,
             current_kmer: encoded_kmer,
             current_index: 0,
             current_base_num: 0,
-            set_mask_third_bit: MaxLenToType::<MAX_LEN>::bit_0b100(),
+            set_mask_third_bit: MaxLenToType::<MAX_LEN>::from_literal(0b100),
         }
     }
 }
@@ -375,7 +378,7 @@ impl<const MAX_LEN: usize> Iterator for ThreeBitOneMismatchIter<MAX_LEN>
 where
     KmerLen<MAX_LEN>: SupportedThreeBitKmerLen,
 {
-    type Item = EncodedKmer<MAX_LEN>;
+    type Item = ThreeBitEncodedKmer<MAX_LEN>;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {

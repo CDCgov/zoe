@@ -325,10 +325,10 @@ where
     let num_vecs = query.number_vectors();
     let profile: &Vec<Simd<T, N>> = &query.profile;
 
-    let zero = T::zero();
+    let zero = T::ZERO;
     let gap_opens = Simd::splat(query.gap_open);
     let gap_extends = Simd::splat(query.gap_extend);
-    let zeroes = Simd::splat(T::zero());
+    let zeroes = Simd::splat(T::ZERO);
     let biases = Simd::splat(query.bias);
 
     let mut load = vec![zeroes; num_vecs];
@@ -396,7 +396,7 @@ where
 
     // If we would have overflowed, return none, otherwise return the best score
     // We add one because we care if the value is equal to the MAX.
-    best.checked_addition(query.bias + T::one()).map(|_| best)
+    best.checked_addition(query.bias + T::ONE).map(|_| best)
 }
 
 #[cfg(test)]

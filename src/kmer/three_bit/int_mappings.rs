@@ -2,11 +2,20 @@ use crate::data::types::Uint;
 
 pub struct KmerLen<const MAX_LEN: usize>;
 
+// TODO: Potentially seal this
+/// Statically guarantees that a max k-mer length is marked as supported for the
+/// [`ThreeBitKmerEncoder`], as well as provides the appropriate integer type.
+///
+/// Supported max k-mer lengths include:
+/// * `2`: uses a `u8`
+/// * `3..=5`: uses a `u16`
+/// * `6..=10`: uses a `u32`
+/// * `11..=21`: uses a `u64`
+/// * `22..=42`: uses a `u128`
 pub trait SupportedThreeBitKmerLen {
     type T: Uint;
 }
 
-// Macro to implement UintType for different bit size ranges
 macro_rules! impl_kmer_int {
     ($($max:expr => $type:ty),*) => {
         $(
@@ -61,4 +70,4 @@ impl_kmer_int! {
     42 => u128
 }
 
-pub type MaxLenToType<const MAX_LEN: usize> = <KmerLen<MAX_LEN> as SupportedThreeBitKmerLen>::T;
+pub(crate) type MaxLenToType<const MAX_LEN: usize> = <KmerLen<MAX_LEN> as SupportedThreeBitKmerLen>::T;

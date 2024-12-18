@@ -23,7 +23,7 @@ pub trait KmerCounter: KmerSet + Index<Self::EncodedKmer> {
     ///
     /// [`get_checked`]: KmerCounter::get_checked
     #[inline]
-    fn get(&self, kmer: &[u8]) -> usize {
+    fn get<S: AsRef<[u8]>>(&self, kmer: S) -> usize {
         self.get_encoded(self.get_encoder().encode_kmer(kmer))
     }
 
@@ -31,7 +31,7 @@ pub trait KmerCounter: KmerSet + Index<Self::EncodedKmer> {
     /// `0` is returned. If the bases and k-mer length are not valid for the
     /// encoder associated with this [`KmerCounter`], then `None` is returned.
     #[inline]
-    fn get_checked(&self, kmer: &[u8]) -> Option<usize> {
+    fn get_checked<S: AsRef<[u8]>>(&self, kmer: S) -> Option<usize> {
         Some(self.get_encoded(self.get_encoder().encode_kmer_checked(kmer)?))
     }
 }

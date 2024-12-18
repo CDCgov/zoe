@@ -1,10 +1,13 @@
 use super::{
-    encoder::EncodedKmer,
+    encoder::ThreeBitEncodedKmer,
     int_mappings::{KmerLen, SupportedThreeBitKmerLen},
 };
-use crate::kmer::{encoder::KmerEncoder, errors::KmerError, kmer_set::KmerSet, three_bit::encoder::ThreeBitKmerEncoder};
+use crate::{
+    kmer::{encoder::KmerEncoder, errors::KmerError, kmer_set::KmerSet, three_bit::encoder::ThreeBitKmerEncoder},
+    prelude::Nucleotides,
+};
 use std::{
-    collections::HashSet,
+    collections::{hash_set, HashSet},
     hash::{BuildHasher, RandomState},
 };
 
@@ -15,7 +18,7 @@ use std::{
 pub struct ThreeBitKmerSet<const MAX_LEN: usize, S = RandomState>
 where
     KmerLen<MAX_LEN>: SupportedThreeBitKmerLen, {
-    set:     HashSet<EncodedKmer<MAX_LEN>, S>,
+    set:     HashSet<ThreeBitEncodedKmer<MAX_LEN>, S>,
     encoder: ThreeBitKmerEncoder<MAX_LEN>,
 }
 
@@ -62,8 +65,16 @@ impl<const MAX_LEN: usize, S: BuildHasher> KmerSet for ThreeBitKmerSet<MAX_LEN, 
 where
     KmerLen<MAX_LEN>: SupportedThreeBitKmerLen,
 {
-    type EncodedKmer = EncodedKmer<MAX_LEN>;
+    type EncodedKmer = ThreeBitEncodedKmer<MAX_LEN>;
     type Encoder = ThreeBitKmerEncoder<MAX_LEN>;
+    type DecodedIter<'a>
+        = ThreeBitKmerSetDecodedIter<'a, MAX_LEN>
+    where
+        S: 'a;
+    type EncodedIter<'a>
+        = hash_set::Iter<'a, ThreeBitEncodedKmer<MAX_LEN>>
+    where
+        S: 'a;
 
     /// Get the encoder used for the [`ThreeBitKmerSet`].
     #[inline]
@@ -85,42 +96,83 @@ where
     fn contains_encoded(&self, kmer: Self::EncodedKmer) -> bool {
         self.set.contains(&kmer)
     }
+
+    /// Iterate over the decoded k-mers in the set.
+    #[inline]
+    fn iter_decoded(&self) -> Self::DecodedIter<'_> {
+        Self::DecodedIter {
+            set_into_iter: self.set.iter(),
+            encoder:       &self.encoder,
+        }
+    }
+
+    /// Iterate over the encoded k-mers in the set.
+    #[inline]
+    fn iter_encoded(&self) -> Self::EncodedIter<'_> {
+        self.set.iter()
+    }
 }
 
 impl<const MAX_LEN: usize, S> IntoIterator for ThreeBitKmerSet<MAX_LEN, S>
 where
     KmerLen<MAX_LEN>: SupportedThreeBitKmerLen,
 {
-    type Item = EncodedKmer<MAX_LEN>;
-    type IntoIter = ThreeBitKmerSetIntoIter<MAX_LEN, S>;
+    type Item = Nucleotides;
+    type IntoIter = ThreeBitKmerSetDecodedIntoIter<MAX_LEN, S>;
 
     #[inline]
-    fn into_iter(self) -> ThreeBitKmerSetIntoIter<MAX_LEN, S> {
-        ThreeBitKmerSetIntoIter {
+    fn into_iter(self) -> Self::IntoIter {
+        Self::IntoIter {
             set_into_iter: self.set.into_iter(),
+            encoder:       self.encoder,
         }
     }
 }
 
 /// An iterator over a [`ThreeBitKmerSet`] or [`ThreeBitOneMismatchKmerSet`]
-/// yielding decoded k-mers.
+/// yielding decoded k-mers. The iterator consumes the original set.
 ///
 /// [`ThreeBitOneMismatchKmerSet`]:
 ///     super::kmer_set_one_mismatch::ThreeBitOneMismatchKmerSet
-pub struct ThreeBitKmerSetIntoIter<const MAX_LEN: usize, S>
+pub struct ThreeBitKmerSetDecodedIntoIter<const MAX_LEN: usize, S>
 where
     KmerLen<MAX_LEN>: SupportedThreeBitKmerLen, {
-    pub(crate) set_into_iter: <HashSet<EncodedKmer<MAX_LEN>, S> as IntoIterator>::IntoIter,
+    pub(crate) set_into_iter: <HashSet<ThreeBitEncodedKmer<MAX_LEN>, S> as IntoIterator>::IntoIter,
+    pub(crate) encoder:       ThreeBitKmerEncoder<MAX_LEN>,
 }
 
-impl<const MAX_LEN: usize, S> Iterator for ThreeBitKmerSetIntoIter<MAX_LEN, S>
+impl<const MAX_LEN: usize, S> Iterator for ThreeBitKmerSetDecodedIntoIter<MAX_LEN, S>
 where
     KmerLen<MAX_LEN>: SupportedThreeBitKmerLen,
 {
-    type Item = EncodedKmer<MAX_LEN>;
+    type Item = Nucleotides;
 
     #[inline]
-    fn next(&mut self) -> Option<EncodedKmer<MAX_LEN>> {
-        self.set_into_iter.next()
+    fn next(&mut self) -> Option<Nucleotides> {
+        self.set_into_iter.next().map(|x| self.encoder.decode_kmer(x))
+    }
+}
+
+/// An iterator over a [`ThreeBitKmerSet`] or [`ThreeBitOneMismatchKmerSet`]
+/// yielding decoded k-mers. The iterator takes the original set by reference.
+///
+/// [`ThreeBitOneMismatchKmerSet`]:
+///     super::kmer_set_one_mismatch::ThreeBitOneMismatchKmerSet
+pub struct ThreeBitKmerSetDecodedIter<'a, const MAX_LEN: usize>
+where
+    KmerLen<MAX_LEN>: SupportedThreeBitKmerLen, {
+    pub(crate) set_into_iter: hash_set::Iter<'a, ThreeBitEncodedKmer<MAX_LEN>>,
+    pub(crate) encoder:       &'a ThreeBitKmerEncoder<MAX_LEN>,
+}
+
+impl<const MAX_LEN: usize> Iterator for ThreeBitKmerSetDecodedIter<'_, MAX_LEN>
+where
+    KmerLen<MAX_LEN>: SupportedThreeBitKmerLen,
+{
+    type Item = Nucleotides;
+
+    #[inline]
+    fn next(&mut self) -> Option<Nucleotides> {
+        self.set_into_iter.next().map(|x| self.encoder.decode_kmer(*x))
     }
 }

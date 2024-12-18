@@ -18,11 +18,18 @@ pub trait Int:
     + Shl<usize, Output = Self>
     + ShrAssign<usize>
     + ShlAssign<usize> {
-    fn zero() -> Self;
-    fn one() -> Self;
+    const ZERO: Self;
+    const ONE: Self;
 
-    fn bit_0b100() -> Self;
-    fn bit_0b111() -> Self;
+    fn from_literal<T: Int>(num: T) -> Self {
+        let mut out = Self::ZERO;
+        let mut i = T::ZERO;
+        while i < num {
+            out += Self::ONE;
+            i += T::ONE;
+        }
+        out
+    }
 
     fn as_usize(self) -> usize;
     fn checked_addition(&self, other: Self) -> Option<Self>;
@@ -37,19 +44,10 @@ macro_rules! impl_int {
     { $($ty:ty),* } => {
         $(
         impl Int for $ty {
-            #[inline]
-            fn zero() -> Self { 0 }
-            #[inline]
-            fn one() -> Self { 1 }
+            const ZERO: $ty = 0;
+            const ONE: $ty = 1;
 
-            #[inline]
-            fn bit_0b100() -> Self { 0b100 }
-            #[inline]
-            fn bit_0b111() -> Self { 0b111 }
-
-            // TODO: FIX CLIPPY
-            #[allow(renamed_and_removed_lints)]
-            #[allow(clippy::cast_sign_loss, cast_possible_truncation)]
+            #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
             #[inline]
             fn as_usize(self) -> usize { self as usize }
 

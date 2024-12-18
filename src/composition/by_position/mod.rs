@@ -15,7 +15,7 @@ where
 {
     #[must_use]
     pub fn new() -> Self {
-        NucleotideCounts { inner: [T::zero(); 8] }
+        NucleotideCounts { inner: [T::ZERO; 8] }
     }
 
     #[must_use]
@@ -77,7 +77,7 @@ where
     pub fn total_actg(&self) -> T
     where
         T: Add<Output = T>, {
-        self.inner[0..4].iter().fold(T::zero(), |acc, &v| acc + v)
+        self.inner[0..4].iter().fold(T::ZERO, |acc, &v| acc + v)
     }
 
     /// Total count for A, C, G, T, N
@@ -85,7 +85,7 @@ where
     pub fn total_actgn(&self) -> T
     where
         T: Add<Output = T>, {
-        self.inner[0..5].iter().fold(T::zero(), |acc, &v| acc + v)
+        self.inner[0..5].iter().fold(T::ZERO, |acc, &v| acc + v)
     }
 
     /// Total count for A, C, G, T, N
@@ -93,7 +93,7 @@ where
     pub fn total_acgtn_gap(&self) -> T
     where
         T: Add<Output = T>, {
-        self.inner[0..5].iter().fold(T::zero(), |acc, &v| acc + v)
+        self.inner[0..5].iter().fold(T::ZERO, |acc, &v| acc + v)
     }
 
     /// Total valid IUPAC codes, including regular gaps.
@@ -101,7 +101,7 @@ where
     pub fn total_valid(&self) -> T
     where
         T: Add<Output = T>, {
-        self.inner[0..7].iter().fold(T::zero(), |acc, &v| acc + v)
+        self.inner[0..7].iter().fold(T::ZERO, |acc, &v| acc + v)
     }
 
     /// The most frequent allele for A, C, G, T, N
@@ -151,8 +151,8 @@ where
 {
     #[inline]
     fn from(b: u8) -> Self {
-        let mut nc = NucleotideCounts { inner: [T::zero(); 8] };
-        nc.inner[base_to_inner_index(b)] = T::one();
+        let mut nc = NucleotideCounts { inner: [T::ZERO; 8] };
+        nc.inner[base_to_inner_index(b)] = T::ONE;
         nc
     }
 }
@@ -191,7 +191,7 @@ where
 
     #[inline]
     fn add(mut self, other: u8) -> Self {
-        self.inner[base_to_inner_index(other)] += T::one();
+        self.inner[base_to_inner_index(other)] += T::ONE;
         self
     }
 }
@@ -202,7 +202,7 @@ where
 {
     #[inline]
     fn add_assign(&mut self, other: u8) {
-        self.inner[base_to_inner_index(other)] += T::one();
+        self.inner[base_to_inner_index(other)] += T::ONE;
     }
 }
 
