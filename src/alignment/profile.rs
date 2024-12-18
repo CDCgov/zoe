@@ -142,7 +142,7 @@ where
 
 impl<T, const N: usize, const S: usize> StripedProfile<T, N, S>
 where
-    T: Uint + From<u8>,
+    T: Uint + SimdElement + From<u8>,
     LaneCount<N>: SupportedLaneCount,
 {
     /// Creates a new striped profile from a sequence and scoring matrix.

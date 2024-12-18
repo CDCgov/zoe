@@ -1,11 +1,11 @@
 use std::{
     hash::Hash,
     ops::{Add, AddAssign, BitAnd, BitOr, Not, Shl, ShlAssign, Shr, ShrAssign, Sub},
-    simd::SimdElement,
 };
 
 pub trait Int:
-    SimdElement
+    Sized
+    + Copy
     + Ord
     + Hash
     + Add<Output = Self>
@@ -71,5 +71,5 @@ macro_rules! impl_uint {
     }
 }
 
-impl_int!(i8, i16, i32, i64, isize, u8, u16, u32, u64, usize);
-impl_uint!(u8, u16, u32, u64, usize);
+impl_int!(i8, i16, i32, i64, isize, i128, u8, u16, u32, u64, usize, u128);
+impl_uint!(u8, u16, u32, u64, usize, u128);

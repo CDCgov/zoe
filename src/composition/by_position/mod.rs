@@ -1,7 +1,7 @@
 use crate::data::types::nucleotides::Nucleotides;
 use crate::data::{constants::alphas::NUCLEIC_IUPAC, types::Uint};
 use std::ops::{Add, AddAssign};
-use std::simd::prelude::*;
+use std::simd::{prelude::*, SimdElement};
 
 /// Nucleotide count statistics for A, C, G, T/U, N, -, other, invalid.
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
@@ -159,7 +159,7 @@ where
 
 impl<T> AddAssign for NucleotideCounts<T>
 where
-    T: Uint,
+    T: Uint + SimdElement,
     Simd<T, 8>: Add<Output = Simd<T, 8>>,
 {
     #[inline]
@@ -171,7 +171,7 @@ where
 
 impl<T> Add for NucleotideCounts<T>
 where
-    T: Uint,
+    T: Uint + SimdElement,
     Simd<T, 8>: Add<Output = Simd<T, 8>>,
 {
     type Output = Self;

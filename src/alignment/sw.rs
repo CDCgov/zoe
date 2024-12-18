@@ -315,7 +315,7 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
 pub fn sw_simd_score<T, const N: usize, const S: usize>(reference: &[u8], query: &StripedProfile<T, N, S>) -> Option<T>
 where
-    T: Uint + From<u8> + Default + PartialEq + std::ops::Add<Output = T> + std::fmt::Debug,
+    T: Uint + SimdElement + From<u8> + Default + PartialEq + std::ops::Add<Output = T> + std::fmt::Debug,
     LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdUint<Scalar = T>
         + Shl<T, Output = Simd<T, N>>

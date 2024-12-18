@@ -1,24 +1,28 @@
-use crate::{
-    data::types::Uint,
-    kmer::{encoder::KmerEncoder, errors::KmerError, kmer_set::KmerSet, three_bit::encoder::ThreeBitKmerEncoder},
+use super::{
+    encoder::EncodedKmer,
+    int_mappings::{KmerLen, SupportedThreeBitKmerLen},
 };
+use crate::kmer::{encoder::KmerEncoder, errors::KmerError, kmer_set::KmerSet, three_bit::encoder::ThreeBitKmerEncoder};
 use std::{
     collections::HashSet,
     hash::{BuildHasher, RandomState},
 };
 
-use super::encoder::EncodedKmer;
-
 /// A [`KmerSet`] utilizing [`ThreeBitKmerEncoder`] as its encoder. This allows
 /// for `A`, `C`, `G`, `T`, and `N` to all be represented. This set does not
 /// preserve case or the distinction between `T` and `U`. `N` is used as a
 /// catch-all for bases that are not `ACGTUNacgtun`.
-pub struct ThreeBitKmerSet<T: Uint, S = RandomState> {
-    set:     HashSet<EncodedKmer<T>, S>,
-    encoder: ThreeBitKmerEncoder<T>,
+pub struct ThreeBitKmerSet<const MAX_LEN: usize, S = RandomState>
+where
+    KmerLen<MAX_LEN>: SupportedThreeBitKmerLen, {
+    set:     HashSet<EncodedKmer<MAX_LEN>, S>,
+    encoder: ThreeBitKmerEncoder<MAX_LEN>,
 }
 
-impl<T: Uint> ThreeBitKmerSet<T> {
+impl<const MAX_LEN: usize> ThreeBitKmerSet<MAX_LEN>
+where
+    KmerLen<MAX_LEN>: SupportedThreeBitKmerLen,
+{
     /// Creates a new [`ThreeBitKmerSet`] with the specified k-mer length.
     ///
     /// # Errors
@@ -34,7 +38,10 @@ impl<T: Uint> ThreeBitKmerSet<T> {
     }
 }
 
-impl<T: Uint, S> ThreeBitKmerSet<T, S> {
+impl<const MAX_LEN: usize, S> ThreeBitKmerSet<MAX_LEN, S>
+where
+    KmerLen<MAX_LEN>: SupportedThreeBitKmerLen,
+{
     /// Creates a new [`ThreeBitKmerSet`] with the specified k-mer length and
     /// hasher.
     ///
@@ -51,20 +58,23 @@ impl<T: Uint, S> ThreeBitKmerSet<T, S> {
     }
 }
 
-impl<T: Uint, S: BuildHasher> KmerSet for ThreeBitKmerSet<T, S> {
-    type EncodedKmer = EncodedKmer<T>;
-    type Encoder = ThreeBitKmerEncoder<T>;
+impl<const MAX_LEN: usize, S: BuildHasher> KmerSet for ThreeBitKmerSet<MAX_LEN, S>
+where
+    KmerLen<MAX_LEN>: SupportedThreeBitKmerLen,
+{
+    type EncodedKmer = EncodedKmer<MAX_LEN>;
+    type Encoder = ThreeBitKmerEncoder<MAX_LEN>;
 
     /// Get the encoder used for the [`ThreeBitKmerSet`].
     #[inline]
-    fn get_encoder(&self) -> &ThreeBitKmerEncoder<T> {
+    fn get_encoder(&self) -> &Self::Encoder {
         &self.encoder
     }
 
     /// Insert an encoded k-mer into the set. The encoded k-mer must have been
     /// generated using the encoder associated with this [`ThreeBitKmerSet`].
     #[inline]
-    fn insert_encoded_kmer(&mut self, encoded_kmer: EncodedKmer<T>) {
+    fn insert_encoded_kmer(&mut self, encoded_kmer: Self::EncodedKmer) {
         self.set.insert(encoded_kmer);
     }
 
@@ -72,17 +82,20 @@ impl<T: Uint, S: BuildHasher> KmerSet for ThreeBitKmerSet<T, S> {
     /// must have been generated using the encoder associated with this
     /// [`ThreeBitKmerSet`].
     #[inline]
-    fn contains_encoded(&self, kmer: EncodedKmer<T>) -> bool {
+    fn contains_encoded(&self, kmer: Self::EncodedKmer) -> bool {
         self.set.contains(&kmer)
     }
 }
 
-impl<T: Uint, S> IntoIterator for ThreeBitKmerSet<T, S> {
-    type Item = EncodedKmer<T>;
-    type IntoIter = ThreeBitKmerSetIntoIter<T, S>;
+impl<const MAX_LEN: usize, S> IntoIterator for ThreeBitKmerSet<MAX_LEN, S>
+where
+    KmerLen<MAX_LEN>: SupportedThreeBitKmerLen,
+{
+    type Item = EncodedKmer<MAX_LEN>;
+    type IntoIter = ThreeBitKmerSetIntoIter<MAX_LEN, S>;
 
     #[inline]
-    fn into_iter(self) -> ThreeBitKmerSetIntoIter<T, S> {
+    fn into_iter(self) -> ThreeBitKmerSetIntoIter<MAX_LEN, S> {
         ThreeBitKmerSetIntoIter {
             set_into_iter: self.set.into_iter(),
         }
@@ -94,15 +107,20 @@ impl<T: Uint, S> IntoIterator for ThreeBitKmerSet<T, S> {
 ///
 /// [`ThreeBitOneMismatchKmerSet`]:
 ///     super::kmer_set_one_mismatch::ThreeBitOneMismatchKmerSet
-pub struct ThreeBitKmerSetIntoIter<T, S> {
-    pub(crate) set_into_iter: <HashSet<EncodedKmer<T>, S> as IntoIterator>::IntoIter,
+pub struct ThreeBitKmerSetIntoIter<const MAX_LEN: usize, S>
+where
+    KmerLen<MAX_LEN>: SupportedThreeBitKmerLen, {
+    pub(crate) set_into_iter: <HashSet<EncodedKmer<MAX_LEN>, S> as IntoIterator>::IntoIter,
 }
 
-impl<T: Uint, S> Iterator for ThreeBitKmerSetIntoIter<T, S> {
-    type Item = EncodedKmer<T>;
+impl<const MAX_LEN: usize, S> Iterator for ThreeBitKmerSetIntoIter<MAX_LEN, S>
+where
+    KmerLen<MAX_LEN>: SupportedThreeBitKmerLen,
+{
+    type Item = EncodedKmer<MAX_LEN>;
 
     #[inline]
-    fn next(&mut self) -> Option<EncodedKmer<T>> {
+    fn next(&mut self) -> Option<EncodedKmer<MAX_LEN>> {
         self.set_into_iter.next()
     }
 }

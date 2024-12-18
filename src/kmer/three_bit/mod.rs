@@ -1,4 +1,5 @@
 pub mod encoder;
+pub mod int_mappings;
 pub mod kmer_counter;
 pub mod kmer_set;
 pub mod kmer_set_one_mismatch;
