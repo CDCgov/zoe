@@ -17,20 +17,21 @@ where
     /// The maximum possible k-mer length representable with this
     /// [`KmerEncoder`].
     const MAX_KMER_LENGTH: usize;
+
     /// The type of an encoded base.
-    type Base;
+    type EncodedBase;
     /// The type of an encoded k-mer.
-    type Kmer;
+    type EncodedKmer: From<Self::EncodedBase>;
     /// An iterator over the encoded overlapping k-mers in a sequence, from left
     /// to right.
-    type SeqIter<'a>: Iterator<Item = Self::Kmer>;
+    type SeqIter<'a>: Iterator<Item = Self::EncodedKmer>;
     /// An iterator over the encoded overlapping k-mers in a sequence, from right
     /// to left.
-    type SeqIterRev<'a>: Iterator<Item = Self::Kmer>;
+    type SeqIterRev<'a>: Iterator<Item = Self::EncodedKmer>;
     /// An iterator over all encoded k-mers that are exactly a Hamming distance
     /// of one away from a provided k-mer. The original k-mer is not included in
     /// the iterator.
-    type OneMismatchIter: Iterator<Item = Self::Kmer>;
+    type OneMismatchIter: Iterator<Item = Self::EncodedKmer>;
 
     /// Creates a new [`KmerEncoder`] with the specified k-mer length.
     ///
@@ -47,49 +48,49 @@ where
     /// whether the base will be valid.
     ///
     /// [`encode_base_checked`]: KmerEncoder::encode_base_checked
-    fn encode_base(base: u8) -> Self::Base;
+    fn encode_base(base: u8) -> Self::EncodedBase;
 
     /// Encode a single base. If the base is not valid for the given
     /// [`KmerEncoder`], then `None` is returned.
-    fn encode_base_checked(base: u8) -> Option<Self::Base>;
+    fn encode_base_checked(base: u8) -> Option<Self::EncodedBase>;
 
     /// Decode a single base. The base is assumed to be valid for the given
     /// [`KmerEncoder`]. Consider [`decode_base_checked`] when it is not known
     /// whether the base will be valid.
     ///
     /// [`decode_base_checked`]: KmerEncoder::decode_base_checked
-    fn decode_base(encoded_base: Self::Base) -> u8;
+    fn decode_base(encoded_base: Self::EncodedBase) -> u8;
 
     /// Decode a single base. If the base is not valid for the given
     /// [`KmerEncoder`], then `None` is returned.
-    fn decode_base_checked(encoded_base: Self::Base) -> Option<u8>;
+    fn decode_base_checked(encoded_base: Self::EncodedBase) -> Option<u8>;
 
-    /// Encode a k-mer. The bases and k-mer length are assumed to be valid for the
-    /// given [`KmerEncoder`]. Consider [`encode_kmer_checked`] when it is not
-    /// known whether the bases and k-mer length will be valid.
+    /// Encode a k-mer. The bases and k-mer length are assumed to be valid for
+    /// the given [`KmerEncoder`]. Consider [`encode_kmer_checked`] when it is
+    /// not known whether the bases and k-mer length will be valid.
     ///
     /// [`encode_kmer_checked`]: KmerEncoder::encode_kmer_checked
-    fn encode_kmer(&self, kmer: &[u8]) -> Self::Kmer;
+    fn encode_kmer(&self, kmer: &[u8]) -> Self::EncodedKmer;
 
-    /// Encode a k-mer. If the bases and k-mer length are not valid for the given
-    /// [`KmerEncoder`], then `None` is returned.
-    fn encode_kmer_checked(&self, kmer: &[u8]) -> Option<Self::Kmer>;
+    /// Encode a k-mer. If the bases and k-mer length are not valid for the
+    /// given [`KmerEncoder`], then `None` is returned.
+    fn encode_kmer_checked(&self, kmer: &[u8]) -> Option<Self::EncodedKmer>;
 
-    /// Decode a k-mer. The bases and k-mer length are assumed to be valid for the
-    /// given [`KmerEncoder`]. Consider [`decode_kmer_checked`] when it is not
-    /// known whether the bases and k-mer length will be valid.
+    /// Decode a k-mer. The bases and k-mer length are assumed to be valid for
+    /// the given [`KmerEncoder`]. Consider [`decode_kmer_checked`] when it is
+    /// not known whether the bases and k-mer length will be valid.
     ///
     /// [`decode_kmer_checked`]: KmerEncoder::decode_kmer_checked
-    fn decode_kmer(&self, encoded_kmer: Self::Kmer) -> Vec<u8>;
+    fn decode_kmer(&self, encoded_kmer: Self::EncodedKmer) -> Vec<u8>;
 
-    /// Decode a k-mer. If the bases and k-mer length are not valid for the given
-    /// [`KmerEncoder`], then `None` is returned.
-    fn decode_kmer_checked(&self, encoded_kmer: Self::Kmer) -> Option<Vec<u8>>;
+    /// Decode a k-mer. If the bases and k-mer length are not valid for the
+    /// given [`KmerEncoder`], then `None` is returned.
+    fn decode_kmer_checked(&self, encoded_kmer: Self::EncodedKmer) -> Option<Vec<u8>>;
 
     /// Get an iterator over all encoded k-mers that are exactly a Hamming
     /// distance of one away from the provided k-mer. The original k-mer is not
     /// included in the iterator.
-    fn get_variants_one_mismatch(&self, encoded_kmer: Self::Kmer) -> Self::OneMismatchIter;
+    fn get_variants_one_mismatch(&self, encoded_kmer: Self::EncodedKmer) -> Self::OneMismatchIter;
 
     /// Get an iterator over the encoded overlapping k-mers in a sequence, from
     /// left to right. If the sequence is shorter than the k-mer length of the

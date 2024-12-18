@@ -1,4 +1,7 @@
-use crate::kmer::{encoder::KmerEncoder, errors::KmerError, kmer_set::KmerSet, three_bit::encoder::ThreeBitKmerEncoder};
+use crate::{
+    data::types::Uint,
+    kmer::{encoder::KmerEncoder, errors::KmerError, kmer_set::KmerSet, three_bit::encoder::ThreeBitKmerEncoder},
+};
 use std::{
     collections::HashSet,
     hash::{BuildHasher, RandomState},
@@ -10,12 +13,12 @@ use super::encoder::EncodedKmer;
 /// for `A`, `C`, `G`, `T`, and `N` to all be represented. This set does not
 /// preserve case or the distinction between `T` and `U`. `N` is used as a
 /// catch-all for bases that are not `ACGTUNacgtun`.
-pub struct ThreeBitKmerSet<S = RandomState> {
-    set:     HashSet<EncodedKmer, S>,
-    encoder: ThreeBitKmerEncoder,
+pub struct ThreeBitKmerSet<T: Uint, S = RandomState> {
+    set:     HashSet<EncodedKmer<T>, S>,
+    encoder: ThreeBitKmerEncoder<T>,
 }
 
-impl ThreeBitKmerSet {
+impl<T: Uint> ThreeBitKmerSet<T> {
     /// Creates a new [`ThreeBitKmerSet`] with the specified k-mer length.
     ///
     /// # Errors
@@ -31,7 +34,7 @@ impl ThreeBitKmerSet {
     }
 }
 
-impl<S> ThreeBitKmerSet<S> {
+impl<T: Uint, S> ThreeBitKmerSet<T, S> {
     /// Creates a new [`ThreeBitKmerSet`] with the specified k-mer length and
     /// hasher.
     ///
@@ -48,20 +51,20 @@ impl<S> ThreeBitKmerSet<S> {
     }
 }
 
-impl<S: BuildHasher> KmerSet for ThreeBitKmerSet<S> {
-    type Kmer = EncodedKmer;
-    type Encoder = ThreeBitKmerEncoder;
+impl<T: Uint, S: BuildHasher> KmerSet for ThreeBitKmerSet<T, S> {
+    type EncodedKmer = EncodedKmer<T>;
+    type Encoder = ThreeBitKmerEncoder<T>;
 
     /// Get the encoder used for the [`ThreeBitKmerSet`].
     #[inline]
-    fn get_encoder(&self) -> &ThreeBitKmerEncoder {
+    fn get_encoder(&self) -> &ThreeBitKmerEncoder<T> {
         &self.encoder
     }
 
     /// Insert an encoded k-mer into the set. The encoded k-mer must have been
     /// generated using the encoder associated with this [`ThreeBitKmerSet`].
     #[inline]
-    fn insert_encoded_kmer(&mut self, encoded_kmer: EncodedKmer) {
+    fn insert_encoded_kmer(&mut self, encoded_kmer: EncodedKmer<T>) {
         self.set.insert(encoded_kmer);
     }
 
@@ -69,17 +72,17 @@ impl<S: BuildHasher> KmerSet for ThreeBitKmerSet<S> {
     /// must have been generated using the encoder associated with this
     /// [`ThreeBitKmerSet`].
     #[inline]
-    fn contains_encoded(&self, kmer: EncodedKmer) -> bool {
+    fn contains_encoded(&self, kmer: EncodedKmer<T>) -> bool {
         self.set.contains(&kmer)
     }
 }
 
-impl<S> IntoIterator for ThreeBitKmerSet<S> {
-    type Item = EncodedKmer;
-    type IntoIter = ThreeBitKmerSetIntoIter<S>;
+impl<T: Uint, S> IntoIterator for ThreeBitKmerSet<T, S> {
+    type Item = EncodedKmer<T>;
+    type IntoIter = ThreeBitKmerSetIntoIter<T, S>;
 
     #[inline]
-    fn into_iter(self) -> ThreeBitKmerSetIntoIter<S> {
+    fn into_iter(self) -> ThreeBitKmerSetIntoIter<T, S> {
         ThreeBitKmerSetIntoIter {
             set_into_iter: self.set.into_iter(),
         }
@@ -91,15 +94,15 @@ impl<S> IntoIterator for ThreeBitKmerSet<S> {
 ///
 /// [`ThreeBitOneMismatchKmerSet`]:
 ///     super::kmer_set_one_mismatch::ThreeBitOneMismatchKmerSet
-pub struct ThreeBitKmerSetIntoIter<S> {
-    pub(crate) set_into_iter: <HashSet<EncodedKmer, S> as IntoIterator>::IntoIter,
+pub struct ThreeBitKmerSetIntoIter<T, S> {
+    pub(crate) set_into_iter: <HashSet<EncodedKmer<T>, S> as IntoIterator>::IntoIter,
 }
 
-impl<S> Iterator for ThreeBitKmerSetIntoIter<S> {
-    type Item = EncodedKmer;
+impl<T: Uint, S> Iterator for ThreeBitKmerSetIntoIter<T, S> {
+    type Item = EncodedKmer<T>;
 
     #[inline]
-    fn next(&mut self) -> Option<EncodedKmer> {
+    fn next(&mut self) -> Option<EncodedKmer<T>> {
         self.set_into_iter.next()
     }
 }

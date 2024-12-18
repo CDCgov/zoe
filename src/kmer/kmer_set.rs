@@ -1,4 +1,5 @@
 use crate::kmer::encoder::KmerEncoder;
+use std::hash::Hash;
 
 /// [`KmerSet`] represents a set of encoded k-mers along with relevant methods
 /// that can be applied using it. For instance, a [`KmerSet`] can be used to
@@ -11,21 +12,21 @@ use crate::kmer::encoder::KmerEncoder;
 /// [`insert_from_sequence`]: KmerSet::insert_from_sequence
 pub trait KmerSet: IntoIterator {
     /// The type of an encoded kmer.
-    type Kmer;
+    type EncodedKmer: Hash;
     /// The type of the encoder.
-    type Encoder: KmerEncoder<Kmer = Self::Kmer>;
+    type Encoder: KmerEncoder<EncodedKmer = Self::EncodedKmer>;
 
     /// Get the encoder used for the [`KmerSet`].
     fn get_encoder(&self) -> &Self::Encoder;
 
     /// Insert an encoded k-mer into the set. The encoded k-mer must have been
     /// generated using the encoder associated with this [`KmerSet`].
-    fn insert_encoded_kmer(&mut self, encoded_kmer: Self::Kmer);
+    fn insert_encoded_kmer(&mut self, encoded_kmer: Self::EncodedKmer);
 
     /// Return whether an encoded k-mer is present in the set. The encoded k-mer
     /// must have been generated using the encoder associated with this
     /// [`KmerSet`].
-    fn contains_encoded(&self, kmer: Self::Kmer) -> bool;
+    fn contains_encoded(&self, kmer: Self::EncodedKmer) -> bool;
 
     /// Insert a k-mer into the set. The bases and k-mer length are assumed to be
     /// valid for the [`KmerEncoder`] associated with this [`KmerSet`]. Consider
