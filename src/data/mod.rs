@@ -28,6 +28,8 @@ pub use constants::{
     matrices::{BiasedWeightMatrix, SimpleWeightMatrix},
 };
 
+/// A private module with helper functions for things that look like `[u8; N]`
+pub(crate) mod array_types;
 /// A private module for helper functions on [`u8`].
 pub(crate) mod byte_types;
 /// A private module for helper alphabets, maps, and matrices that can be used
