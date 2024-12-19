@@ -42,7 +42,28 @@ mod test {
     use super::*;
 
     #[test]
+    fn test_make_uppercase() {
+        assert_eq!(make_uppercase(b""), *b"");
+        assert_eq!(make_uppercase(b"A"), *b"A");
+        assert_eq!(make_uppercase(b"a"), *b"A");
+        assert_eq!(make_uppercase(b"1"), *b"1");
+        assert_eq!(make_uppercase(b"ACGTN1acgtn1 "), *b"ACGTN1ACGTN1 ");
+    }
+
+    #[test]
+    fn test_position() {
+        assert_eq!(position(b"", b'A'), None);
+        assert_eq!(position(b"A", b'A'), Some(0));
+        assert_eq!(position(b"a", b'A'), None);
+        assert_eq!(position(b"Aa1", b'a'), Some(1));
+        assert_eq!(position(b"ACGTN1acgtn1 ", b'n'), Some(10));
+    }
+
+    #[test]
     fn test_is_uniqe() {
+        assert!(is_unique(b""), "Should be true!");
+        assert!(is_unique(b"A"), "Should be true!");
+        assert!(!is_unique(b"AA"), "Should be false!");
         assert!(is_unique(b"ACGTN"), "Should be true!");
         assert!(!is_unique(b"ACGTNA"), "Should be false!");
     }

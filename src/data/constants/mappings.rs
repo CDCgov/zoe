@@ -6,7 +6,8 @@ use std::{ops::Index, sync::LazyLock};
 
 use self::array_types::position;
 
-/// Maps bytes to themselves but valid IUPAC nucleotides to their reverse complement.
+/// Maps bytes to themselves but valid IUPAC nucleotides to their reverse
+/// complement.
 #[allow(clippy::cast_possible_truncation)]
 pub(crate) const TO_REVERSE_COMPLEMENT: [u8; 256] = {
     let mut comp = [0u8; 256];
@@ -28,8 +29,8 @@ pub(crate) const TO_REVERSE_COMPLEMENT: [u8; 256] = {
     comp
 };
 
-/// A boolean mapping of all valid IUPAC nucleotide codes. Useful for
-/// sequence filtering.
+/// A boolean mapping of all valid IUPAC nucleotide codes. Useful for sequence
+/// filtering.
 pub(crate) const IS_IUPAC_BASE: [bool; 256] = {
     let mut v = [false; 256];
     let mut i = 0;
@@ -86,8 +87,8 @@ pub(crate) const TO_DNA_UC: [u8; 256] = {
     v
 };
 
-#[allow(clippy::cast_possible_truncation)]
 /// Used to convert any valid IUPAC DNA to uppercase ACGTN.
+#[allow(clippy::cast_possible_truncation)]
 pub(crate) const IUPAC_TO_DNA_CANONICAL_UPPER: [u8; 256] = {
     const FROM_BYTE: &[u8; 32] = b"acgturyswkmbdhvnACGTURYSWKMBDHVN";
     const DEST_BYTE: &[u8; 32] = b"ACGTTNNNNNNNNNNNACGTTNNNNNNNNNNN";
@@ -107,8 +108,8 @@ pub(crate) const IUPAC_TO_DNA_CANONICAL_UPPER: [u8; 256] = {
     v
 };
 
-#[allow(clippy::cast_possible_truncation)]
 /// Used to convert any valid IUPAC DNA to ACGTN.
+#[allow(clippy::cast_possible_truncation)]
 pub(crate) const IUPAC_TO_DNA_CANONICAL: [u8; 256] = {
     const FROM_BYTE: &[u8; 32] = b"acgturyswkmbdhvnACGTURYSWKMBDHVN";
     const DEST_BYTE: &[u8; 32] = b"acgttnnnnnnnnnnnACGTTNNNNNNNNNNN";
@@ -154,19 +155,19 @@ pub struct ByteIndexMap<const KEYS: usize> {
 impl<const S: usize> ByteIndexMap<S> {
     /// Create a new [`ByteIndexMap`] struct to represent a mapping between
     /// bytes and indices. For example, this could be a map from DNA bases to
-    /// profile indices.
-    ///
-    /// If `catch_all` is not present in the `byte_keys`, it is appended as an
-    /// additional index.
+    /// profile indices. Any byte that is not specified in `byte_keys` is mapped
+    /// to the same thing as `catch_all`.
     ///
     /// # Panics
-    /// No duplicates can be present in `byte_keys`.
+    /// No duplicates can be present in `byte_keys`. `catch_all` must be present
+    /// in `byte_keys`.
     #[allow(clippy::cast_possible_truncation)]
     #[must_use]
     pub const fn new(byte_keys: [u8; S], catch_all: u8) -> Self {
         assert!(array_types::is_unique(&byte_keys));
 
-        let catch_all_index = Self::catch_all_index(&byte_keys, catch_all);
+        let catch_all_index =
+            position(&byte_keys, catch_all).expect("The catch_all must be present in the byte_keys.") as u8;
         let mut out = ByteIndexMap {
             index_map: [catch_all_index; 256],
             byte_keys,
@@ -187,18 +188,17 @@ impl<const S: usize> ByteIndexMap<S> {
     /// bytes and indices. For example, this could be a map from DNA bases to
     /// profile indices. Both `byte_keys` and `catch_all` ignore case.
     ///
-    /// If `catch_all` is not present in the `byte_keys`, it is appended as an
-    /// additional index.
-    ///
     /// # Panics
-    /// No duplicates can be present in `byte_keys`.
+    /// No duplicates can be present in `byte_keys`. `catch_all` must be present
+    /// in `byte_keys`.
     #[allow(clippy::cast_possible_truncation)]
     #[must_use]
-    pub const fn new_ignoring_case(byte_keys: [u8; S], catch_all: u8) -> Self {
+    pub const fn new_ignoring_case(mut byte_keys: [u8; S], catch_all: u8) -> Self {
+        byte_keys = array_types::make_uppercase(&byte_keys);
         assert!(array_types::is_unique(&byte_keys));
 
-        let catch_all_index =
-            Self::catch_all_index(&array_types::make_uppercase(&byte_keys), catch_all.to_ascii_uppercase());
+        let catch_all_index = position(&byte_keys, catch_all.to_ascii_uppercase())
+            .expect("The catch_all must be present in the byte_keys.") as u8;
         let mut out = ByteIndexMap {
             index_map: [catch_all_index; 256],
             byte_keys,
@@ -246,18 +246,15 @@ impl<const S: usize> ByteIndexMap<S> {
         self
     }
 
+    /// Get the length of `byte_keys`.
     #[inline]
     #[must_use]
+    #[allow(clippy::len_without_is_empty)]
     pub const fn len(&self) -> usize {
         self.byte_keys.len()
     }
 
-    #[inline]
-    #[must_use]
-    pub const fn is_empty(&self) -> bool {
-        self.byte_keys.is_empty()
-    }
-
+    /// Convert a base `b` into an index.
     #[inline]
     #[must_use]
     pub const fn to_index(&self, b: u8) -> usize {
@@ -268,20 +265,6 @@ impl<const S: usize> ByteIndexMap<S> {
     #[must_use]
     const fn copy_index(&self, b: u8) -> u8 {
         self.index_map[b as usize]
-    }
-
-    /// Get the `catch_all` index as the `u8` expected to be stored. If the
-    /// value doesn't exist in the `byte_keys`, append it.
-    #[inline]
-    #[allow(clippy::cast_possible_truncation)]
-    const fn catch_all_index(byte_keys: &[u8; S], catch_all: u8) -> u8 {
-        (if let Some(p) = position(byte_keys, catch_all) {
-            p
-        } else if byte_keys.len() < 255 {
-            byte_keys.len() + 1
-        } else {
-            255
-        }) as u8
     }
 }
 
@@ -431,7 +414,7 @@ pub(crate) static GENETIC_CODE: LazyLock<CodonTranslator> = LazyLock::new(|| {
 
 #[cfg(test)]
 mod test {
-    use super::GENETIC_CODE;
+    use super::{ByteIndexMap, DNA_PROFILE_MAP, GENETIC_CODE};
 
     #[test]
     fn gc_self_test() {
@@ -468,5 +451,85 @@ mod test {
         for (codon, aa) in gc {
             assert_eq!(aa, GENETIC_CODE.get(codon).unwrap());
         }
+    }
+
+    #[test]
+    fn test_dna_map() {
+        for i in 0..=255 {
+            match i {
+                b'A' | b'a' => assert!(DNA_PROFILE_MAP.to_index(i) == 0),
+                b'C' | b'c' => assert!(DNA_PROFILE_MAP.to_index(i) == 1),
+                b'G' | b'g' => assert!(DNA_PROFILE_MAP.to_index(i) == 2),
+                b'T' | b't' | b'U' | b'u' => assert!(DNA_PROFILE_MAP.to_index(i) == 3),
+                _ => assert!(DNA_PROFILE_MAP.to_index(i) == 4),
+            }
+        }
+    }
+
+    #[test]
+    fn test_dna_map_ignores_case() {
+        const MAP1: ByteIndexMap<5> = ByteIndexMap::new_ignoring_case(*b"acgtn", b'N').add_synonym_ignoring_case(b'u', b'T');
+        const MAP2: ByteIndexMap<5> = ByteIndexMap::new_ignoring_case(*b"AcGtN", b'n').add_synonym_ignoring_case(b'U', b't');
+        assert_eq!(DNA_PROFILE_MAP, MAP1);
+        assert_eq!(DNA_PROFILE_MAP, MAP2);
+    }
+
+    #[test]
+    fn test_def_a_map() {
+        const DEF_A_MAP: ByteIndexMap<4> =
+            ByteIndexMap::new_ignoring_case(*b"ACGT", b'A').add_synonym_ignoring_case(b'U', b'T');
+        for i in 0..=255 {
+            match i {
+                b'C' | b'c' => assert!(DEF_A_MAP.to_index(i) == 1),
+                b'G' | b'g' => assert!(DEF_A_MAP.to_index(i) == 2),
+                b'T' | b't' | b'U' | b'u' => assert!(DEF_A_MAP.to_index(i) == 3),
+                _ => assert!(DEF_A_MAP.to_index(i) == 0),
+            }
+        }
+    }
+
+    #[test]
+    fn test_case_sensitive() {
+        const DNA_MAP: ByteIndexMap<10> = ByteIndexMap::new(*b"ACGTNacgtn", b'N')
+            .add_synonym(b'U', b'T')
+            .add_synonym(b'u', b't');
+        for i in 0..=255 {
+            match i {
+                b'A' => assert!(DNA_MAP.to_index(i) == 0),
+                b'C' => assert!(DNA_MAP.to_index(i) == 1),
+                b'G' => assert!(DNA_MAP.to_index(i) == 2),
+                b'T' | b'U' => assert!(DNA_MAP.to_index(i) == 3),
+                b'a' => assert!(DNA_MAP.to_index(i) == 5),
+                b'c' => assert!(DNA_MAP.to_index(i) == 6),
+                b'g' => assert!(DNA_MAP.to_index(i) == 7),
+                b't' | b'u' => assert!(DNA_MAP.to_index(i) == 8),
+                b'n' => assert!(DNA_MAP.to_index(i) == 9),
+                _ => assert!(DNA_MAP.to_index(i) == 4),
+            }
+        }
+    }
+
+    #[test]
+    #[should_panic = "assertion failed: array_types::is_unique(&byte_keys)"]
+    fn test_duplicate() {
+        let _ = ByteIndexMap::new(*b"ACGTNA", b'N');
+    }
+
+    #[test]
+    #[should_panic = "assertion failed: array_types::is_unique(&byte_keys)"]
+    fn test_duplicate_nocase() {
+        let _ = ByteIndexMap::new_ignoring_case(*b"ACGTNA", b'N');
+    }
+
+    #[test]
+    #[should_panic = "The catch_all must be present in the byte_keys."]
+    fn test_missing_catch_all() {
+        let _ = ByteIndexMap::new(*b"ACGT", b'N');
+    }
+
+    #[test]
+    #[should_panic = "The catch_all must be present in the byte_keys."]
+    fn test_missing_catch_all_nocase() {
+        let _ = ByteIndexMap::new_ignoring_case(*b"ACGT", b'N');
     }
 }
