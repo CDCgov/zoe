@@ -25,24 +25,24 @@ where
 
 // TODO: Potentially remove this, since we should encourage users to use decoded
 // kmers directly
-impl<const MAX_LEN: usize, T: Uint> std::fmt::Display for ThreeBitEncodedKmer<MAX_LEN>
-where
-    KmerLen<MAX_LEN>: SupportedThreeBitKmerLen<T = T>,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut kmer = self.0;
-        let mut buffer = [0; MAX_LEN];
-        let mut start = MAX_LEN;
-        while kmer != T::ZERO && start > 0 {
-            start -= 1;
-            let encoded_base = kmer & T::from_literal(0b111);
-            buffer[start] = ThreeBitKmerEncoder::decode_base(encoded_base);
-            kmer >>= 3;
-        }
-        // SAFETY: decode_base() can only return ASCII.
-        f.write_str(unsafe { std::str::from_utf8_unchecked(&buffer[start..]) })
-    }
-}
+// impl<const MAX_LEN: usize, T: Uint> std::fmt::Display for ThreeBitEncodedKmer<MAX_LEN>
+// where
+//     KmerLen<MAX_LEN>: SupportedThreeBitKmerLen<T = T>,
+// {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         let mut kmer = self.0;
+//         let mut buffer = [0; MAX_LEN];
+//         let mut start = MAX_LEN;
+//         while kmer != T::ZERO && start > 0 {
+//             start -= 1;
+//             let encoded_base = kmer & T::from_literal(0b111);
+//             buffer[start] = ThreeBitKmerEncoder::decode_base(encoded_base);
+//             kmer >>= 3;
+//         }
+//         // SAFETY: decode_base() can only return ASCII.
+//         f.write_str(unsafe { std::str::from_utf8_unchecked(&buffer[start..]) })
+//     }
+// }
 
 /// A [`KmerEncoder`] using three bits to represent each base. This allows for
 /// `A`, `C`, `G`, `T`, and `N` to all be represented. This encoder does not
@@ -94,7 +94,7 @@ where
     /// `TUtu`, or `N` as a catch-all for any other input.
     #[inline]
     fn encode_base(base: u8) -> Self::EncodedBase {
-        T::from(DNA_PROFILE_MAP[base] + 1)
+        T::from(DNA_PROFILE_MAP[base])
     }
 
     /// The [`ThreeBitKmerEncoder`] can handle all `u8` inputs, so this function
@@ -120,7 +120,7 @@ where
     #[inline]
     fn decode_base(encoded_base: Self::EncodedBase) -> u8 {
         // as_usize is valid since encoded_base will be in `0..=4`
-        b"ACGTN"[(encoded_base - T::ONE).as_usize()]
+        b"ACGTN"[encoded_base.as_usize()]
     }
 
     /// Decode a single base. If the base is not in `0..=4`, then `None` is
@@ -129,7 +129,7 @@ where
     fn decode_base_checked(encoded_base: Self::EncodedBase) -> Option<u8> {
         // as_usize is valid since encoded_base will be in `0..=4`
         // TODO: This is false!
-        b"ACGTN".get((encoded_base - T::ONE).as_usize()).copied()
+        b"ACGTN".get(encoded_base.as_usize()).copied()
     }
 
     /// Encode a k-mer. The length of `kmer` must match the `kmer_length` of the

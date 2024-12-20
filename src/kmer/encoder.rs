@@ -1,6 +1,6 @@
 use crate::kmer::errors::KmerError;
 
-// TODO: Derive and impl AsRef
+// TODO: Derives
 pub struct Kmer<const MAX_LEN: usize> {
     pub(crate) length: u8,
     pub(crate) buffer: [u8; MAX_LEN],
