@@ -1,22 +1,12 @@
 use super::int_mappings::{KmerLen, MaxLenToType, SupportedThreeBitKmerLen};
 use crate::data::types::Int;
-use crate::prelude::Nucleotides;
+use crate::kmer::encoder::Kmer;
 use crate::{
     data::{types::Uint, DNA_PROFILE_MAP},
     kmer::{encoder::KmerEncoder, errors::KmerError},
 };
 
-/// A [`KmerEncoder`] using three bits to represent each base. This allows for
-/// `A`, `C`, `G`, `T`, and `N` to all be represented. This encoder does not
-/// preserve case or the distinction between `T` and `U`. `N` is used as a
-/// catch-all for bases that are not `ACGTUNacgtun`.
-pub struct ThreeBitKmerEncoder<const MAX_LEN: usize>
-where
-    KmerLen<MAX_LEN>: SupportedThreeBitKmerLen, {
-    kmer_length: usize,
-    kmer_mask:   MaxLenToType<MAX_LEN>,
-}
-
+// TODO: More derives
 #[derive(PartialEq, Eq, Hash, Clone, Copy)]
 #[repr(transparent)]
 pub struct ThreeBitEncodedKmer<const MAX_LEN: usize>(MaxLenToType<MAX_LEN>)
@@ -33,6 +23,8 @@ where
     }
 }
 
+// TODO: Potentially remove this, since we should encourage users to use decoded
+// kmers directly
 impl<const MAX_LEN: usize, T: Uint> std::fmt::Display for ThreeBitEncodedKmer<MAX_LEN>
 where
     KmerLen<MAX_LEN>: SupportedThreeBitKmerLen<T = T>,
@@ -52,11 +44,21 @@ where
     }
 }
 
-impl<const MAX_LEN: usize, T: Uint> KmerEncoder for ThreeBitKmerEncoder<MAX_LEN>
+/// A [`KmerEncoder`] using three bits to represent each base. This allows for
+/// `A`, `C`, `G`, `T`, and `N` to all be represented. This encoder does not
+/// preserve case or the distinction between `T` and `U`. `N` is used as a
+/// catch-all for bases that are not `ACGTUNacgtun`.
+pub struct ThreeBitKmerEncoder<const MAX_LEN: usize>
+where
+    KmerLen<MAX_LEN>: SupportedThreeBitKmerLen, {
+    kmer_length: usize,
+    kmer_mask:   MaxLenToType<MAX_LEN>,
+}
+
+impl<const MAX_LEN: usize, T: Uint> KmerEncoder<MAX_LEN> for ThreeBitKmerEncoder<MAX_LEN>
 where
     KmerLen<MAX_LEN>: SupportedThreeBitKmerLen<T = T>,
 {
-    const MAX_KMER_LENGTH: usize = MAX_LEN;
     type EncodedBase = T;
     type EncodedKmer = ThreeBitEncodedKmer<MAX_LEN>;
     type SeqIter<'a> = ThreeBitKmerIterator<'a, MAX_LEN>;
@@ -173,28 +175,28 @@ where
     /// then this function will panic.
     ///
     /// [`decode_kmer_checked`]: ThreeBitKmerEncoder::decode_kmer_checked
-    fn decode_kmer(&self, mut encoded_kmer: Self::EncodedKmer) -> Nucleotides {
-        let mut kmer = vec![0; self.kmer_length];
-        for i in (0..kmer.len()).rev() {
+    fn decode_kmer(&self, mut encoded_kmer: Self::EncodedKmer) -> Kmer<MAX_LEN> {
+        let mut buffer = [0; MAX_LEN];
+        for i in (0..self.kmer_length).rev() {
             let encoded_base = encoded_kmer.0 & T::from_literal(0b111);
-            kmer[i] = Self::decode_base(encoded_base);
+            buffer[i] = Self::decode_base(encoded_base);
             encoded_kmer.0 >>= 3;
         }
-        Nucleotides(kmer)
+        Kmer::new(self.kmer_length, buffer)
     }
 
     /// Decode a k-mer. If an erroneous base outside `0..=4` is found, or if the
     /// encoding represents a longer k-mer than the `kmer_length` of the
     /// [`ThreeBitKmerEncoder`], then `None` is returned.
-    fn decode_kmer_checked(&self, mut encoded_kmer: Self::EncodedKmer) -> Option<Nucleotides> {
-        let mut kmer = vec![0; self.kmer_length];
-        for i in (0..kmer.len()).rev() {
+    fn decode_kmer_checked(&self, mut encoded_kmer: Self::EncodedKmer) -> Option<Kmer<MAX_LEN>> {
+        let mut buffer = [0; MAX_LEN];
+        for i in (0..self.kmer_length).rev() {
             let encoded_base = encoded_kmer.0 & T::from_literal(0b111);
-            kmer[i] = Self::decode_base_checked(encoded_base)?;
+            buffer[i] = Self::decode_base_checked(encoded_base)?;
             encoded_kmer.0 >>= 3;
         }
         if encoded_kmer.0 == T::ZERO {
-            Some(Nucleotides(kmer))
+            Some(Kmer::new(self.kmer_length, buffer))
         } else {
             None
         }

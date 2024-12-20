@@ -1,4 +1,52 @@
-use crate::{kmer::errors::KmerError, prelude::Nucleotides};
+use crate::kmer::errors::KmerError;
+
+// TODO: Derive and impl AsRef
+pub struct Kmer<const MAX_LEN: usize> {
+    pub(crate) length: u8,
+    pub(crate) buffer: [u8; MAX_LEN],
+}
+
+impl<const MAX_LEN: usize> Kmer<MAX_LEN> {
+    #[allow(clippy::cast_possible_truncation)]
+    #[inline]
+    #[must_use]
+    pub fn new(length: usize, buffer: [u8; MAX_LEN]) -> Self {
+        Self {
+            // This will not truncate since we require all kmers to be of length
+            // less than 256
+            length: length as u8,
+            buffer,
+        }
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.length as usize
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.length == 0
+    }
+}
+
+impl<const MAX_LEN: usize> std::fmt::Display for Kmer<MAX_LEN> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // TODO: Unless we seal the KmerEncoder trait, we need to avoid unsafe here
+        // Or we would need a separate Kmer struct for each encoder
+        // Should we avoid unwrap?
+        f.write_str(std::str::from_utf8(self.as_ref()).unwrap())
+    }
+}
+
+impl<const MAX_LEN: usize> AsRef<[u8]> for Kmer<MAX_LEN> {
+    #[inline]
+    fn as_ref(&self) -> &[u8] {
+        &self.buffer[..self.len()]
+    }
+}
 
 /// [`KmerEncoder`] represents an encoder/decoder used to represent bases and
 /// k-mers in a more efficienct form. While individual bases and k-mers can be
@@ -9,13 +57,9 @@ use crate::{kmer::errors::KmerError, prelude::Nucleotides};
 ///
 /// [`KmerSet`]: super::kmer_set::KmerSet
 /// [`KmerCounter`]: super::kmer_counter::KmerCounter
-pub trait KmerEncoder
+pub trait KmerEncoder<const MAX_LEN: usize>
 where
     Self: Sized, {
-    /// The maximum possible k-mer length representable with this
-    /// [`KmerEncoder`].
-    const MAX_KMER_LENGTH: usize;
-
     /// The type of an encoded base.
     type EncodedBase;
     /// The type of an encoded k-mer.
@@ -79,11 +123,11 @@ where
     /// not known whether the bases and k-mer length will be valid.
     ///
     /// [`decode_kmer_checked`]: KmerEncoder::decode_kmer_checked
-    fn decode_kmer(&self, encoded_kmer: Self::EncodedKmer) -> Nucleotides;
+    fn decode_kmer(&self, encoded_kmer: Self::EncodedKmer) -> Kmer<MAX_LEN>;
 
     /// Decode a k-mer. If the bases and k-mer length are not valid for the
     /// given [`KmerEncoder`], then `None` is returned.
-    fn decode_kmer_checked(&self, encoded_kmer: Self::EncodedKmer) -> Option<Nucleotides>;
+    fn decode_kmer_checked(&self, encoded_kmer: Self::EncodedKmer) -> Option<Kmer<MAX_LEN>>;
 
     /// Get an iterator over all encoded k-mers that are exactly a Hamming
     /// distance of one away from the provided k-mer. The original k-mer is not

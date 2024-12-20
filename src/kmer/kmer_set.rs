@@ -10,11 +10,11 @@ use std::hash::Hash;
 /// [`find_kmers`]: KmerSet::find_kmers
 /// [`find_kmers_rev`]: KmerSet::find_kmers_rev
 /// [`insert_from_sequence`]: KmerSet::insert_from_sequence
-pub trait KmerSet: IntoIterator {
+pub trait KmerSet<const MAX_LEN: usize>: IntoIterator {
     /// The type of an encoded kmer.
     type EncodedKmer: Hash;
     /// The type of the encoder.
-    type Encoder: KmerEncoder<EncodedKmer = Self::EncodedKmer>;
+    type Encoder: KmerEncoder<MAX_LEN, EncodedKmer = Self::EncodedKmer>;
     /// The type of the non-consuming iterator over decoded kmers.
     type DecodedIter<'a>
     where

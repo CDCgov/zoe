@@ -9,7 +9,7 @@ use std::ops::Index;
 /// previously present).
 ///
 /// [`insert_kmer`]: KmerSet::insert_kmer
-pub trait KmerCounter: KmerSet + Index<Self::EncodedKmer> {
+pub trait KmerCounter<const MAX_LEN: usize>: KmerSet<MAX_LEN> + Index<Self::EncodedKmer> {
     /// Get the count of an encoded k-mer. If the k-mer is not present in the
     /// counter, then `0` is returned. The encoded k-mer must have been
     /// generated using the encoder associated with this [`KmerCounter`].

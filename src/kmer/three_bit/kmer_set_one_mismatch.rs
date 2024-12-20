@@ -1,11 +1,8 @@
-use crate::{
-    kmer::{
-        encoder::KmerEncoder,
-        errors::KmerError,
-        kmer_set::KmerSet,
-        three_bit::{encoder::ThreeBitKmerEncoder, kmer_set::ThreeBitKmerSetDecodedIter},
-    },
-    prelude::Nucleotides,
+use crate::kmer::{
+    encoder::{Kmer, KmerEncoder},
+    errors::KmerError,
+    kmer_set::KmerSet,
+    three_bit::{encoder::ThreeBitKmerEncoder, kmer_set::ThreeBitKmerSetDecodedIter},
 };
 use std::{
     collections::{hash_set, HashSet},
@@ -71,7 +68,7 @@ where
     }
 }
 
-impl<const MAX_LEN: usize, S: BuildHasher> KmerSet for ThreeBitOneMismatchKmerSet<MAX_LEN, S>
+impl<const MAX_LEN: usize, S: BuildHasher> KmerSet<MAX_LEN> for ThreeBitOneMismatchKmerSet<MAX_LEN, S>
 where
     KmerLen<MAX_LEN>: SupportedThreeBitKmerLen,
 {
@@ -132,7 +129,7 @@ impl<const MAX_LEN: usize, S> IntoIterator for ThreeBitOneMismatchKmerSet<MAX_LE
 where
     KmerLen<MAX_LEN>: SupportedThreeBitKmerLen,
 {
-    type Item = Nucleotides;
+    type Item = Kmer<MAX_LEN>;
     type IntoIter = ThreeBitKmerSetDecodedIntoIter<MAX_LEN, S>;
 
     #[inline]

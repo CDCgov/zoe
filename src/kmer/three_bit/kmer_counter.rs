@@ -2,12 +2,12 @@ use super::{
     encoder::ThreeBitEncodedKmer,
     int_mappings::{KmerLen, SupportedThreeBitKmerLen},
 };
-use crate::{
-    kmer::{
-        encoder::KmerEncoder, errors::KmerError, kmer_counter::KmerCounter, kmer_set::KmerSet,
-        three_bit::encoder::ThreeBitKmerEncoder,
-    },
-    prelude::Nucleotides,
+use crate::kmer::{
+    encoder::{Kmer, KmerEncoder},
+    errors::KmerError,
+    kmer_counter::KmerCounter,
+    kmer_set::KmerSet,
+    three_bit::encoder::ThreeBitKmerEncoder,
 };
 use std::{
     collections::{hash_map, HashMap},
@@ -62,7 +62,7 @@ where
     }
 }
 
-impl<const MAX_LEN: usize, S: BuildHasher> KmerSet for ThreeBitKmerCounter<MAX_LEN, S>
+impl<const MAX_LEN: usize, S: BuildHasher> KmerSet<MAX_LEN> for ThreeBitKmerCounter<MAX_LEN, S>
 where
     KmerLen<MAX_LEN>: SupportedThreeBitKmerLen,
 {
@@ -127,7 +127,7 @@ where
     }
 }
 
-impl<const MAX_LEN: usize, S: BuildHasher> KmerCounter for ThreeBitKmerCounter<MAX_LEN, S>
+impl<const MAX_LEN: usize, S: BuildHasher> KmerCounter<MAX_LEN> for ThreeBitKmerCounter<MAX_LEN, S>
 where
     KmerLen<MAX_LEN>: SupportedThreeBitKmerLen,
 {
@@ -144,7 +144,7 @@ impl<const MAX_LEN: usize, S> IntoIterator for ThreeBitKmerCounter<MAX_LEN, S>
 where
     KmerLen<MAX_LEN>: SupportedThreeBitKmerLen,
 {
-    type Item = (Nucleotides, usize);
+    type Item = (Kmer<MAX_LEN>, usize);
     type IntoIter = ThreeBitKmerCounterDecodedIntoIter<MAX_LEN, S>;
 
     #[inline]
@@ -169,10 +169,10 @@ impl<const MAX_LEN: usize, S> Iterator for ThreeBitKmerCounterDecodedIntoIter<MA
 where
     KmerLen<MAX_LEN>: SupportedThreeBitKmerLen,
 {
-    type Item = (Nucleotides, usize);
+    type Item = (Kmer<MAX_LEN>, usize);
 
     #[inline]
-    fn next(&mut self) -> Option<(Nucleotides, usize)> {
+    fn next(&mut self) -> Option<(Kmer<MAX_LEN>, usize)> {
         self.map_into_iter.next().map(|(x, c)| (self.encoder.decode_kmer(x), c))
     }
 }
@@ -190,10 +190,10 @@ impl<const MAX_LEN: usize> Iterator for ThreeBitKmerCounterDecodedIter<'_, MAX_L
 where
     KmerLen<MAX_LEN>: SupportedThreeBitKmerLen,
 {
-    type Item = (Nucleotides, usize);
+    type Item = (Kmer<MAX_LEN>, usize);
 
     #[inline]
-    fn next(&mut self) -> Option<(Nucleotides, usize)> {
+    fn next(&mut self) -> Option<(Kmer<MAX_LEN>, usize)> {
         self.map_into_iter.next().map(|(x, &c)| (self.encoder.decode_kmer(*x), c))
     }
 }
