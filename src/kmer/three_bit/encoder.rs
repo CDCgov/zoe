@@ -6,8 +6,8 @@ use crate::{
     kmer::{encoder::KmerEncoder, errors::KmerError},
 };
 
-// TODO: More derives
-#[derive(PartialEq, Eq, Hash, Clone, Copy)]
+// TODO: Specify that ORD for encoded does not agree with ORD for decoded
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 #[repr(transparent)]
 pub struct ThreeBitEncodedKmer<const MAX_LEN: usize>(MaxLenToType<MAX_LEN>)
 where
@@ -127,9 +127,9 @@ where
     /// returned.
     #[inline]
     fn decode_base_checked(encoded_base: Self::EncodedBase) -> Option<u8> {
-        // as_usize is valid since encoded_base will be in `0..=4`
-        // TODO: This is false!
-        b"ACGTN".get(encoded_base.as_usize()).copied()
+        // Need to use try_into in case T = u128, in which case it can't always
+        // be cast to u64
+        b"ACGTN".get(encoded_base.try_into().ok()?).copied()
     }
 
     /// Encode a k-mer. The length of `kmer` must match the `kmer_length` of the
@@ -215,7 +215,7 @@ where
     /// left to right. If the sequence is shorter than the `kmer_length` of the
     /// [`ThreeBitKmerEncoder`], then the iterator will be empty.
     #[inline]
-    fn iter_from_sequence<'a, S: AsRef<[u8]>>(&self, seq: &'a S) -> Self::SeqIter<'a> {
+    fn iter_from_sequence<'a, S: AsRef<[u8]> + ?Sized>(&self, seq: &'a S) -> Self::SeqIter<'a> {
         let seq = seq.as_ref();
         if seq.len() < self.kmer_length {
             ThreeBitKmerIterator {
@@ -239,7 +239,7 @@ where
     /// right to left. If the sequence is shorter than the `kmer_length` of the
     /// [`ThreeBitKmerEncoder`], then the iterator will be empty.
     #[inline]
-    fn iter_from_sequence_rev<'a, S: AsRef<[u8]>>(&self, seq: &'a S) -> Self::SeqIterRev<'a> {
+    fn iter_from_sequence_rev<'a, S: AsRef<[u8]> + ?Sized>(&self, seq: &'a S) -> Self::SeqIterRev<'a> {
         let seq = seq.as_ref();
         if seq.len() < self.kmer_length {
             ThreeBitKmerIteratorRev {

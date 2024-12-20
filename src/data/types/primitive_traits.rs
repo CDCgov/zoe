@@ -1,4 +1,5 @@
 use std::{
+    fmt::Debug,
     hash::Hash,
     ops::{Add, AddAssign, BitAnd, BitOr, Not, Shl, ShlAssign, Shr, ShrAssign, Sub},
 };
@@ -6,6 +7,7 @@ use std::{
 pub trait Int:
     Sized
     + Copy
+    + Debug
     + Ord
     + Hash
     + Add<Output = Self>
@@ -17,7 +19,8 @@ pub trait Int:
     + Shr<usize, Output = Self>
     + Shl<usize, Output = Self>
     + ShrAssign<usize>
-    + ShlAssign<usize> {
+    + ShlAssign<usize>
+    + TryInto<usize> {
     const ZERO: Self;
     const ONE: Self;
 

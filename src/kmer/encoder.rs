@@ -1,16 +1,40 @@
-use crate::kmer::errors::KmerError;
+use crate::{kmer::errors::KmerError, prelude::Nucleotides};
 
-// TODO: Derives
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Kmer<const MAX_LEN: usize> {
     pub(crate) length: u8,
     pub(crate) buffer: [u8; MAX_LEN],
+}
+
+impl<const MAX_LEN: usize> Ord for Kmer<MAX_LEN> {
+    #[inline]
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.as_ref().cmp(other.as_ref())
+    }
+}
+
+impl<const MAX_LEN: usize> PartialOrd for Kmer<MAX_LEN> {
+    #[inline]
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<const MAX_LEN: usize> std::fmt::Display for Kmer<MAX_LEN> {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // TODO: Unless we seal the KmerEncoder trait, we need to avoid unsafe here
+        // Or we would need a separate Kmer struct for each encoder
+        // Should we avoid unwrap?
+        f.write_str(std::str::from_utf8(self.as_ref()).unwrap())
+    }
 }
 
 impl<const MAX_LEN: usize> Kmer<MAX_LEN> {
     #[allow(clippy::cast_possible_truncation)]
     #[inline]
     #[must_use]
-    pub fn new(length: usize, buffer: [u8; MAX_LEN]) -> Self {
+    pub(crate) fn new(length: usize, buffer: [u8; MAX_LEN]) -> Self {
         Self {
             // This will not truncate since we require all kmers to be of length
             // less than 256
@@ -30,14 +54,17 @@ impl<const MAX_LEN: usize> Kmer<MAX_LEN> {
     pub fn is_empty(&self) -> bool {
         self.length == 0
     }
-}
 
-impl<const MAX_LEN: usize> std::fmt::Display for Kmer<MAX_LEN> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // TODO: Unless we seal the KmerEncoder trait, we need to avoid unsafe here
-        // Or we would need a separate Kmer struct for each encoder
-        // Should we avoid unwrap?
-        f.write_str(std::str::from_utf8(self.as_ref()).unwrap())
+    #[inline]
+    #[must_use]
+    pub fn to_vec(&self) -> Vec<u8> {
+        self.as_ref().to_vec()
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn to_nucleotides(&self) -> Nucleotides {
+        Nucleotides(self.to_vec())
     }
 }
 
@@ -67,8 +94,8 @@ where
     /// An iterator over the encoded overlapping k-mers in a sequence, from left
     /// to right.
     type SeqIter<'a>: Iterator<Item = Self::EncodedKmer>;
-    /// An iterator over the encoded overlapping k-mers in a sequence, from right
-    /// to left.
+    /// An iterator over the encoded overlapping k-mers in a sequence, from
+    /// right to left.
     type SeqIterRev<'a>: Iterator<Item = Self::EncodedKmer>;
     /// An iterator over all encoded k-mers that are exactly a Hamming distance
     /// of one away from a provided k-mer. The original k-mer is not included in
@@ -138,11 +165,11 @@ where
     /// left to right. If the sequence is shorter than the k-mer length of the
     /// [`KmerEncoder`], then the iterator will be empty. The sequence should
     /// only contain valid bases for the given [`KmerEncoder`].
-    fn iter_from_sequence<'a, S: AsRef<[u8]>>(&self, seq: &'a S) -> Self::SeqIter<'a>;
+    fn iter_from_sequence<'a, S: AsRef<[u8]> + ?Sized>(&self, seq: &'a S) -> Self::SeqIter<'a>;
 
     /// Get an iterator over the encoded overlapping k-mers in a sequence, from
     /// right to left. If the sequence is shorter than the k-mer length of the
     /// [`KmerEncoder`], then the iterator will be empty. The sequence should
     /// only contain valid bases for the given [`KmerEncoder`].
-    fn iter_from_sequence_rev<'a, S: AsRef<[u8]>>(&self, seq: &'a S) -> Self::SeqIterRev<'a>;
+    fn iter_from_sequence_rev<'a, S: AsRef<[u8]> + ?Sized>(&self, seq: &'a S) -> Self::SeqIterRev<'a>;
 }
