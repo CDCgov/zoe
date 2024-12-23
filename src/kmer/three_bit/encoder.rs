@@ -17,6 +17,7 @@ pub struct ThreeBitKmerEncoder {
 pub struct EncodedKmer(u64);
 
 impl From<u64> for EncodedKmer {
+    #[inline]
     fn from(value: u64) -> Self {
         EncodedKmer(value)
     }
