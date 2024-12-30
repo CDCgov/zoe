@@ -121,7 +121,7 @@ pub trait KmerSet<const MAX_LEN: usize>: IntoIterator {
         for (i, kmer) in self.get_encoder().iter_from_sequence_rev(&seq).enumerate() {
             if self.contains_encoded(kmer) {
                 let end = seq.as_ref().len() - i;
-                return Some(end - self.get_kmer_length() - i..end);
+                return Some(end - self.get_kmer_length()..end);
             }
         }
         None

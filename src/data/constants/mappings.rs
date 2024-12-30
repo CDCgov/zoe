@@ -294,8 +294,9 @@ pub const DNA_PROFILE_MAP: ByteIndexMap<5> =
     ByteIndexMap::new_ignoring_case(*b"ACGTN", b'N').add_synonym_ignoring_case(b'U', b'T');
 
 /// TODO: Docs
-pub(crate) const THREE_BIT_MAPPING: ByteIndexMap<5> =
-    ByteIndexMap::new_ignoring_case(*b"NACGT", b'N').update_starting_index(3);
+pub(crate) const THREE_BIT_MAPPING: ByteIndexMap<5> = ByteIndexMap::new_ignoring_case(*b"NACGT", b'N')
+    .add_synonym_ignoring_case(b'U', b'T')
+    .update_starting_index(3);
 
 macro_rules! fill_map {
     ($( $key: expr => $val: expr ),*) => {{
