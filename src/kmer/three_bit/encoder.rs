@@ -1,8 +1,9 @@
 use super::int_mappings::{KmerLen, MaxLenToType, SupportedThreeBitKmerLen};
+use crate::data::mappings::THREE_BIT_MAPPING;
 use crate::data::types::Int;
 use crate::kmer::encoder::Kmer;
 use crate::{
-    data::{types::Uint, DNA_PROFILE_MAP},
+    data::types::Uint,
     kmer::{encoder::KmerEncoder, errors::KmerError},
 };
 
@@ -94,7 +95,7 @@ where
     /// `TUtu`, or `N` as a catch-all for any other input.
     #[inline]
     fn encode_base(base: u8) -> Self::EncodedBase {
-        T::from(DNA_PROFILE_MAP[base])
+        T::from(THREE_BIT_MAPPING[base])
     }
 
     /// The [`ThreeBitKmerEncoder`] can handle all `u8` inputs, so this function
@@ -120,16 +121,18 @@ where
     #[inline]
     fn decode_base(encoded_base: Self::EncodedBase) -> u8 {
         // as_usize is valid since encoded_base will be in `0..=4`
-        b"ACGTN"[encoded_base.as_usize()]
+        b"000NACGT"[encoded_base.as_usize()]
     }
 
     /// Decode a single base. If the base is not in `0..=4`, then `None` is
     /// returned.
     #[inline]
     fn decode_base_checked(encoded_base: Self::EncodedBase) -> Option<u8> {
-        // Need to use try_into in case T = u128, in which case it can't always
-        // be cast to u64
-        b"ACGTN".get(encoded_base.try_into().ok()?).copied()
+        if (T::from(3)..=T::from(7)).contains(&encoded_base) {
+            Some(Self::decode_base(encoded_base))
+        } else {
+            None
+        }
     }
 
     /// Encode a k-mer. The length of `kmer` must match the `kmer_length` of the
@@ -393,8 +396,8 @@ where
                 // and the new value will be 000 due to the first summand
                 // getting masked. When current_kmer = 0**, then the first
                 // summand is current_kmer and the second summand is 001.
-                self.current_kmer = ((self.current_kmer.0 & !self.set_mask_third_bit)
-                    + ((!self.current_kmer.0 & self.set_mask_third_bit) >> 2))
+                self.current_kmer = ((self.current_kmer.0 | self.set_mask_third_bit)
+                    - ((self.current_kmer.0 & self.set_mask_third_bit) >> 2))
                     .into();
                 return Some(self.current_kmer);
             }

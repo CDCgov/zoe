@@ -1,4 +1,4 @@
-// Make into a trait when functionality becomes available.
+// TODO: Make into a trait when functionality becomes available.
 // See: https://github.com/rust-lang/rust-project-goals/issues/106
 
 pub(crate) const fn make_uppercase<const N: usize>(a: &[u8; N]) -> [u8; N] {
@@ -35,6 +35,25 @@ pub(crate) const fn is_unique<const N: usize>(a: &[u8; N]) -> bool {
         i += 1;
     }
     true
+}
+
+// TODO: Update to std if it becomes available
+// See: https://github.com/rust-lang/rust/issues/78504
+pub(crate) const fn arr_max<const N: usize>(a: &[u8; N]) -> Option<u8> {
+    let mut out = None;
+    let mut i = 0;
+    while i < a.len() {
+        match out {
+            Some(max) => {
+                if a[i] > max {
+                    out = Some(a[i]);
+                }
+            }
+            None => out = Some(a[i]),
+        }
+        i += 1;
+    }
+    out
 }
 
 #[cfg(test)]

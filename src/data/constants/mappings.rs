@@ -1,6 +1,6 @@
 use crate::data::{
     alphas::{NUCLEIC_IUPAC, NUCLEIC_IUPAC_UNALIGNED},
-    array_types,
+    array_types::{self, arr_max},
 };
 use std::{ops::Index, sync::LazyLock};
 
@@ -207,12 +207,22 @@ impl<const S: usize> ByteIndexMap<S> {
         let mut i = 0;
         while i < byte_keys.len() {
             // Truncation will not occur because i cannot exceed
-            // byte_keys.len(), and index must contain unique u8 values
+            // byte_keys.len(), and byte_keys must contain unique u8 values
             out.set_byte_ignoring_case(byte_keys[i], i as u8);
 
             i += 1;
         }
         out
+    }
+
+    const fn update_starting_index(mut self, starting_index: u8) -> Self {
+        assert!(arr_max(&self.index_map).unwrap() < u8::MAX - starting_index);
+        let mut i = 0;
+        while i < self.byte_keys.len() {
+            self.byte_keys[i] += starting_index;
+            i += 1;
+        }
+        self
     }
 
     /// Set the index for a byte.
@@ -281,6 +291,10 @@ impl<const S: usize> Index<u8> for ByteIndexMap<S> {
 /// N is used as a catch-all. U is treated as T.
 pub const DNA_PROFILE_MAP: ByteIndexMap<5> =
     ByteIndexMap::new_ignoring_case(*b"ACGTN", b'N').add_synonym_ignoring_case(b'U', b'T');
+
+/// TODO: Docs
+pub(crate) const THREE_BIT_MAPPING: ByteIndexMap<5> =
+    ByteIndexMap::new_ignoring_case(*b"NACGT", b'N').update_starting_index(3);
 
 macro_rules! fill_map {
     ($( $key: expr => $val: expr ),*) => {{
