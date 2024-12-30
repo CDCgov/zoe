@@ -13,7 +13,7 @@ pub trait KmerCounter<const MAX_LEN: usize>: KmerSet<MAX_LEN> + Index<Self::Enco
     /// Get the count of an encoded k-mer. If the k-mer is not present in the
     /// counter, then `0` is returned. The encoded k-mer must have been
     /// generated using the encoder associated with this [`KmerCounter`].
-    fn get_encoded(&self, kmer: Self::EncodedKmer) -> usize;
+    fn get_encoded(&self, kmer: Self::EncodedKmer) -> u64;
 
     /// Get the count of a k-mer. If the k-mer is not present in the counter,
     /// then `0` is returned. The bases and k-mer length are assumed to be valid
@@ -23,7 +23,7 @@ pub trait KmerCounter<const MAX_LEN: usize>: KmerSet<MAX_LEN> + Index<Self::Enco
     ///
     /// [`get_checked`]: KmerCounter::get_checked
     #[inline]
-    fn get<S: AsRef<[u8]>>(&self, kmer: S) -> usize {
+    fn get<S: AsRef<[u8]>>(&self, kmer: S) -> u64 {
         self.get_encoded(self.get_encoder().encode_kmer(kmer))
     }
 
@@ -31,7 +31,7 @@ pub trait KmerCounter<const MAX_LEN: usize>: KmerSet<MAX_LEN> + Index<Self::Enco
     /// `0` is returned. If the bases and k-mer length are not valid for the
     /// encoder associated with this [`KmerCounter`], then `None` is returned.
     #[inline]
-    fn get_checked<S: AsRef<[u8]>>(&self, kmer: S) -> Option<usize> {
+    fn get_checked<S: AsRef<[u8]>>(&self, kmer: S) -> Option<u64> {
         Some(self.get_encoded(self.get_encoder().encode_kmer_checked(kmer)?))
     }
 }

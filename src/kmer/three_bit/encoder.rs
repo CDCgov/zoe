@@ -1,4 +1,4 @@
-use super::int_mappings::{KmerLen, MaxLenToType, SupportedThreeBitKmerLen};
+use super::len_mappings::{KmerLen, MaxLenToType, SupportedThreeBitKmerLen};
 use crate::data::mappings::THREE_BIT_MAPPING;
 use crate::data::types::Int;
 use crate::kmer::encoder::Kmer;
@@ -7,7 +7,22 @@ use crate::{
     kmer::{encoder::KmerEncoder, errors::KmerError},
 };
 
-// TODO: Specify that ORD for encoded does not agree with ORD for decoded
+/// An encoded k-mer using the [`ThreeBitKmerEncoder`]. In most use cases,
+/// encoded k-mers need not be handled directly; [`ThreeBitKmerSet`] and
+/// [`ThreeBitKmerCounter`] provide many methods for accomplishing common tasks.
+/// If no suitable methods are present, then handling encoded k-mers directly
+/// and later decoding them may be appropriate.
+///
+/// To decode a [`ThreeBitKmerEncoder`], call the `decode_kmer` method of the
+/// encoder. For the potential case where the encoder is not available,
+/// `Display` is implemented for [`ThreeBitEncodedKmer`], which will output the
+/// decoded k-mer. However, it is more performant to decode first.
+///
+/// Note that the ordering given by [`Ord`] and [`PartialOrd`] is different
+/// between [`ThreeBitEncodedKmer`] and the corresponding decoded [`Kmer`].
+///
+/// [`ThreeBitKmerSet`]: super::ThreeBitKmerSet
+/// [`ThreeBitKmerCounter`]: super::ThreeBitKmerCounter
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 #[repr(transparent)]
 pub struct ThreeBitEncodedKmer<const MAX_LEN: usize>(MaxLenToType<MAX_LEN>)
@@ -24,26 +39,24 @@ where
     }
 }
 
-// TODO: Potentially remove this, since we should encourage users to use decoded
-// kmers directly
-// impl<const MAX_LEN: usize, T: Uint> std::fmt::Display for ThreeBitEncodedKmer<MAX_LEN>
-// where
-//     KmerLen<MAX_LEN>: SupportedThreeBitKmerLen<T = T>,
-// {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         let mut kmer = self.0;
-//         let mut buffer = [0; MAX_LEN];
-//         let mut start = MAX_LEN;
-//         while kmer != T::ZERO && start > 0 {
-//             start -= 1;
-//             let encoded_base = kmer & T::from_literal(0b111);
-//             buffer[start] = ThreeBitKmerEncoder::decode_base(encoded_base);
-//             kmer >>= 3;
-//         }
-//         // SAFETY: decode_base() can only return ASCII.
-//         f.write_str(unsafe { std::str::from_utf8_unchecked(&buffer[start..]) })
-//     }
-// }
+impl<const MAX_LEN: usize, T: Uint> std::fmt::Display for ThreeBitEncodedKmer<MAX_LEN>
+where
+    KmerLen<MAX_LEN>: SupportedThreeBitKmerLen<T = T>,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut kmer = self.0;
+        let mut buffer = [0; MAX_LEN];
+        let mut start = MAX_LEN;
+        while kmer != T::ZERO && start > 0 {
+            start -= 1;
+            let encoded_base = kmer & T::from_literal(0b111);
+            buffer[start] = ThreeBitKmerEncoder::decode_base(encoded_base);
+            kmer >>= 3;
+        }
+        // TODO: Potentially make unsafe with sealed traits or ASCII check
+        f.write_str(std::str::from_utf8(&buffer[start..]).unwrap())
+    }
+}
 
 /// A [`KmerEncoder`] using three bits to represent each base. This allows for
 /// `A`, `C`, `G`, `T`, and `N` to all be represented. This encoder does not
@@ -107,24 +120,25 @@ where
         Some(Self::encode_base(base))
     }
 
-    /// Decode a single base. The base must be in `0..=4` (an invariant upheld
-    /// by [`ThreeBitKmerEncoder`]), and will panic otherwise. Consider
-    /// [`decode_base_checked`] when it is not known whether the base will be
-    /// valid.
+    /// Decode a single base. The base must be in `3..=8` (an invariant upheld
+    /// by [`ThreeBitKmerEncoder`]), and may panic or have unexpected behavior
+    /// otherwise. Consider [`decode_base_checked`] when it is not known whether
+    /// the base will be valid.
     ///
     /// # Panics
     ///
-    /// The [`ThreeBitKmerEncoder`] represents each base by a `u8` in `0..=4`.
-    /// Any input outside of this range will panic.
+    /// The [`ThreeBitKmerEncoder`] represents each base by a `u8` in `3..=8`.
+    /// Any input greater than 8 causes a panic, while less than 3 may cause
+    /// unexpected behavior.
     ///
     /// [`decode_base_checked`]: ThreeBitKmerEncoder::decode_base_checked
     #[inline]
     fn decode_base(encoded_base: Self::EncodedBase) -> u8 {
-        // as_usize is valid since encoded_base will be in `0..=4`
+        // as_usize is valid since encoded_base will be in `3..=8`
         b"000NACGT"[encoded_base.as_usize()]
     }
 
-    /// Decode a single base. If the base is not in `0..=4`, then `None` is
+    /// Decode a single base. If the base is not in `3..=8`, then `None` is
     /// returned.
     #[inline]
     fn decode_base_checked(encoded_base: Self::EncodedBase) -> Option<u8> {
@@ -163,19 +177,19 @@ where
         }
     }
 
-    /// Decode a k-mer. The bases and k-mer length are assumed to be valid for the
-    /// given [`ThreeBitKmerEncoder`]. If an invalid base is encountered (a
-    /// three-bit value outside `0..=4`), then this function will panic. If the
-    /// length of the encoded k-mer does not agree with the `kmer_length` of the
-    /// [`ThreeBitKmerEncoder`], then either some bases may be truncated, or
-    /// erroneous extra bases may appear in the output. Consider
-    /// [`decode_kmer_checked`] when it is not known whether the bases and k-mer
-    /// length will be valid.
+    /// Decode a k-mer. The bases and k-mer length are assumed to be valid for
+    /// the given [`ThreeBitKmerEncoder`]. If an invalid base is encountered (a
+    /// three-bit value outside `3..=8`), then this function may panic or have
+    /// unexpected behavior. If the length of the encoded k-mer does not agree
+    /// with the `kmer_length` of the [`ThreeBitKmerEncoder`], then either some
+    /// bases may be truncated, or erroneous extra bases may appear in the
+    /// output. Consider [`decode_kmer_checked`] when it is not known whether
+    /// the bases and k-mer length will be valid.
     ///
     /// # Panics
     ///
-    /// If an invalid base is encountered (a three-bit value outside `0..=4`),
-    /// then this function will panic.
+    /// If an invalid base is encountered (a three-bit value outside `3..=8`),
+    /// then this function will panic or cause unexpected behavior.
     ///
     /// [`decode_kmer_checked`]: ThreeBitKmerEncoder::decode_kmer_checked
     fn decode_kmer(&self, mut encoded_kmer: Self::EncodedKmer) -> Kmer<MAX_LEN> {
@@ -188,7 +202,7 @@ where
         Kmer::new(self.kmer_length, buffer)
     }
 
-    /// Decode a k-mer. If an erroneous base outside `0..=4` is found, or if the
+    /// Decode a k-mer. If an erroneous base outside `3..=8` is found, or if the
     /// encoding represents a longer k-mer than the `kmer_length` of the
     /// [`ThreeBitKmerEncoder`], then `None` is returned.
     fn decode_kmer_checked(&self, mut encoded_kmer: Self::EncodedKmer) -> Option<Kmer<MAX_LEN>> {

@@ -10,7 +10,7 @@ impl fmt::Display for KmerError {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            KmerError::InvalidLength => write!(f, "kmer length must be between 2 and 21"),
+            KmerError::InvalidLength => write!(f, "kmer length must be between 2 and MAX_LEN"),
         }
     }
 }

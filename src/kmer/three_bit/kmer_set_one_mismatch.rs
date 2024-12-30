@@ -11,8 +11,8 @@ use std::{
 
 use super::{
     encoder::ThreeBitEncodedKmer,
-    int_mappings::{KmerLen, SupportedThreeBitKmerLen},
     kmer_set::ThreeBitKmerSetDecodedIntoIter,
+    len_mappings::{KmerLen, SupportedThreeBitKmerLen},
 };
 
 /// A [`KmerSet`] utilizing [`ThreeBitKmerEncoder`] as its encoder, but where
@@ -37,8 +37,8 @@ where
     ///
     /// # Errors
     ///
-    /// Returns [`KmerError::InvalidLength`] if `kmer_length` is 0 or greater
-    /// than 21.
+    /// Returns [`KmerError::InvalidLength`] if `kmer_length` is less than 2 or
+    /// greater than `MAX_LEN`.
     #[inline]
     pub fn new(kmer_length: usize) -> Result<Self, KmerError> {
         Ok(Self {
@@ -57,8 +57,8 @@ where
     ///
     /// # Errors
     ///
-    /// Returns [`KmerError::InvalidLength`] if `kmer_length` is 0 or greater
-    /// than 21.
+    /// Returns [`KmerError::InvalidLength`] if `kmer_length` is less than 2 or
+    /// greater than `MAX_LEN`.
     #[inline]
     pub fn with_hasher(kmer_length: usize, hasher: S) -> Result<Self, KmerError> {
         Ok(Self {

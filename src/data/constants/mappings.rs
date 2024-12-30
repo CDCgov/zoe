@@ -215,11 +215,12 @@ impl<const S: usize> ByteIndexMap<S> {
         out
     }
 
+    /// Increment all values in the map to support a different starting index.
     const fn update_starting_index(mut self, starting_index: u8) -> Self {
         assert!(arr_max(&self.index_map).unwrap() < u8::MAX - starting_index);
         let mut i = 0;
-        while i < self.byte_keys.len() {
-            self.byte_keys[i] += starting_index;
+        while i < self.index_map.len() {
+            self.index_map[i] += starting_index;
             i += 1;
         }
         self

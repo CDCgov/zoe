@@ -5,21 +5,21 @@ use std::hash::Hash;
 /// that can be applied using it. For instance, a [`KmerSet`] can be used to
 /// find the leftmost or rightmost occurrence of k-mers in a sequence, using
 /// [`find_kmers`] and [`find_kmers_rev`]. A [`KmerSet`] can also be constructed
-/// in efficient ways, such as using [`insert_from_sequence`].
+/// using [`insert_from_sequence`].
 ///
 /// [`find_kmers`]: KmerSet::find_kmers
 /// [`find_kmers_rev`]: KmerSet::find_kmers_rev
 /// [`insert_from_sequence`]: KmerSet::insert_from_sequence
 pub trait KmerSet<const MAX_LEN: usize>: IntoIterator {
-    /// The type of an encoded kmer.
+    /// The type of an encoded k-mer.
     type EncodedKmer: Hash;
     /// The type of the encoder.
     type Encoder: KmerEncoder<MAX_LEN, EncodedKmer = Self::EncodedKmer>;
-    /// The type of the non-consuming iterator over decoded kmers.
+    /// The type of the non-consuming iterator over decoded k-mers.
     type DecodedIter<'a>
     where
         Self: 'a;
-    /// The type of the non-consuming iterator over encoded kmers.
+    /// The type of the non-consuming iterator over encoded k-mers.
     type EncodedIter<'a>
     where
         Self: 'a;

@@ -157,7 +157,88 @@ pub mod composition;
 pub mod data;
 /// Distance functions, especially for sequence data.
 pub mod distance;
-/// K-mer processing, searching, and counting.
+
+/// ## K-mer processing, searching, and counting.
+///
+/// This module provides structs and methods for handling common k-mer
+/// operations efficiently using integer encodings. A k-mer is a short
+/// subsequence of nucleotides, which are represented in *Zoe* by [`Kmer`].
+/// Although the length of the k-mer might not be known at compile time, a
+/// maximum possible length (`MAX_LEN`) is required, which is used to determine
+/// the appropriate integer type to store the encoded k-mer.
+///
+/// *Zoe* has two types of structs to store k-mers:
+/// * A [`KmerSet`], which is a [`HashSet`] for k-mers
+/// * A [`KmerCounter`] to store k-mers and their counts
+///
+/// Several convenience methods are provided, such as:
+/// * [`insert_from_sequence`], which quickly inserts/counts all overlapping
+///   k-mers from a sequence
+/// * [`find_kmers`] and [`find_kmers_rev`], which search a sequence for any of
+///   the stored k-mers
+///
+/// Any particular implementation of [`KmerSet`] or [`KmerCounter`] relies on an
+/// encoder. *Zoe* currently provides a single encoder, [`ThreeBitKmerEncoder`],
+/// which uses three bits to store each base. It allows for `A`, `C`, `G`, `T`,
+/// and `N` to all be represented. It does not preserve case or the distinction
+/// between `T` and `U`. `N` is used as a catch-all for bases that are not
+/// `ACGTUNacgtun`.
+///
+/// The corresponding types with this encoder are [`ThreeBitKmerSet`] and
+/// [`ThreeBitKmerCounter`]. A more specialized [`ThreeBitOneMismatchKmerSet`]
+/// is also provided, which automatically stores all k-mers within a Hamming
+/// distance of 1 upon insertion.
+///
+/// For guidance on picking the appropriate `MAX_LEN`, see
+/// [`SupportedThreeBitKmerLen`].
+///
+/// When performing more specialized k-mer operations, you may need to directly
+/// encode and decode k-mers, rather than relying on the methods in [`KmerSet`]
+/// or [`KmerCounter`]. It is important to use the same [`KmerEncoder`] to both
+/// encode and decode the k-mer. For [`ThreeBitEncodedKmer`], there also exists
+/// a [`Display`] implementation that does not require access to the encoder,
+/// but this is suboptimal; it is preferred to decode the k-mer first.
+///
+/// ## Examples
+///
+/// Count the 3-mers in a sequence:
+/// ```
+/// # use zoe::{kmer::ThreeBitKmerCounter, prelude::*};
+/// let sequence = b"GGCCACCAAGGCCA";
+/// let mut kmer_counter = ThreeBitKmerCounter::<3>::new(3).unwrap();
+/// kmer_counter.insert_from_sequence(sequence);
+/// for (kmer, count) in kmer_counter {
+///     println!("{kmer}\t{count}");
+/// }
+/// ```
+///
+/// Search for the 17-mers of a primer within a sequence, with up to one
+/// mismatch:
+/// ```
+/// # use zoe::{kmer::ThreeBitOneMismatchKmerSet, prelude::*};
+/// let primer = b"TGATAGTTTTAGAGTTAGGTAG";
+/// let sequence = b"TGCCCGTAACGTACAGTTTTACAGTTAGGTACCC";
+/// let mut kmer_set = ThreeBitOneMismatchKmerSet::<17>::new(17).unwrap();
+/// kmer_set.insert_from_sequence(primer);
+/// let kmer_pos = kmer_set.find_kmers(sequence);
+/// assert_eq!(kmer_pos, Some(14));
+/// ```
+///
+/// [`HashSet`]: std::collections::HashSet
+/// [`Display`]: std::fmt::Display
+/// [`Kmer`]: kmer::Kmer
+/// [`KmerEncoder`]: kmer::KmerEncoder
+/// [`KmerSet`]: kmer::KmerSet
+/// [`KmerCounter`]: kmer::KmerCounter
+/// [`ThreeBitKmerEncoder`]: kmer::ThreeBitKmerEncoder
+/// [`ThreeBitEncodedKmer`]: kmer::ThreeBitEncodedKmer
+/// [`ThreeBitKmerSet`]: kmer::ThreeBitKmerSet
+/// [`ThreeBitOneMismatchKmerSet`]: kmer::ThreeBitOneMismatchKmerSet
+/// [`ThreeBitKmerCounter`]: kmer::ThreeBitKmerCounter
+/// [`SupportedThreeBitKmerLen`]: kmer::three_bit::SupportedThreeBitKmerLen
+/// [`insert_from_sequence`]: kmer::KmerSet::insert_from_sequence
+/// [`find_kmers`]: kmer::KmerSet::find_kmers
+/// [`find_kmers_rev`]: kmer::KmerSet::find_kmers_rev
 pub mod kmer;
 /// Sequence search and/or replacement.
 pub mod search;

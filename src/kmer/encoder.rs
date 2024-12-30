@@ -36,8 +36,8 @@ impl<const MAX_LEN: usize> Kmer<MAX_LEN> {
     #[must_use]
     pub(crate) fn new(length: usize, buffer: [u8; MAX_LEN]) -> Self {
         Self {
-            // This will not truncate since we require all kmers to be of length
-            // less than 256
+            // This will not truncate since we require all k-mers to be of
+            // length less than 256
             length: length as u8,
             buffer,
         }
