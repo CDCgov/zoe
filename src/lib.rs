@@ -221,7 +221,7 @@ pub mod distance;
 /// let mut kmer_set = ThreeBitOneMismatchKmerSet::<17>::new(17).unwrap();
 /// kmer_set.insert_from_sequence(primer);
 /// let kmer_pos = kmer_set.find_kmers(sequence);
-/// assert_eq!(kmer_pos, Some(14));
+/// assert_eq!(kmer_pos, Some(14..31));
 /// ```
 ///
 /// [`HashSet`]: std::collections::HashSet

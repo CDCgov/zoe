@@ -1,5 +1,5 @@
 use crate::kmer::encoder::KmerEncoder;
-use std::hash::Hash;
+use std::{hash::Hash, ops::Range};
 
 /// [`KmerSet`] represents a set of encoded k-mers along with relevant methods
 /// that can be applied using it. For instance, a [`KmerSet`] can be used to
@@ -41,6 +41,12 @@ pub trait KmerSet<const MAX_LEN: usize>: IntoIterator {
 
     /// Iterate over the encoded k-mers in the set.
     fn iter_encoded(&self) -> Self::EncodedIter<'_>;
+
+    /// Get the length of the k-mers being stored in the set.
+    #[inline]
+    fn get_kmer_length(&self) -> usize {
+        self.get_encoder().get_kmer_length()
+    }
 
     /// Insert a k-mer into the set. The bases and k-mer length are assumed to be
     /// valid for the [`KmerEncoder`] associated with this [`KmerSet`]. Consider
@@ -94,27 +100,28 @@ pub trait KmerSet<const MAX_LEN: usize>: IntoIterator {
         Some(self.contains_encoded(self.get_encoder().encode_kmer_checked(kmer)?))
     }
 
-    /// Return the starting index of the leftmost occurrence of any of the k-mers
-    /// in this set within a provided sequence. The bases in the
-    /// sequence must be valid for the [`KmerEncoder`] associated with this
-    /// [`KmerSet`]. If no occurrence is found, then `None` is returned.
-    fn find_kmers<S: AsRef<[u8]>>(&self, seq: S) -> Option<usize> {
+    /// Return the indices of the leftmost occurrence of any of the k-mers in
+    /// this set within a provided sequence. The bases in the sequence must be
+    /// valid for the [`KmerEncoder`] associated with this [`KmerSet`]. If no
+    /// occurrence is found, then `None` is returned.
+    fn find_kmers<S: AsRef<[u8]>>(&self, seq: S) -> Option<Range<usize>> {
         for (i, kmer) in self.get_encoder().iter_from_sequence(&seq).enumerate() {
             if self.contains_encoded(kmer) {
-                return Some(i);
+                return Some(i..i + self.get_kmer_length());
             }
         }
         None
     }
 
-    /// Return the starting index of the rightmost occurrence of any of the
-    /// k-mers in this set within a provided sequence. The bases in the sequence
-    /// must be valid for the [`KmerEncoder`] associated with this [`KmerSet`].
-    /// If no occurrence is found, then `None` is returned.
-    fn find_kmers_rev<S: AsRef<[u8]>>(&self, seq: S) -> Option<usize> {
+    /// Return the indices of the rightmost occurrence of any of the k-mers in
+    /// this set within a provided sequence. The bases in the sequence must be
+    /// valid for the [`KmerEncoder`] associated with this [`KmerSet`]. If no
+    /// occurrence is found, then `None` is returned.
+    fn find_kmers_rev<S: AsRef<[u8]>>(&self, seq: S) -> Option<Range<usize>> {
         for (i, kmer) in self.get_encoder().iter_from_sequence_rev(&seq).enumerate() {
             if self.contains_encoded(kmer) {
-                return Some(seq.as_ref().len() - self.get_encoder().get_kmer_length() - i);
+                let end = seq.as_ref().len() - i;
+                return Some(end - self.get_kmer_length() - i..end);
             }
         }
         None
