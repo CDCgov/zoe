@@ -53,7 +53,10 @@ where
             buffer[start] = ThreeBitKmerEncoder::decode_base(encoded_base);
             kmer >>= 3;
         }
-        f.write_str(std::str::from_utf8(&buffer[start..]).unwrap())
+        // Safety: The buffer only contains valid ASCII because it is
+        // initialized with 0 and ThreeBitKmerEncoder::decode_base always
+        // returns a char in b"000NACGT"
+        f.write_str(unsafe { std::str::from_utf8_unchecked(&buffer[start..]) })
     }
 }
 
@@ -216,7 +219,10 @@ where
             buffer[i] = Self::decode_base(encoded_base);
             encoded_kmer.0 >>= 3;
         }
-        Kmer::new(self.kmer_length, buffer)
+        // Safety: The buffer only contains valid ASCII because it is
+        // initialized with 0 and ThreeBitKmerEncoder::decode_base always
+        // returns a char in b"000NACGT"
+        unsafe { Kmer::new_unchecked(self.kmer_length, buffer) }
     }
 
     /// Decode a k-mer. If an erroneous base outside `3..=8` is found, or if the
@@ -230,7 +236,10 @@ where
             encoded_kmer.0 >>= 3;
         }
         if encoded_kmer.0 == T::ZERO {
-            Some(Kmer::new(self.kmer_length, buffer))
+            // Safety: The buffer only contains valid ASCII because it is
+            // initialized with 0 and ThreeBitKmerEncoder::decode_base always
+            // returns a char in b"000NACGT"
+            Some(unsafe { Kmer::new_unchecked(self.kmer_length, buffer) })
         } else {
             None
         }
@@ -452,4 +461,27 @@ where
 impl<const MAX_LEN: usize> ExactSizeIterator for ThreeBitOneMismatchIter<MAX_LEN> where
     KmerLen<MAX_LEN>: SupportedThreeBitKmerLen
 {
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_valid_decoding() {
+        assert_eq!(ThreeBitKmerEncoder::<21>::decode_base(0), b'0');
+        assert_eq!(ThreeBitKmerEncoder::<21>::decode_base(1), b'0');
+        assert_eq!(ThreeBitKmerEncoder::<21>::decode_base(2), b'0');
+        assert_eq!(ThreeBitKmerEncoder::<21>::decode_base(3), b'N');
+        assert_eq!(ThreeBitKmerEncoder::<21>::decode_base(4), b'A');
+        assert_eq!(ThreeBitKmerEncoder::<21>::decode_base(5), b'C');
+        assert_eq!(ThreeBitKmerEncoder::<21>::decode_base(6), b'G');
+        assert_eq!(ThreeBitKmerEncoder::<21>::decode_base(7), b'T');
+    }
+
+    #[test]
+    #[should_panic(expected = "index out of bounds: the len is 8 but the index is 8")]
+    fn test_invalid_decoding() {
+        ThreeBitKmerEncoder::<21>::decode_base(8);
+    }
 }

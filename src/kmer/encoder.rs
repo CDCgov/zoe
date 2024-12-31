@@ -1,4 +1,4 @@
-use crate::{kmer::errors::KmerError, prelude::Nucleotides};
+use crate::{data::CheckSequence, kmer::errors::KmerError, prelude::Nucleotides};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Kmer<const MAX_LEN: usize> {
@@ -23,18 +23,44 @@ impl<const MAX_LEN: usize> PartialOrd for Kmer<MAX_LEN> {
 impl<const MAX_LEN: usize> std::fmt::Display for Kmer<MAX_LEN> {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // TODO: Unless we seal the KmerEncoder trait, we need to avoid unsafe here
-        // Or we would need a separate Kmer struct for each encoder
-        // Should we avoid unwrap?
-        f.write_str(std::str::from_utf8(self.as_ref()).unwrap())
+        // Safety: A Kmer instance is guaranteed to be valid ASCII
+        f.write_str(unsafe { std::str::from_utf8_unchecked(self.as_ref()) })
     }
 }
 
 impl<const MAX_LEN: usize> Kmer<MAX_LEN> {
+    /// Create a new `Kmer` instance.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the buffer does not contain valid ASCII, or if the length of
+    /// `bases` is less than 2 or longer than `MAX_LEN`.
+    #[inline]
+    #[must_use]
+    pub fn new<S: AsRef<[u8]>>(bases: S) -> Self {
+        let bases = bases.as_ref();
+        let length = bases.len();
+
+        assert!(bases.is_ascii_simd::<16>());
+        assert!(bases.len() >= 2);
+        let mut buffer = [0; MAX_LEN];
+        buffer[..length].copy_from_slice(bases);
+
+        // Safety: buffer is initialized with 0 (valid ASCII) and is filled with
+        // values from bases, which was verified to be valid ASCII
+        unsafe { Kmer::new_unchecked(length, buffer) }
+    }
+
+    /// Create a new `Kmer` instance from a length and buffer.
+    ///
+    /// # Safety
+    ///
+    /// `buffer` must be valid ASCII, and length must be between 2 and
+    /// `MAX_LEN`.
     #[allow(clippy::cast_possible_truncation)]
     #[inline]
     #[must_use]
-    pub(crate) fn new(length: usize, buffer: [u8; MAX_LEN]) -> Self {
+    pub unsafe fn new_unchecked(length: usize, buffer: [u8; MAX_LEN]) -> Self {
         Self {
             // This will not truncate since we require all k-mers to be of
             // length less than 256
