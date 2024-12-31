@@ -85,7 +85,7 @@ where
 
     /// Get the encoder used for the [`ThreeBitOneMismatchKmerSet`].
     #[inline]
-    fn get_encoder(&self) -> &Self::Encoder {
+    fn encoder(&self) -> &Self::Encoder {
         &self.encoder
     }
 
@@ -96,7 +96,7 @@ where
     #[inline]
     fn insert_encoded_kmer(&mut self, encoded_kmer: Self::EncodedKmer) {
         self.set.insert(encoded_kmer);
-        for variant in self.get_encoder().get_variants_one_mismatch(encoded_kmer) {
+        for variant in self.encoder().get_variants_one_mismatch(encoded_kmer) {
             self.set.insert(variant);
         }
     }

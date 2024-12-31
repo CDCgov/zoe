@@ -24,7 +24,7 @@ pub trait KmerCounter<const MAX_LEN: usize>: KmerSet<MAX_LEN> + Index<Self::Enco
     /// [`get_checked`]: KmerCounter::get_checked
     #[inline]
     fn get<S: AsRef<[u8]>>(&self, kmer: S) -> u64 {
-        self.get_encoded(self.get_encoder().encode_kmer(kmer))
+        self.get_encoded(self.encoder().encode_kmer(kmer))
     }
 
     /// Get the count of a k-mer. If the k-mer is not present in the counter, then
@@ -32,6 +32,6 @@ pub trait KmerCounter<const MAX_LEN: usize>: KmerSet<MAX_LEN> + Index<Self::Enco
     /// encoder associated with this [`KmerCounter`], then `None` is returned.
     #[inline]
     fn get_checked<S: AsRef<[u8]>>(&self, kmer: S) -> Option<u64> {
-        Some(self.get_encoded(self.get_encoder().encode_kmer_checked(kmer)?))
+        Some(self.get_encoded(self.encoder().encode_kmer_checked(kmer)?))
     }
 }

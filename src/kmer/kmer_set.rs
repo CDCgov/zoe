@@ -25,7 +25,7 @@ pub trait KmerSet<const MAX_LEN: usize>: IntoIterator {
         Self: 'a;
 
     /// Get the encoder used for the [`KmerSet`].
-    fn get_encoder(&self) -> &Self::Encoder;
+    fn encoder(&self) -> &Self::Encoder;
 
     /// Insert an encoded k-mer into the set. The encoded k-mer must have been
     /// generated using the encoder associated with this [`KmerSet`].
@@ -45,7 +45,7 @@ pub trait KmerSet<const MAX_LEN: usize>: IntoIterator {
     /// Get the length of the k-mers being stored in the set.
     #[inline]
     fn get_kmer_length(&self) -> usize {
-        self.get_encoder().get_kmer_length()
+        self.encoder().get_kmer_length()
     }
 
     /// Insert a k-mer into the set. The bases and k-mer length are assumed to be
@@ -56,7 +56,7 @@ pub trait KmerSet<const MAX_LEN: usize>: IntoIterator {
     /// [`insert_kmer_checked`]: KmerSet::insert_kmer_checked
     #[inline]
     fn insert_kmer<S: AsRef<[u8]>>(&mut self, kmer: S) {
-        self.insert_encoded_kmer(self.get_encoder().encode_kmer(kmer));
+        self.insert_encoded_kmer(self.encoder().encode_kmer(kmer));
     }
 
     /// Insert a k-mer into the set. If the bases and k-mer length are not valid
@@ -64,7 +64,7 @@ pub trait KmerSet<const MAX_LEN: usize>: IntoIterator {
     /// is returned and no insertion is performed.
     #[inline]
     fn insert_kmer_checked<S: AsRef<[u8]>>(&mut self, kmer: S) -> bool {
-        let Some(encoded_kmer) = self.get_encoder().encode_kmer_checked(kmer) else {
+        let Some(encoded_kmer) = self.encoder().encode_kmer_checked(kmer) else {
             return false;
         };
         self.insert_encoded_kmer(encoded_kmer);
@@ -76,7 +76,7 @@ pub trait KmerSet<const MAX_LEN: usize>: IntoIterator {
     /// [`KmerSet`].
     #[inline]
     fn insert_from_sequence<S: AsRef<[u8]>>(&mut self, seq: S) {
-        for encoded_kmer in self.get_encoder().iter_from_sequence(&seq) {
+        for encoded_kmer in self.encoder().iter_from_sequence(&seq) {
             self.insert_encoded_kmer(encoded_kmer);
         }
     }
@@ -89,7 +89,7 @@ pub trait KmerSet<const MAX_LEN: usize>: IntoIterator {
     /// [`contains_checked`]: KmerSet::contains_checked
     #[inline]
     fn contains<S: AsRef<[u8]>>(&self, kmer: S) -> bool {
-        self.contains_encoded(self.get_encoder().encode_kmer(kmer))
+        self.contains_encoded(self.encoder().encode_kmer(kmer))
     }
 
     /// Return whether a k-mer is present in the set. If the bases and k-mer
@@ -97,7 +97,7 @@ pub trait KmerSet<const MAX_LEN: usize>: IntoIterator {
     /// [`KmerSet`], then `None` is returned.
     #[inline]
     fn contains_checked<S: AsRef<[u8]>>(&self, kmer: S) -> Option<bool> {
-        Some(self.contains_encoded(self.get_encoder().encode_kmer_checked(kmer)?))
+        Some(self.contains_encoded(self.encoder().encode_kmer_checked(kmer)?))
     }
 
     /// Return the indices of the leftmost occurrence of any of the k-mers in
@@ -105,7 +105,7 @@ pub trait KmerSet<const MAX_LEN: usize>: IntoIterator {
     /// valid for the [`KmerEncoder`] associated with this [`KmerSet`]. If no
     /// occurrence is found, then `None` is returned.
     fn find_kmers<S: AsRef<[u8]>>(&self, seq: S) -> Option<Range<usize>> {
-        for (i, kmer) in self.get_encoder().iter_from_sequence(&seq).enumerate() {
+        for (i, kmer) in self.encoder().iter_from_sequence(&seq).enumerate() {
             if self.contains_encoded(kmer) {
                 return Some(i..i + self.get_kmer_length());
             }
@@ -118,7 +118,7 @@ pub trait KmerSet<const MAX_LEN: usize>: IntoIterator {
     /// valid for the [`KmerEncoder`] associated with this [`KmerSet`]. If no
     /// occurrence is found, then `None` is returned.
     fn find_kmers_rev<S: AsRef<[u8]>>(&self, seq: S) -> Option<Range<usize>> {
-        for (i, kmer) in self.get_encoder().iter_from_sequence_rev(&seq).enumerate() {
+        for (i, kmer) in self.encoder().iter_from_sequence_rev(&seq).enumerate() {
             if self.contains_encoded(kmer) {
                 let end = seq.as_ref().len() - i;
                 return Some(end - self.get_kmer_length()..end);

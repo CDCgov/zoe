@@ -82,7 +82,7 @@ where
 
     /// Get the encoder used for the [`ThreeBitKmerCounter`].
     #[inline]
-    fn get_encoder(&self) -> &Self::Encoder {
+    fn encoder(&self) -> &Self::Encoder {
         &self.encoder
     }
 
