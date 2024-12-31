@@ -293,7 +293,8 @@ impl<const S: usize> Index<u8> for ByteIndexMap<S> {
 pub const DNA_PROFILE_MAP: ByteIndexMap<5> =
     ByteIndexMap::new_ignoring_case(*b"ACGTN", b'N').add_synonym_ignoring_case(b'U', b'T');
 
-/// TODO: Docs
+/// Used by [`ThreeBitKmerEncoder`] to convert any byte to `u8` indices where
+/// {3: N, 4: A, 5: C, 6: G, 7: T}. N is used as a catch-all. U is treated as T.
 pub(crate) const THREE_BIT_MAPPING: ByteIndexMap<5> = ByteIndexMap::new_ignoring_case(*b"NACGT", b'N')
     .add_synonym_ignoring_case(b'U', b'T')
     .update_starting_index(3);
