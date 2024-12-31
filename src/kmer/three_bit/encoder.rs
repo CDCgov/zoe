@@ -53,7 +53,6 @@ where
             buffer[start] = ThreeBitKmerEncoder::decode_base(encoded_base);
             kmer >>= 3;
         }
-        // TODO: Potentially make unsafe with sealed traits or ASCII check
         f.write_str(std::str::from_utf8(&buffer[start..]).unwrap())
     }
 }
@@ -62,6 +61,24 @@ where
 /// `A`, `C`, `G`, `T`, and `N` to all be represented. This encoder does not
 /// preserve case or the distinction between `T` and `U`. `N` is used as a
 /// catch-all for bases that are not `ACGTUNacgtun`.
+///
+/// The encoding approach was inspired by (1) with the following modifications:
+/// * Use three bits instead of two bits, so that N can be represented
+/// * Map ACGTN to 45673 so that efficient bitwise operations can be used in
+///   [`get_variants_one_mismatch`], and so that the bits `000` can be reserved
+///   for unused positions
+///
+/// Furthermore, (1) inspired the implementation of [`encode_kmer`],
+/// [`decode_kmer`], and [`iter_from_sequence`].
+///
+/// ### Citations
+///
+/// TODO
+///
+/// [`get_variants_one_mismatch`]: KmerEncoder::get_variants_one_mismatch
+/// [`encode_kmer`]: KmerEncoder::encode_kmer
+/// [`decode_kmer`]: KmerEncoder::decode_kmer
+/// [`iter_from_sequence`]: KmerEncoder::iter_from_sequence
 pub struct ThreeBitKmerEncoder<const MAX_LEN: usize>
 where
     KmerLen<MAX_LEN>: SupportedThreeBitKmerLen, {
