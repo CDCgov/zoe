@@ -1,7 +1,7 @@
 use crate::data::err::{DistanceError, DistanceError::*};
 
 /// Calculates a "physiochemical" distance measure using the euclidean distances
-/// over physiochemical factors. Only valid amino acids permitted in the
+/// over physiochemical factors. Only valid amino acids are permitted in the
 /// denominator.
 ///
 /// # Example

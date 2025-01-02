@@ -24,7 +24,7 @@ where
 }
 
 /// Calculates GC content using scalar operations. Returns count of G and C
-/// nucleotides in the sequence
+/// nucleotides in the sequence.
 #[must_use]
 pub fn gc_content(s: &[u8]) -> usize {
     s.iter()

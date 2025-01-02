@@ -1,13 +1,16 @@
 use crate::data::byte_types::ByteMappings;
 
 #[must_use]
-/// ## Generates a 4x4 substitution matrix from two aligned sequences of the type `&[u8]`.
+/// ## Generates a 4x4 substitution matrix from two aligned sequences of the
+/// type `&[u8]`.
 ///
-/// Each column refers to nucleotide bases in the first sequence (A, C, G, T, respectively),
-/// and each row refers to nucleotide bases in the second sequence.
+/// Each column refers to nucleotide bases in the first sequence (A, C, G, T,
+/// respectively), and each row refers to nucleotide bases in the second
+/// sequence.
 ///
-/// The substitution matrix can then be indexed to find counts of each type of substitution
-/// between the sequences, or used to calculate evolutionary distances.
+/// The substitution matrix can then be indexed to find counts of each type of
+/// substitution between the sequences, or used to calculate evolutionary
+/// distances.
 ///
 /// ### Example
 /// ```
@@ -18,7 +21,9 @@ use crate::data::byte_types::ByteMappings;
 /// let sub_matrix: [[u32; 4]; 4] = dna_substitution_matrix(seq1, seq2);
 /// ```
 /// This should return the matrix (bases provided here for context)
-/// $$ \begin{pmatrix}  & \text{A} & \text{C} & \text{G} & \text{T} \cr \text{A} & 4 & 0 & 0 & 1 \cr \text{C} & 0 & 2 & 1 & 0 \cr \text{G} & 0 & 0 & 3 & 0 \cr \text{T} & 0 & 0 & 1 & 7 \end{pmatrix} $$
+/// $$ \begin{pmatrix}  & \text{A} & \text{C} & \text{G} & \text{T} \cr \text{A}
+/// & 4 & 0 & 0 & 1 \cr \text{C} & 0 & 2 & 1 & 0 \cr \text{G} & 0 & 0 & 3 & 0
+/// \cr \text{T} & 0 & 0 & 1 & 7 \end{pmatrix} $$
 pub fn dna_substitution_matrix(seq1: &[u8], seq2: &[u8]) -> [[u32; 4]; 4] {
     let mut sub_matrix = [[0u32; 4]; 4];
     std::iter::zip(
@@ -33,7 +38,8 @@ pub fn dna_substitution_matrix(seq1: &[u8], seq2: &[u8]) -> [[u32; 4]; 4] {
 #[allow(clippy::needless_range_loop)]
 #[inline]
 #[must_use]
-/// ## Calculates the Hamming distance from a nucleotide [substitution matrix](dna_substitution_matrix).
+/// ## Calculates the Hamming distance from a nucleotide
+/// [substitution matrix](dna_substitution_matrix).
 ///
 /// The Hamming distance is the number of substitutions between
 /// aligned sequences, or sum of non-diagonal values in the substitution matrix.
@@ -51,7 +57,8 @@ pub fn hamming_dist_from_sub_matrix(sub_matrix: &[[u32; 4]; 4]) -> u32 {
 }
 
 #[must_use]
-/// ## Finds total number of bases and nucleotide base frequencies from a [substitution matrix](dna_substitution_matrix).
+/// ## Finds total number of bases and nucleotide base frequencies from a
+/// nucleotide [substitution matrix](dna_substitution_matrix).
 ///
 /// Returns a tuple of the total number of nucleotides in the two sequences,
 /// and an array of base frequencies, corresponding to the

@@ -104,7 +104,8 @@ where
         self.inner[0..7].iter().fold(T::ZERO, |acc, &v| acc + v)
     }
 
-    /// The most frequent allele for A, C, G, T, N
+    /// The most frequent allele for A, C, G, T, and N. In case of ties, A is
+    /// preferred to C, which is preferred to G, and so on.
     #[inline]
     pub fn plurality_acgtn(&self) -> u8 {
         let mut max_count = self.inner[0];
@@ -260,7 +261,13 @@ const fn base_to_inner_index(b: u8) -> usize {
     TO_INNER[b as usize] as usize
 }
 
+/// Extension trait to allow for a consensus sequence to be generated from a
+/// vector of [`NucleotideCounts`]. See [`CreateConsensus::plurality_acgtn`]
+/// for more details.
 pub trait CreateConsensus {
+    /// Given a vector of [`NucleotideCounts`] representing the counts in each
+    /// position of a multiple sequence alignment, generate a consensus
+    /// sequence. See [`NucleotideCounts::plurality_acgtn`] for more details.
     fn plurality_acgtn(&self) -> Nucleotides;
 }
 
@@ -268,6 +275,7 @@ impl<T> CreateConsensus for Vec<NucleotideCounts<T>>
 where
     T: Uint + Ord + Add<Output = T>,
 {
+    #[inline]
     fn plurality_acgtn(&self) -> Nucleotides {
         self.iter().map(NucleotideCounts::plurality_acgtn).collect()
     }

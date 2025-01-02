@@ -57,7 +57,7 @@ impl FastQ {
 }
 
 /// A buffered reader for reading
-/// [FASTQ](https://en.wikipedia.org/wiki/FASTQ_format)
+/// [FASTQ](https://en.wikipedia.org/wiki/FASTQ_format).
 #[derive(Debug)]
 pub struct FastQReader<R: std::io::Read> {
     pub fastq_reader: std::io::BufReader<R>,

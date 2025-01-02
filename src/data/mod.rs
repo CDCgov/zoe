@@ -1,4 +1,4 @@
-/// A module containing traits for convertion our custom types, such as
+/// A module containing traits for conversion to our custom types, such as
 /// [`Vec<u8>`] to [`Nucleotides`](self::types::nucleotides::Nucleotides).
 pub mod convert;
 /// A module with error types and convenience traits for handling [`Result`].
@@ -28,7 +28,7 @@ pub use constants::{
     matrices::{BiasedWeightMatrix, SimpleWeightMatrix},
 };
 
-/// A private module with helper functions for things that look like `[u8; N]`
+/// A private module with helper functions for things that look like `[u8; N]`.
 pub(crate) mod array_types;
 /// A private module for helper functions on [`u8`].
 pub(crate) mod byte_types;

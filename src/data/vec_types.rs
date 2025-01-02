@@ -4,7 +4,7 @@ use crate::prelude::{AminoAcids, Nucleotides};
 use crate::simd::SimdByteFunctions;
 use std::simd::{prelude::*, LaneCount, SupportedLaneCount};
 
-/// Provides methods for validating and transforming sequence data using byte mappings
+/// Provides methods for validating and transforming sequence data using byte mappings.
 pub trait ValidateSequence {
     /// Retains only bytes that are marked as valid in the validation mapping
     fn retain_by_validation(&mut self, validation_mapping: [bool; 256]);
@@ -39,7 +39,7 @@ impl ValidateSequence for Vec<u8> {
     }
 }
 
-/// Enables sequence expansion based on alignment information
+/// Enables sequence expansion based on alignment information.
 pub trait PairwiseSequence {
     type Output;
     /// Aligns two sequences using a CIGAR string starting at the
@@ -81,7 +81,7 @@ impl PairwiseSequence for AminoAcids {
     }
 }
 
-/// Provides SIMD-accelerated sequence validation methods
+/// Provides SIMD-accelerated sequence validation methods.
 pub trait CheckSequence {
     /// Checks if all bytes in the sequence are ASCII using SIMD operations
     fn is_ascii_simd<const N: usize>(&self) -> bool

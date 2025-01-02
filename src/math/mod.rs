@@ -6,7 +6,7 @@ use std::{
     simd::SimdElement,
 };
 
-/// Takes square root using the Babylonian Method using 40 iterations
+/// Takes square root using the Babylonian Method using 40 iterations.
 // Relevant discussion: <https://www.codeproject.com/Articles/69941/Best-Square-Root-Method-Algorithm-Function-Precisi>
 pub(crate) const fn sqrt_baby(n: f64) -> f64 {
     let mut i: f64 = 0.0;

@@ -49,7 +49,10 @@
 ///    [`StripedProfile::smith_waterman_score`] methods. The profile can be
 ///    reused in multiple different calls.
 ///
-/// Using DNA:
+/// Below is an example using DNA. We use a match score of 4 and a mismatch
+/// score of -2, as defined in `WEIGHTS`. The last two arguments to
+/// [`StripedProfile::new`] specify the gap open penalty as 3 and the gap extend
+/// penalty as 1.
 /// ```
 /// # use zoe::{alignment::StripedProfile, data::BiasedWeightMatrix};
 /// let reference: &[u8] = b"GGCCACAGGATTGAG";
@@ -62,7 +65,9 @@
 /// assert_eq!(score, 27);
 /// ```
 ///
-/// Using a different alphabet:
+/// Below is an example using a different alphabet. Matches are given a score of
+/// 1, mismatches are given a score of -1, the gap open penalty is 4, and the
+/// gap extend penalty is 2.
 /// ```
 /// # use zoe::{
 /// #     alignment::StripedProfile,
@@ -85,11 +90,11 @@
 /// higher-level abstraction to avoid this is [`LocalProfile`] and
 /// [`SharedProfile`].
 ///
-/// The former is designed for use within a single thread,
-/// while the latter allows multiple threads to access it. Both store a set of
-/// lazily-evaluated query profiles for `u8`, `u16`, `u32`, and `u64`. To create
-/// one of these, you can call [`LocalProfile::new_with_u8`],
-/// [`SharedProfile::new_with_u8`], or one of the other constructors. Then, call
+/// The former is designed for use within a single thread, while the latter
+/// allows multiple threads to access it. Both store a set of lazily-evaluated
+/// query profiles for `u8`, `u16`, `u32`, and `u64`. To create one of these,
+/// you can call [`LocalProfile::new_with_u8`], [`SharedProfile::new_with_u8`],
+/// or one of the other constructors. Then, call
 /// [`LocalProfile::smith_waterman_score_from_u8`],
 /// [`SharedProfile::smith_waterman_score_from_u8`], or one of the other
 /// methods.
@@ -97,7 +102,7 @@
 /// When using DNA, you can also create a profile by using
 /// [`Nucleotides::into_local_profile`] or [`Nucleotides::into_shared_profile`].
 ///
-/// Using DNA:
+/// Below is the previous example using DNA, but with this higher-level API:
 /// ```
 /// # use zoe::{data::BiasedWeightMatrix, prelude::Nucleotides};
 /// let reference: &[u8] = b"GGCCACAGGATTGAG";
@@ -110,7 +115,7 @@
 /// assert_eq!(score, 27);
 /// ```
 ///
-/// Using a different alphabet:
+/// And similarly with the different alphabet:
 /// ```
 /// # use zoe::{
 /// #     alignment::LocalProfile,
@@ -138,18 +143,24 @@
 /// [`new_biased_dna_matrix`]: data::BiasedWeightMatrix::new_biased_dna_matrix
 /// [`new_dna_matrix`]: data::SimpleWeightMatrix::new_dna_matrix
 /// [`QueryProfileError`]: data::err::QueryProfileError
-/// [`Nucleotides::into_local_profile`]: data::types::nucleotides::Nucleotides::into_local_profile
-/// [`Nucleotides::into_shared_profile`]: data::types::nucleotides::Nucleotides::into_shared_profile
+/// [`Nucleotides::into_local_profile`]:
+///     data::types::nucleotides::Nucleotides::into_local_profile
+/// [`Nucleotides::into_shared_profile`]:
+///     data::types::nucleotides::Nucleotides::into_shared_profile
 /// [`ScalarProfile::new`]: alignment::ScalarProfile::new
 /// [`StripedProfile::new`]: alignment::StripedProfile::new
-/// [`ScalarProfile::smith_waterman_score`]: alignment::ScalarProfile::smith_waterman_score
-/// [`StripedProfile::smith_waterman_score`]: alignment::StripedProfile::smith_waterman_score
+/// [`ScalarProfile::smith_waterman_score`]:
+///     alignment::ScalarProfile::smith_waterman_score
+/// [`StripedProfile::smith_waterman_score`]:
+///     alignment::StripedProfile::smith_waterman_score
 /// [`LocalProfile`]: alignment::LocalProfile
 /// [`SharedProfile`]: alignment::SharedProfile
 /// [`LocalProfile::new_with_u8`]: alignment::LocalProfile::new_with_u8
 /// [`SharedProfile::new_with_u8`]: alignment::SharedProfile::new_with_u8
-/// [`LocalProfile::smith_waterman_score_from_u8`]: alignment::LocalProfile::smith_waterman_score_from_u8
-/// [`SharedProfile::smith_waterman_score_from_u8`]: alignment::SharedProfile::smith_waterman_score_from_u8
+/// [`LocalProfile::smith_waterman_score_from_u8`]:
+///     alignment::LocalProfile::smith_waterman_score_from_u8
+/// [`SharedProfile::smith_waterman_score_from_u8`]:
+///     alignment::SharedProfile::smith_waterman_score_from_u8
 pub mod alignment;
 /// Composition and consensus functions.
 pub mod composition;

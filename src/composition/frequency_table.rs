@@ -1,5 +1,5 @@
-/// Trait for creating frequency tables from bytes slices and performing other
-/// operations on said table.
+/// Creates a frequency table from byte slices and performs operations on said
+/// table.
 pub trait FrequencyTable: AsRef<[u8]> {
     const MIN: u8 = 0;
     const MAX: u8 = 255;

@@ -1,10 +1,10 @@
-/// Search and/or replace bytes
+/// Search and/or replace bytes.
 mod bytes;
-/// Search for fuzzy substrings
+/// Search for fuzzy substrings.
 mod inexact;
-/// Search byte substrings where needle is a repeating character
+/// Search byte substrings where needle is a repeating character.
 mod k_repeating;
-/// Search byte substrings
+/// Search byte substrings.
 mod substring;
 
 pub use bytes::*;

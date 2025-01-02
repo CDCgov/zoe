@@ -13,13 +13,15 @@ use std::{
 
 /// Smith-Waterman algorithm, yielding the optimal score.
 ///
-/// Provides the locally optimal sequence alignment (1) for affine gaps (2). Our
-/// implementation adapts the algorithm provided by [*Flouri et
-/// al.*](https://cme.h-its.org/exelixis/web/software/alignment/correct.html)
+/// Provides the locally optimal sequence alignment (1) using affine gap
+/// penalties (2). Our implementation adapts the algorithm provided by [*Flouri
+/// et al.*](https://cme.h-its.org/exelixis/web/software/alignment/correct.html)
 /// (3).
 ///
-/// We use the affine gap formula of $W(k) = u(k-1) + v$. In order to use $W(k)
-/// = uk + v$, simply pass gap open as the gap open plus gap extension.
+/// We use the affine gap formula, $W(k) = u(k-1) + v$, where $k$ is the gap
+/// length, $u$ is the gap extend penalty, $v$ is the gap open penalty, and
+/// $W(k)$ is the total penalty for the gap. In order to use $W(k) = uk + v$,
+/// simply pass gap open as the gap open plus gap extension.
 ///
 /// ### Example
 ///
@@ -111,14 +113,15 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 /// Smith-Waterman alignment, yielding the reference starting position (indexed
 /// from 1), cigar, and optimal score.
 ///
-/// Provides the locally optimal sequence alignment (1) for affine gaps (2) with
-/// improvements and corrections by (3-4). Our implementation adapts the
-/// corrected algorithm provided by [*Flouri et
-/// al.*](https://cme.h-its.org/exelixis/web/software/alignment/correct.html)
-/// (4).
+/// Provides the locally optimal sequence alignment (1) using affine gap
+/// penalties (2) with improvements and corrections by (3-4). Our implementation
+/// adapts the corrected algorithm provided by [*Flouri et
+/// al.*](https://cme.h-its.org/exelixis/web/software/alignment/correct.html)(4).
 ///
-/// We use the affine gap formula of $W(k) = u(k-1) + v$. In order to use $W(k)
-/// = uk + v$, simply pass gap open as the gap open plus gap extension.
+/// We use the affine gap formula, $W(k) = u(k-1) + v$, where $k$ is the gap
+/// length, $u$ is the gap extend penalty, $v$ is the gap open penalty, and
+/// $W(k)$ is the total penalty for the gap. In order to use $W(k) = uk + v$,
+/// simply pass gap open as the gap open plus gap extension.
 ///
 /// ### Example
 ///
@@ -263,11 +266,14 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
 
 /// Smith-Waterman algorithm (vectorized), yielding the optimal score.
 ///
-/// Provides the locally optimal sequence alignment (1) for affine gaps (2). We
-/// adapt Farrar's striped SIMD implemention (3) for portable SIMD.
+/// Provides the locally optimal sequence alignment (1) using affine gap
+/// penalties (2). We adapt Farrar's striped SIMD implemention (3) for portable
+/// SIMD.
 ///
-/// We use the affine gap formula of $W(k) = u(k-1) + v$. In order to use $W(k)
-/// = uk + v$, simply pass gap open as the gap open plus gap extension.
+/// We use the affine gap formula, $W(k) = u(k-1) + v$, where $k$ is the gap
+/// length, $u$ is the gap extend penalty, $v$ is the gap open penalty, and
+/// $W(k)$ is the total penalty for the gap. In order to use $W(k) = uk + v$,
+/// simply pass gap open as the gap open plus gap extension.
 ///
 /// ### Example
 ///
