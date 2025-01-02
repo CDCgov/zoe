@@ -65,18 +65,11 @@ where
 /// preserve case or the distinction between `T` and `U`. `N` is used as a
 /// catch-all for bases that are not `ACGTUNacgtun`.
 ///
-/// The encoding approach was inspired by (1) with the following modifications:
-/// * Use three bits instead of two bits, so that N can be represented
-/// * Map ACGTN to 45673 so that efficient bitwise operations can be used in
-///   [`get_variants_one_mismatch`], and so that the bits `000` can be reserved
-///   for unused positions
+/// ### Acknowledgements
 ///
-/// Furthermore, (1) inspired the implementation of [`encode_kmer`],
-/// [`decode_kmer`], and [`iter_from_sequence`].
-///
-/// ### Citations
-///
-/// TODO
+/// This k-mer encoding is inspired by the 2-bit encoding found in
+/// [BBDuk](https://jgi.doe.gov/data-and-tools/software-tools/bbtools/bb-tools-user-guide/bbduk-guide/)
+/// from the [BBMap](https://sourceforge.net/projects/bbmap/) project.
 ///
 /// [`get_variants_one_mismatch`]: KmerEncoder::get_variants_one_mismatch
 /// [`encode_kmer`]: KmerEncoder::encode_kmer
