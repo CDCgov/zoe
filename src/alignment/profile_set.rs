@@ -1,4 +1,4 @@
-use super::{validate_profile_args, StripedProfile};
+use super::{StripedProfile, validate_profile_args};
 use crate::data::{err::QueryProfileError, matrices::BiasedWeightMatrix};
 use std::{
     cell::OnceCell,

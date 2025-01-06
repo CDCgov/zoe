@@ -1,8 +1,8 @@
 #[must_use]
 pub fn rand_sequence(alpha: &[u8], length: usize, seed: u64) -> Vec<u8> {
     use rand_xoshiro::{
-        rand_core::{RngCore, SeedableRng},
         Xoshiro256PlusPlus,
+        rand_core::{RngCore, SeedableRng},
     };
 
     let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);

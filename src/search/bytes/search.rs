@@ -1,5 +1,5 @@
 use crate::simd::SimdMaskFunctions;
-use std::simd::{prelude::*, LaneCount, SupportedLaneCount};
+use std::simd::{LaneCount, SupportedLaneCount, prelude::*};
 
 /// Trait for splitting byte strings by byte(s).
 pub(crate) trait ByteSplitIter<'a> {

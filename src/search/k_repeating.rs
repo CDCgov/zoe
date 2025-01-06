@@ -1,5 +1,5 @@
 use crate::iter_utils::SteppedWindows;
-use std::simd::{prelude::*, LaneCount, SupportedLaneCount};
+use std::simd::{LaneCount, SupportedLaneCount, prelude::*};
 
 /// Non-SIMD component of [`find_k_repeating`].
 ///

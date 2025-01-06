@@ -3,12 +3,12 @@
 
 use super::*;
 use crate::{
-    data::types::{cigar::Cigar, Uint},
+    data::types::{Uint, cigar::Cigar},
     simd::SimdExt,
 };
 use std::{
     ops::{AddAssign, Shl},
-    simd::{prelude::*, LaneCount, SimdElement, SupportedLaneCount},
+    simd::{LaneCount, SimdElement, SupportedLaneCount, prelude::*},
 };
 
 /// Smith-Waterman algorithm, yielding the optimal score.

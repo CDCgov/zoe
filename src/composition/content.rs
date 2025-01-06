@@ -1,5 +1,5 @@
 use crate::simd::SimdByteFunctions;
-use std::simd::{prelude::*, LaneCount, SupportedLaneCount};
+use std::simd::{LaneCount, SupportedLaneCount, prelude::*};
 
 /// Calculates GC content using SIMD operations for better performance. Returns
 /// count of G and C nucleotides in the sequence.

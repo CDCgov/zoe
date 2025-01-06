@@ -1,7 +1,7 @@
 use super::{inexact::fuzzy_substring_match_simd, k_repeating::find_k_repeating};
 use std::{
     ops::Range,
-    simd::{prelude::*, LaneCount, SupportedLaneCount},
+    simd::{LaneCount, SupportedLaneCount, prelude::*},
 };
 
 ///

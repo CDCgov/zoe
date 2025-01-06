@@ -8,7 +8,7 @@ use crate::{
             IUPAC_TO_DNA_CANONICAL_UPPER, TO_DNA_UC, TO_REVERSE_COMPLEMENT, TO_UNALIGNED_DNA_UC,
         },
         matrices::BiasedWeightMatrix,
-        types::{amino_acids::AminoAcids, Uint},
+        types::{Uint, amino_acids::AminoAcids},
         vec_types::ValidateSequence,
     },
     simd::{SimdByteFunctions, SimdMaskFunctions},

@@ -238,11 +238,12 @@ mod test {
 
     #[test]
     fn align_with_cigar() {
-        let data: [(usize, Cigar, [AminoAcids; 4]); 1] = [(
-            2,
-            "4M".into(),
-            [b"PLEASANTLY".into(), b"MEANLY".into(), b"LEAS".into(), b"MEAN".into()],
-        )];
+        let data: [(usize, Cigar, [AminoAcids; 4]); 1] = [(2, "4M".into(), [
+            b"PLEASANTLY".into(),
+            b"MEANLY".into(),
+            b"LEAS".into(),
+            b"MEAN".into(),
+        ])];
 
         for (rpos, cig, [ref_input, query_input, ref_output, query_ouptut]) in data {
             assert_eq!(

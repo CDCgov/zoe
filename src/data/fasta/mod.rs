@@ -5,7 +5,7 @@ use crate::{
         mappings::TO_UNALIGNED_DNA_UC,
         types::{
             amino_acids::AminoAcids,
-            nucleotides::{reverse_complement, Nucleotides},
+            nucleotides::{Nucleotides, reverse_complement},
         },
         vec_types::{CheckSequence, ChopLineBreak, ValidateSequence},
     },

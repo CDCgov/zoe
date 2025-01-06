@@ -9,7 +9,7 @@ use crate::kmer::{
     three_bit::encoder::ThreeBitKmerEncoder,
 };
 use std::{
-    collections::{hash_set, HashSet},
+    collections::{HashSet, hash_set},
     hash::{BuildHasher, RandomState},
 };
 

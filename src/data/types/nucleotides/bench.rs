@@ -32,11 +32,7 @@ fn validate_filtermap_unaligned_base_uc(b: &mut Bencher) {
             .iter_mut()
             .filter_map(|b| {
                 *b = TO_UNALIGNED_DNA_UC[*b as usize];
-                if *b > 0 {
-                    Some(*b)
-                } else {
-                    None
-                }
+                if *b > 0 { Some(*b) } else { None }
             })
             .collect();
     });

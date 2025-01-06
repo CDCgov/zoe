@@ -269,7 +269,7 @@ pub mod prelude {
     pub use crate::composition::{AlignmentComposition, CreateConsensus, NucleotideCounts};
     pub use crate::data::types::{amino_acids::AminoAcids, nucleotides::Nucleotides};
     pub use crate::data::{
-        convert::ToDNA, err::OrFail, fasta::FastaReader, fastq::FastQReader, PairwiseSequence, StdForSequences,
+        PairwiseSequence, StdForSequences, convert::ToDNA, err::OrFail, fasta::FastaReader, fastq::FastQReader,
     };
     #[cfg(feature = "rand")]
     pub use crate::generate::rand_sequence;

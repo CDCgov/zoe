@@ -1,6 +1,6 @@
 use std::{
     iter::zip,
-    simd::{prelude::*, LaneCount, SupportedLaneCount},
+    simd::{LaneCount, SupportedLaneCount, prelude::*},
 };
 
 /// Provides the starting index of a matched "fuzzy substring" with however many

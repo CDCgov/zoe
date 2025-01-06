@@ -295,6 +295,8 @@ pub const DNA_PROFILE_MAP: ByteIndexMap<5> =
 
 /// Used by [`ThreeBitKmerEncoder`] to convert any byte to `u8` indices where
 /// {3: N, 4: A, 5: C, 6: G, 7: T}. N is used as a catch-all. U is treated as T.
+///
+/// [`ThreeBitKmerEncoder`]: crate::kmer::ThreeBitKmerEncoder
 pub(crate) const THREE_BIT_MAPPING: ByteIndexMap<5> = ByteIndexMap::new_ignoring_case(*b"NACGT", b'N')
     .add_synonym_ignoring_case(b'U', b'T')
     .update_starting_index(3);
@@ -376,7 +378,7 @@ impl CodonTranslator {
             aa2 = (self.table[index] >> 24) as u8 as char,
             aa = aa as char,
         );
-        self.table[index] = u32::from(aa) << 24 | num;
+        self.table[index] = (u32::from(aa) << 24) | num;
     }
 
     #[must_use]
@@ -391,8 +393,8 @@ impl CodonTranslator {
     #[inline]
     fn to_upper_u32(codon: &[u8]) -> u32 {
         u32::from(codon[2].to_ascii_uppercase())
-            | u32::from(codon[1].to_ascii_uppercase()) << 8
-            | u32::from(codon[0].to_ascii_uppercase()) << 16
+            | (u32::from(codon[1].to_ascii_uppercase()) << 8)
+            | (u32::from(codon[0].to_ascii_uppercase()) << 16)
     }
 }
 
@@ -436,7 +438,7 @@ mod test {
     #[test]
     fn gc_self_test() {
         #[rustfmt::skip]
-        let gc = vec![
+        let gc = [
             (b"TAA", b'*'), (b"TAG", b'*'), (b"TAR", b'*'), (b"TGA", b'*'), (b"TRA", b'*'), (b"GCA", b'A'), (b"GCB", b'A'), (b"GCC", b'A'), (b"GCD", b'A'), (b"GCG", b'A'), (b"GCH", b'A'),
             (b"GCK", b'A'), (b"GCM", b'A'), (b"GCN", b'A'), (b"GCR", b'A'), (b"GCS", b'A'), (b"GCT", b'A'), (b"GCV", b'A'), (b"GCW", b'A'), (b"GCY", b'A'), (b"TGC", b'C'), (b"TGT", b'C'),
             (b"TGY", b'C'), (b"GAC", b'D'), (b"GAT", b'D'), (b"GAY", b'D'), (b"GAA", b'E'), (b"GAG", b'E'), (b"GAR", b'E'), (b"TTC", b'F'), (b"TTT", b'F'), (b"TTY", b'F'), (b"GGA", b'G'),

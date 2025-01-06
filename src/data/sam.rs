@@ -496,7 +496,7 @@ impl AddAssign for PairedMergeStats {
 }
 
 /// Represents a single insertion in a [`SamAligned`] record.
-/// 
+///
 /// * `ref_index`   - The reference index (0-based) before which the insertion
 ///                   occurs.
 /// * `query_start` - The starting index (0-based) of the insertion in the query
@@ -651,7 +651,7 @@ impl<R: std::io::Read> Iterator for SAMReader<R> {
                         return Some(Err(IOError::new(
                             ErrorKind::InvalidData,
                             format!("Error: {e}, invalid SAM bit flag '{}'", &r[1]),
-                        )))
+                        )));
                     }
                 };
 
@@ -662,7 +662,7 @@ impl<R: std::io::Read> Iterator for SAMReader<R> {
                         return Some(Err(IOError::new(
                             ErrorKind::InvalidData,
                             format!("Error: {e}, invalid SAM reference position '{}'", &r[3]),
-                        )))
+                        )));
                     }
                 };
 
@@ -672,7 +672,7 @@ impl<R: std::io::Read> Iterator for SAMReader<R> {
                         return Some(Err(IOError::new(
                             ErrorKind::InvalidData,
                             format!("Error: {e}, invalid SAM mapq '{}'", &r[4]),
-                        )))
+                        )));
                     }
                 };
 

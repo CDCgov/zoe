@@ -1,7 +1,7 @@
 use crate::data::types::nucleotides::Nucleotides;
 use crate::data::{constants::alphas::NUCLEIC_IUPAC, types::Uint};
 use std::ops::{Add, AddAssign};
-use std::simd::{prelude::*, SimdElement};
+use std::simd::{SimdElement, prelude::*};
 
 /// Nucleotide count statistics for A, C, G, T/U, N, -, other, invalid.
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
@@ -104,8 +104,8 @@ where
         self.inner[0..7].iter().fold(T::ZERO, |acc, &v| acc + v)
     }
 
-    /// The most frequent allele for A, C, G, T, and N. In case of ties, A is
-    /// preferred to C, which is preferred to G, and so on.
+    /// The most frequent allele for A, C, G, T, and N. In case of ties, index
+    /// order is used, e.g., A > C > G > T > N.
     #[inline]
     pub fn plurality_acgtn(&self) -> u8 {
         let mut max_count = self.inner[0];

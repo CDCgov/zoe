@@ -1,6 +1,6 @@
 use std::{
     cmp::min,
-    simd::{prelude::*, LaneCount, SupportedLaneCount},
+    simd::{LaneCount, SupportedLaneCount, prelude::*},
 };
 
 use crate::simd::SimdByteFunctions;

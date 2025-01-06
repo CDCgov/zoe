@@ -1,16 +1,16 @@
 use crate::{
     alignment::sw::{sw_scalar_score, sw_simd_score},
     data::{
+        SimpleWeightMatrix,
         err::QueryProfileError,
         mappings::ByteIndexMap,
         matrices::BiasedWeightMatrix,
-        types::{cigar::Cigar, Uint},
-        SimpleWeightMatrix,
+        types::{Uint, cigar::Cigar},
     },
 };
 use std::{
     convert::Into,
-    simd::{prelude::*, LaneCount, SimdElement, SupportedLaneCount},
+    simd::{LaneCount, SimdElement, SupportedLaneCount, prelude::*},
     vec,
 };
 

@@ -2,7 +2,7 @@ use crate::alignment::pairwise_align_with_cigar;
 use crate::data::types::cigar::Cigar;
 use crate::prelude::{AminoAcids, Nucleotides};
 use crate::simd::SimdByteFunctions;
-use std::simd::{prelude::*, LaneCount, SupportedLaneCount};
+use std::simd::{LaneCount, SupportedLaneCount, prelude::*};
 
 /// Provides methods for validating and transforming sequence data using byte mappings.
 pub trait ValidateSequence {

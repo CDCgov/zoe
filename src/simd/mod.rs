@@ -1,4 +1,4 @@
-use std::simd::{prelude::*, LaneCount, SimdElement, SupportedLaneCount, Swizzle};
+use std::simd::{LaneCount, SimdElement, SupportedLaneCount, Swizzle, prelude::*};
 
 #[allow(dead_code)]
 pub trait SimdExt<T> {

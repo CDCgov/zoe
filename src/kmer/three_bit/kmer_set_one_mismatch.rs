@@ -5,7 +5,7 @@ use crate::kmer::{
     three_bit::{encoder::ThreeBitKmerEncoder, kmer_set::ThreeBitKmerSetDecodedIter},
 };
 use std::{
-    collections::{hash_set, HashSet},
+    collections::{HashSet, hash_set},
     hash::{BuildHasher, RandomState},
 };
 
