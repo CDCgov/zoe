@@ -258,12 +258,6 @@ impl std::ops::Index<usize> for QualityScores {
     }
 }
 
-impl std::ops::IndexMut<usize> for QualityScores {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.0[index]
-    }
-}
-
 impl std::ops::Index<std::ops::Range<usize>> for QualityScores {
     type Output = [u8];
 
