@@ -1,5 +1,5 @@
 use std::env;
-use zoe::prelude::*;
+use zoe::{data::types::nucleotides::RecodeNucleotides, prelude::*};
 
 fn main() {
     let args: Vec<String> = env::args().collect();

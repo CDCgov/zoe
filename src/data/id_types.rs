@@ -2,7 +2,7 @@ pub(crate) trait FastaIDs {
     fn get_id_taxon(&self) -> Option<(&str, &str)>;
 }
 
-impl<S: AsRef<str>> FastaIDs for S {
+impl<S: AsRef<str> + ?Sized> FastaIDs for S {
     fn get_id_taxon(&self) -> Option<(&str, &str)> {
         let s = self.as_ref();
         if let Some(end_id) = s.find('{')

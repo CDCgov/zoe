@@ -1,8 +1,6 @@
 use crate::data::byte_types::ByteMappings;
 
-#[must_use]
-/// ## Generates a 4x4 substitution matrix from two aligned sequences of the
-/// type `&[u8]`.
+/// ## Generates a 4x4 substitution matrix from two aligned sequences of the type `&[u8]`.
 ///
 /// Each column refers to nucleotide bases in the first sequence (A, C, G, T,
 /// respectively), and each row refers to nucleotide bases in the second
@@ -20,10 +18,11 @@ use crate::data::byte_types::ByteMappings;
 ///
 /// let sub_matrix: [[u32; 4]; 4] = dna_substitution_matrix(seq1, seq2);
 /// ```
-/// This should return the matrix (bases provided here for context)
-/// $$ \begin{pmatrix}  & \text{A} & \text{C} & \text{G} & \text{T} \cr \text{A}
-/// & 4 & 0 & 0 & 1 \cr \text{C} & 0 & 2 & 1 & 0 \cr \text{G} & 0 & 0 & 3 & 0
-/// \cr \text{T} & 0 & 0 & 1 & 7 \end{pmatrix} $$
+/// This should return the matrix (bases provided here for context) $$
+/// \begin{pmatrix}  & \text{A} & \text{C} & \text{G} & \text{T} \cr \text{A} &
+/// 4 & 0 & 0 & 1 \cr \text{C} & 0 & 2 & 1 & 0 \cr \text{G} & 0 & 0 & 3 & 0 \cr
+/// \text{T} & 0 & 0 & 1 & 7 \end{pmatrix} $$
+#[must_use]
 pub fn dna_substitution_matrix(seq1: &[u8], seq2: &[u8]) -> [[u32; 4]; 4] {
     let mut sub_matrix = [[0u32; 4]; 4];
     std::iter::zip(
@@ -35,14 +34,13 @@ pub fn dna_substitution_matrix(seq1: &[u8], seq2: &[u8]) -> [[u32; 4]; 4] {
     sub_matrix
 }
 
+/// ## Calculates the Hamming distance from a nucleotide [substitution matrix](dna_substitution_matrix).
+///
+/// The Hamming distance is the number of substitutions between aligned
+/// sequences, or sum of non-diagonal values in the substitution matrix.
 #[allow(clippy::needless_range_loop)]
 #[inline]
 #[must_use]
-/// ## Calculates the Hamming distance from a nucleotide
-/// [substitution matrix](dna_substitution_matrix).
-///
-/// The Hamming distance is the number of substitutions between
-/// aligned sequences, or sum of non-diagonal values in the substitution matrix.
 pub fn hamming_dist_from_sub_matrix(sub_matrix: &[[u32; 4]; 4]) -> u32 {
     let mut hamming = 0;
 
@@ -56,13 +54,13 @@ pub fn hamming_dist_from_sub_matrix(sub_matrix: &[[u32; 4]; 4]) -> u32 {
     hamming
 }
 
-#[must_use]
 /// ## Finds total number of bases and nucleotide base frequencies from a
 /// nucleotide [substitution matrix](dna_substitution_matrix).
 ///
-/// Returns a tuple of the total number of nucleotides in the two sequences,
-/// and an array of base frequencies, corresponding to the
-/// frequencies of A, C, G, and T bases in the sequences, respectively.
+/// Returns a tuple of the total number of nucleotides in the two sequences, and
+/// an array of base frequencies, corresponding to the frequencies of A, C, G,
+/// and T bases in the sequences, respectively.
+#[must_use]
 pub fn total_and_frequencies(sub_matrix: &[[u32; 4]; 4]) -> (u32, [f64; 4]) {
     let mut bf = [0f64; 4];
     for i in 0..4 {

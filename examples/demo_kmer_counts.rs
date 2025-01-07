@@ -1,6 +1,5 @@
 use std::env;
-use zoe::kmer::ThreeBitKmerCounter;
-use zoe::prelude::*;
+use zoe::{kmer::ThreeBitKmerCounter, prelude::*};
 
 fn main() {
     let args: Vec<String> = env::args().collect();

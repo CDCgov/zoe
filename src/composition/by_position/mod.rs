@@ -1,4 +1,4 @@
-use crate::data::types::nucleotides::Nucleotides;
+use crate::data::types::nucleotides::{Nucleotides, NucleotidesReadable};
 use crate::data::{constants::alphas::NUCLEIC_IUPAC, types::Uint};
 use std::ops::{Add, AddAssign};
 use std::simd::{SimdElement, prelude::*};
@@ -260,6 +260,20 @@ const fn base_to_inner_index(b: u8) -> usize {
 
     TO_INNER[b as usize] as usize
 }
+
+pub trait ToBaseCounts: NucleotidesReadable {
+    /// Creates [`NucleotideCounts`] (ACGT + N + -) statistics using the
+    /// specified `const` [Uint].
+    #[inline]
+    #[must_use]
+    fn to_base_counts<T: Uint>(&self) -> NucleotideCounts<T> {
+        self.nucleotide_bytes()
+            .iter()
+            .fold(NucleotideCounts::new(), |acc, &b| acc + b)
+    }
+}
+
+impl<T: NucleotidesReadable> ToBaseCounts for T {}
 
 /// Extension trait to allow for a consensus sequence to be generated from a
 /// vector of [`NucleotideCounts`]. See [`CreateConsensus::plurality_acgtn`]

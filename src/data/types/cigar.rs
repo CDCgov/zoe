@@ -21,6 +21,7 @@ impl Cigar {
         ExpandedCigar(expanded)
     }
 
+    // TODO: Docs
     #[must_use]
     pub fn match_length(&self) -> usize {
         self.into_iter()
@@ -29,46 +30,49 @@ impl Cigar {
             .sum()
     }
 
+    // TODO: Docs
     pub fn into_iter(&self) -> impl Iterator<Item = Ciglet> + '_ {
         CigletIterator::new(&self.0)
     }
 }
 
-use core::str;
-use std::fmt;
-impl fmt::Display for Cigar {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", String::from_utf8_lossy(&self.0))?;
-        Ok(())
+impl std::fmt::Display for Cigar {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", String::from_utf8_lossy(&self.0))
     }
 }
 
-impl fmt::Debug for Cigar {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", String::from_utf8_lossy(&self.0))?;
-        Ok(())
+impl std::fmt::Debug for Cigar {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", String::from_utf8_lossy(&self.0))
     }
 }
 
 impl From<&str> for Cigar {
+    #[inline]
     fn from(s: &str) -> Self {
         Cigar(s.as_bytes().to_owned())
     }
 }
 
 impl From<&[u8]> for Cigar {
+    #[inline]
     fn from(v: &[u8]) -> Self {
         Cigar(v.to_vec())
     }
 }
 
 impl<const N: usize> From<&[u8; N]> for Cigar {
+    #[inline]
     fn from(v: &[u8; N]) -> Self {
         Cigar(v.to_vec())
     }
 }
 
 impl From<ExpandedCigar> for Cigar {
+    #[inline]
     fn from(c: ExpandedCigar) -> Cigar {
         c.condense_to_cigar()
     }
@@ -137,17 +141,17 @@ impl Iterator for CigletIterator<'_> {
     }
 }
 
-impl fmt::Display for Ciglet {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}{}", self.inc, self.op as char)?;
-        Ok(())
+impl std::fmt::Display for Ciglet {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}{}", self.inc, self.op as char)
     }
 }
 
-impl fmt::Debug for Ciglet {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "({},{})", self.inc, self.op as char)?;
-        Ok(())
+impl std::fmt::Debug for Ciglet {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "({},{})", self.inc, self.op as char)
     }
 }
 
@@ -191,45 +195,50 @@ impl ExpandedCigar {
     }
 }
 
-impl fmt::Display for ExpandedCigar {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", String::from_utf8_lossy(&self.0))?;
-        Ok(())
+impl std::fmt::Display for ExpandedCigar {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", String::from_utf8_lossy(&self.0))
     }
 }
 
-impl fmt::Debug for ExpandedCigar {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", String::from_utf8_lossy(&self.0))?;
-        Ok(())
+impl std::fmt::Debug for ExpandedCigar {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", String::from_utf8_lossy(&self.0))
     }
 }
 
 impl From<Cigar> for ExpandedCigar {
+    #[inline]
     fn from(c: Cigar) -> ExpandedCigar {
         c.expand_cigar()
     }
 }
 
 impl From<Vec<u8>> for ExpandedCigar {
+    #[inline]
     fn from(vec: Vec<u8>) -> Self {
         ExpandedCigar(vec)
     }
 }
 
 impl From<&str> for ExpandedCigar {
+    #[inline]
     fn from(s: &str) -> Self {
         ExpandedCigar(s.as_bytes().to_owned())
     }
 }
 
 impl From<&[u8]> for ExpandedCigar {
+    #[inline]
     fn from(v: &[u8]) -> Self {
         ExpandedCigar(v.to_vec())
     }
 }
 
 impl<const N: usize> From<&[u8; N]> for ExpandedCigar {
+    #[inline]
     fn from(v: &[u8; N]) -> Self {
         ExpandedCigar(v.to_vec())
     }

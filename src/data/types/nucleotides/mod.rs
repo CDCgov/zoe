@@ -1,44 +1,58 @@
 use crate::{
     alignment::profile_set::{LocalProfile, SharedProfile},
-    composition::NucleotideCounts,
     data::{
         err::QueryProfileError,
         mappings::{
             ANY_TO_DNA_CANONICAL_UPPER, GENETIC_CODE, IS_IUPAC_BASE, IS_UNALIGNED_IUPAC_BASE, IUPAC_TO_DNA_CANONICAL,
-            IUPAC_TO_DNA_CANONICAL_UPPER, TO_DNA_UC, TO_REVERSE_COMPLEMENT, TO_UNALIGNED_DNA_UC,
+            IUPAC_TO_DNA_CANONICAL_UPPER, TO_DNA_UC, TO_UNALIGNED_DNA_UC,
         },
         matrices::BiasedWeightMatrix,
-        types::{Uint, amino_acids::AminoAcids},
-        vec_types::ValidateSequence,
+        vec_types::{Recode, ValidateSequence},
     },
-    simd::{SimdByteFunctions, SimdMaskFunctions},
+    prelude::*,
 };
-use std::{
-    ops::Range,
-    simd::{LaneCount, SupportedLaneCount},
-    slice::ChunksExact,
-};
+use std::simd::{LaneCount, SupportedLaneCount};
 
-/// [`Nucleotides`] is a transparent, new-type wrapper around [`Vec<u8>`]
-/// that provides DNA-specific functionality and semantics. It may contain either
+mod getter_traits;
+mod rev_comp;
+mod std_traits;
+mod translation;
+mod view_traits;
+
+pub use getter_traits::*;
+pub use rev_comp::*;
+pub use translation::*;
+
+/// [`Nucleotides`] is a transparent, new-type wrapper around [`Vec<u8>`] that
+/// provides DNA-specific functionality and semantics. It may contain either
 /// aligned or unaligned valid IUPAC letters.
-///
-/// *NB: No type-state guarantees have been decided on at this time.*
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Default)]
 #[repr(transparent)]
 pub struct Nucleotides(pub(crate) Vec<u8>);
 
-impl Nucleotides {
-    // std
+/// The corresponding immutable view type for [`Nucleotides`]. See
+/// [Views](crate::data#header) for more details.
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Default)]
+#[repr(transparent)]
+pub struct NucleotidesView<'a>(pub(crate) &'a [u8]);
 
-    /// Create a new [`Nucleotides`] empty object.
+/// The corresponding mutable view type for [`Nucleotides`]. See
+/// [Views](crate::data#header) for more details.
+#[derive(Eq, PartialEq, Ord, PartialOrd, Hash, Default)]
+#[repr(transparent)]
+pub struct NucleotidesViewMut<'a>(pub(crate) &'a mut [u8]);
+
+impl Nucleotides {
+    // Conversions and indexing
+
+    /// Creates a new [`Nucleotides`] empty object.
     #[inline]
     #[must_use]
     pub fn new() -> Self {
         Nucleotides(Vec::new())
     }
 
-    /// Consume a [`Vec<u8>`] and return [`Nucleotides`] without checking
+    /// Consumes a [`Vec<u8>`] and return [`Nucleotides`] without checking
     /// validity.
     #[inline]
     #[must_use]
@@ -46,63 +60,50 @@ impl Nucleotides {
         Nucleotides(v)
     }
 
-    /// The length of the stored sequence.
-    #[inline]
-    #[must_use]
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    /// Is the sequence empty?
-    #[inline]
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    /// Obtains the bytes as a slice.
-    #[inline]
-    #[must_use]
-    pub fn as_bytes(&self) -> &[u8] {
-        self.0.as_slice()
-    }
-
-    #[inline]
-    #[must_use]
-    pub fn as_mut_bytes(&mut self) -> &mut [u8] {
-        self.0.as_mut_slice()
-    }
-
+    /// Consumes [`Nucleotides`] and returns a [`Vec<u8>`].
     #[inline]
     #[must_use]
     pub fn into_vec(self) -> Vec<u8> {
         self.0
     }
 
+    /// Gets the nucleotides as a byte slice.
     #[inline]
-    /// Create an iterator over the nucleotides as `u8`.
-    pub fn iter(&self) -> std::slice::Iter<'_, u8> {
-        self.0.iter()
+    #[must_use]
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0
     }
 
-    /// Gets the base at the zero-based index, returning an `Option`.
+    /// Gets the nucleotides as a mutable byte slice.
     #[inline]
+    #[must_use]
+    pub fn as_mut_bytes(&mut self) -> &mut [u8] {
+        &mut self.0
+    }
+
+    /// Gets the base or byte slice at the zero-based index, returning an
+    /// [`Option`].
+    #[inline]
+    #[must_use]
     pub fn get<I>(&self, index: I) -> Option<&I::Output>
     where
         I: std::slice::SliceIndex<[u8]>, {
         self.0.get(index)
     }
 
-    /// Replaces the provided [`Range`] with the specified byte. If the range
-    /// does not exist, the function does nothing.
+    /// Creates an iterator over the nucleotides as `&u8`.
     #[inline]
-    pub fn mask_if_exists(&mut self, range: Range<usize>, replacement: u8) {
-        if let Some(slice) = self.0.get_mut(range) {
-            for b in slice {
-                *b = replacement;
-            }
-        }
+    pub fn iter(&self) -> std::slice::Iter<'_, u8> {
+        self.0.iter()
     }
+
+    /// Creates an iterator over the nucleotides as `&mut u8`.
+    #[inline]
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, u8> {
+        self.0.iter_mut()
+    }
+
+    // Manipulation
 
     /// Truncates the length of the sequence to the specified `new_length`. This
     /// is equivalent to 3' trimming up to and including the index.
@@ -118,75 +119,7 @@ impl Nucleotides {
         *self = Nucleotides(self.0.drain(new_start..).collect());
     }
 
-    /// Provides the count of G and C bases.
-    #[inline]
-    #[must_use]
-    pub fn gc_content(&self) -> usize {
-        crate::composition::gc_content_simd::<32>(&self.0)
-    }
-
-    // Validation
-
-    /// Only retains valid [IUPAC bases](https://www.bioinformatics.org/sms/iupac.html).
-    #[inline]
-    pub fn retain_iupac_bases(&mut self) {
-        self.0.retain_by_validation(IS_IUPAC_BASE);
-    }
-
-    /// Only retains valid [IUPAC bases](https://www.bioinformatics.org/sms/iupac.html).
-    #[inline]
-    pub fn retain_unaligned_bases(&mut self) {
-        self.0.retain_by_validation(IS_UNALIGNED_IUPAC_BASE);
-    }
-
-    /// Only retains valid [IUPAC](https://www.bioinformatics.org/sms/iupac.html) DNA and converts to uppercase.
-    #[inline]
-    pub fn retain_dna_uc(&mut self) {
-        self.0.retain_by_recoding(TO_DNA_UC);
-    }
-
-    /// Recodes the stored sequence to an uppercase canonical (ACTG + N) one.
-    /// Any non-canonical base becomes N
-    #[inline]
-    pub fn recode_any_to_actgn_uc(&mut self) {
-        self.0.recode(ANY_TO_DNA_CANONICAL_UPPER);
-    }
-
-    /// Recodes the stored sequence of valid IUPAC codes to a canonical (ACTG + N)
-    /// sequence. Ambiguous bases become N while non-IUPAC bytes are left
-    /// unchanged..
-    #[inline]
-    pub fn recode_iupac_to_actgn(&mut self) {
-        self.0.recode(IUPAC_TO_DNA_CANONICAL);
-    }
-
-    /// Recodes the stored sequence of valid IUPAC codes to an uppercase
-    /// canonical (ACTG + N) sequence. Ambiguous bases become N while non-IUPAC
-    /// bytes are left unchanged.
-    #[inline]
-    pub fn recode_iupac_to_actgn_uc(&mut self) {
-        self.0.recode(IUPAC_TO_DNA_CANONICAL_UPPER);
-    }
-
-    /// Only retains valid, unaligned [IUPAC](https://www.bioinformatics.org/sms/iupac.html) DNA and converts to uppercase.
-    #[inline]
-    pub fn retain_unaligned_dna_uc(&mut self) {
-        self.0.retain_by_recoding(TO_UNALIGNED_DNA_UC);
-    }
-
-    // Domain functions
-    #[inline]
-    #[must_use]
-    pub fn reverse_complement(&self) -> Self {
-        Self(reverse_complement(&self.0))
-    }
-
-    /// Translate the stored [`Nucleotides`] to [`AminoAcids`].
-    #[inline]
-    #[must_use]
-    pub fn translate(&self) -> AminoAcids {
-        AminoAcids(translate_sequence(&self.0))
-    }
+    // Nucleotides-specific methods
 
     /// Creates a [`LocalProfile`] for alignment.
     ///
@@ -215,7 +148,7 @@ impl Nucleotides {
     where
         LaneCount<N>: SupportedLaneCount,
         'b: 'a, {
-        LocalProfile::new(self, matrix, gap_open, gap_extend)
+        LocalProfile::new(&self.0, matrix, gap_open, gap_extend)
     }
 
     /// Creates a [`SharedProfile`] for alignment.
@@ -244,54 +177,27 @@ impl Nucleotides {
     ) -> Result<SharedProfile<'a, N, S>, QueryProfileError>
     where
         LaneCount<N>: SupportedLaneCount, {
-        let s = self.0.as_slice();
-        SharedProfile::new(s.into(), matrix, gap_open, gap_extend)
+        SharedProfile::new(self.as_bytes().into(), matrix, gap_open, gap_extend)
     }
 
-    /// Creates an iterator for [`AminoAcids`] translation.
+    /// Returns the reverse complement of the sequence.
     #[inline]
     #[must_use]
-    pub fn into_aa_iter(&self) -> TranslatedNucleotidesIter {
-        TranslatedNucleotidesIter {
-            codons:        self.0.chunks_exact(3),
-            has_remainder: true,
-        }
+    pub fn to_reverse_complement(&self) -> Nucleotides {
+        Nucleotides(reverse_complement(&self.0))
     }
 
-    /// Creates [`NucleotideCounts`] (ACGT + N + -) statistics using the specified `const` [Uint].
-    #[must_use]
-    pub fn into_base_counts<T: Uint>(&self) -> NucleotideCounts<T> {
-        self.0.iter().fold(NucleotideCounts::new(), |acc, &b| acc + b)
-    }
-
-    /// # Distance
-    ///
-    /// Calculates hamming distance between [`self`] and another sequence.
-    ///
-    /// # Example
-    /// ```
-    /// use zoe::data::types::nucleotides::Nucleotides;
-    ///
-    /// let s1: Nucleotides = b"ATGCATCGATCGATCGATCGATCGATCGATGC".into();
-    /// let s2: Nucleotides = b"ATGCATnGATCGATCGATCGAnCGATCGATnC".into();
-    ///
-    /// assert!(3 == s1.distance_hamming(&s2));
-    ///
-    /// let s3: &[u8] = b"ATGCATnGATCGATCGATCGAnCGATCGATnC";
-    /// assert!(3 == s1.distance_hamming(&s3));
-    /// ```
-    ///
+    /// Computes the reverse complement of the sequence in-place.
     #[inline]
-    #[must_use]
-    pub fn distance_hamming<T: AsRef<[u8]> + MaybeNucleic>(&self, other_sequence: &T) -> usize {
-        crate::distance::hamming_simd::<16>(&self.0, other_sequence.as_ref())
+    pub fn make_reverse_complement(&mut self) {
+        make_reverse_complement(&mut self.0);
     }
 
     // Associated functions
 
-    /// Generate a random DNA sequence of given `length` and using a random
-    /// `seed`.  Canonical DNA only contains A, C, G, or T.
-    /// Requires `rand` feature to be enabled.
+    /// Generates a random DNA sequence of given `length` and using a random
+    /// `seed`.  Canonical DNA only contains A, C, G, or T. Requires `rand`
+    /// feature to be enabled.
     #[cfg(feature = "rand")]
     #[must_use]
     pub fn generate_random_dna(length: usize, seed: u64) -> Self {
@@ -299,142 +205,185 @@ impl Nucleotides {
     }
 }
 
-/// Marker trait to restrict usage to types that might possible contain
-/// nucleotides.
-pub trait MaybeNucleic {}
-impl MaybeNucleic for Nucleotides {}
-impl MaybeNucleic for Vec<u8> {}
-impl MaybeNucleic for &[u8] {}
+impl<'a> NucleotidesView<'a> {
+    // Conversions and indexing
 
-/// Translates a byte slice into an amino acid byte vector.
-#[inline]
-#[must_use]
-pub fn translate_sequence(s: &[u8]) -> Vec<u8> {
-    // TODO: this and the translation iterator can be made into array chunks
-    // for further performance, but best to wait until the feature is more
-    // likely to be adopted and/or needed by other functions in Zoe.
-    let mut codons = s.chunks_exact(3);
-    let mut aa_sequence = Vec::with_capacity(s.len() / 3 + 1);
-
-    for codon in codons.by_ref() {
-        aa_sequence.push(if is_partial_codon(codon) {
-            b'~'
-        } else {
-            GENETIC_CODE.get(codon).unwrap_or(b'X')
-        });
+    /// Creates a new [`NucleotidesView`] empty object.
+    #[inline]
+    #[must_use]
+    pub fn new() -> Self {
+        NucleotidesView(&[])
     }
 
-    let tail = codons.remainder();
-    if is_partial_codon(tail) {
-        aa_sequence.push(b'~');
+    /// Creates a [`NucleotidesView`] from a byte slice without checking
+    /// validity.
+    #[inline]
+    #[must_use]
+    pub fn from_bytes_unchecked(v: &'a [u8]) -> Self {
+        NucleotidesView(v)
     }
 
-    aa_sequence
-}
+    /// Gets the nucleotides as a byte slice.
+    #[inline]
+    #[must_use]
+    pub fn as_bytes(&self) -> &[u8] {
+        self.0
+    }
 
-/// Iterator for translating [`Nucleotides`] into [`AminoAcids`].
-pub struct TranslatedNucleotidesIter<'a> {
-    codons:        ChunksExact<'a, u8>,
-    has_remainder: bool,
-}
+    /// Gets the base or byte slice at the zero-based index, returning an
+    /// [`Option`].
+    #[inline]
+    #[must_use]
+    pub fn get<I>(&self, index: I) -> Option<&I::Output>
+    where
+        I: std::slice::SliceIndex<[u8]>, {
+        self.0.get(index)
+    }
 
-impl Iterator for TranslatedNucleotidesIter<'_> {
-    type Item = u8;
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(codon) = self.codons.next() {
-            if is_partial_codon(codon) {
-                Some(b'~')
-            } else {
-                Some(GENETIC_CODE.get(codon).unwrap_or(b'X'))
-            }
-        } else if self.has_remainder && is_partial_codon(self.codons.remainder()) {
-            self.has_remainder = false;
-            Some(b'~')
-        } else {
-            None
-        }
+    /// Creates an iterator over the nucleotides as `&u8`.
+    #[inline]
+    pub fn iter(&self) -> std::slice::Iter<'_, u8> {
+        self.0.iter()
+    }
+
+    // Nucleotides-specific methods
+
+    /// Returns the reverse complement of the sequence.
+    #[inline]
+    #[must_use]
+    pub fn to_reverse_complement(&self) -> Nucleotides {
+        Nucleotides(reverse_complement(self.0))
     }
 }
 
-/// A codon is considered *partial* if it has fewer than 3 IUPAC bases.
-#[inline]
-#[must_use]
-fn is_partial_codon(codon: &[u8]) -> bool {
-    if codon.is_empty() {
-        false
-    } else if codon.len() < 3 {
-        true
-    } else {
-        let count: u8 = codon.iter().map(|b| u8::from(*b == b'-' || *b == b'~' || *b == b'.')).sum();
-        count == 1 || count == 2
+impl<'a> NucleotidesViewMut<'a> {
+    // Conversions and indexing
+
+    /// Creates a new [`NucleotidesViewMut`] empty object.
+    #[inline]
+    #[must_use]
+    pub fn new() -> Self {
+        NucleotidesViewMut(&mut [])
+    }
+
+    /// Creates a [`NucleotidesViewMut`] from a byte slice without checking
+    /// validity.
+    #[inline]
+    #[must_use]
+    pub fn from_bytes_unchecked(v: &'a mut [u8]) -> Self {
+        NucleotidesViewMut(v)
+    }
+
+    /// Gets the nucleotides as a byte slice.
+    #[inline]
+    #[must_use]
+    pub fn as_bytes(&self) -> &[u8] {
+        self.0
+    }
+
+    /// Gets the nucleotides as a mutable byte slice.
+    #[inline]
+    #[must_use]
+    pub fn as_mut_bytes(&mut self) -> &mut [u8] {
+        self.0
+    }
+
+    /// Gets the base or byte slice at the zero-based index, returning an
+    /// [`Option`].
+    #[inline]
+    #[must_use]
+    pub fn get<I>(&self, index: I) -> Option<&I::Output>
+    where
+        I: std::slice::SliceIndex<[u8]>, {
+        self.as_bytes().get(index)
+    }
+
+    /// Create an iterator over the nucleotides as `&u8`.
+    #[inline]
+    pub fn iter(&self) -> std::slice::Iter<'_, u8> {
+        self.0.iter()
+    }
+
+    /// Create an iterator over the nucleotides as `&mut u8`.
+    #[inline]
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, u8> {
+        self.0.iter_mut()
+    }
+
+    // Nucleotides-specific methods
+
+    /// Returns the reverse complement of the sequence.
+    #[inline]
+    #[must_use]
+    pub fn to_reverse_complement(&self) -> Nucleotides {
+        Nucleotides(reverse_complement(self.0))
+    }
+
+    /// Computes the reverse complement of the sequence in-place.
+    #[inline]
+    pub fn make_reverse_complement(&mut self) {
+        make_reverse_complement(self.0);
     }
 }
 
-/// Performs the DNA reverse complement of the byte slice into a new vector.
-/// Assumes ASCII input.
-#[inline]
-#[must_use]
-pub fn reverse_complement(bases: &[u8]) -> Vec<u8> {
-    bases
-        .iter()
-        .rev()
-        .copied()
-        .map(|x| TO_REVERSE_COMPLEMENT[x as usize])
-        .collect()
+/// Provides DNA-specific methods for recoding a sequence.
+pub trait RecodeNucleotides: NucleotidesMutable {
+    /// Recodes the stored sequence to an uppercase canonical (ACTG + N) one.
+    /// Any non-canonical base becomes N.
+    #[inline]
+    fn recode_any_to_actgn_uc(&mut self) {
+        self.nucleotide_mut_bytes().recode(ANY_TO_DNA_CANONICAL_UPPER);
+    }
+
+    /// Recodes the stored sequence of valid IUPAC codes to a canonical (ACTG +
+    /// N) sequence. Ambiguous bases become N while non-IUPAC bytes are left
+    /// unchanged.
+    #[inline]
+    fn recode_iupac_to_actgn(&mut self) {
+        self.nucleotide_mut_bytes().recode(IUPAC_TO_DNA_CANONICAL);
+    }
+
+    /// Recodes the stored sequence of valid IUPAC codes to an uppercase
+    /// canonical (ACTG + N) sequence. Ambiguous bases become N while non-IUPAC
+    /// bytes are left unchanged.
+    #[inline]
+    fn recode_iupac_to_actgn_uc(&mut self) {
+        self.nucleotide_mut_bytes().recode(IUPAC_TO_DNA_CANONICAL_UPPER);
+    }
 }
 
-/// Reverse complement of a nucleotide sequences using explicit SIMD instructions.
-///
-/// # Note
-///
-/// Works well for Haswell and above architectures. Recommend 32 lanes for x86.
-/// Both [`swizzle_dyn`](std::simd::prelude::Simd::swizzle_dyn) and
-/// [`gather_or`](std::simd::prelude::Simd::gather_or) are too slow to be
-/// relevant versus the scalar implementation.
-#[inline]
-#[must_use]
-#[allow(dead_code)]
-pub fn reverse_complement_simd<const N: usize>(bases: &[u8]) -> Vec<u8>
-where
-    LaneCount<N>: SupportedLaneCount, {
-    let (pre, mid, sfx) = bases.as_simd::<N>();
-    let mut reverse_complement: Vec<u8> = Vec::with_capacity(bases.len());
+impl<T: NucleotidesMutable> RecodeNucleotides for T {}
 
-    reverse_complement.extend(sfx.iter().rev().copied().map(|x| TO_REVERSE_COMPLEMENT[x as usize]));
+pub trait RetainNucleotides: AsMut<Vec<u8>> {
+    /// Only retains valid [IUPAC bases](https://www.bioinformatics.org/sms/iupac.html).
+    #[inline]
+    fn retain_iupac_bases(&mut self) {
+        self.as_mut().retain_by_validation(IS_IUPAC_BASE);
+    }
 
-    reverse_complement.extend(
-        mid.iter()
-            .map(|&v| {
-                let mut rev = v.reverse();
-                let lowercase = rev.is_ascii_lowercase();
-                rev = lowercase.make_selected_ascii_uppercase(&rev);
+    /// Only retains valid [IUPAC bases](https://www.bioinformatics.org/sms/iupac.html).
+    #[inline]
+    fn retain_unaligned_bases(&mut self) {
+        self.as_mut().retain_by_validation(IS_UNALIGNED_IUPAC_BASE);
+    }
 
-                rev.exchange_byte_pairs(b'T', b'A');
-                rev.exchange_byte_pairs(b'G', b'C');
-                rev.exchange_byte_pairs(b'R', b'Y');
-                rev.exchange_byte_pairs(b'K', b'M');
-                rev.exchange_byte_pairs(b'B', b'V');
-                rev.exchange_byte_pairs(b'H', b'D');
-                rev.if_value_then_replace(b'U', b'A');
+    /// Only retains valid [IUPAC](https://www.bioinformatics.org/sms/iupac.html) DNA and converts to uppercase.
+    #[inline]
+    fn retain_dna_uc(&mut self) {
+        self.as_mut().retain_by_recoding(TO_DNA_UC);
+    }
 
-                rev = lowercase.make_selected_ascii_lowercase(&rev);
-                rev.to_array()
-            })
-            .rev()
-            .flatten(),
-    );
-
-    reverse_complement.extend(pre.iter().rev().copied().map(|x| TO_REVERSE_COMPLEMENT[x as usize]));
-
-    reverse_complement
+    /// Only retains valid, unaligned [IUPAC](https://www.bioinformatics.org/sms/iupac.html) DNA and converts to uppercase.
+    #[inline]
+    fn retain_unaligned_dna_uc(&mut self) {
+        self.as_mut().retain_by_recoding(TO_UNALIGNED_DNA_UC);
+    }
 }
+
+impl RetainNucleotides for Nucleotides {}
 
 #[cfg(test)]
 mod bench;
+
 #[cfg(test)]
 mod test;
-
-mod std_traits;
-
-#[allow(unused_imports)]
-pub use std_traits::*;

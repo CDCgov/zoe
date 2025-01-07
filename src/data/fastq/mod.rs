@@ -1,13 +1,10 @@
-use crate::data::{
-    types::{nucleotides::Nucleotides, phred::QualityScores},
-    vec_types::ChopLineBreak,
-};
+use crate::prelude::*;
 
-use std::{
-    fs::File,
-    io::{BufRead, Error as IOError, ErrorKind},
-    path::Path,
-};
+mod reader;
+mod std_traits;
+mod view_traits;
+
+pub use reader::*;
 
 /// Holds data for a single [Read](https://en.wikipedia.org/wiki/Read_(biology))
 /// or [FASTQ](https://en.wikipedia.org/wiki/FASTQ_format) record.
@@ -18,166 +15,109 @@ pub struct FastQ {
     pub quality:  QualityScores,
 }
 
-impl std::fmt::Display for FastQ {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}\n{}\n+\n{}\n", self.header, self.sequence, self.quality)
-    }
+/// The corresponding immutable view type for [`FastQ`]. See
+/// [Views](crate::data#header) for more details.
+#[derive(Clone, Eq, PartialEq, Hash, Debug, Default)]
+pub struct FastQView<'a> {
+    pub header:   &'a str,
+    pub sequence: NucleotidesView<'a>,
+    pub quality:  QualityScoresView<'a>,
+}
+
+/// The corresponding mutable view type for [`FastQ`]. See
+/// [Views](crate::data#header) for more details.
+#[derive(Eq, PartialEq, Hash, Debug)]
+pub struct FastQViewMut<'a> {
+    pub header:   &'a mut String,
+    pub sequence: NucleotidesViewMut<'a>,
+    pub quality:  QualityScoresViewMut<'a>,
 }
 
 impl FastQ {
-    /// Reverse complements the stored DNA sequence data.
+    // Conversions and indexing
+
+    /// Creates a new [`FastQ`] empty object.
     #[inline]
-    pub fn reverse_complement(&mut self) {
-        self.sequence = self.sequence.reverse_complement();
-        self.quality = self.quality.reverse();
+    #[must_use]
+    pub fn new() -> Self {
+        FastQ {
+            header:   String::new(),
+            sequence: Nucleotides::new(),
+            quality:  QualityScores::new(),
+        }
     }
 
-    /// Recodes the stored sequence to an uppercase canonical (ACTG + N) one.
-    /// Any non-canonical base becomes N.
+    // FastQ-specific methods
+
+    /// Returns the reverse complement of the record.
     #[inline]
-    pub fn recode_any_to_actgn_uc(&mut self) {
-        self.sequence.recode_any_to_actgn_uc();
+    #[must_use]
+    pub fn to_reverse_complement(&self) -> FastQ {
+        FastQ {
+            header:   self.header.clone(),
+            sequence: self.sequence.to_reverse_complement(),
+            quality:  self.quality.to_reverse(),
+        }
     }
 
-    /// Recodes the stored sequence of valid IUPAC codes to a canonical (ACTG + N)
-    /// sequence. Ambiguous bases become N while non-IUPAC bytes are left
-    /// unchanged.
+    /// Computes the reverse complement of the record in-place.
     #[inline]
-    pub fn recode_iupac_to_actgn(&mut self) {
-        self.sequence.recode_iupac_to_actgn();
-    }
-
-    /// Recodes the stored sequence of valid IUPAC codes to an uppercase
-    /// canonical (ACTG + N) sequence. Ambiguous bases become N while non-IUPAC
-    /// bytes are left unchanged.
-    #[inline]
-    pub fn recode_iupac_to_actg_uc(&mut self) {
-        self.sequence.recode_iupac_to_actgn_uc();
+    pub fn make_reverse_complement(&mut self) {
+        self.sequence.make_reverse_complement();
+        self.quality.make_reverse();
     }
 }
 
-/// A buffered reader for reading
-/// [FASTQ](https://en.wikipedia.org/wiki/FASTQ_format).
-#[derive(Debug)]
-pub struct FastQReader<R: std::io::Read> {
-    pub fastq_reader: std::io::BufReader<R>,
-    pub fastq_buffer: Vec<u8>,
-}
+impl FastQView<'_> {
+    // Conversions and indexing
 
-impl<R: std::io::Read> FastQReader<R> {
-    pub fn new(inner: R) -> Self {
-        FastQReader {
-            fastq_reader: std::io::BufReader::new(inner),
-            fastq_buffer: Vec::new(),
+    /// Creates a new [`FastQView`] empty object.
+    #[inline]
+    #[must_use]
+    pub fn new() -> Self {
+        FastQView {
+            header:   "",
+            sequence: NucleotidesView::new(),
+            quality:  QualityScoresView::new(),
+        }
+    }
+
+    // FastQ-specific methods
+
+    /// Returns the reverse complement of the record.
+    #[inline]
+    #[must_use]
+    pub fn to_reverse_complement(&self) -> FastQ {
+        FastQ {
+            header:   self.header.to_string(),
+            sequence: self.sequence.to_reverse_complement(),
+            quality:  self.quality.to_reverse(),
         }
     }
 }
 
-impl FastQReader<std::fs::File> {
-    /// Reads a fastq file into an iterator backed by a buffered reader.
-    ///
-    /// # Errors
-    ///
-    /// Will return `Err` if file or permissions do not exist.
-    pub fn from_filename<P>(filename: P) -> Result<FastQReader<File>, std::io::Error>
-    where
-        P: AsRef<Path>, {
-        let file = File::open(filename)?;
-        Ok(FastQReader::new(file))
+impl FastQViewMut<'_> {
+    // No new() exists for FastQViewMut because it is not possible to create an
+    // empty &mut String
+
+    // FastQ-specific methods
+
+    /// Returns the reverse complement of the record.
+    #[inline]
+    #[must_use]
+    pub fn to_reverse_complement(&self) -> FastQ {
+        FastQ {
+            header:   (*self.header).to_string(),
+            sequence: self.sequence.to_reverse_complement(),
+            quality:  self.quality.to_reverse(),
+        }
     }
-}
 
-/// An iterator for buffered reading of a
-/// [FASTQ](https://en.wikipedia.org/wiki/FASTQ_format) file. Guarantees quality
-/// scores are valid.
-impl<R: std::io::Read> Iterator for FastQReader<R> {
-    type Item = std::io::Result<FastQ>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.fastq_buffer.clear();
-
-        // Read HEADER line
-        match self.fastq_reader.read_until(b'\n', &mut self.fastq_buffer) {
-            Ok(0) => return None,
-            Ok(_) => {}
-            Err(e) => return Some(Err(e)),
-        }
-
-        if !self.fastq_buffer.starts_with(b"@") {
-            return Some(Err(IOError::new(
-                ErrorKind::InvalidData,
-                "Missing '@' symbol at header line beginning.",
-            )));
-        }
-
-        self.fastq_buffer.chop_line_break();
-
-        // Since '@' is in the header, header must be > 1 in length
-        if self.fastq_buffer.len() <= 1 {
-            return Some(Err(IOError::new(ErrorKind::InvalidData, "Missing FastQ header!")));
-        }
-
-        let header = match String::from_utf8(self.fastq_buffer.clone()) {
-            Ok(s) => s,
-            Err(e) => return Some(Err(IOError::new(ErrorKind::InvalidData, e))),
-        };
-
-        self.fastq_buffer.clear();
-
-        // Read SEQUENCE line
-        if let Err(e) = self.fastq_reader.read_until(b'\n', &mut self.fastq_buffer) {
-            return Some(Err(e));
-        }
-
-        self.fastq_buffer.chop_line_break();
-
-        if self.fastq_buffer.is_empty() {
-            return Some(Err(IOError::new(ErrorKind::InvalidData, "Missing FastQ sequence!")));
-        }
-
-        let sequence = Nucleotides(self.fastq_buffer.clone());
-
-        self.fastq_buffer.clear();
-
-        // Read "+" line
-        if let Err(e) = self.fastq_reader.read_until(b'\n', &mut self.fastq_buffer) {
-            return Some(Err(e));
-        }
-
-        if !self.fastq_buffer.starts_with(b"+") {
-            return Some(Err(IOError::new(ErrorKind::InvalidData, "Missing '+' line!")));
-        }
-
-        self.fastq_buffer.clear();
-
-        // Read QUALITY line
-        if let Err(e) = self.fastq_reader.read_until(b'\n', &mut self.fastq_buffer) {
-            return Some(Err(e));
-        }
-
-        self.fastq_buffer.chop_line_break();
-
-        if self.fastq_buffer.len() != sequence.len() {
-            if self.fastq_buffer.is_empty() {
-                return Some(Err(IOError::new(ErrorKind::InvalidData, "Missing FastQ quality scores!")));
-            }
-
-            return Some(Err(IOError::new(
-                ErrorKind::InvalidData,
-                "Sequence and quality score length mismatch!",
-            )));
-        }
-
-        let quality = match QualityScores::try_from(self.fastq_buffer.as_slice()) {
-            Ok(s) => s,
-            Err(e) => return Some(Err(IOError::new(ErrorKind::InvalidData, e))),
-        };
-
-        Some(Ok(FastQ {
-            header,
-            sequence,
-            quality,
-        }))
+    /// Computes the reverse complement of the record in-place.
+    #[inline]
+    pub fn make_reverse_complement(&mut self) {
+        self.sequence.make_reverse_complement();
+        self.quality.make_reverse();
     }
 }
 

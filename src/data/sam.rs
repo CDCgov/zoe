@@ -1,20 +1,20 @@
-use crate::data::ByteSubstring;
 use crate::{
     data::{
+        ByteSubstring,
         byte_types::{ByteAvg, IsBase},
-        types::{
-            cigar::{Cigar, Ciglet, ExpandedCigar},
-            nucleotides::Nucleotides,
-            phred::QualityScores,
-        },
+        types::cigar::{Cigar, Ciglet, ExpandedCigar},
     },
+    prelude::*,
     unwrap_or_return_some_err,
 };
-use std::cmp::{max, min};
-use std::io::{BufRead, Error as IOError, ErrorKind};
-use std::iter::repeat;
-use std::ops::{Add, AddAssign, Range};
-use std::{fs::File, path::Path};
+use std::{
+    cmp::{max, min},
+    fs::File,
+    io::{BufRead, Error as IOError, ErrorKind},
+    iter::repeat,
+    ops::{Add, AddAssign, Range},
+    path::Path,
+};
 
 // # NOTICE
 // We define `index` to be 1-based and `position` to be 0-based to avoid
@@ -41,13 +41,17 @@ pub struct SamData {
     pub pos:   usize,
     /// Mystical map quality value.
     pub mapq:  u8,
-    /// Old style cigar format that does not include match and mismatch as separate values.
+    /// Old style cigar format that does not include match and mismatch as
+    /// separate values.
     pub cigar: Cigar,
-    /// Reference name of the mate / next read. Currently not implemented and set to `*`.
+    /// Reference name of the mate / next read. Currently not implemented and
+    /// set to `*`.
     rnext:     char,
-    /// Position of the mate / next read. Currently not implemented and set to `0`.
+    /// Position of the mate / next read. Currently not implemented and set to
+    /// `0`.
     pnext:     u32,
-    /// So-called "observed template length." Currently not implemented and always set to `0`.
+    /// So-called "observed template length." Currently not implemented and
+    /// always set to `0`.
     tlen:      i32,
     /// Query sequence.
     pub seq:   Nucleotides,
@@ -357,22 +361,6 @@ impl SamData {
             ),
             stats,
         )
-    }
-
-    /// Gets an optional slice of query nucleotides using 0-based query indices.
-    #[inline]
-    pub fn get_bases<I>(&self, index: I) -> Option<&I::Output>
-    where
-        I: std::slice::SliceIndex<[u8]>, {
-        self.seq.get(index)
-    }
-
-    /// Takes an index or range and return an optional slice of the quality scores for the SAM record.
-    #[inline]
-    pub fn get_qscores<I>(&self, index: I) -> Option<&I::Output>
-    where
-        I: std::slice::SliceIndex<[u8]>, {
-        self.qual.get(index)
     }
 }
 

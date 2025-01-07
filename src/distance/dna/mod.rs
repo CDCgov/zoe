@@ -1,10 +1,80 @@
 #![allow(clippy::doc_markdown)]
-use crate::math::MapFloat;
+use crate::{
+    data::types::nucleotides::NucleotidesReadable,
+    distance::{
+        hamming_simd, p_distance_acgt,
+        tabulation::{dna_substitution_matrix, hamming_dist_from_sub_matrix, total_and_frequencies},
+    },
+    math::MapFloat,
+};
 
-use super::tabulation::{dna_substitution_matrix, hamming_dist_from_sub_matrix, total_and_frequencies};
+pub trait NucleotidesDistance: NucleotidesReadable {
+    /// Calculates hamming distance between [`self`] and another sequence.
+    ///
+    /// # Example
+    /// ```
+    /// # use zoe::{
+    /// #     data::types::nucleotides::{Nucleotides, NucleotidesView},
+    /// #     distance::dna::NucleotidesDistance
+    /// # };
+    ///
+    /// let s1: Nucleotides = b"ATGCATCGATCGATCGATCGATCGATCGATGC".into();
+    /// let s2: Nucleotides = b"ATGCATnGATCGATCGATCGAnCGATCGATnC".into();
+    ///
+    /// assert!(3 == s1.distance_hamming(&s2));
+    ///
+    /// let s3 = NucleotidesView::from_bytes_unchecked(b"ATGCATnGATCGATCGATCGAnCGATCGATnC");
+    /// assert!(3 == s1.distance_hamming(&s3));
+    /// ```
+    #[inline]
+    #[must_use]
+    fn distance_hamming<T: NucleotidesReadable>(&self, other_sequence: &T) -> usize {
+        hamming_simd::<16>(self.nucleotide_bytes(), other_sequence.nucleotide_bytes())
+    }
 
-#[inline]
-#[must_use]
+    /// Computes the JC69 distance between [`self`] and another sequence. See
+    /// [`jukes_cantor_69`] for more details.
+    #[inline]
+    #[must_use]
+    fn distance_jc69<T: NucleotidesReadable>(&self, other_sequence: &T) -> Option<f64> {
+        jukes_cantor_69(self.nucleotide_bytes(), other_sequence.nucleotide_bytes())
+    }
+
+    /// Computes the K80 distance between [`self`] and another sequence. See
+    /// [`kimura_80`] for more details.
+    #[inline]
+    #[must_use]
+    fn distance_k80<T: NucleotidesReadable>(&self, other_sequence: &T) -> Option<f64> {
+        kimura_80(self.nucleotide_bytes(), other_sequence.nucleotide_bytes())
+    }
+
+    /// Computes the K81 distance between [`self`] and another sequence. See
+    /// [`kimura_81`] for more details.
+    #[inline]
+    #[must_use]
+    fn distance_k81<T: NucleotidesReadable>(&self, other_sequence: &T) -> Option<f64> {
+        kimura_81(self.nucleotide_bytes(), other_sequence.nucleotide_bytes())
+    }
+
+    /// Computes the F81 distance between [`self`] and another sequence. See
+    /// [`felsenstein_81`] for more details.
+    #[inline]
+    #[must_use]
+    fn distance_f81<T: NucleotidesReadable>(&self, other_sequence: &T) -> Option<f64> {
+        felsenstein_81(self.nucleotide_bytes(), other_sequence.nucleotide_bytes())
+    }
+
+    /// Computes the TN93 distance between [`self`] and another sequence. See
+    /// [`tamura_nei_93`] for more details.
+    #[inline]
+    #[must_use]
+    fn distance_tn93<T: NucleotidesReadable>(&self, other_sequence: &T) -> Option<f64> {
+        tamura_nei_93(self.nucleotide_bytes(), other_sequence.nucleotide_bytes())
+    }
+}
+
+impl<T: NucleotidesReadable> NucleotidesDistance for T {}
+
 /// ## Jukes-Cantor (JC-69) nucleotide substitution model.
 ///
 /// This model estimates the number of substitutions per site between two sequences
@@ -24,21 +94,21 @@ use super::tabulation::{dna_substitution_matrix, hamming_dist_from_sub_matrix, t
 ///
 /// - Jukes, T., and Cantor, C. (1969). "Evolution of Protein Molecules."
 ///   Mammalian Protein Metabolism, New York: Academic Press, III(3), 21–132.
+#[inline]
+#[must_use]
 pub fn jukes_cantor_69(seq1: &[u8], seq2: &[u8]) -> Option<f64> {
     if seq1.is_empty() || seq2.is_empty() {
         return None;
     }
 
     // Specialize the JC
-    if let Some(p) = super::general::p_distance_acgt::<32>(seq1, seq2) {
+    if let Some(p) = p_distance_acgt::<32>(seq1, seq2) {
         (-0.75 * (1.0 - p * 4.0 / 3.0).ln()).into_option()
     } else {
         None
     }
 }
 
-#[inline]
-#[must_use]
 /// ## Kimura 2-Parameter (K-80) nucleotide substitution model.
 ///
 /// This model accounts for different rates of **transitions** (A ↔ G or C ↔ T) and
@@ -59,6 +129,8 @@ pub fn jukes_cantor_69(seq1: &[u8], seq2: &[u8]) -> Option<f64> {
 /// - Kimura, M. (1980). "A simple method for estimating evolutionary rates of
 ///   base substitutions through comparative studies of nucleotide sequences."
 ///   Journal of Molecular Evolution. 16, 111-120.
+#[inline]
+#[must_use]
 pub fn kimura_80(seq1: &[u8], seq2: &[u8]) -> Option<f64> {
     if seq1.is_empty() || seq2.is_empty() {
         return None;
@@ -67,8 +139,6 @@ pub fn kimura_80(seq1: &[u8], seq2: &[u8]) -> Option<f64> {
     sub_matrix.k80_distance()
 }
 
-#[inline]
-#[must_use]
 /// ## Kimura 3-Parameter (K-81) nucleotide substitution model.
 ///
 /// Calculates evolutionary distance between two sequences, accounting for different rates
@@ -95,6 +165,8 @@ pub fn kimura_80(seq1: &[u8], seq2: &[u8]) -> Option<f64> {
 ///
 /// - Kimura, M.  1981. "Estimation of evolutionary distances between homologous
 ///   nucleotide sequences."  Proc. Natl. Acad. Sci. U.S.A. 78, 454–458.
+#[inline]
+#[must_use]
 pub fn kimura_81(seq1: &[u8], seq2: &[u8]) -> Option<f64> {
     if seq1.is_empty() || seq2.is_empty() {
         return None;
@@ -103,8 +175,6 @@ pub fn kimura_81(seq1: &[u8], seq2: &[u8]) -> Option<f64> {
     sub_matrix.k81_distance()
 }
 
-#[inline]
-#[must_use]
 /// ## Felsenstein (F-81) nucleotide substitution model.
 ///
 /// Calculates evolutionary distance between two sequences, accounting for different
@@ -127,6 +197,8 @@ pub fn kimura_81(seq1: &[u8], seq2: &[u8]) -> Option<f64> {
 ///
 /// - Felsenstein, J.  1981. "Evolutionary trees from DNA sequences: a maximum
 ///   likelihood approach."  J. Mol. Evol. 17, 368–376.
+#[inline]
+#[must_use]
 pub fn felsenstein_81(seq1: &[u8], seq2: &[u8]) -> Option<f64> {
     if seq1.is_empty() || seq2.is_empty() {
         return None;
@@ -135,8 +207,6 @@ pub fn felsenstein_81(seq1: &[u8], seq2: &[u8]) -> Option<f64> {
     sub_matrix.f81_distance()
 }
 
-#[inline]
-#[must_use]
 /// ## Tamura-Nei (TN-93) nucleotide substitution model.
 ///
 /// Calculates evolutionary distance between two sequences, accounting for different
@@ -171,6 +241,8 @@ pub fn felsenstein_81(seq1: &[u8], seq2: &[u8]) -> Option<f64> {
 /// - Tamura, K., and M. Nei.  1993. "Estimation of the number of nucleotide
 ///   substitutions in the control region of mitochondrial DNA in humans and
 ///   chimpanzees."  Mol. Biol. Evol. 10, 512–526.
+#[inline]
+#[must_use]
 pub fn tamura_nei_93(seq1: &[u8], seq2: &[u8]) -> Option<f64> {
     if seq1.is_empty() || seq2.is_empty() {
         return None;
@@ -180,14 +252,30 @@ pub fn tamura_nei_93(seq1: &[u8], seq2: &[u8]) -> Option<f64> {
     sub_matrix.tn93_distance()
 }
 
-/// A trait for calculating evolutionary distances using the same substitution matrix.
+/// A trait for calculating evolutionary distances using the same substitution
+/// matrix.
 ///
-/// Substitution matrices are built from two `&[u8]` slices using [`dna_substitution_matrix`]
+/// Substitution matrices are built from two `&[u8]` slices using
+/// [`dna_substitution_matrix`]
 pub trait DistanceFromMatrix {
+    /// Computes the JC69 distance from the given matrix. See
+    /// [`jukes_cantor_69`] for more details.
     fn jc69_distance(&self) -> Option<f64>;
+
+    /// Computes the K80 distance from the given matrix. See [`kimura_80`] for
+    /// more details.
     fn k80_distance(&self) -> Option<f64>;
+
+    /// Computes the K81 distance from the given matrix. See [`kimura_81`] for
+    /// more details.
     fn k81_distance(&self) -> Option<f64>;
+
+    /// Computes the F81 distance from the given matrix. See [`felsenstein_81`]
+    /// for more details.
     fn f81_distance(&self) -> Option<f64>;
+
+    /// Computes the TN93 distance from the given matrix. See [`tamura_nei_93`]
+    /// for more details.
     fn tn93_distance(&self) -> Option<f64>;
 }
 

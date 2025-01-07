@@ -1,4 +1,78 @@
-use crate::data::err::{DistanceError, DistanceError::*};
+use crate::{
+    data::{err::DistanceError, types::amino_acids::AminoAcidsReadable},
+    distance::{
+        aa::DistanceError::{NoData, NotComparable},
+        hamming_simd,
+    },
+    prelude::{AminoAcids, AminoAcidsView, AminoAcidsViewMut},
+};
+
+pub trait AminoAcidsDistance: AminoAcidsReadable {
+    /// # Distance
+    ///
+    /// Calculates hamming distance between `self` and another sequence.
+    ///
+    /// # Example
+    /// ```
+    /// # use zoe::{
+    /// #     data::types::amino_acids::{AminoAcids, AminoAcidsView},
+    /// #     distance::AminoAcidsDistance
+    /// # };
+    ///
+    /// let s1: AminoAcids = b"MANATEEMANATEEMANATEE".into();
+    /// let s2: AminoAcids = b"MANGAEEMANATEEMANGAEE".into();
+    ///
+    /// assert!(4 == s1.distance_hamming(&s2));
+    ///
+    /// let s3 = AminoAcidsView::from_bytes_unchecked(b"MANGAEEMANATEEMANGAEE");
+    /// assert!(4 == s1.distance_hamming(&s3));
+    /// ```
+    ///
+    #[inline]
+    #[must_use]
+    fn distance_hamming<T: AminoAcidsReadable>(&self, other_sequence: &T) -> usize {
+        hamming_simd::<16>(self.amino_acids_bytes(), other_sequence.amino_acids_bytes())
+    }
+
+    /// Calculates physiochemical distance between `self`and another protein
+    /// sequence. See: [`crate::distance::physiochemical`]
+    ///
+    /// # Citation
+    /// For factor analysis used by the function:
+    ///
+    /// > Atchley et al. 2008. "Solving the protein sequence metric problem."
+    /// > Proc Natl Acad Sci U S A. 2005 May 3;102(18):6395-400. Published 2005
+    /// > Apr 25.
+    ///
+    ///
+    /// # Errors
+    /// If either argument is empty or the sequence characters are invalid, an
+    /// error is thrown. See [`DistanceError`].
+    ///
+    /// # Example
+    /// ```
+    /// # use zoe::{
+    /// #     data::types::amino_acids::{AminoAcids, AminoAcidsView},
+    /// #     distance::AminoAcidsDistance
+    /// # };
+    ///
+    /// let s1: AminoAcids = b"MANATEEMANATEEMANATEE".into();
+    /// let s2: AminoAcids = b"MANGAEEMANATEEMANGAEE".into();
+    ///
+    /// assert!( (s1.distance_physiochemical(&s2).unwrap() - 0.7643302).abs() < 0.01 );
+    ///
+    /// let s3 = AminoAcidsView::from_bytes_unchecked(b"MANGAEEMANATEEMANGAEE");
+    /// assert!( (s1.distance_physiochemical(&s3).unwrap() - 0.7643302).abs() < 0.01 );
+    /// ```
+    #[inline]
+    fn distance_physiochemical<T: AminoAcidsReadable>(&self, other_sequence: &T) -> Result<f32, DistanceError> {
+        physiochemical(self.amino_acids_bytes(), other_sequence.amino_acids_bytes())
+    }
+}
+
+impl AminoAcidsDistance for AminoAcids {}
+impl AminoAcidsDistance for AminoAcidsView<'_> {}
+impl AminoAcidsDistance for AminoAcidsViewMut<'_> {}
 
 /// Calculates a "physiochemical" distance measure using the euclidean distances
 /// over physiochemical factors. Only valid amino acids are permitted in the
@@ -26,7 +100,7 @@ use crate::data::err::{DistanceError, DistanceError::*};
 /// If either argument is empty or the sequence characters are invalid, an error
 /// is thrown. See [`DistanceError`].
 //
-// TO-DO: Could make a generic function that depends on distance matrix.
+// TODO: Could make a generic function that depends on distance matrix.
 #[allow(clippy::cast_precision_loss)]
 pub fn physiochemical(seq1: &[u8], seq2: &[u8]) -> Result<f32, DistanceError> {
     use crate::data::matrices::PHYSIOCHEMICAL_FACTORS as dm;

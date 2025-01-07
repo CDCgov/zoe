@@ -1,4 +1,4 @@
-use super::*;
+use crate::prelude::*;
 use std::io::Cursor;
 
 #[test]

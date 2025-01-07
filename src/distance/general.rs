@@ -5,7 +5,6 @@ use std::{
 
 use crate::simd::SimdByteFunctions;
 
-#[must_use]
 /// Calculates the number of differences at the byte (or base/residue) level.
 ///
 /// # Example
@@ -17,7 +16,7 @@ use crate::simd::SimdByteFunctions;
 ///
 /// assert!(3 == hamming(s1, s2));
 /// ```
-///
+#[must_use]
 pub fn hamming(x: &[u8], y: &[u8]) -> usize {
     x.iter().zip(y).filter(|(a, b)| a != b).count()
 }

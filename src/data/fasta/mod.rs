@@ -17,6 +17,8 @@ use std::{
     path::Path,
 };
 
+use super::types::nucleotides::Translate;
+
 /// Provides a container struct for data from a generic
 /// [FASTA](https://en.wikipedia.org/wiki/FASTA_format) file.
 #[derive(Clone, Eq, PartialEq, Hash, Debug, Default)]
@@ -98,7 +100,7 @@ impl FastaNT {
     /// Reverse complements the sequence stored in the struct using a new buffer.
     #[inline]
     pub fn reverse_complement(&mut self) {
-        self.sequence = self.sequence.reverse_complement();
+        self.sequence.make_reverse_complement();
     }
 
     /// Translates the stored [`Nucleotides`] to [`AminoAcids`] using a new buffer.

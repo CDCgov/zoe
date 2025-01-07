@@ -1,4 +1,5 @@
 mod aa;
+
 /// Various nucleotide substitution models for calculating evolutionary distances between two aligned DNA sequences.
 ///
 /// ## Assumptions:

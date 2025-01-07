@@ -164,7 +164,41 @@
 pub mod alignment;
 /// Composition and consensus functions.
 pub mod composition;
-/// Data import, export, and manipulation functions.
+// TODO: Add examples, expand docs, fix links
+/// ## Data import, export, and manipulation functions.
+///
+/// ## Views
+///
+/// Many of the data type provided by *Zoe* have versions holding owned data as
+/// well as versions holding references. The latter are called *views*, and are
+/// useful when performing operations on a subsequence of the original data. For
+/// example, [`Nucleotides`] (which is a wrapper around [`Vec<u8>`]) has the
+/// corresponding types [`NucleotidesView`] and [`NucleotidesViewMut`], which
+/// are wrappers around immutable and mutable byte slices respectively.
+///
+/// A view can be constructed directly from an existing slice, such as
+/// [`NucleotidesView::from_bytes_unchecked`], but more often a view is created
+/// from an owned instance of the data by calling [`as_view`] or
+/// [`as_view_mut`]. If only a range of the data is desired, then [`slice`] and
+/// [`slice_mut`] are used.
+///
+/// A view can be directly displayed/printed, or it can be copied into owned
+/// data again by using [`to_owned_data`].
+///
+/// Views can also be re-sliced in-place using the [`restrict`] method. This is
+/// a useful way to avoid needing to have extra let bindings.
+///
+/// [`Nucleotides`]: data::types::nucleotides::Nucleotides
+/// [`NucleotidesView`]: data::types::nucleotides::NucleotidesView
+/// [`NucleotidesViewMut`]: data::types::nucleotides::NucleotidesViewMut
+/// [`NucleotidesView::from_bytes_unchecked`]:
+///     data::types::nucleotides::NucleotidesView::from_bytes_unchecked
+/// [`as_view`]: prelude::DataOwned::as_view
+/// [`as_view_mut`]: prelude::DataOwned::as_view_mut
+/// [`slice`]: prelude::Slice::slice
+/// [`slice_mut`]: prelude::SliceMut::slice_mut
+/// [`to_owned_data`]: prelude::DataView::to_owned_data
+/// [`restrict`]: prelude::DataView::restrict
 pub mod data;
 /// Distance functions, especially for sequence data.
 pub mod distance;
@@ -267,9 +301,18 @@ pub(crate) mod simd;
 /// Common structures and traits re-exported
 pub mod prelude {
     pub use crate::composition::{AlignmentComposition, CreateConsensus, NucleotideCounts};
-    pub use crate::data::types::{amino_acids::AminoAcids, nucleotides::Nucleotides};
     pub use crate::data::{
-        PairwiseSequence, StdForSequences, convert::ToDNA, err::OrFail, fasta::FastaReader, fastq::FastQReader,
+        PairwiseSequence, StdForSequences,
+        convert::ToDNA,
+        err::OrFail,
+        fasta::FastaReader,
+        fastq::{FastQ, FastQReader, FastQView, FastQViewMut},
+        types::{
+            amino_acids::{AminoAcids, AminoAcidsView, AminoAcidsViewMut},
+            nucleotides::{Nucleotides, NucleotidesView, NucleotidesViewMut},
+            phred::{QualityScores, QualityScoresView, QualityScoresViewMut},
+        },
+        view_traits::{DataOwned, DataView, DataViewMut, Len, Slice, SliceMut},
     };
     #[cfg(feature = "rand")]
     pub use crate::generate::rand_sequence;

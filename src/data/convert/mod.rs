@@ -1,4 +1,4 @@
-use super::types::nucleotides::Nucleotides;
+use super::types::nucleotides::{Nucleotides, RetainNucleotides};
 
 pub trait ToDNA {
     fn filter_to_dna(&self) -> Nucleotides;

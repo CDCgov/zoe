@@ -1,17 +1,19 @@
-use crate::alignment::pairwise_align_with_cigar;
-use crate::data::types::cigar::Cigar;
-use crate::prelude::{AminoAcids, Nucleotides};
-use crate::simd::SimdByteFunctions;
-use std::simd::{LaneCount, SupportedLaneCount, prelude::*};
+use crate::{alignment::pairwise_align_with_cigar, data::types::cigar::Cigar, prelude::*, simd::SimdByteFunctions};
+use std::{
+    ops::Range,
+    simd::{LaneCount, SupportedLaneCount, prelude::*},
+};
 
-/// Provides methods for validating and transforming sequence data using byte mappings.
+use super::types::nucleotides::NucleotidesReadable;
+
+/// Provides methods for validating and transforming sequence data using byte
+/// mappings
 pub trait ValidateSequence {
     /// Retains only bytes that are marked as valid in the validation mapping
     fn retain_by_validation(&mut self, validation_mapping: [bool; 256]);
-    /// Retains and transforms bytes using the transformation mapping, removing any that map to 0
+    /// Retains and transforms bytes using the transformation mapping, removing
+    /// any that map to 0
     fn retain_by_recoding(&mut self, transformation_mapping: [u8; 256]);
-    /// Transforms bytes in-place using the provided transformation mapping
-    fn recode(&mut self, transformation_mapping: [u8; 256]);
 }
 
 impl ValidateSequence for Vec<u8> {
@@ -30,18 +32,36 @@ impl ValidateSequence for Vec<u8> {
             *b > 0
         });
     }
+}
 
-    /// Allows for re-coding the sequence to the allowed values in-place.
+/// Provides method for recoding a sequence based on a byte mapping.
+pub trait Recode: AsMut<[u8]> {
+    /// Recode the sequence data using a given byte mapping.
+    #[inline]
     fn recode(&mut self, transformation_mapping: [u8; 256]) {
-        for b in self {
+        for b in self.as_mut() {
             *b = transformation_mapping[*b as usize];
+        }
+    }
+
+    /// Replaces the provided [`Range`] with the specified byte. If the range
+    /// does not exist, the function does nothing.
+    #[inline]
+    fn mask_if_exists(&mut self, range: Range<usize>, replacement: u8) {
+        if let Some(slice) = self.as_mut().get_mut(range) {
+            for b in slice {
+                *b = replacement;
+            }
         }
     }
 }
 
+impl<T: AsMut<[u8]>> Recode for T {}
+
 /// Enables sequence expansion based on alignment information.
 pub trait PairwiseSequence {
     type Output;
+
     /// Aligns two sequences using a CIGAR string starting at the
     /// given reference position.
     fn align_with_cigar(&self, query: &Self, cigar: &Cigar, position: usize) -> (Self::Output, Self::Output);
@@ -67,7 +87,7 @@ impl PairwiseSequence for Nucleotides {
     type Output = Self;
 
     fn align_with_cigar(&self, query: &Self, cigar: &Cigar, position: usize) -> (Self::Output, Self::Output) {
-        let (r, q) = pairwise_align_with_cigar(self.as_bytes(), query.as_bytes(), cigar, position);
+        let (r, q) = pairwise_align_with_cigar(self.nucleotide_bytes(), query.nucleotide_bytes(), cigar, position);
         (r.into(), q.into())
     }
 }

@@ -2,7 +2,6 @@ use crate::data::types::Uint;
 
 pub struct KmerLen<const MAX_LEN: usize>;
 
-// TODO: Potentially seal this
 // Note: Downstream requires this not support 256 or above
 /// Statically guarantees that a max k-mer length is marked as supported for the
 /// [`ThreeBitKmerEncoder`], as well as provides the appropriate integer type.

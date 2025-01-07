@@ -18,6 +18,8 @@ pub mod sam;
 /// [`Nucleotides`](self::types::nucleotides::Nucleotides) and
 /// [`AminoAcids`][self::types::amino_acids::AminoAcids].
 pub mod types;
+/// A module containing the traits needed for working with views.
+pub mod view_traits;
 
 pub use crate::{
     data::vec_types::{CheckSequence, PairwiseSequence, StdForSequences},
@@ -39,5 +41,6 @@ pub(crate) mod constants;
 pub(crate) mod id_types;
 /// A private module with helper traits for things like [`Vec<u8>`].
 pub(crate) mod vec_types;
+pub use vec_types::Recode;
 
 pub(crate) use constants::*;
