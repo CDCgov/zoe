@@ -170,16 +170,22 @@ impl QualityScores {
         self.0.is_empty()
     }
 
-    /// Provide [`QualityScores`] as a reference to a raw byte slice (ASCII encoded quality scores).
+    /// Provide [`QualityScores`] as a reference to a raw byte slice (ASCII
+    /// encoded quality scores).
     #[inline]
     #[must_use]
     pub fn as_bytes(&self) -> &[u8] {
         self.0.as_slice()
     }
 
-    /// Provide [`QualityScores`] as a mutable reference to a raw byte slice (ASCII encoded quality scores).
+    /// Provide [`QualityScores`] as a mutable reference to a raw byte slice
+    /// (ASCII encoded quality scores).
+    ///
+    /// # Safety
+    /// The bytes may only be mutated such that they contain graphic ASCII (in
+    /// the range `!`..=`~`).
     #[inline]
-    pub fn as_mut_bytes(&mut self) -> &mut [u8] {
+    pub unsafe fn as_mut_bytes(&mut self) -> &mut [u8] {
         self.0.as_mut_slice()
     }
 
