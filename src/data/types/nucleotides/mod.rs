@@ -1,27 +1,33 @@
 use crate::{
-    alignment::profile_set::{LocalProfile, SharedProfile},
-    data::{
-        err::QueryProfileError,
-        mappings::{
-            ANY_TO_DNA_CANONICAL_UPPER, GENETIC_CODE, IS_IUPAC_BASE, IS_UNALIGNED_IUPAC_BASE, IUPAC_TO_DNA_CANONICAL,
-            IUPAC_TO_DNA_CANONICAL_UPPER, TO_DNA_UC, TO_UNALIGNED_DNA_UC,
-        },
-        matrices::BiasedWeightMatrix,
-        vec_types::{Recode, ValidateSequence},
-    },
+    alignment::{LocalProfiles, SharedProfiles},
+    data::{err::QueryProfileError, mappings::GENETIC_CODE, matrices::BiasedWeightMatrix},
     prelude::*,
 };
 use std::simd::{LaneCount, SupportedLaneCount};
 
+/// Getters to help with trait implementations.
 mod getter_traits;
+/// Reverse complement implementations.
 mod rev_comp;
+/// Traits and methods for sanitizing and validating nucleotide data.
+mod sanitize;
+/// Standard library implementations.
 mod std_traits;
+/// Amino acid translation implementations.
 mod translation;
+/// Nucleotide view types.
 mod view_traits;
 
 pub use getter_traits::*;
 pub use rev_comp::*;
+pub use sanitize::*;
 pub use translation::*;
+
+#[cfg(test)]
+mod bench;
+
+#[cfg(test)]
+mod test;
 
 /// [`Nucleotides`] is a transparent, new-type wrapper around [`Vec<u8>`] that
 /// provides DNA-specific functionality and semantics. It may contain either
@@ -121,7 +127,7 @@ impl Nucleotides {
 
     // Nucleotides-specific methods
 
-    /// Creates a [`LocalProfile`] for alignment.
+    /// Creates a [`LocalProfiles`] for alignment.
     ///
     /// # Errors
     ///
@@ -144,14 +150,14 @@ impl Nucleotides {
     #[inline]
     pub fn into_local_profile<'a, 'b, const N: usize, const S: usize>(
         &'b self, matrix: &'a BiasedWeightMatrix<S>, gap_open: u8, gap_extend: u8,
-    ) -> Result<LocalProfile<'a, N, S>, QueryProfileError>
+    ) -> Result<LocalProfiles<'a, N, S>, QueryProfileError>
     where
         LaneCount<N>: SupportedLaneCount,
         'b: 'a, {
-        LocalProfile::new(&self.0, matrix, gap_open, gap_extend)
+        LocalProfiles::new(&self.0, matrix, gap_open, gap_extend)
     }
 
-    /// Creates a [`SharedProfile`] for alignment.
+    /// Creates a [`SharedProfiles`] for alignment.
     ///
     /// # Errors
     ///
@@ -174,13 +180,13 @@ impl Nucleotides {
     #[inline]
     pub fn into_shared_profile<'a, const N: usize, const S: usize>(
         &self, matrix: &'a BiasedWeightMatrix<S>, gap_open: u8, gap_extend: u8,
-    ) -> Result<SharedProfile<'a, N, S>, QueryProfileError>
+    ) -> Result<SharedProfiles<'a, N, S>, QueryProfileError>
     where
         LaneCount<N>: SupportedLaneCount, {
-        SharedProfile::new(self.as_bytes().into(), matrix, gap_open, gap_extend)
+        SharedProfiles::new(self.as_bytes().into(), matrix, gap_open, gap_extend)
     }
 
-    /// Returns the reverse complement of the sequence.
+    /// Returns the reverse complement of the sequence as a new record.
     #[inline]
     #[must_use]
     pub fn to_reverse_complement(&self) -> Nucleotides {
@@ -248,7 +254,7 @@ impl<'a> NucleotidesView<'a> {
 
     // Nucleotides-specific methods
 
-    /// Returns the reverse complement of the sequence.
+    /// Returns the reverse complement of the sequence as a new record.
     #[inline]
     #[must_use]
     pub fn to_reverse_complement(&self) -> Nucleotides {
@@ -295,7 +301,7 @@ impl<'a> NucleotidesViewMut<'a> {
     pub fn get<I>(&self, index: I) -> Option<&I::Output>
     where
         I: std::slice::SliceIndex<[u8]>, {
-        self.as_bytes().get(index)
+        self.as_ref().get(index)
     }
 
     /// Create an iterator over the nucleotides as `&u8`.
@@ -312,7 +318,7 @@ impl<'a> NucleotidesViewMut<'a> {
 
     // Nucleotides-specific methods
 
-    /// Returns the reverse complement of the sequence.
+    /// Returns the reverse complement of the sequence as a new record.
     #[inline]
     #[must_use]
     pub fn to_reverse_complement(&self) -> Nucleotides {
@@ -325,65 +331,3 @@ impl<'a> NucleotidesViewMut<'a> {
         make_reverse_complement(self.0);
     }
 }
-
-/// Provides DNA-specific methods for recoding a sequence.
-pub trait RecodeNucleotides: NucleotidesMutable {
-    /// Recodes the stored sequence to an uppercase canonical (ACTG + N) one.
-    /// Any non-canonical base becomes N.
-    #[inline]
-    fn recode_any_to_actgn_uc(&mut self) {
-        self.nucleotide_mut_bytes().recode(ANY_TO_DNA_CANONICAL_UPPER);
-    }
-
-    /// Recodes the stored sequence of valid IUPAC codes to a canonical (ACTG +
-    /// N) sequence. Ambiguous bases become N while non-IUPAC bytes are left
-    /// unchanged.
-    #[inline]
-    fn recode_iupac_to_actgn(&mut self) {
-        self.nucleotide_mut_bytes().recode(IUPAC_TO_DNA_CANONICAL);
-    }
-
-    /// Recodes the stored sequence of valid IUPAC codes to an uppercase
-    /// canonical (ACTG + N) sequence. Ambiguous bases become N while non-IUPAC
-    /// bytes are left unchanged.
-    #[inline]
-    fn recode_iupac_to_actgn_uc(&mut self) {
-        self.nucleotide_mut_bytes().recode(IUPAC_TO_DNA_CANONICAL_UPPER);
-    }
-}
-
-impl<T: NucleotidesMutable> RecodeNucleotides for T {}
-
-pub trait RetainNucleotides: AsMut<Vec<u8>> {
-    /// Only retains valid [IUPAC bases](https://www.bioinformatics.org/sms/iupac.html).
-    #[inline]
-    fn retain_iupac_bases(&mut self) {
-        self.as_mut().retain_by_validation(IS_IUPAC_BASE);
-    }
-
-    /// Only retains valid [IUPAC bases](https://www.bioinformatics.org/sms/iupac.html).
-    #[inline]
-    fn retain_unaligned_bases(&mut self) {
-        self.as_mut().retain_by_validation(IS_UNALIGNED_IUPAC_BASE);
-    }
-
-    /// Only retains valid [IUPAC](https://www.bioinformatics.org/sms/iupac.html) DNA and converts to uppercase.
-    #[inline]
-    fn retain_dna_uc(&mut self) {
-        self.as_mut().retain_by_recoding(TO_DNA_UC);
-    }
-
-    /// Only retains valid, unaligned [IUPAC](https://www.bioinformatics.org/sms/iupac.html) DNA and converts to uppercase.
-    #[inline]
-    fn retain_unaligned_dna_uc(&mut self) {
-        self.as_mut().retain_by_recoding(TO_UNALIGNED_DNA_UC);
-    }
-}
-
-impl RetainNucleotides for Nucleotides {}
-
-#[cfg(test)]
-mod bench;
-
-#[cfg(test)]
-mod test;

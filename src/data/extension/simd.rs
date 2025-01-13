@@ -1,8 +1,7 @@
 use std::simd::{LaneCount, SimdElement, SupportedLaneCount, Swizzle, prelude::*};
 
-#[allow(dead_code)]
-pub trait SimdExt<T> {
-    // based on rotate_elements_left and rotate_elements_right
+pub(crate) trait SimdExt<T> {
+    #[allow(dead_code)]
     fn shift_elements_left_z<const OFFSET: usize>(self, padding: T) -> Self;
     fn shift_elements_right_z<const OFFSET: usize>(self, padding: T) -> Self;
 }
@@ -50,7 +49,7 @@ where
 }
 
 #[allow(dead_code)]
-pub trait SimdByteFunctions<const N: usize>
+pub(crate) trait SimdByteFunctions<const N: usize>
 where
     LaneCount<N>: SupportedLaneCount, {
     fn is_ascii(&self) -> Mask<i8, N>;

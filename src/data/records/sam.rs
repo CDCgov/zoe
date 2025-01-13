@@ -1,6 +1,5 @@
 use crate::{
     data::{
-        ByteSubstring,
         byte_types::{ByteAvg, IsBase},
         types::cigar::{Cigar, Ciglet, ExpandedCigar},
     },
@@ -136,7 +135,7 @@ impl SamData {
                     }
                     ref_index += inc;
                 }
-                b'H' => continue,
+                b'H' => {}
                 // TO-DO: Replace with a continue if type-state is adopted.
                 _ => panic!("Extended CIGAR {op} not yet supported.\n"),
             }
@@ -737,7 +736,7 @@ impl std::fmt::Display for SamData {
 
 #[cfg(test)]
 mod test {
-    use crate::data::sam::make_merged_qname;
+    use crate::data::records::sam::make_merged_qname;
 
     static QNAMES: [&str; 26] = [
         "SRR26182418.1 M07901:28:000000000-KP3NB:1:1101:10138:2117 length=147",

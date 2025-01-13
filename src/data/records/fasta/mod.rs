@@ -1,13 +1,12 @@
 use crate::{
     data::{
-        convert::ToDNA,
         id_types::FastaIDs,
-        mappings::TO_UNALIGNED_DNA_UC,
         types::{
             amino_acids::AminoAcids,
-            nucleotides::{Nucleotides, reverse_complement},
+            nucleotides::{self, Nucleotides, RetainNucleotides, ToDNA, Translate},
         },
-        vec_types::{CheckSequence, ChopLineBreak, ValidateSequence},
+        validation::CheckSequence,
+        vec_types::ChopLineBreak,
     },
     search::ByteSplitIter,
 };
@@ -17,7 +16,8 @@ use std::{
     path::Path,
 };
 
-use super::types::nucleotides::Translate;
+#[cfg(test)]
+mod test;
 
 /// Provides a container struct for data from a generic
 /// [FASTA](https://en.wikipedia.org/wiki/FASTA_format) file.
@@ -54,13 +54,13 @@ pub struct FastaReader<R: std::io::Read> {
 impl FastaSeq {
     /// Reverse complements the sequence stored in the struct using a new buffer.
     pub fn reverse_complement(&mut self) {
-        self.sequence = reverse_complement(&self.sequence);
+        self.sequence = nucleotides::reverse_complement(&self.sequence);
     }
 
     /// Retains only valid DNA characters, removing alignment characters as well.
     #[must_use]
     pub fn to_dna_unaligned(mut self) -> FastaNT {
-        self.sequence.retain_by_recoding(TO_UNALIGNED_DNA_UC);
+        self.sequence.retain_unaligned_dna_uc();
         FastaNT {
             name:     self.name,
             sequence: Nucleotides(self.sequence),
@@ -91,7 +91,7 @@ impl FastaSeq {
     pub fn translate(self) -> FastaAA {
         FastaAA {
             name:     self.name,
-            sequence: AminoAcids(super::types::nucleotides::translate_sequence(&self.sequence)),
+            sequence: AminoAcids(nucleotides::translate_sequence(&self.sequence)),
         }
     }
 }
@@ -365,6 +365,3 @@ impl std::fmt::Display for FastaAA {
         }
     }
 }
-
-#[cfg(test)]
-mod test;

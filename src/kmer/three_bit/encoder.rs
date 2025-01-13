@@ -1,10 +1,8 @@
 use super::len_mappings::{KmerLen, MaxLenToType, SupportedThreeBitKmerLen};
-use crate::data::mappings::THREE_BIT_MAPPING;
-use crate::data::types::Int;
-use crate::kmer::encoder::Kmer;
 use crate::{
-    data::types::Uint,
-    kmer::{encoder::KmerEncoder, errors::KmerError},
+    data::mappings::THREE_BIT_MAPPING,
+    kmer::{Kmer, encoder::KmerEncoder, errors::KmerError},
+    math::{Int, Uint},
 };
 
 /// An encoded k-mer using the [`ThreeBitKmerEncoder`]. In most use cases,

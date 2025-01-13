@@ -29,9 +29,9 @@ In order for *Zoe* to move to stable, the portable SIMD [nightly feature](https:
 
 This list may not be up-to-date or exhaustive, but some example usage:
 
-- Alignment functions: `sw_score_simd` (TODO)
+- Alignment functions: [`alignment::sw::sw_simd_score`]
 - Composition functions: [`composition::gc_content_simd`], [`composition::AlignmentComposition`]
-- Distance functions: [`distance::hamming_simd`], [`distance::p_distance_acgt`]
+- Distance functions: [`distance::hamming_simd`], [`distance::dna::p_distance_acgt`]
 - Search
   - Substring: [`search::fuzzy_substring_match_simd`], [`search::substring_match_simd`], [`search::find_k_repeating`]
   - Byte: [`search::position_by_byte`] (and other variants) and [`search::replace_all_bytes_simd`]

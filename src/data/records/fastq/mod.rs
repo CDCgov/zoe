@@ -2,6 +2,8 @@ use crate::prelude::*;
 
 mod reader;
 mod std_traits;
+#[cfg(test)]
+mod test;
 mod view_traits;
 
 pub use reader::*;
@@ -49,7 +51,7 @@ impl FastQ {
 
     // FastQ-specific methods
 
-    /// Returns the reverse complement of the record.
+    /// Returns the reverse complement of the FASTQ as a new record.
     #[inline]
     #[must_use]
     pub fn to_reverse_complement(&self) -> FastQ {
@@ -84,7 +86,7 @@ impl FastQView<'_> {
 
     // FastQ-specific methods
 
-    /// Returns the reverse complement of the record.
+    /// Returns the reverse complement of the FASTQ as a new record.
     #[inline]
     #[must_use]
     pub fn to_reverse_complement(&self) -> FastQ {
@@ -102,7 +104,7 @@ impl FastQViewMut<'_> {
 
     // FastQ-specific methods
 
-    /// Returns the reverse complement of the record.
+    /// Returns the reverse complement of the FASTQ as a new record.
     #[inline]
     #[must_use]
     pub fn to_reverse_complement(&self) -> FastQ {
@@ -120,6 +122,3 @@ impl FastQViewMut<'_> {
         self.quality.make_reverse();
     }
 }
-
-#[cfg(test)]
-mod test;

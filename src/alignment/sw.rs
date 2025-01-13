@@ -2,10 +2,7 @@
 // TODO: revisit truncation issues
 
 use super::*;
-use crate::{
-    data::types::{Uint, cigar::Cigar},
-    simd::SimdExt,
-};
+use crate::{data::types::cigar::Cigar, math::Uint, simd::SimdExt};
 use std::{
     ops::{AddAssign, Shl},
     simd::{LaneCount, SimdElement, SupportedLaneCount, prelude::*},
@@ -509,7 +506,7 @@ mod test {
     fn sw_simd_profile_set() {
         let v: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/CY137594.txt"));
         let matrix = SimpleWeightMatrix::<5>::new_dna_matrix(2, -5, Some(b'N')).into_biased_matrix();
-        let profile = LocalProfile::<16, 5>::new(&v, &matrix, GAP_OPEN, GAP_EXTEND).expect("Sequence is non-empty");
+        let profile = LocalProfiles::<16, 5>::new(&v, &matrix, GAP_OPEN, GAP_EXTEND).expect("Sequence is non-empty");
         let score = profile.smith_waterman_score_from_u8(&v);
         assert_eq!(Some(3372), score);
     }

@@ -34,6 +34,7 @@ pub trait Int:
         out
     }
 
+    fn from_bool(b: bool) -> Self;
     fn as_usize(self) -> usize;
     fn checked_addition(&self, other: Self) -> Option<Self>;
     const MAX: Self;
@@ -50,6 +51,11 @@ macro_rules! impl_int {
             const ZERO: $ty = 0;
             const ONE: $ty = 1;
 
+            #[inline]
+            fn from_bool(b: bool) -> $ty {
+                <$ty>::from(b)
+            }
+
             #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
             #[inline]
             fn as_usize(self) -> usize { self as usize }
@@ -58,6 +64,7 @@ macro_rules! impl_int {
             fn checked_addition(&self,other: Self) -> Option<Self> {
                 self.checked_add(other)
             }
+
             const MAX: $ty = <$ty>::MAX;
             const MIN: $ty = <$ty>::MIN;
             const BITS: u32 = <$ty>::BITS;

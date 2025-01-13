@@ -1,4 +1,4 @@
-use crate::{data::vec_types::CheckSequence, prelude::*};
+use crate::{data::validation::CheckSequence, prelude::*};
 
 impl AsRef<[u8]> for Nucleotides {
     #[inline]

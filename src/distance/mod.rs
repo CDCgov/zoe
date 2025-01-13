@@ -1,5 +1,5 @@
-mod aa;
-
+/// Amino acid distance functions.
+pub mod aa;
 /// Various nucleotide substitution models for calculating evolutionary distances between two aligned DNA sequences.
 ///
 /// ## Assumptions:
@@ -19,10 +19,8 @@ mod aa;
 /// let jc69_distance = jukes_cantor_69(seq1, seq2);
 /// ```
 pub mod dna;
-mod general;
-mod tabulation;
 
-pub use aa::*;
-// pub use dna::*;
+/// General string-based distance functions.
+mod general;
+
 pub use general::*;
-pub use tabulation::*;

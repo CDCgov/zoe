@@ -1,6 +1,6 @@
 #![allow(clippy::cast_precision_loss)]
 
-use crate::{composition::frequency_table::FrequencyTable, prelude::*};
+use crate::{composition::FrequencyTable, prelude::*};
 
 mod stats;
 mod std_traits;
@@ -49,7 +49,7 @@ impl QualityScores {
     /// The [`Vec<u8>`] must be in range `!`..=`~`.
     ///
     /// [`is_graphic_simd`]:
-    ///     crate::data::vec_types::CheckSequence::is_graphic_simd
+    ///     crate::data::validation::CheckSequence::is_graphic_simd
     #[inline]
     #[must_use]
     pub unsafe fn from_vec_unchecked(v: Vec<EncodedQS>) -> Self {
@@ -159,7 +159,7 @@ impl<'a> QualityScoresView<'a> {
     /// Bytes in `v` must be in range `!`..=`~`.
     ///
     /// [`is_graphic_simd`]:
-    ///     crate::data::vec_types::CheckSequence::is_graphic_simd
+    ///     crate::data::validation::CheckSequence::is_graphic_simd
     #[inline]
     #[must_use]
     pub unsafe fn from_bytes_unchecked(v: &'a [u8]) -> Self {
@@ -216,7 +216,7 @@ impl<'a> QualityScoresViewMut<'a> {
     /// Bytes in `v` must be in range `!`..=`~`.
     ///
     /// [`is_graphic_simd`]:
-    ///     crate::data::vec_types::CheckSequence::is_graphic_simd
+    ///     crate::data::validation::CheckSequence::is_graphic_simd
     #[inline]
     #[must_use]
     pub unsafe fn from_bytes_unchecked(v: &'a mut [u8]) -> Self {

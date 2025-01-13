@@ -1,4 +1,4 @@
-use zoe::data::fasta::*;
+use zoe::data::records::fasta::*;
 
 #[test]
 fn to_reverse() {

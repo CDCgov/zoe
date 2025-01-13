@@ -15,34 +15,34 @@ pub trait AminoAcidsMutable: AminoAcidsReadable {
 impl AminoAcidsReadable for AminoAcids {
     #[inline]
     fn amino_acids_bytes(&self) -> &[u8] {
-        self.as_bytes()
+        self.as_ref()
     }
 }
 
 impl AminoAcidsReadable for AminoAcidsView<'_> {
     #[inline]
     fn amino_acids_bytes(&self) -> &[u8] {
-        self.as_bytes()
+        self.as_ref()
     }
 }
 
 impl AminoAcidsReadable for AminoAcidsViewMut<'_> {
     #[inline]
     fn amino_acids_bytes(&self) -> &[u8] {
-        self.as_bytes()
+        self.as_ref()
     }
 }
 
 impl AminoAcidsMutable for AminoAcids {
     #[inline]
     fn amino_acids_mut_bytes(&mut self) -> &mut [u8] {
-        self.as_mut_bytes()
+        self.as_mut()
     }
 }
 
 impl AminoAcidsMutable for AminoAcidsViewMut<'_> {
     #[inline]
     fn amino_acids_mut_bytes(&mut self) -> &mut [u8] {
-        self.as_mut_bytes()
+        self.as_mut()
     }
 }

@@ -1,9 +1,5 @@
 use std::env;
-use zoe::{
-    data::types::{nucleotides::Translate, phred::QualityStats},
-    kmer::ThreeBitKmerSet,
-    prelude::*,
-};
+use zoe::{kmer::ThreeBitKmerSet, prelude::*};
 
 // Search a sequence for the first start codon and the subsequent stop codon.
 // Translate the coding region between them, and also calculate the average

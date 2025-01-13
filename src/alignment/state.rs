@@ -1,4 +1,8 @@
-use crate::data::types::cigar::{Cigar, Ciglet};
+use crate::data::types::{
+    amino_acids::AminoAcids,
+    cigar::{Cigar, Ciglet},
+    nucleotides::Nucleotides,
+};
 
 #[derive(Clone, Debug)]
 pub(crate) struct AlignmentStates(Vec<Ciglet>);
@@ -71,6 +75,15 @@ impl Default for AlignmentStates {
     }
 }
 
+/// Aligns two sequences using a CIGAR string, inserting gaps as needed. Takes a
+/// reference sequence, query sequence, CIGAR stringl reference position, and
+/// returns two aligned sequences with gaps inserted according to the CIGAR
+/// operations.
+///
+/// # Panics
+///
+/// Panics if an invalid cigar string character is provided. Valid characters
+/// are: MIDNSHP=X
 #[inline]
 #[must_use]
 pub fn pairwise_align_with_cigar(reference: &[u8], query: &[u8], cigar: &Cigar, ref_position: usize) -> (Vec<u8>, Vec<u8>) {
@@ -104,21 +117,66 @@ pub fn pairwise_align_with_cigar(reference: &[u8], query: &[u8], cigar: &Cigar, 
                 query_aln.extend(std::iter::repeat(b'N').take(inc));
                 ref_index += inc;
             }
-            b'H' => continue,
-            // TODO: Replace with a continue if type-state is adopted.
-            _ => eprintln!("Extended CIGAR {op} not yet supported.\n"),
+            b'H' | b'P' => {}
+            // TODO: Could ignore if we allow only valid CIGAR by default.
+            _ => panic!("CIGAR op '{op}' not supported.\n"),
         }
     }
 
     (ref_aln, query_aln)
 }
 
+/// Enables sequence expansion based on alignment information.
+pub trait PairwiseSequence {
+    type Output;
+
+    /// Aligns two sequences using a CIGAR string starting at the
+    /// given reference position.
+    fn align_with_cigar(&self, query: &Self, cigar: &Cigar, position: usize) -> (Self::Output, Self::Output);
+}
+
+impl PairwiseSequence for Vec<u8> {
+    type Output = Self;
+
+    fn align_with_cigar(&self, query: &Self, cigar: &Cigar, position: usize) -> (Self::Output, Self::Output) {
+        pairwise_align_with_cigar(self, query, cigar, position)
+    }
+}
+
+impl PairwiseSequence for &[u8] {
+    type Output = Vec<u8>;
+
+    fn align_with_cigar(&self, query: &Self, cigar: &Cigar, position: usize) -> (Self::Output, Self::Output) {
+        pairwise_align_with_cigar(self, query, cigar, position)
+    }
+}
+
+impl PairwiseSequence for Nucleotides {
+    type Output = Self;
+
+    fn align_with_cigar(&self, query: &Self, cigar: &Cigar, position: usize) -> (Self::Output, Self::Output) {
+        let (r, q) = pairwise_align_with_cigar(self.as_ref(), query.as_ref(), cigar, position);
+        (r.into(), q.into())
+    }
+}
+
+impl PairwiseSequence for AminoAcids {
+    type Output = Self;
+
+    fn align_with_cigar(&self, query: &Self, cigar: &Cigar, position: usize) -> (Self::Output, Self::Output) {
+        let (r, q) = pairwise_align_with_cigar(self.as_ref(), query.as_ref(), cigar, position);
+        (r.into(), q.into())
+    }
+}
+
+/// Experimental score cell for alignment.
 #[derive(Debug, Clone, Copy, Default)]
 pub(crate) struct ScoreCell {
     pub endgap_up: i32,
     pub matching:  i32,
 }
 
+/// Experimental scoring struct for alignment.
 pub(crate) struct BestScore {
     row:   usize,
     col:   usize,
@@ -154,6 +212,7 @@ impl Default for BestScore {
     }
 }
 
+/// Experimental backtracking matrix for alignment with affine gap scores.
 pub(crate) struct BacktrackMatrix {
     pub data: Vec<u8>,
     cols:     usize,
@@ -233,8 +292,8 @@ impl BacktrackMatrix {
 
 #[cfg(test)]
 mod test {
+    use super::*;
     use crate::data::types::cigar::Cigar;
-    use crate::prelude::*;
 
     #[test]
     fn align_with_cigar() {

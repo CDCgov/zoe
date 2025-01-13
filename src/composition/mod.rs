@@ -1,8 +1,7 @@
-pub(crate) mod by_position;
-pub(crate) mod content;
-pub(crate) mod frequency_table;
+mod by_position;
+mod content;
+mod frequency_table;
 
 pub use by_position::*;
-pub use frequency_table::FrequencyTable;
-
 pub use content::*;
+pub use frequency_table::*;

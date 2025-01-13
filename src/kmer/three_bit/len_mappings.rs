@@ -1,4 +1,4 @@
-use crate::data::types::Uint;
+use crate::math::Uint;
 
 pub struct KmerLen<const MAX_LEN: usize>;
 

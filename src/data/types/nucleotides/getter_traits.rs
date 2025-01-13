@@ -15,69 +15,69 @@ pub trait NucleotidesMutable: NucleotidesReadable {
 impl NucleotidesReadable for Nucleotides {
     #[inline]
     fn nucleotide_bytes(&self) -> &[u8] {
-        self.as_bytes()
+        self.as_ref()
     }
 }
 
 impl NucleotidesReadable for NucleotidesView<'_> {
     #[inline]
     fn nucleotide_bytes(&self) -> &[u8] {
-        self.as_bytes()
+        self.as_ref()
     }
 }
 
 impl NucleotidesReadable for NucleotidesViewMut<'_> {
     #[inline]
     fn nucleotide_bytes(&self) -> &[u8] {
-        self.as_bytes()
+        self.as_ref()
     }
 }
 
 impl NucleotidesMutable for Nucleotides {
     #[inline]
     fn nucleotide_mut_bytes(&mut self) -> &mut [u8] {
-        self.as_mut_bytes()
+        self.as_mut()
     }
 }
 
 impl NucleotidesMutable for NucleotidesViewMut<'_> {
     #[inline]
     fn nucleotide_mut_bytes(&mut self) -> &mut [u8] {
-        self.as_mut_bytes()
+        self.as_mut()
     }
 }
 
 impl NucleotidesReadable for FastQ {
     #[inline]
     fn nucleotide_bytes(&self) -> &[u8] {
-        self.sequence.as_bytes()
+        self.sequence.as_ref()
     }
 }
 
 impl NucleotidesReadable for FastQView<'_> {
     #[inline]
     fn nucleotide_bytes(&self) -> &[u8] {
-        self.sequence.as_bytes()
+        self.sequence.as_ref()
     }
 }
 
 impl NucleotidesReadable for FastQViewMut<'_> {
     #[inline]
     fn nucleotide_bytes(&self) -> &[u8] {
-        self.sequence.as_bytes()
+        self.sequence.as_ref()
     }
 }
 
 impl NucleotidesMutable for FastQ {
     #[inline]
     fn nucleotide_mut_bytes(&mut self) -> &mut [u8] {
-        self.sequence.as_mut_bytes()
+        self.sequence.as_mut()
     }
 }
 
 impl NucleotidesMutable for FastQViewMut<'_> {
     #[inline]
     fn nucleotide_mut_bytes(&mut self) -> &mut [u8] {
-        self.sequence.as_mut_bytes()
+        self.sequence.as_mut()
     }
 }

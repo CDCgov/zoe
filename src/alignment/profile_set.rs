@@ -13,9 +13,9 @@ use std::{
 /// `N` must be specified.
 ///
 /// If it is necessary to share between multiple threads, consider using
-/// [`SharedProfile`].
+/// [`SharedProfiles`].
 #[derive(Debug, Clone)]
-pub struct LocalProfile<'a, const N: usize, const S: usize>
+pub struct LocalProfiles<'a, const N: usize, const S: usize>
 where
     LaneCount<N>: SupportedLaneCount, {
     pub(crate) query:       &'a [u8],
@@ -28,12 +28,12 @@ where
     pub(crate) profile_u64: OnceCell<StripedProfile<u64, N, S>>,
 }
 
-impl<'a, const N: usize, const S: usize> LocalProfile<'a, N, S>
+impl<'a, const N: usize, const S: usize> LocalProfiles<'a, N, S>
 where
     LaneCount<N>: SupportedLaneCount,
 {
-    /// Creates an empty [`LocalProfile`]. Usually you want to use
-    /// [`LocalProfile::new_with_u8`] or [`LocalProfile::new_with_u16`] instead.
+    /// Creates an empty [`LocalProfiles`]. Usually you want to use
+    /// [`LocalProfiles::new_with_u8`] or [`LocalProfiles::new_with_u16`] instead.
     ///
     /// # Errors
     ///
@@ -46,7 +46,7 @@ where
     ) -> Result<Self, QueryProfileError> {
         validate_profile_args(query.as_ref(), gap_open, gap_extend)?;
 
-        Ok(LocalProfile {
+        Ok(LocalProfiles {
             query: query.as_ref(),
             matrix,
             gap_open,
@@ -58,7 +58,7 @@ where
         })
     }
 
-    /// Creates an empty [`LocalProfile`] and eagerly initializes the `u8`
+    /// Creates an empty [`LocalProfiles`] and eagerly initializes the `u8`
     /// profile.
     ///
     /// # Errors
@@ -70,12 +70,12 @@ where
     pub fn new_with_u8<T: AsRef<[u8]> + ?Sized>(
         query: &'a T, matrix: &'a BiasedWeightMatrix<S>, gap_open: u8, gap_extend: u8,
     ) -> Result<Self, QueryProfileError> {
-        let p = LocalProfile::new(query, matrix, gap_open, gap_extend)?;
+        let p = LocalProfiles::new(query, matrix, gap_open, gap_extend)?;
         p.get_u8();
         Ok(p)
     }
 
-    /// Creates an empty [`LocalProfile`] and eagerly initializes the `u16`
+    /// Creates an empty [`LocalProfiles`] and eagerly initializes the `u16`
     /// profile.
     ///
     /// # Errors
@@ -87,7 +87,7 @@ where
     pub fn new_with_u16<T: AsRef<[u8]> + ?Sized>(
         query: &'a T, matrix: &'a BiasedWeightMatrix<S>, gap_open: u8, gap_extend: u8,
     ) -> Result<Self, QueryProfileError> {
-        let p = LocalProfile::new(query, matrix, gap_open, gap_extend)?;
+        let p = LocalProfiles::new(query, matrix, gap_open, gap_extend)?;
         p.get_u16();
         Ok(p)
     }
@@ -140,13 +140,13 @@ where
     /// ### Example
     ///
     /// ```
-    /// # use zoe::{alignment::{LocalProfile, sw::sw_simd_score}, data::BiasedWeightMatrix};
+    /// # use zoe::{alignment::{LocalProfiles, sw::sw_simd_score}, data::BiasedWeightMatrix};
     /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///
     /// const WEIGHTS: BiasedWeightMatrix<5> = BiasedWeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
     ///
-    /// let profile = LocalProfile::<32, 5>::new_with_u8(query, &WEIGHTS, 3, 1).unwrap();
+    /// let profile = LocalProfiles::<32, 5>::new_with_u8(query, &WEIGHTS, 3, 1).unwrap();
     /// let score = profile.smith_waterman_score_from_u8(reference).unwrap();
     /// assert_eq!(score, 26);
     /// ```
@@ -169,13 +169,13 @@ where
     /// ### Example
     ///
     /// ```
-    /// # use zoe::{alignment::{LocalProfile, sw::sw_simd_score}, data::BiasedWeightMatrix};
+    /// # use zoe::{alignment::{LocalProfiles, sw::sw_simd_score}, data::BiasedWeightMatrix};
     /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///
     /// const WEIGHTS: BiasedWeightMatrix<5> = BiasedWeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
     ///
-    /// let profile = LocalProfile::<32, 5>::new_with_u16(query, &WEIGHTS, 3, 1).unwrap();
+    /// let profile = LocalProfiles::<32, 5>::new_with_u16(query, &WEIGHTS, 3, 1).unwrap();
     /// let score = profile.smith_waterman_score_from_u16(reference).unwrap();
     /// assert_eq!(score, 26);
     /// ```
@@ -198,13 +198,13 @@ where
     /// ### Example
     ///
     /// ```
-    /// # use zoe::{alignment::{LocalProfile, sw::sw_simd_score}, data::BiasedWeightMatrix};
+    /// # use zoe::{alignment::{LocalProfiles, sw::sw_simd_score}, data::BiasedWeightMatrix};
     /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///
     /// const WEIGHTS: BiasedWeightMatrix<5> = BiasedWeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
     ///
-    /// let profile = LocalProfile::<32, 5>::new(query, &WEIGHTS, 3, 1).unwrap();
+    /// let profile = LocalProfiles::<32, 5>::new(query, &WEIGHTS, 3, 1).unwrap();
     /// let score = profile.smith_waterman_score_from_u32(reference).unwrap();
     /// assert_eq!(score, 26);
     /// ```
@@ -224,10 +224,10 @@ where
 /// rerunning the alignment when overflow occurs. The number of SIMD lanes `N`
 /// must be specified.
 ///
-/// When sharing between threads is not needed, consider using [`LocalProfile`]
+/// When sharing between threads is not needed, consider using [`LocalProfiles`]
 /// instead.
 #[derive(Debug, Clone)]
-pub struct SharedProfile<'a, const N: usize, const S: usize>
+pub struct SharedProfiles<'a, const N: usize, const S: usize>
 where
     LaneCount<N>: SupportedLaneCount, {
     pub(crate) query:       Box<[u8]>,
@@ -240,12 +240,12 @@ where
     pub(crate) profile_u64: OnceLock<StripedProfile<u64, N, S>>,
 }
 
-impl<'a, const N: usize, const S: usize> SharedProfile<'a, N, S>
+impl<'a, const N: usize, const S: usize> SharedProfiles<'a, N, S>
 where
     LaneCount<N>: SupportedLaneCount,
 {
-    /// Creates an empty [`SharedProfile`]. Usually you want to use
-    /// [`SharedProfile::new_with_u8`] or [`SharedProfile::new_with_u16`]
+    /// Creates an empty [`SharedProfiles`]. Usually you want to use
+    /// [`SharedProfiles::new_with_u8`] or [`SharedProfiles::new_with_u16`]
     /// instead.
     ///
     /// # Errors
@@ -259,7 +259,7 @@ where
     ) -> Result<Self, QueryProfileError> {
         validate_profile_args(&query, gap_open, gap_extend)?;
 
-        Ok(SharedProfile {
+        Ok(SharedProfiles {
             query,
             matrix,
             gap_open,
@@ -271,7 +271,7 @@ where
         })
     }
 
-    /// Creates an empty [`SharedProfile`] and eagerly initializes the `u8`
+    /// Creates an empty [`SharedProfiles`] and eagerly initializes the `u8`
     /// profile.
     ///
     /// # Errors
@@ -283,12 +283,12 @@ where
     pub fn new_with_u8(
         query: Box<[u8]>, matrix: &'a BiasedWeightMatrix<S>, gap_open: u8, gap_extend: u8,
     ) -> Result<Self, QueryProfileError> {
-        let p = SharedProfile::new(query, matrix, gap_open, gap_extend)?;
+        let p = SharedProfiles::new(query, matrix, gap_open, gap_extend)?;
         p.get_u8();
         Ok(p)
     }
 
-    /// Creates an empty [`SharedProfile`] and eagerly initializes the `u16`
+    /// Creates an empty [`SharedProfiles`] and eagerly initializes the `u16`
     /// profile.
     ///
     /// # Errors
@@ -300,7 +300,7 @@ where
     pub fn new_with_u16(
         query: Box<[u8]>, matrix: &'a BiasedWeightMatrix<S>, gap_open: u8, gap_extend: u8,
     ) -> Result<Self, QueryProfileError> {
-        let p = SharedProfile::new(query, matrix, gap_open, gap_extend)?;
+        let p = SharedProfiles::new(query, matrix, gap_open, gap_extend)?;
         p.get_u16();
         Ok(p)
     }
@@ -353,13 +353,13 @@ where
     /// ### Example
     ///
     /// ```
-    /// # use zoe::{alignment::{SharedProfile, sw::sw_simd_score}, data::BiasedWeightMatrix};
+    /// # use zoe::{alignment::{SharedProfiles, sw::sw_simd_score}, data::BiasedWeightMatrix};
     /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///
     /// const WEIGHTS: BiasedWeightMatrix<5> = BiasedWeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
     ///
-    /// let profile = SharedProfile::<32, 5>::new(query.into(), &WEIGHTS, 3, 1).unwrap();
+    /// let profile = SharedProfiles::<32, 5>::new(query.into(), &WEIGHTS, 3, 1).unwrap();
     /// let score = profile.smith_waterman_score_from_u8(reference).unwrap();
     /// assert_eq!(score, 26);
     /// ```
@@ -382,13 +382,13 @@ where
     /// ### Example
     ///
     /// ```
-    /// # use zoe::{alignment::{SharedProfile, sw::sw_simd_score}, data::BiasedWeightMatrix};
+    /// # use zoe::{alignment::{SharedProfiles, sw::sw_simd_score}, data::BiasedWeightMatrix};
     /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///
     /// const WEIGHTS: BiasedWeightMatrix<5> = BiasedWeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
     ///
-    /// let profile = SharedProfile::<32, 5>::new(query.into(), &WEIGHTS, 3, 1).unwrap();
+    /// let profile = SharedProfiles::<32, 5>::new(query.into(), &WEIGHTS, 3, 1).unwrap();
     /// let score = profile.smith_waterman_score_from_u16(reference).unwrap();
     /// assert_eq!(score, 26);
     /// ```
@@ -411,13 +411,13 @@ where
     /// ### Example
     ///
     /// ```
-    /// # use zoe::{alignment::{SharedProfile, sw::sw_simd_score}, data::BiasedWeightMatrix};
+    /// # use zoe::{alignment::{SharedProfiles, sw::sw_simd_score}, data::BiasedWeightMatrix};
     /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///
     /// const WEIGHTS: BiasedWeightMatrix<5> = BiasedWeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
     ///
-    /// let profile = SharedProfile::<32, 5>::new(query.into(), &WEIGHTS, 3, 1).unwrap();
+    /// let profile = SharedProfiles::<32, 5>::new(query.into(), &WEIGHTS, 3, 1).unwrap();
     /// let score = profile.smith_waterman_score_from_u32(reference).unwrap();
     /// assert_eq!(score, 26);
     /// ```
@@ -439,7 +439,7 @@ mod test {
     #[test]
     fn sw_simd_profile_set() {
         let v: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/CY137594.txt"));
-        let profiles = LocalProfile::<32, 5>::new(&v, &BIASED_WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+        let profiles = LocalProfiles::<32, 5>::new(&v, &BIASED_WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
         let profile1 = profiles.get_u8();
         let profile2 = StripedProfile::<u8, 32, 5>::new(v, &BIASED_WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
         assert_eq!(profile1, &profile2);

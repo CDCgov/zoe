@@ -1,7 +1,7 @@
 #![feature(array_chunks)]
 
 use std::{collections::HashSet, env};
-use zoe::{composition::GcContent, prelude::*};
+use zoe::prelude::*;
 
 // Given a FastQ file containing sequences with a single coding region,
 // calculate the percent GC content of the coding regions and the noncoding

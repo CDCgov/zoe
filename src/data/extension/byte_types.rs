@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use super::mappings::DNA_PROFILE_MAP;
+use crate::data::DNA_PROFILE_MAP;
 
 pub(crate) trait ByteMappings {
     fn to_dna_index(self) -> usize;

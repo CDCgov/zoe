@@ -1,13 +1,154 @@
 #![allow(clippy::doc_markdown)]
 use crate::{
-    data::types::nucleotides::NucleotidesReadable,
-    distance::{
-        hamming_simd, p_distance_acgt,
-        tabulation::{dna_substitution_matrix, hamming_dist_from_sub_matrix, total_and_frequencies},
-    },
-    math::MapFloat,
+    data::types::nucleotides::NucleotidesReadable, distance::hamming_simd, math::MapFloat, simd::SimdByteFunctions,
 };
+use std::simd::{LaneCount, SupportedLaneCount, prelude::*};
 
+#[cfg(test)]
+mod bench;
+/// Helper functions for pairwise frequency tabulation.
+mod tabulation;
+
+#[cfg(test)]
+pub(crate) mod test;
+
+pub use tabulation::dna_substitution_matrix;
+pub(crate) use tabulation::{hamming_dist_from_sub_matrix, total_and_frequencies};
+
+/// Calculates the p-distance (proportion of differing sites) between two
+/// nucleotide sequences. The p-distance considers only valid, canonical
+/// nucleotide pairs (A, C, G, T/U). Casing is ignored and only shared sequence
+/// length--the smaller of the two--are compared. The algorithm uses SIMD
+/// operations for improved performance.
+///
+/// # Returns
+///
+/// * `Some(f64)` - The p-distance between sequences if valid positions are found.
+/// * `None` - If no valid positions are found to compare.
+///
+/// # Type Parameters
+///
+/// * `N` - SIMD lane count, must be a supported lane count
+///
+/// # Example
+///
+/// ```
+/// # use zoe::distance::dna::p_distance_acgt;
+///
+/// let seq1 = b"ATGCATGC";
+/// let seq2 = b"atgtttnc";
+/// let distance = p_distance_acgt::<16>(seq1, seq2);
+/// assert!((distance.unwrap() - 0.2857142).abs() < 0.1);
+/// ```
+#[allow(clippy::cast_precision_loss)]
+#[must_use]
+#[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
+pub fn p_distance_acgt<const N: usize>(x: &[u8], y: &[u8]) -> Option<f64>
+where
+    LaneCount<N>: SupportedLaneCount, {
+    let alpha_v = [Simd::splat(b'A'), Simd::splat(b'C'), Simd::splat(b'G'), Simd::splat(b'T')];
+
+    let (x, y) = if x.len() < y.len() {
+        (x, &y[..x.len()])
+    } else {
+        (&x[..y.len()], y)
+    };
+
+    let mut mismatches: usize = 0;
+    let mut valid_length = 0;
+
+    let mut x = x.chunks_exact(N * 255);
+    let mut y = y.chunks_exact(N * 255);
+
+    for (c1, c2) in x.by_ref().zip(y.by_ref()) {
+        let mut accum: Simd<u8, N> = Simd::splat(0);
+
+        let mut c1 = c1.chunks_exact(N);
+        let mut c2 = c2.chunks_exact(N);
+
+        for (v1, v2) in c1.by_ref().zip(c2.by_ref()) {
+            let mut v1: Simd<u8, N> = Simd::from_slice(v1).to_ascii_uppercase();
+            let mut v2: Simd<u8, N> = Simd::from_slice(v2).to_ascii_uppercase();
+            v1.if_value_then_replace(b'U', b'T');
+            v2.if_value_then_replace(b'U', b'T');
+
+            let mut valid = Mask::from_array([false; N]);
+            for a in alpha_v {
+                valid |= a.simd_eq(v1);
+                valid |= a.simd_eq(v2);
+            }
+
+            valid_length += valid.to_bitmask().count_ones() as usize;
+
+            let m = (v1.simd_ne(v2) & valid).to_int();
+            // True => -1, so - -1 => +1
+            accum -= m.cast();
+        }
+
+        let accum2: Simd<u16, N> = accum.cast();
+        mismatches += accum2.reduce_sum() as usize;
+    }
+
+    let x = x.remainder();
+    let y = y.remainder();
+    let mut accum: Simd<u8, N> = Simd::splat(0);
+    let mut c1 = x.chunks_exact(N);
+    let mut c2 = y.chunks_exact(N);
+
+    for (v1, v2) in c1.by_ref().zip(c2.by_ref()) {
+        let mut v1: Simd<u8, N> = Simd::from_slice(v1).to_ascii_uppercase();
+        let mut v2: Simd<u8, N> = Simd::from_slice(v2).to_ascii_uppercase();
+        v1.if_value_then_replace(b'U', b'T');
+        v2.if_value_then_replace(b'U', b'T');
+        let mut valid1 = Mask::from_array([false; N]);
+        let mut valid2 = Mask::from_array([false; N]);
+        for a in alpha_v {
+            valid1 |= a.simd_eq(v1);
+            valid2 |= a.simd_eq(v2);
+        }
+        let valid = valid1 & valid2;
+
+        valid_length += valid.to_bitmask().count_ones() as usize;
+
+        let m = (v1.simd_ne(v2) & valid).to_int();
+        // True => -1, so - -1 => +1
+        accum -= m.cast();
+    }
+    let accum2: Simd<u16, N> = accum.cast();
+    mismatches += accum2.reduce_sum() as usize;
+
+    let r1 = c1.remainder();
+    let r2 = c2.remainder();
+
+    mismatches += r1
+        .iter()
+        .zip(r2)
+        .filter(|(a, b)| {
+            let mut a = a.to_ascii_uppercase();
+            let mut b = b.to_ascii_uppercase();
+            if a == b'U' {
+                a = b'T';
+            }
+
+            if b == b'U' {
+                b = b'T';
+            }
+            let valid = matches!(a, b'A' | b'G' | b'T' | b'C') && matches!(b, b'A' | b'G' | b'T' | b'C');
+            valid_length += usize::from(valid);
+            a != b && valid
+        })
+        .count();
+
+    if valid_length > 0 {
+        Some(mismatches as f64 / valid_length as f64)
+    } else {
+        None
+    }
+}
+
+/// An extension trait to add DNA distance methods to data that looks like [`Nucleotides`].
+///
+/// [`Nucleotides`]: crate::data::types::nucleotides::Nucleotides
 pub trait NucleotidesDistance: NucleotidesReadable {
     /// Calculates hamming distance between [`self`] and another sequence.
     ///
@@ -70,6 +211,12 @@ pub trait NucleotidesDistance: NucleotidesReadable {
     #[must_use]
     fn distance_tn93<T: NucleotidesReadable>(&self, other_sequence: &T) -> Option<f64> {
         tamura_nei_93(self.nucleotide_bytes(), other_sequence.nucleotide_bytes())
+    }
+
+    #[inline]
+    #[must_use]
+    fn to_dna_substitution_matrix<T: NucleotidesReadable>(&self, other_sequence: &T) -> [[u32; 4]; 4] {
+        dna_substitution_matrix(self.nucleotide_bytes(), other_sequence.nucleotide_bytes())
     }
 }
 
@@ -144,7 +291,7 @@ pub fn kimura_80(seq1: &[u8], seq2: &[u8]) -> Option<f64> {
 /// Calculates evolutionary distance between two sequences, accounting for different rates
 /// of **transitions** (A ↔ G or C ↔ T) and two types of
 /// transversions, **type 1 transversions** (A ↔ T and C ↔ G), and **type 2 transversions**
-/// (A ↔ C and G ↔ T) between sequences. Takes a [substitution matrix](super::tabulation::dna_substitution_matrix).
+/// (A ↔ C and G ↔ T) between sequences. Takes a [substitution matrix](dna_substitution_matrix).
 ///
 /// See [Assumptions](super::dna).
 ///
@@ -178,7 +325,7 @@ pub fn kimura_81(seq1: &[u8], seq2: &[u8]) -> Option<f64> {
 /// ## Felsenstein (F-81) nucleotide substitution model.
 ///
 /// Calculates evolutionary distance between two sequences, accounting for different
-/// **base frequencies** of each nucleotide. Takes a [substitution matrix](super::tabulation::dna_substitution_matrix).
+/// **base frequencies** of each nucleotide. Takes a [substitution matrix](dna_substitution_matrix).
 ///
 /// See [Assumptions](super::dna)
 ///
@@ -212,7 +359,7 @@ pub fn felsenstein_81(seq1: &[u8], seq2: &[u8]) -> Option<f64> {
 /// Calculates evolutionary distance between two sequences, accounting for different
 /// **base frequencies** of each nucleotide, as well as different rates for different
 /// substitution types: **transitions**, (A ↔ G or C ↔ T) **type 1 transversions**,
-/// (A ↔ T and C ↔ G) and **type 2 transversions**. (A ↔ C and G ↔ T) Takes a [substitution matrix](super::tabulation::dna_substitution_matrix).
+/// (A ↔ T and C ↔ G) and **type 2 transversions**. (A ↔ C and G ↔ T) Takes a [substitution matrix](dna_substitution_matrix).
 ///
 /// See [Assumptions](super::dna)
 ///
@@ -367,8 +514,3 @@ impl DistanceFromMatrix for [[u32; 4]; 4] {
         (-k1 * w1.ln() - k2 * w2.ln() - k3 * w3.ln()).into_option()
     }
 }
-
-#[cfg(test)]
-mod bench;
-#[cfg(test)]
-pub(crate) mod test;

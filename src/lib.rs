@@ -87,16 +87,16 @@
 /// When using the SIMD algorithm, you must specify the number of lanes `N` and
 /// integer type `T`. If the integer type has too small of a range, it is
 /// possible the alignment will overflow (in which case `None` is returned). A
-/// higher-level abstraction to avoid this is [`LocalProfile`] and
-/// [`SharedProfile`].
+/// higher-level abstraction to avoid this is [`LocalProfiles`] and
+/// [`SharedProfiles`].
 ///
 /// The former is designed for use within a single thread, while the latter
 /// allows multiple threads to access it. Both store a set of lazily-evaluated
 /// query profiles for `u8`, `u16`, `u32`, and `u64`. To create one of these,
-/// you can call [`LocalProfile::new_with_u8`], [`SharedProfile::new_with_u8`],
+/// you can call [`LocalProfiles::new_with_u8`], [`SharedProfiles::new_with_u8`],
 /// or one of the other constructors. Then, call
-/// [`LocalProfile::smith_waterman_score_from_u8`],
-/// [`SharedProfile::smith_waterman_score_from_u8`], or one of the other
+/// [`LocalProfiles::smith_waterman_score_from_u8`],
+/// [`SharedProfiles::smith_waterman_score_from_u8`], or one of the other
 /// methods.
 ///
 /// When using DNA, you can also create a profile by using
@@ -118,7 +118,7 @@
 /// And similarly with the different alphabet:
 /// ```
 /// # use zoe::{
-/// #     alignment::LocalProfile,
+/// #     alignment::LocalProfiles,
 /// #     data::{BiasedWeightMatrix, ByteIndexMap, SimpleWeightMatrix},
 /// # };
 /// let reference: &[u8] = b"BDAACAABDDDB";
@@ -127,7 +127,7 @@
 /// const MAPPING: ByteIndexMap<4> = ByteIndexMap::new(*b"ABCD", b'A');
 /// const WEIGHTS: BiasedWeightMatrix<4> = SimpleWeightMatrix::new(&MAPPING, 1, -1, None).into_biased_matrix();
 ///
-/// let profile = LocalProfile::<32, 4>::new_with_u8(query, &WEIGHTS, 4, 2).unwrap();
+/// let profile = LocalProfiles::<32, 4>::new_with_u8(query, &WEIGHTS, 4, 2).unwrap();
 /// let score = profile.smith_waterman_score_from_u8(reference).unwrap();
 /// assert_eq!(score, 5);
 /// ```
@@ -153,14 +153,14 @@
 ///     alignment::ScalarProfile::smith_waterman_score
 /// [`StripedProfile::smith_waterman_score`]:
 ///     alignment::StripedProfile::smith_waterman_score
-/// [`LocalProfile`]: alignment::LocalProfile
-/// [`SharedProfile`]: alignment::SharedProfile
-/// [`LocalProfile::new_with_u8`]: alignment::LocalProfile::new_with_u8
-/// [`SharedProfile::new_with_u8`]: alignment::SharedProfile::new_with_u8
-/// [`LocalProfile::smith_waterman_score_from_u8`]:
-///     alignment::LocalProfile::smith_waterman_score_from_u8
-/// [`SharedProfile::smith_waterman_score_from_u8`]:
-///     alignment::SharedProfile::smith_waterman_score_from_u8
+/// [`LocalProfiles`]: alignment::LocalProfiles
+/// [`SharedProfiles`]: alignment::SharedProfiles
+/// [`LocalProfiles::new_with_u8`]: alignment::LocalProfiles::new_with_u8
+/// [`SharedProfiles::new_with_u8`]: alignment::SharedProfiles::new_with_u8
+/// [`LocalProfiles::smith_waterman_score_from_u8`]:
+///     alignment::LocalProfiles::smith_waterman_score_from_u8
+/// [`SharedProfiles::smith_waterman_score_from_u8`]:
+///     alignment::SharedProfiles::smith_waterman_score_from_u8
 pub mod alignment;
 /// Composition and consensus functions.
 pub mod composition;
@@ -285,6 +285,8 @@ pub mod distance;
 /// [`find_kmers`]: kmer::KmerSet::find_kmers
 /// [`find_kmers_rev`]: kmer::KmerSet::find_kmers_rev
 pub mod kmer;
+/// Mathematical utilities.
+pub mod math;
 /// Sequence search and/or replacement.
 pub mod search;
 
@@ -293,24 +295,29 @@ pub mod search;
 pub(crate) mod generate;
 /// Iterator utilities.
 pub(crate) mod iter_utils;
-/// Mathematical utilities.
-pub(crate) mod math;
+
 /// SIMD traits to extend portable SIMD.
-pub(crate) mod simd;
+pub(crate) mod simd {
+    pub(crate) use crate::data::extension::simd::*;
+}
 
 /// Common structures and traits re-exported
 pub mod prelude {
-    pub use crate::composition::{AlignmentComposition, CreateConsensus, NucleotideCounts};
+    pub use crate::alignment::PairwiseSequence;
+    pub use crate::composition::{AlignmentComposition, CreateConsensus, GcContent, NucleotideCounts, ToBaseCounts};
     pub use crate::data::{
-        PairwiseSequence, StdForSequences,
-        convert::ToDNA,
+        StdForSequences,
         err::OrFail,
-        fasta::FastaReader,
-        fastq::{FastQ, FastQReader, FastQView, FastQViewMut},
+        records::{
+            fasta::FastaReader,
+            fastq::{FastQ, FastQReader, FastQView, FastQViewMut},
+        },
         types::{
             amino_acids::{AminoAcids, AminoAcidsView, AminoAcidsViewMut},
-            nucleotides::{Nucleotides, NucleotidesView, NucleotidesViewMut},
-            phred::{QualityScores, QualityScoresView, QualityScoresViewMut},
+            nucleotides::{
+                Nucleotides, NucleotidesView, NucleotidesViewMut, RecodeNucleotides, RetainNucleotides, Translate,
+            },
+            phred::{QualityScores, QualityScoresView, QualityScoresViewMut, QualityStats},
         },
         view_traits::{DataOwned, DataView, DataViewMut, Len, Slice, SliceMut},
     };

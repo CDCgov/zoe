@@ -16,7 +16,7 @@ pub trait AminoAcidsDistance: AminoAcidsReadable {
     /// ```
     /// # use zoe::{
     /// #     data::types::amino_acids::{AminoAcids, AminoAcidsView},
-    /// #     distance::AminoAcidsDistance
+    /// #     distance::aa::AminoAcidsDistance
     /// # };
     ///
     /// let s1: AminoAcids = b"MANATEEMANATEEMANATEE".into();
@@ -35,7 +35,7 @@ pub trait AminoAcidsDistance: AminoAcidsReadable {
     }
 
     /// Calculates physiochemical distance between `self`and another protein
-    /// sequence. See: [`crate::distance::physiochemical`]
+    /// sequence. See: [`crate::distance::aa::physiochemical`]
     ///
     /// # Citation
     /// For factor analysis used by the function:
@@ -53,7 +53,7 @@ pub trait AminoAcidsDistance: AminoAcidsReadable {
     /// ```
     /// # use zoe::{
     /// #     data::types::amino_acids::{AminoAcids, AminoAcidsView},
-    /// #     distance::AminoAcidsDistance
+    /// #     distance::aa::AminoAcidsDistance
     /// # };
     ///
     /// let s1: AminoAcids = b"MANATEEMANATEEMANATEE".into();
@@ -80,7 +80,7 @@ impl AminoAcidsDistance for AminoAcidsViewMut<'_> {}
 ///
 /// # Example
 /// ```
-/// use zoe::distance::physiochemical;
+/// # use zoe::distance::aa::physiochemical;
 ///
 /// let s1 = b"MANATEE";
 /// let s2 = b"MANGAEE";

@@ -1,5 +1,5 @@
 use crate::{
-    data::{types::phred::EncodedQS, vec_types::CheckSequence},
+    data::{types::phred::EncodedQS, validation::CheckSequence},
     prelude::*,
 };
 use std::io::{Error as IOError, ErrorKind};

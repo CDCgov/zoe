@@ -12,7 +12,7 @@ use crate::data::byte_types::ByteMappings;
 ///
 /// ### Example
 /// ```
-/// # use zoe::distance::dna_substitution_matrix;
+/// # use zoe::distance::dna::dna_substitution_matrix;
 /// let seq1: &[u8] = b"GATCAGATTTGCATTGGTT";
 /// let seq2: &[u8] = b"GATCATATTAGCATTGCTT";
 ///
@@ -41,7 +41,7 @@ pub fn dna_substitution_matrix(seq1: &[u8], seq2: &[u8]) -> [[u32; 4]; 4] {
 #[allow(clippy::needless_range_loop)]
 #[inline]
 #[must_use]
-pub fn hamming_dist_from_sub_matrix(sub_matrix: &[[u32; 4]; 4]) -> u32 {
+pub(crate) fn hamming_dist_from_sub_matrix(sub_matrix: &[[u32; 4]; 4]) -> u32 {
     let mut hamming = 0;
 
     for i in 0..4 {
@@ -61,7 +61,7 @@ pub fn hamming_dist_from_sub_matrix(sub_matrix: &[[u32; 4]; 4]) -> u32 {
 /// an array of base frequencies, corresponding to the frequencies of A, C, G,
 /// and T bases in the sequences, respectively.
 #[must_use]
-pub fn total_and_frequencies(sub_matrix: &[[u32; 4]; 4]) -> (u32, [f64; 4]) {
+pub(crate) fn total_and_frequencies(sub_matrix: &[[u32; 4]; 4]) -> (u32, [f64; 4]) {
     let mut bf = [0f64; 4];
     for i in 0..4 {
         // sum of ith column and row to get base frequencies

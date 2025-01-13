@@ -1,7 +1,7 @@
 use test::Bencher;
 extern crate test;
 use super::*;
-use crate::data::alphas::ENGLISH;
+use crate::data::{alphas::ENGLISH, mappings::TO_UNALIGNED_DNA_UC};
 use std::sync::LazyLock;
 
 const N: usize = 1200;

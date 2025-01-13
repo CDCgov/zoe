@@ -1,12 +1,10 @@
 use crate::{
     alignment::sw::{sw_scalar_score, sw_simd_score},
     data::{
-        SimpleWeightMatrix,
-        err::QueryProfileError,
-        mappings::ByteIndexMap,
-        matrices::BiasedWeightMatrix,
-        types::{Uint, cigar::Cigar},
+        SimpleWeightMatrix, err::QueryProfileError, mappings::ByteIndexMap, matrices::BiasedWeightMatrix,
+        types::cigar::Cigar,
     },
+    math::Uint,
 };
 use std::{
     convert::Into,

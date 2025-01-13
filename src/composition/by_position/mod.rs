@@ -1,5 +1,10 @@
-use crate::data::types::nucleotides::{Nucleotides, NucleotidesReadable};
-use crate::data::{constants::alphas::NUCLEIC_IUPAC, types::Uint};
+use crate::{
+    data::{
+        constants::alphas::NUCLEIC_IUPAC,
+        types::nucleotides::{Nucleotides, NucleotidesReadable},
+    },
+    math::Uint,
+};
 use std::ops::{Add, AddAssign};
 use std::simd::{SimdElement, prelude::*};
 

@@ -1,19 +1,8 @@
-/// A module containing traits for conversion to our custom types, such as
-/// [`Vec<u8>`] to [`Nucleotides`](self::types::nucleotides::Nucleotides).
-pub mod convert;
 /// A module with error types and convenience traits for handling [`Result`].
 pub mod err;
-
-/// A module for reading and manipulating
-/// [FASTA](https://en.wikipedia.org/wiki/FASTA_format) files.
-pub mod fasta;
-/// A module for reading and manipulating
-/// [FASTQ](https://en.wikipedia.org/wiki/FASTQ_format) files.
-pub mod fastq;
-/// A module for reading and manipulating
-/// [SAM](https://samtools.github.io/hts-specs/SAMv1.pdf) files. Provides some
-/// special-case functions used by [IRMA](https://wonder.cdc.gov/amd/flu/irma/).
-pub mod sam;
+/// A module for records types--usually for I/O--that are structures of other
+/// more primitive types.
+pub mod records;
 /// A module for storing more fundamental types, like
 /// [`Nucleotides`](self::types::nucleotides::Nucleotides) and
 /// [`AminoAcids`][self::types::amino_acids::AminoAcids].
@@ -21,26 +10,22 @@ pub mod types;
 /// A module containing the traits needed for working with views.
 pub mod view_traits;
 
-pub use crate::{
-    data::vec_types::{CheckSequence, PairwiseSequence, StdForSequences},
-    search::ByteSubstring,
-};
+/// A private module for helper alphabets, maps, and matrices that can be used
+/// within public methods.
+pub(crate) mod constants;
+/// A private module for helper extension traits.
+pub(crate) mod extension;
+
+/// Used for type validation
+mod validation;
+
 pub use constants::{
     mappings::{ByteIndexMap, DNA_PROFILE_MAP},
     matrices::{BiasedWeightMatrix, SimpleWeightMatrix},
 };
+pub use records::{fasta, fastq, sam};
+pub use types::{amino_acids, cigar, nucleotides, phred};
+pub use validation::{CheckSequence, Recode, RetainSequence, StdForSequences};
 
-/// A private module with helper functions for things that look like `[u8; N]`.
-pub(crate) mod array_types;
-/// A private module for helper functions on [`u8`].
-pub(crate) mod byte_types;
-/// A private module for helper alphabets, maps, and matrices that can be used
-/// within public methods.
-pub(crate) mod constants;
-/// A private module for working with IDs.
-pub(crate) mod id_types;
-/// A private module with helper traits for things like [`Vec<u8>`].
-pub(crate) mod vec_types;
-pub use vec_types::Recode;
-
-pub(crate) use constants::*;
+pub(crate) use constants::{alphas, mappings, matrices};
+pub(crate) use extension::{array_types, byte_types, id_types, vec_types};

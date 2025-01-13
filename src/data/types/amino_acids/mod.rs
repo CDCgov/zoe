@@ -149,7 +149,7 @@ impl<'a> AminoAcidsView<'a> {
     /// Obtains the bytes as a slice.
     #[inline]
     #[must_use]
-    fn as_bytes(&self) -> &[u8] {
+    pub fn as_bytes(&self) -> &[u8] {
         self.0
     }
 
@@ -190,7 +190,7 @@ impl<'a> AminoAcidsViewMut<'a> {
     /// Gets the amino acids as a byte slice.
     #[inline]
     #[must_use]
-    fn as_bytes(&self) -> &[u8] {
+    pub fn as_bytes(&self) -> &[u8] {
         self.0
     }
 
