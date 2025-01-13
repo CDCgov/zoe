@@ -1,4 +1,8 @@
 use crate::{data::validation::CheckSequence, prelude::*};
+use std::{
+    ops::{Index, IndexMut},
+    slice::SliceIndex,
+};
 
 impl AsRef<[u8]> for Nucleotides {
     #[inline]
@@ -180,71 +184,44 @@ impl FromIterator<u8> for Nucleotides {
     }
 }
 
-impl std::ops::Index<usize> for Nucleotides {
-    type Output = u8;
+impl<I: SliceIndex<[u8]>> Index<I> for Nucleotides {
+    type Output = <I as SliceIndex<[u8]>>::Output;
 
     #[inline]
-    fn index(&self, index: usize) -> &Self::Output {
+    fn index(&self, index: I) -> &Self::Output {
         &self.0[index]
     }
 }
 
-impl std::ops::Index<usize> for NucleotidesView<'_> {
-    type Output = u8;
+impl<I: SliceIndex<[u8]>> Index<I> for NucleotidesView<'_> {
+    type Output = <I as SliceIndex<[u8]>>::Output;
 
     #[inline]
-    fn index(&self, index: usize) -> &Self::Output {
+    fn index(&self, index: I) -> &Self::Output {
         &self.0[index]
     }
 }
 
-impl std::ops::Index<usize> for NucleotidesViewMut<'_> {
-    type Output = u8;
+impl<I: SliceIndex<[u8]>> Index<I> for NucleotidesViewMut<'_> {
+    type Output = <I as SliceIndex<[u8]>>::Output;
 
     #[inline]
-    fn index(&self, index: usize) -> &Self::Output {
+    fn index(&self, index: I) -> &Self::Output {
         &self.0[index]
     }
 }
 
-impl std::ops::IndexMut<usize> for Nucleotides {
+impl<I: SliceIndex<[u8]>> IndexMut<I> for Nucleotides {
     #[inline]
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
         &mut self.0[index]
     }
 }
 
-impl std::ops::IndexMut<usize> for NucleotidesViewMut<'_> {
+impl<I: SliceIndex<[u8]>> IndexMut<I> for NucleotidesViewMut<'_> {
     #[inline]
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
         &mut self.0[index]
-    }
-}
-
-impl std::ops::Index<std::ops::Range<usize>> for Nucleotides {
-    type Output = [u8];
-
-    #[inline]
-    fn index(&self, index: std::ops::Range<usize>) -> &[u8] {
-        &self.0[index]
-    }
-}
-
-impl std::ops::Index<std::ops::Range<usize>> for NucleotidesView<'_> {
-    type Output = [u8];
-
-    #[inline]
-    fn index(&self, index: std::ops::Range<usize>) -> &[u8] {
-        &self.0[index]
-    }
-}
-
-impl std::ops::Index<std::ops::Range<usize>> for NucleotidesViewMut<'_> {
-    type Output = [u8];
-
-    #[inline]
-    fn index(&self, index: std::ops::Range<usize>) -> &[u8] {
-        &self.0[index]
     }
 }
 

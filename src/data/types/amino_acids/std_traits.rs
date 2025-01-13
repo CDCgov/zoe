@@ -1,4 +1,8 @@
 use crate::{data::validation::CheckSequence, prelude::*};
+use std::{
+    ops::{Index, IndexMut},
+    slice::SliceIndex,
+};
 
 impl AsRef<[u8]> for AminoAcids {
     #[inline]
@@ -180,71 +184,44 @@ impl FromIterator<u8> for AminoAcids {
     }
 }
 
-impl std::ops::Index<usize> for AminoAcids {
-    type Output = u8;
+impl<I: SliceIndex<[u8]>> Index<I> for AminoAcids {
+    type Output = <I as SliceIndex<[u8]>>::Output;
 
     #[inline]
-    fn index(&self, index: usize) -> &Self::Output {
+    fn index(&self, index: I) -> &Self::Output {
         &self.0[index]
     }
 }
 
-impl std::ops::Index<usize> for AminoAcidsView<'_> {
-    type Output = u8;
+impl<I: SliceIndex<[u8]>> Index<I> for AminoAcidsView<'_> {
+    type Output = <I as SliceIndex<[u8]>>::Output;
 
     #[inline]
-    fn index(&self, index: usize) -> &Self::Output {
+    fn index(&self, index: I) -> &Self::Output {
         &self.0[index]
     }
 }
 
-impl std::ops::Index<usize> for AminoAcidsViewMut<'_> {
-    type Output = u8;
+impl<I: SliceIndex<[u8]>> Index<I> for AminoAcidsViewMut<'_> {
+    type Output = <I as SliceIndex<[u8]>>::Output;
 
     #[inline]
-    fn index(&self, index: usize) -> &Self::Output {
+    fn index(&self, index: I) -> &Self::Output {
         &self.0[index]
     }
 }
 
-impl std::ops::IndexMut<usize> for AminoAcids {
+impl<I: SliceIndex<[u8]>> IndexMut<I> for AminoAcids {
     #[inline]
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
         &mut self.0[index]
     }
 }
 
-impl std::ops::IndexMut<usize> for AminoAcidsViewMut<'_> {
+impl<I: SliceIndex<[u8]>> IndexMut<I> for AminoAcidsViewMut<'_> {
     #[inline]
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
         &mut self.0[index]
-    }
-}
-
-impl std::ops::Index<std::ops::Range<usize>> for AminoAcids {
-    type Output = [u8];
-
-    #[inline]
-    fn index(&self, index: std::ops::Range<usize>) -> &[u8] {
-        &self.0[index]
-    }
-}
-
-impl std::ops::Index<std::ops::Range<usize>> for AminoAcidsView<'_> {
-    type Output = [u8];
-
-    #[inline]
-    fn index(&self, index: std::ops::Range<usize>) -> &[u8] {
-        &self.0[index]
-    }
-}
-
-impl std::ops::Index<std::ops::Range<usize>> for AminoAcidsViewMut<'_> {
-    type Output = [u8];
-
-    #[inline]
-    fn index(&self, index: std::ops::Range<usize>) -> &[u8] {
-        &self.0[index]
     }
 }
 

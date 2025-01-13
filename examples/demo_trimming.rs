@@ -14,7 +14,7 @@ fn main() {
     let filename = if args.len() == 2 {
         args[1].clone()
     } else {
-        "examples/example_trimming.fastq".to_owned()
+        "examples/example.fastq".to_owned()
     };
 
     let primer = b"TGATAGTTTTAGAGTTAGGTAG";
@@ -40,7 +40,8 @@ fn main() {
 
         fastq_view.restrict(2..fastq_view.len() - 2);
 
-        if let Some(kmer_pos) = kmer_set.find_kmers_rev(fastq_view.sequence.slice(..30)) {
+        let search_region_len = fastq_view.len().min(30);
+        if let Some(kmer_pos) = kmer_set.find_kmers_rev(fastq_view.sequence.slice(..search_region_len)) {
             fastq_view.restrict(kmer_pos.end..);
         }
 

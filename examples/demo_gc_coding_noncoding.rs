@@ -1,11 +1,22 @@
-#![feature(array_chunks)]
-
-use std::{collections::HashSet, env};
+use std::{env, ops::Range};
 use zoe::prelude::*;
 
-// Given a FastQ file containing sequences with a single coding region,
-// calculate the percent GC content of the coding regions and the noncoding
-// regions, exclude start and stop codons.
+// Given a FASTQ file containing sequences, calculate the percent GC content of
+// the coding regions (anywhere between a start and stop codon, or after a start
+// codon to the end of the sequence) and the noncoding regions, exclude the
+// start and stop codons themselves. Assumes T is used rather than U.
+
+const STOP_CODONS: [&[u8]; 3] = [b"TAA", b"TAG", b"TGA"];
+
+fn find_stop_codon(sequence: &NucleotidesView, starting: usize) -> Option<Range<usize>> {
+    sequence[starting..]
+        .chunks_exact(3)
+        .position(|x| STOP_CODONS.contains(&x))
+        .map(|num_codons_before_stop| {
+            let stop_codon_start = starting + num_codons_before_stop * 3;
+            stop_codon_start..stop_codon_start + 3
+        })
+}
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -13,16 +24,7 @@ fn main() {
     let filename = if args.len() == 2 {
         args[1].clone()
     } else {
-        "examples/example_gc_coding_noncoding.fastq".to_owned()
-    };
-
-    let start_codon: Nucleotides = b"ATG".into();
-    let stop_codons = {
-        let mut out = HashSet::new();
-        out.insert(b"TAG");
-        out.insert(b"TGA");
-        out.insert(b"TAA");
-        out
+        "examples/example.fastq".to_owned()
     };
 
     let mut gc_coding = 0;
@@ -34,33 +36,37 @@ fn main() {
         .unwrap_or_die("Translate file error!")
         .flatten();
 
-    for fastq_record in iterator {
-        let sequence_view = fastq_record.sequence;
+    'fastq_loop: for fastq_record in iterator {
+        // Create a view, whose bounds we will change to reflect the portion of
+        // the sequence we are considering (this avoids needing to have an
+        // indexing variable)
+        let mut sequence = fastq_record.sequence.as_view();
 
-        let Some(start_codon_position) = sequence_view.find_substring(&start_codon) else {
-            continue;
-        };
+        // Each execution of the loop represents one coding region
+        while let Some(start_codon_position) = sequence.find_substring(b"ATG") {
+            // Tally sequence before start codon
+            let before_coding = sequence.slice(..start_codon_position.start);
+            gc_noncoding += before_coding.gc_content();
+            total_noncoding += before_coding.len();
 
-        let Some(num_codons_before_stop) = sequence_view
-            .slice(start_codon_position.end..)
-            .as_bytes()
-            .array_chunks::<3>()
-            .position(|x| stop_codons.contains(x))
-        else {
-            continue;
-        };
-        let stop_codon_start = start_codon_position.end + num_codons_before_stop * 3;
-        let stop_codon_position = stop_codon_start..stop_codon_start + 3;
+            // Find the stop codon position, respecting the reading frame, then
+            // tally the coding region
+            if let Some(stop_codon_position) = find_stop_codon(&sequence, start_codon_position.end) {
+                let coding = sequence.slice(start_codon_position.end..stop_codon_position.start);
+                gc_coding += coding.gc_content();
+                total_coding += coding.len();
+                // The view is restricted to only hold the unprocessed portion
+                sequence.restrict(stop_codon_position.end..);
+            } else {
+                gc_coding += sequence.gc_content();
+                total_coding += sequence.len();
+                continue 'fastq_loop;
+            }
+        }
 
-        let before_coding = sequence_view.slice(..start_codon_position.start);
-        let coding = sequence_view.slice(start_codon_position.end..stop_codon_position.start);
-        let after_coding = sequence_view.slice(stop_codon_position.end..);
-
-        gc_coding += coding.gc_content();
-        total_coding += coding.len();
-
-        gc_noncoding += before_coding.gc_content() + after_coding.gc_content();
-        total_noncoding += before_coding.len() + after_coding.len();
+        // Process any remaining bases after the last coding region
+        gc_noncoding += sequence.gc_content();
+        total_noncoding += sequence.len();
     }
 
     let percent_gc_coding = (gc_coding as f32) / (total_coding as f32) * 100.0;

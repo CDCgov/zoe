@@ -2,7 +2,11 @@ use crate::{
     data::{types::phred::EncodedQS, validation::CheckSequence},
     prelude::*,
 };
-use std::io::{Error as IOError, ErrorKind};
+use std::{
+    io::{Error as IOError, ErrorKind},
+    ops::Index,
+    slice::SliceIndex,
+};
 
 impl AsRef<[u8]> for QualityScores {
     #[inline]
@@ -140,8 +144,6 @@ impl<'a> IntoIterator for QualityScoresViewMut<'a> {
     }
 }
 
-// iter is provided by QualityScoresReadable
-#[allow(clippy::into_iter_without_iter)]
 impl<'a> IntoIterator for &'a QualityScores {
     type Item = &'a u8;
     type IntoIter = std::slice::Iter<'a, u8>;
@@ -152,8 +154,6 @@ impl<'a> IntoIterator for &'a QualityScores {
     }
 }
 
-// iter is provided by QualityScoresReadable
-#[allow(clippy::into_iter_without_iter)]
 impl<'a> IntoIterator for &'a QualityScoresView<'_> {
     type Item = &'a u8;
     type IntoIter = std::slice::Iter<'a, u8>;
@@ -164,8 +164,6 @@ impl<'a> IntoIterator for &'a QualityScoresView<'_> {
     }
 }
 
-// iter is provided by QualityScoresReadable
-#[allow(clippy::into_iter_without_iter)]
 impl<'a> IntoIterator for &'a QualityScoresViewMut<'_> {
     type Item = &'a u8;
     type IntoIter = std::slice::Iter<'a, u8>;
@@ -176,56 +174,29 @@ impl<'a> IntoIterator for &'a QualityScoresViewMut<'_> {
     }
 }
 
-impl std::ops::Index<usize> for QualityScores {
-    type Output = EncodedQS;
+impl<I: SliceIndex<[u8]>> Index<I> for QualityScores {
+    type Output = <I as SliceIndex<[u8]>>::Output;
 
     #[inline]
-    fn index(&self, index: usize) -> &Self::Output {
+    fn index(&self, index: I) -> &Self::Output {
         &self.0[index]
     }
 }
 
-impl std::ops::Index<usize> for QualityScoresView<'_> {
-    type Output = EncodedQS;
+impl<I: SliceIndex<[u8]>> Index<I> for QualityScoresView<'_> {
+    type Output = <I as SliceIndex<[u8]>>::Output;
 
     #[inline]
-    fn index(&self, index: usize) -> &Self::Output {
+    fn index(&self, index: I) -> &Self::Output {
         &self.0[index]
     }
 }
 
-impl std::ops::Index<usize> for QualityScoresViewMut<'_> {
-    type Output = EncodedQS;
+impl<I: SliceIndex<[u8]>> Index<I> for QualityScoresViewMut<'_> {
+    type Output = <I as SliceIndex<[u8]>>::Output;
 
     #[inline]
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.0[index]
-    }
-}
-
-impl std::ops::Index<std::ops::Range<usize>> for QualityScores {
-    type Output = [u8];
-
-    #[inline]
-    fn index(&self, index: std::ops::Range<usize>) -> &[u8] {
-        &self.0[index]
-    }
-}
-
-impl std::ops::Index<std::ops::Range<usize>> for QualityScoresView<'_> {
-    type Output = [u8];
-
-    #[inline]
-    fn index(&self, index: std::ops::Range<usize>) -> &[u8] {
-        &self.0[index]
-    }
-}
-
-impl std::ops::Index<std::ops::Range<usize>> for QualityScoresViewMut<'_> {
-    type Output = [u8];
-
-    #[inline]
-    fn index(&self, index: std::ops::Range<usize>) -> &[u8] {
+    fn index(&self, index: I) -> &Self::Output {
         &self.0[index]
     }
 }
