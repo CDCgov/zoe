@@ -293,7 +293,7 @@ pub mod distance;
 /// let primer = b"TGATAGTTTTAGAGTTAGGTAG";
 /// let sequence = b"TGCCCGTAACGTACAGTTTTACAGTTAGGTACCC";
 /// let mut kmer_set = ThreeBitKmerSet::<17>::new(17).unwrap();
-/// kmer_set.insert_from_sequence_one_mismatch(primer);
+/// kmer_set.insert_from_sequence_with_variants::<1>(primer);
 /// let kmer_pos = kmer_set.find_kmers(sequence);
 /// assert_eq!(kmer_pos, Some(14..31));
 /// ```
@@ -302,8 +302,8 @@ pub mod distance;
 /// [`Display`]: std::fmt::Display
 /// [`Kmer`]: kmer::Kmer
 /// [`KmerEncoder`]: kmer::KmerEncoder
-/// [`KmerSet`]: kmer::kmer_set::KmerSet
-/// [`KmerCounter`]: kmer::kmer_counter::KmerCounter
+/// [`KmerSet`]: kmer::KmerSet
+/// [`KmerCounter`]: kmer::KmerCounter
 /// [`ThreeBitKmerEncoder`]: kmer::ThreeBitKmerEncoder
 /// [`ThreeBitEncodedKmer`]: kmer::ThreeBitEncodedKmer
 /// [`ThreeBitKmerSet`]: kmer::ThreeBitKmerSet
@@ -346,7 +346,7 @@ pub mod prelude {
     };
     #[cfg(feature = "rand")]
     pub use crate::generate::rand_sequence;
-    pub use crate::kmer::{encoder::KmerEncoder, kmer_counter::KmerCounter};
+    pub use crate::kmer::{KmerCounter, KmerEncoder, KmerSet};
     pub use crate::search::{ByteSubstring, ByteSubstringMut};
 }
 

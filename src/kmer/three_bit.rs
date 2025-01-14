@@ -1,10 +1,12 @@
 use crate::{
     data::mappings::THREE_BIT_MAPPING,
     kmer::{Kmer, KmerEncoder, KmerError, KmerLen, KmerSet, MaxLenToType, SupportedKmerLen},
-    math::{Int, Uint},
+    math::Uint,
     prelude::KmerCounter,
 };
 use std::hash::RandomState;
+
+use super::{MismatchNumber, SupportedMismatchNumber};
 
 /// A type alias for a [`KmerLen`] struct with the [`ThreeBitKmerEncoder`] as
 /// its encoder.
@@ -127,7 +129,7 @@ where
 
     /// Retrieve the k-mer length associated with this [`ThreeBitKmerEncoder`].
     #[inline]
-    fn get_kmer_length(&self) -> usize {
+    fn kmer_length(&self) -> usize {
         self.kmer_length
     }
 
@@ -156,8 +158,7 @@ where
     /// # Panics
     ///
     /// The [`ThreeBitKmerEncoder`] represents each base by a `u8` in `3..=8`.
-    /// Any input greater than 8 causes a panic, while less than 3 may cause
-    /// unexpected behavior.
+    /// Other inputs may panic or cause unexpected behavior.
     ///
     /// [`decode_base_checked`]: ThreeBitKmerEncoder::decode_base_checked
     #[inline]
@@ -253,13 +254,20 @@ where
         }
     }
 
-    /// Get an iterator over all encoded k-mers that are exactly a Hamming
-    /// distance of one away from the provided k-mer. This involves replacing
-    /// each base with the other bases in `ACGTN`. The original k-mer is not
-    /// included in the iterator.
+    /// Get an iterator over all encoded k-mers that are at most a Hamming
+    /// distance of N away from the provided k-mer. This involves replacing each
+    /// base with the other bases in `ACGTN`. The original k-mer is included in
+    /// the iterator.
+    ///
+    /// `N` must be a supported number of mismatches. See
+    /// [`SupportedMismatchNumber`] for more details.
     #[inline]
-    fn get_variants_one_mismatch(&self, encoded_kmer: Self::EncodedKmer) -> Self::OneMismatchIter {
-        ThreeBitOneMismatchIter::new(encoded_kmer, self.kmer_length)
+    fn get_variants<const N: usize>(
+        &self, encoded_kmer: Self::EncodedKmer,
+    ) -> <MismatchNumber<N> as SupportedMismatchNumber<MAX_LEN, Self>>::MismatchIter
+    where
+        MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, Self>, {
+        MismatchNumber::get_iterator(encoded_kmer, self)
     }
 
     /// Get an iterator over the encoded overlapping k-mers in a sequence, from
@@ -391,9 +399,9 @@ impl<const MAX_LEN: usize> ExactSizeIterator for ThreeBitKmerIteratorRev<'_, MAX
 {
 }
 
-/// An iterator over all three-bit encoded k-mers that are exactly a Hamming
-/// distance of one away from a provided k-mer. The original k-mer is not
-/// included in the iterator.
+/// An iterator over all three-bit encoded k-mers that are at most a Hamming
+/// distance of 1 away from a provided k-mer. The original k-mer is included in
+/// the iterator.
 pub struct ThreeBitOneMismatchIter<const MAX_LEN: usize>
 where
     ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen, {
@@ -403,11 +411,12 @@ where
     current_index:      usize,
     current_base_num:   usize,
     set_mask_third_bit: ThreeBitMaxLenToType<MAX_LEN>,
+    not_finished:       bool,
 }
 
-impl<const MAX_LEN: usize> ThreeBitOneMismatchIter<MAX_LEN>
+impl<const MAX_LEN: usize, T: Uint> ThreeBitOneMismatchIter<MAX_LEN>
 where
-    ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen,
+    ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen<T = T>,
 {
     /// Create a new [`ThreeBitOneMismatchIter`] from a provided `encoded_kmer`
     /// and `kmer_length`. For most purposes, use
@@ -415,14 +424,15 @@ where
     /// iterator.
     #[inline]
     #[must_use]
-    pub fn new(encoded_kmer: ThreeBitEncodedKmer<MAX_LEN>, kmer_length: usize) -> Self {
+    pub(crate) fn new(encoded_kmer: ThreeBitEncodedKmer<MAX_LEN>, kmer_encoder: &ThreeBitKmerEncoder<MAX_LEN>) -> Self {
         Self {
             encoded_kmer,
-            kmer_length,
+            kmer_length: kmer_encoder.kmer_length(),
             current_kmer: encoded_kmer,
             current_index: 0,
             current_base_num: 0,
-            set_mask_third_bit: ThreeBitMaxLenToType::<MAX_LEN>::from_literal(0b100),
+            set_mask_third_bit: T::from_literal(0b100),
+            not_finished: true,
         }
     }
 }
@@ -456,12 +466,16 @@ where
             self.set_mask_third_bit <<= 3;
         }
 
+        if self.not_finished {
+            self.not_finished = false;
+            return Some(self.encoded_kmer);
+        }
         None
     }
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let size = 4 * (self.kmer_length - self.current_index) - self.current_base_num;
+        let size = usize::from(self.not_finished) + 4 * (self.kmer_length - self.current_index) - self.current_base_num;
         (size, Some(size))
     }
 }
@@ -469,6 +483,169 @@ where
 impl<const MAX_LEN: usize> ExactSizeIterator for ThreeBitOneMismatchIter<MAX_LEN> where
     ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen
 {
+}
+
+/// An iterator over all three-bit encoded k-mers that are at most a Hamming
+/// distance of `N` away from a provided k-mer, where `N >= 2`. The original
+/// k-mer is included in the iterator.
+///
+/// ### Acknowledgements
+///
+/// The code for subset iteration was inspired by [this
+/// blog](https://fishi.devtail.io/weblog/2015/05/18/common-bitwise-techniques-subset-iterations/)
+pub struct ThreeBitMismatchIter<const MAX_LEN: usize, const N: usize>
+where
+    ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen, {
+    /// The original encoded k-mer
+    encoded_kmer:            ThreeBitMaxLenToType<MAX_LEN>,
+    /// The current encoded k-mer, which is mutated as the iterator cycles
+    /// through variants
+    current_kmer:            ThreeBitMaxLenToType<MAX_LEN>,
+    /// The current subset of bases being mutated, encoded as a bitmask where
+    /// ith bit from the left is 1 precisely when the ith base in the kmer is
+    /// being mutated
+    current_subset:          ThreeBitMaxLenToType<MAX_LEN>,
+    /// The number of bases being mutated in `current_subset`
+    subset_size:             usize,
+    /// A buffer to hold the `set_mask_third_bit` values for each index in
+    /// `current_subset`, as well as the number of times each base in the subset
+    /// was mutated. This value will always be at least 1, since every base in
+    /// the subset must be mutated
+    masks_and_times_mutated: [(ThreeBitMaxLenToType<MAX_LEN>, usize); N],
+    /// The upper bound for `current_subset`. We must have `current_subset`
+    /// strictly less than `max_subset`
+    max_subset:              ThreeBitMaxLenToType<MAX_LEN>,
+}
+
+impl<const MAX_LEN: usize, const N: usize, T: Uint> ThreeBitMismatchIter<MAX_LEN, N>
+where
+    ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen<T = T>,
+{
+    #[inline]
+    #[must_use]
+    pub(crate) fn new(encoded_kmer: ThreeBitEncodedKmer<MAX_LEN>, encoder: &ThreeBitKmerEncoder<MAX_LEN>) -> Self {
+        // This implementation assumes N >= 2
+        const { assert!(N >= 2) }
+
+        // Due to the value in the initialization of times_mutated being
+        // usize::MAX, this will trigger the creation of a new subset (encoded
+        // subset 1) on the first call to next. We could modify the
+        // initialization here to avoid this, but weirdly it results in a
+        // worsening of performance.
+        Self {
+            encoded_kmer:            encoded_kmer.0,
+            current_kmer:            encoded_kmer.0,
+            current_subset:          T::ZERO,
+            subset_size:             0,
+            masks_and_times_mutated: [(T::from_literal(0b100), usize::MAX); N],
+            max_subset:              T::ONE << encoder.kmer_length(),
+        }
+    }
+}
+
+impl<const MAX_LEN: usize, const N: usize, T: Uint> Iterator for ThreeBitMismatchIter<MAX_LEN, N>
+where
+    ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen<T = T>,
+{
+    type Item = ThreeBitEncodedKmer<MAX_LEN>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // Save the output: this iterator yields then updates
+        let out = ThreeBitEncodedKmer(self.current_kmer);
+
+        if self.masks_and_times_mutated[0].1 < 4 {
+            // This first branch is redundant with the next, but increases
+            // efficiency. Mutate the first base in the subset.
+
+            self.current_kmer = (self.current_kmer | self.masks_and_times_mutated[0].0)
+                - ((self.current_kmer & self.masks_and_times_mutated[0].0) >> 2);
+            self.masks_and_times_mutated[0].1 += 1;
+        } else if let Some(i) = self.masks_and_times_mutated[..self.subset_size]
+            .iter()
+            .position(|(_, base_num)| *base_num < 4)
+        {
+            // This second branch means that a base was found which hasn't been
+            // modified 4 times yet (namely the leftmost).
+
+            // Reset each base before it
+            for (set_mask_third_bit, base_num) in &mut self.masks_and_times_mutated[..i] {
+                // Modify twice in order to cycle to original base, then first
+                // variant base. This may seem inefficient, but it is cheaper
+                // than storing a stack of encoded kmers.
+                let set_mask_third_bit = *set_mask_third_bit;
+                self.current_kmer =
+                    (self.current_kmer | set_mask_third_bit) - ((self.current_kmer & set_mask_third_bit) >> 2);
+                self.current_kmer =
+                    (self.current_kmer | set_mask_third_bit) - ((self.current_kmer & set_mask_third_bit) >> 2);
+                *base_num = 1;
+            }
+
+            // Mutate the identified base once
+            let set_mask_third_bit = self.masks_and_times_mutated[i].0;
+            self.current_kmer = (self.current_kmer | set_mask_third_bit) - ((self.current_kmer & set_mask_third_bit) >> 2);
+            self.masks_and_times_mutated[i].1 += 1;
+        } else {
+            // This final branch means we need a new subset. In either case of
+            // the below code, the encoded subset (represented as T) will get
+            // larger.
+
+            if (self.current_subset.count_ones() as usize) < N {
+                // Our subset has not reached maximum size, so we can add 1
+                self.current_subset += T::ONE;
+            } else {
+                // Replace all trailing 0s with 1s, then add 1. This always
+                // decreases the number of 1s
+                self.current_subset = (self.current_subset | (self.current_subset - T::ONE)) + T::ONE;
+            }
+
+            // Check if we are at the end of the iterator
+            if self.current_subset >= self.max_subset {
+                // The iterator has just reached its end, but we may still need
+                // to return Some(out). The subsets are visited in order, so
+                // since N >= 1, we will visit self.max_mask (it has only a
+                // single element). Hence, when we first arrive at this point in
+                // the code, we will have self.current_subset equal to
+                // self.max_mask. If this is the case, the below variable
+                // becomes Some(out), otherwise it is None.
+                let out = (self.current_subset == self.max_subset).then_some(out);
+
+                // Adjust current_subset to make it larger than max_mask, so
+                // that we return None from now on. This will not cause
+                // overflow, since we are only utilizing one third of the bits
+                // in T.
+                self.current_subset = self.max_subset + T::ONE;
+                return out;
+            }
+
+            // Reset current_kmer
+            self.current_kmer = self.encoded_kmer;
+
+            // Reprocess the saved state for this new subset
+            self.subset_size = 0;
+            let mut processed_bases = 0;
+            let mut temp_subset = self.current_subset;
+            while temp_subset != T::ZERO {
+                let num_zeros = temp_subset.trailing_zeros() as usize;
+                temp_subset >>= num_zeros + 1;
+                processed_bases += num_zeros;
+                self.masks_and_times_mutated[self.subset_size].0 = T::from_literal(0b100) << (processed_bases * 3);
+                processed_bases += 1;
+                self.subset_size += 1;
+            }
+
+            // Precompute first variant: must modify each base in the subset
+            for (set_mask_third_bit, base_num) in &mut self.masks_and_times_mutated[..self.subset_size] {
+                self.current_kmer =
+                    (self.current_kmer | *set_mask_third_bit) - ((self.current_kmer & *set_mask_third_bit) >> 2);
+                *base_num = 1;
+            }
+        }
+
+        Some(out)
+    }
+
+    // We could implement size_hint and ExactSizeIterator, but it is expensive
+    // to compute the size of the iterator after it has already started
 }
 
 #[cfg(test)]

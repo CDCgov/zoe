@@ -19,7 +19,7 @@ fn main() {
 
     let primer = b"TGATAGTTTTAGAGTTAGGTAG";
     let mut kmer_set = ThreeBitKmerSet::<17>::new(17).unwrap();
-    kmer_set.insert_from_sequence_one_mismatch(primer);
+    kmer_set.insert_from_sequence_with_variants::<1>(primer);
 
     let iterator = FastQReader::from_filename(filename)
         .unwrap_or_die("Translate file error!")

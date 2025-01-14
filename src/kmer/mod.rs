@@ -1,12 +1,13 @@
-pub mod encoder;
-pub mod errors;
-pub mod kmer_counter;
-pub mod kmer_set;
-pub mod len_mappings;
-pub mod three_bit;
+mod encoder;
+mod errors;
+mod kmer_counter;
+mod kmer_set;
+mod three_bit;
+mod type_mappings;
 
-pub use encoder::{Kmer, KmerEncoder};
-pub use errors::KmerError;
-pub use kmer_set::KmerSet;
-pub use len_mappings::*;
+pub use encoder::*;
+pub use errors::*;
+pub use kmer_counter::*;
+pub use kmer_set::*;
 pub use three_bit::*;
+pub use type_mappings::*;

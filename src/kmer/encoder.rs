@@ -2,6 +2,8 @@ use std::hash::Hash;
 
 use crate::{data::CheckSequence, kmer::errors::KmerError, prelude::Nucleotides};
 
+use super::{MismatchNumber, SupportedMismatchNumber};
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Kmer<const MAX_LEN: usize> {
     pub(crate) length: u8,
@@ -125,9 +127,9 @@ where
     /// An iterator over the encoded overlapping k-mers in a sequence, from
     /// right to left.
     type SeqIterRev<'a>: Iterator<Item = Self::EncodedKmer>;
-    /// An iterator over all encoded k-mers that are exactly a Hamming distance
-    /// of one away from a provided k-mer. The original k-mer is not included in
-    /// the iterator.
+    /// An iterator over all encoded k-mers that are at most a Hamming distance
+    /// of one away from a provided k-mer. The original k-mer is included in the
+    /// iterator.
     type OneMismatchIter: Iterator<Item = Self::EncodedKmer>;
 
     /// Creates a new [`KmerEncoder`] with the specified k-mer length.
@@ -138,7 +140,7 @@ where
     fn new(kmer_length: usize) -> Result<Self, KmerError>;
 
     /// Retrieve the k-mer length associated with this [`KmerEncoder`].
-    fn get_kmer_length(&self) -> usize;
+    fn kmer_length(&self) -> usize;
 
     /// Encode a single base. The base is assumed to be valid for the given
     /// [`KmerEncoder`]. Consider [`encode_base_checked`] when it is not known
@@ -184,10 +186,17 @@ where
     /// given [`KmerEncoder`], then `None` is returned.
     fn decode_kmer_checked(&self, encoded_kmer: Self::EncodedKmer) -> Option<Kmer<MAX_LEN>>;
 
-    /// Get an iterator over all encoded k-mers that are exactly a Hamming
-    /// distance of one away from the provided k-mer. The original k-mer is not
+    /// Get an iterator over all encoded k-mers that are at most a Hamming
+    /// distance of `N` away from the provided k-mer. The original k-mer is
     /// included in the iterator.
-    fn get_variants_one_mismatch(&self, encoded_kmer: Self::EncodedKmer) -> Self::OneMismatchIter;
+    ///
+    /// `N` must be a supported number of mismatches. See
+    /// [`SupportedMismatchNumber`] for more details.
+    fn get_variants<const N: usize>(
+        &self, encoded_kmer: Self::EncodedKmer,
+    ) -> <MismatchNumber<N> as SupportedMismatchNumber<MAX_LEN, Self>>::MismatchIter
+    where
+        MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, Self>;
 
     /// Get an iterator over the encoded overlapping k-mers in a sequence, from
     /// left to right. If the sequence is shorter than the k-mer length of the

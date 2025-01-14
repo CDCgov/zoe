@@ -1,7 +1,7 @@
 use std::{
     fmt::Debug,
     hash::Hash,
-    ops::{Add, AddAssign, BitAnd, BitOr, Not, Shl, ShlAssign, Shr, ShrAssign, Sub},
+    ops::{Add, AddAssign, BitAnd, BitOr, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign},
 };
 
 pub trait Int:
@@ -13,6 +13,7 @@ pub trait Int:
     + Add<Output = Self>
     + Sub<Output = Self>
     + AddAssign
+    + SubAssign
     + BitAnd<Output = Self>
     + BitOr<Output = Self>
     + Not<Output = Self>
@@ -37,6 +38,18 @@ pub trait Int:
     fn from_bool(b: bool) -> Self;
     fn as_usize(self) -> usize;
     fn checked_addition(&self, other: Self) -> Option<Self>;
+    fn trailing_zeros(self) -> u32;
+    fn count_ones(self) -> u32;
+
+    #[must_use]
+    fn wrapping_shl(self, rhs: u32) -> Self;
+
+    #[must_use]
+    fn rotate_left(self, n: u32) -> Self;
+
+    #[must_use]
+    fn rotate_right(self, n: u32) -> Self;
+
     const MAX: Self;
     const MIN: Self;
     const BITS: u32;
@@ -63,6 +76,31 @@ macro_rules! impl_int {
             #[inline]
             fn checked_addition(&self,other: Self) -> Option<Self> {
                 self.checked_add(other)
+            }
+
+            #[inline]
+            fn trailing_zeros(self) -> u32 {
+                self.trailing_zeros()
+            }
+
+            #[inline]
+            fn count_ones(self) -> u32 {
+                self.count_ones()
+            }
+
+            #[inline]
+            fn wrapping_shl(self, rhs: u32) -> Self {
+                self.wrapping_shl(rhs)
+            }
+
+            #[inline]
+            fn rotate_left(self, n: u32) -> Self {
+                self.rotate_left(n)
+            }
+
+            #[inline]
+            fn rotate_right(self, n: u32) -> Self {
+                self.rotate_right(n)
             }
 
             const MAX: $ty = <$ty>::MAX;
