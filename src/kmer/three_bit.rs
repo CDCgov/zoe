@@ -1,9 +1,26 @@
-use super::len_mappings::{KmerLen, MaxLenToType, SupportedThreeBitKmerLen};
 use crate::{
     data::mappings::THREE_BIT_MAPPING,
-    kmer::{Kmer, encoder::KmerEncoder, errors::KmerError},
+    kmer::{Kmer, KmerEncoder, KmerError, KmerLen, KmerSet, MaxLenToType, SupportedKmerLen},
     math::{Int, Uint},
+    prelude::KmerCounter,
 };
+use std::hash::RandomState;
+
+/// A type alias for a [`KmerLen`] struct with the [`ThreeBitKmerEncoder`] as
+/// its encoder.
+pub(crate) type ThreeBitKmerLen<const MAX_LEN: usize> = KmerLen<MAX_LEN, ThreeBitKmerEncoder<MAX_LEN>>;
+
+/// A type alias for [`MaxLenToType`] with the [`ThreeBitKmerEncoder`] as the
+/// encoder.
+pub(crate) type ThreeBitMaxLenToType<const MAX_LEN: usize> = MaxLenToType<MAX_LEN, ThreeBitKmerEncoder<MAX_LEN>>;
+
+/// A type alias for a [`KmerSet`] with the [`ThreeBitKmerEncoder`] as its
+/// encoder.
+pub type ThreeBitKmerSet<const MAX_LEN: usize, S = RandomState> = KmerSet<MAX_LEN, ThreeBitKmerEncoder<MAX_LEN>, S>;
+
+/// A type alias for a [`KmerCounter`] with the [`ThreeBitKmerEncoder`] as its
+/// encoder.
+pub type ThreeBitKmerCounter<const MAX_LEN: usize, S = RandomState> = KmerCounter<MAX_LEN, ThreeBitKmerEncoder<MAX_LEN>, S>;
 
 /// An encoded k-mer using the [`ThreeBitKmerEncoder`]. In most use cases,
 /// encoded k-mers need not be handled directly; [`ThreeBitKmerSet`] and
@@ -23,13 +40,13 @@ use crate::{
 /// [`ThreeBitKmerCounter`]: super::ThreeBitKmerCounter
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 #[repr(transparent)]
-pub struct ThreeBitEncodedKmer<const MAX_LEN: usize>(MaxLenToType<MAX_LEN>)
+pub struct ThreeBitEncodedKmer<const MAX_LEN: usize>(ThreeBitMaxLenToType<MAX_LEN>)
 where
-    KmerLen<MAX_LEN>: SupportedThreeBitKmerLen;
+    ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen;
 
 impl<const MAX_LEN: usize, T: Uint> From<T> for ThreeBitEncodedKmer<MAX_LEN>
 where
-    KmerLen<MAX_LEN>: SupportedThreeBitKmerLen<T = T>,
+    ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen<T = T>,
 {
     #[inline]
     fn from(value: T) -> Self {
@@ -39,7 +56,7 @@ where
 
 impl<const MAX_LEN: usize, T: Uint> std::fmt::Display for ThreeBitEncodedKmer<MAX_LEN>
 where
-    KmerLen<MAX_LEN>: SupportedThreeBitKmerLen<T = T>,
+    ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen<T = T>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut kmer = self.0;
@@ -75,14 +92,14 @@ where
 /// [`iter_from_sequence`]: KmerEncoder::iter_from_sequence
 pub struct ThreeBitKmerEncoder<const MAX_LEN: usize>
 where
-    KmerLen<MAX_LEN>: SupportedThreeBitKmerLen, {
+    ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen, {
     kmer_length: usize,
-    kmer_mask:   MaxLenToType<MAX_LEN>,
+    kmer_mask:   ThreeBitMaxLenToType<MAX_LEN>,
 }
 
 impl<const MAX_LEN: usize, T: Uint> KmerEncoder<MAX_LEN> for ThreeBitKmerEncoder<MAX_LEN>
 where
-    KmerLen<MAX_LEN>: SupportedThreeBitKmerLen<T = T>,
+    ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen<T = T>,
 {
     type EncodedBase = T;
     type EncodedKmer = ThreeBitEncodedKmer<MAX_LEN>;
@@ -298,15 +315,15 @@ where
 /// from left to right.
 pub struct ThreeBitKmerIterator<'a, const MAX_LEN: usize>
 where
-    KmerLen<MAX_LEN>: SupportedThreeBitKmerLen, {
+    ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen, {
     current_kmer: ThreeBitEncodedKmer<MAX_LEN>,
     remaining:    std::slice::Iter<'a, u8>,
-    kmer_mask:    MaxLenToType<MAX_LEN>,
+    kmer_mask:    ThreeBitMaxLenToType<MAX_LEN>,
 }
 
-impl<const MAX_LEN: usize, T: Uint> Iterator for ThreeBitKmerIterator<'_, MAX_LEN>
+impl<const MAX_LEN: usize> Iterator for ThreeBitKmerIterator<'_, MAX_LEN>
 where
-    KmerLen<MAX_LEN>: SupportedThreeBitKmerLen<T = T>,
+    ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen,
 {
     type Item = ThreeBitEncodedKmer<MAX_LEN>;
 
@@ -330,7 +347,7 @@ where
 }
 
 impl<const MAX_LEN: usize> ExactSizeIterator for ThreeBitKmerIterator<'_, MAX_LEN> where
-    KmerLen<MAX_LEN>: SupportedThreeBitKmerLen
+    ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen
 {
 }
 
@@ -338,15 +355,15 @@ impl<const MAX_LEN: usize> ExactSizeIterator for ThreeBitKmerIterator<'_, MAX_LE
 /// from right to left.
 pub struct ThreeBitKmerIteratorRev<'a, const MAX_LEN: usize>
 where
-    KmerLen<MAX_LEN>: SupportedThreeBitKmerLen, {
+    ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen, {
     current_kmer: ThreeBitEncodedKmer<MAX_LEN>,
     remaining:    std::slice::Iter<'a, u8>,
     kmer_length:  usize,
 }
 
-impl<const MAX_LEN: usize, T: Uint> Iterator for ThreeBitKmerIteratorRev<'_, MAX_LEN>
+impl<const MAX_LEN: usize> Iterator for ThreeBitKmerIteratorRev<'_, MAX_LEN>
 where
-    KmerLen<MAX_LEN>: SupportedThreeBitKmerLen<T = T>,
+    ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen,
 {
     type Item = ThreeBitEncodedKmer<MAX_LEN>;
 
@@ -370,7 +387,7 @@ where
 }
 
 impl<const MAX_LEN: usize> ExactSizeIterator for ThreeBitKmerIteratorRev<'_, MAX_LEN> where
-    KmerLen<MAX_LEN>: SupportedThreeBitKmerLen
+    ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen
 {
 }
 
@@ -379,18 +396,18 @@ impl<const MAX_LEN: usize> ExactSizeIterator for ThreeBitKmerIteratorRev<'_, MAX
 /// included in the iterator.
 pub struct ThreeBitOneMismatchIter<const MAX_LEN: usize>
 where
-    KmerLen<MAX_LEN>: SupportedThreeBitKmerLen, {
+    ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen, {
     encoded_kmer:       ThreeBitEncodedKmer<MAX_LEN>,
     kmer_length:        usize,
     current_kmer:       ThreeBitEncodedKmer<MAX_LEN>,
     current_index:      usize,
     current_base_num:   usize,
-    set_mask_third_bit: MaxLenToType<MAX_LEN>,
+    set_mask_third_bit: ThreeBitMaxLenToType<MAX_LEN>,
 }
 
 impl<const MAX_LEN: usize> ThreeBitOneMismatchIter<MAX_LEN>
 where
-    KmerLen<MAX_LEN>: SupportedThreeBitKmerLen,
+    ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen,
 {
     /// Create a new [`ThreeBitOneMismatchIter`] from a provided `encoded_kmer`
     /// and `kmer_length`. For most purposes, use
@@ -405,14 +422,14 @@ where
             current_kmer: encoded_kmer,
             current_index: 0,
             current_base_num: 0,
-            set_mask_third_bit: MaxLenToType::<MAX_LEN>::from_literal(0b100),
+            set_mask_third_bit: ThreeBitMaxLenToType::<MAX_LEN>::from_literal(0b100),
         }
     }
 }
 
 impl<const MAX_LEN: usize> Iterator for ThreeBitOneMismatchIter<MAX_LEN>
 where
-    KmerLen<MAX_LEN>: SupportedThreeBitKmerLen,
+    ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen,
 {
     type Item = ThreeBitEncodedKmer<MAX_LEN>;
 
@@ -450,7 +467,7 @@ where
 }
 
 impl<const MAX_LEN: usize> ExactSizeIterator for ThreeBitOneMismatchIter<MAX_LEN> where
-    KmerLen<MAX_LEN>: SupportedThreeBitKmerLen
+    ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen
 {
 }
 

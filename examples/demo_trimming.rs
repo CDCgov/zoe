@@ -1,5 +1,5 @@
 use std::env;
-use zoe::{kmer::ThreeBitOneMismatchKmerSet, prelude::*};
+use zoe::{kmer::ThreeBitKmerSet, prelude::*};
 
 // A toy example for performing several subsequent trimming operations cheaply
 // using views:
@@ -18,8 +18,8 @@ fn main() {
     };
 
     let primer = b"TGATAGTTTTAGAGTTAGGTAG";
-    let mut kmer_set = ThreeBitOneMismatchKmerSet::<17>::new(17).unwrap();
-    kmer_set.insert_from_sequence(primer);
+    let mut kmer_set = ThreeBitKmerSet::<17>::new(17).unwrap();
+    kmer_set.insert_from_sequence_one_mismatch(primer);
 
     let iterator = FastQReader::from_filename(filename)
         .unwrap_or_die("Translate file error!")

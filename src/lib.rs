@@ -244,7 +244,7 @@ pub mod distance;
 /// maximum possible length (`MAX_LEN`) is required, which is used to determine
 /// the appropriate integer type to store the encoded k-mer.
 ///
-/// *Zoe* has two types of structs to store k-mers:
+/// *Zoe* has two structs to store k-mers:
 /// * A [`KmerSet`], which is a [`HashSet`] for k-mers
 /// * A [`KmerCounter`] to store k-mers and their counts
 ///
@@ -254,20 +254,17 @@ pub mod distance;
 /// * [`find_kmers`] and [`find_kmers_rev`], which search a sequence for any of
 ///   the stored k-mers
 ///
-/// Any particular implementation of [`KmerSet`] or [`KmerCounter`] relies on an
-/// encoder. *Zoe* currently provides a single encoder, [`ThreeBitKmerEncoder`],
-/// which uses three bits to store each base. It allows for `A`, `C`, `G`, `T`,
-/// and `N` to all be represented. It does not preserve case or the distinction
-/// between `T` and `U`. `N` is used as a catch-all for bases that are not
-/// `ACGTUNacgtun`.
+/// [`KmerSet`] and [`KmerCounter`] are generic over the type of
+/// [`KmerEncoder`]. *Zoe* currently provides a single encoder,
+/// [`ThreeBitKmerEncoder`], which uses three bits to store each base. It allows
+/// for `A`, `C`, `G`, `T`, and `N` to all be represented. It does not preserve
+/// case or the distinction between `T` and `U`. `N` is used as a catch-all for
+/// bases that are not `ACGTUNacgtun`.
 ///
-/// The corresponding types with this encoder are [`ThreeBitKmerSet`] and
-/// [`ThreeBitKmerCounter`]. A more specialized [`ThreeBitOneMismatchKmerSet`]
-/// is also provided, which automatically stores all k-mers within a Hamming
-/// distance of 1 upon insertion.
+/// For convenience, the type aliases [`ThreeBitKmerSet`] and
+/// [`ThreeBitKmerCounter`] are provided.
 ///
-/// For guidance on picking the appropriate `MAX_LEN`, see
-/// [`SupportedThreeBitKmerLen`].
+/// For guidance on picking the appropriate `MAX_LEN`, see [`SupportedKmerLen`].
 ///
 /// When performing more specialized k-mer operations, you may need to directly
 /// encode and decode k-mers, rather than relying on the methods in [`KmerSet`]
@@ -292,11 +289,11 @@ pub mod distance;
 /// Search for the 17-mers of a primer within a sequence, with up to one
 /// mismatch:
 /// ```
-/// # use zoe::{kmer::ThreeBitOneMismatchKmerSet, prelude::*};
+/// # use zoe::{kmer::ThreeBitKmerSet, prelude::*};
 /// let primer = b"TGATAGTTTTAGAGTTAGGTAG";
 /// let sequence = b"TGCCCGTAACGTACAGTTTTACAGTTAGGTACCC";
-/// let mut kmer_set = ThreeBitOneMismatchKmerSet::<17>::new(17).unwrap();
-/// kmer_set.insert_from_sequence(primer);
+/// let mut kmer_set = ThreeBitKmerSet::<17>::new(17).unwrap();
+/// kmer_set.insert_from_sequence_one_mismatch(primer);
 /// let kmer_pos = kmer_set.find_kmers(sequence);
 /// assert_eq!(kmer_pos, Some(14..31));
 /// ```
@@ -305,14 +302,13 @@ pub mod distance;
 /// [`Display`]: std::fmt::Display
 /// [`Kmer`]: kmer::Kmer
 /// [`KmerEncoder`]: kmer::KmerEncoder
-/// [`KmerSet`]: kmer::KmerSet
-/// [`KmerCounter`]: kmer::KmerCounter
+/// [`KmerSet`]: kmer::kmer_set::KmerSet
+/// [`KmerCounter`]: kmer::kmer_counter::KmerCounter
 /// [`ThreeBitKmerEncoder`]: kmer::ThreeBitKmerEncoder
 /// [`ThreeBitEncodedKmer`]: kmer::ThreeBitEncodedKmer
 /// [`ThreeBitKmerSet`]: kmer::ThreeBitKmerSet
-/// [`ThreeBitOneMismatchKmerSet`]: kmer::ThreeBitOneMismatchKmerSet
 /// [`ThreeBitKmerCounter`]: kmer::ThreeBitKmerCounter
-/// [`SupportedThreeBitKmerLen`]: kmer::three_bit::SupportedThreeBitKmerLen
+/// [`SupportedKmerLen`]: kmer::SupportedKmerLen
 /// [`insert_from_sequence`]: kmer::KmerSet::insert_from_sequence
 /// [`find_kmers`]: kmer::KmerSet::find_kmers
 /// [`find_kmers_rev`]: kmer::KmerSet::find_kmers_rev
@@ -327,11 +323,6 @@ pub mod search;
 pub(crate) mod generate;
 /// Iterator utilities.
 pub(crate) mod iter_utils;
-
-/// SIMD traits to extend portable SIMD.
-pub(crate) mod simd {
-    pub(crate) use crate::data::extension::simd::*;
-}
 
 /// Common structures and traits re-exported
 pub mod prelude {
@@ -355,6 +346,8 @@ pub mod prelude {
     };
     #[cfg(feature = "rand")]
     pub use crate::generate::rand_sequence;
-    pub use crate::kmer::{encoder::KmerEncoder, kmer_counter::KmerCounter, kmer_set::KmerSet};
+    pub use crate::kmer::{encoder::KmerEncoder, kmer_counter::KmerCounter};
     pub use crate::search::{ByteSubstring, ByteSubstringMut};
 }
+
+pub(crate) use crate::data::extension::simd;

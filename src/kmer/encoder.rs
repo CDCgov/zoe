@@ -1,3 +1,5 @@
+use std::hash::Hash;
+
 use crate::{data::CheckSequence, kmer::errors::KmerError, prelude::Nucleotides};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -116,7 +118,7 @@ where
     /// The type of an encoded base.
     type EncodedBase;
     /// The type of an encoded k-mer.
-    type EncodedKmer: From<Self::EncodedBase>;
+    type EncodedKmer: From<Self::EncodedBase> + Eq + Hash + Copy;
     /// An iterator over the encoded overlapping k-mers in a sequence, from left
     /// to right.
     type SeqIter<'a>: Iterator<Item = Self::EncodedKmer>;

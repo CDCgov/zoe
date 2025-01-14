@@ -23,5 +23,4 @@ impl fmt::Debug for KmerError {
 }
 
 impl Error for KmerError {}
-
 impl GetCode for KmerError {}
