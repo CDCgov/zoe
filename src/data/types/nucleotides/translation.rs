@@ -1,6 +1,8 @@
 use std::slice::ChunksExact;
 
-use super::{AminoAcids, GENETIC_CODE, getter_traits::NucleotidesReadable};
+use crate::data::mappings::StdGeneticCode;
+
+use super::{AminoAcids, getter_traits::NucleotidesReadable};
 
 /// Provides methods for translating nucleotides into amino acids.
 pub trait Translate: NucleotidesReadable {
@@ -40,7 +42,7 @@ impl Iterator for TranslatedNucleotidesIter<'_> {
             if is_partial_codon(codon) {
                 Some(b'~')
             } else {
-                Some(GENETIC_CODE.get(codon).unwrap_or(b'X'))
+                Some(StdGeneticCode::get(codon).unwrap_or(b'X'))
             }
         } else if self.has_remainder && is_partial_codon(self.codons.remainder()) {
             self.has_remainder = false;
@@ -79,7 +81,7 @@ pub fn translate_sequence(s: &[u8]) -> Vec<u8> {
         aa_sequence.push(if is_partial_codon(codon) {
             b'~'
         } else {
-            GENETIC_CODE.get(codon).unwrap_or(b'X')
+            StdGeneticCode::get(codon).unwrap_or(b'X')
         });
     }
 

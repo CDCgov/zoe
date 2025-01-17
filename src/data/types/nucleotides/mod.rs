@@ -1,6 +1,6 @@
 use crate::{
     alignment::{LocalProfiles, SharedProfiles},
-    data::{err::QueryProfileError, mappings::GENETIC_CODE, matrices::BiasedWeightMatrix},
+    data::{err::QueryProfileError, matrices::BiasedWeightMatrix},
     prelude::*,
 };
 use std::simd::{LaneCount, SupportedLaneCount};
