@@ -1,5 +1,5 @@
 use super::{Kmer, KmerError, KmerLen, MismatchNumber, SupportedKmerLen, SupportedMismatchNumber};
-use crate::kmer::encoder::KmerEncoder;
+use crate::{kmer::encoder::KmerEncoder, prelude::Len};
 use std::{
     collections::{HashMap, hash_map},
     hash::{BuildHasher, RandomState},
@@ -10,7 +10,10 @@ use std::{
 /// as a multiset. [`KmerCounter`] has most of the same methods as [`KmerSet`].
 ///
 /// [`KmerSet`]: super::KmerSet
-pub struct KmerCounter<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S = RandomState> {
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct KmerCounter<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S = RandomState>
+where
+    S: BuildHasher, {
     map:     HashMap<E::EncodedKmer, usize, S>,
     encoder: E,
 }
@@ -31,7 +34,7 @@ impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>> KmerCounter<MAX_LEN, E> {
     }
 }
 
-impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S> KmerCounter<MAX_LEN, E, S> {
+impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> KmerCounter<MAX_LEN, E, S> {
     /// Creates a new [`KmerCounter`] with the specified k-mer length
     /// and hasher.
     ///
@@ -291,7 +294,7 @@ where
     }
 }
 
-impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S> IntoIterator for KmerCounter<MAX_LEN, E, S>
+impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> IntoIterator for KmerCounter<MAX_LEN, E, S>
 where
     KmerLen<MAX_LEN, E>: SupportedKmerLen,
 {
@@ -346,5 +349,17 @@ where
     #[inline]
     fn next(&mut self) -> Option<(Kmer<MAX_LEN>, usize)> {
         self.map_into_iter.next().map(|(x, &c)| (self.encoder.decode_kmer(*x), c))
+    }
+}
+
+impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>> Len for KmerCounter<MAX_LEN, E> {
+    #[inline]
+    fn is_empty(&self) -> bool {
+        self.map.is_empty()
+    }
+
+    #[inline]
+    fn len(&self) -> usize {
+        self.map.len()
     }
 }

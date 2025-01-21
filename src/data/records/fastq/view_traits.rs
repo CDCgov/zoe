@@ -116,11 +116,11 @@ impl SliceMut for FastQ {
     }
 
     #[inline]
-    fn get_mut_slice<R: SliceRange>(&mut self, range: R) -> Option<FastQViewMut> {
+    fn get_slice_mut<R: SliceRange>(&mut self, range: R) -> Option<FastQViewMut> {
         Some(FastQViewMut {
             header:   &mut self.header,
-            sequence: self.sequence.get_mut_slice(range.clone())?,
-            quality:  self.quality.get_mut_slice(range)?,
+            sequence: self.sequence.get_slice_mut(range.clone())?,
+            quality:  self.quality.get_slice_mut(range)?,
         })
     }
 }
@@ -191,11 +191,11 @@ impl SliceMut for FastQViewMut<'_> {
     }
 
     #[inline]
-    fn get_mut_slice<R: SliceRange>(&mut self, range: R) -> Option<FastQViewMut> {
+    fn get_slice_mut<R: SliceRange>(&mut self, range: R) -> Option<FastQViewMut> {
         Some(FastQViewMut {
             header:   self.header,
-            sequence: self.sequence.get_mut_slice(range.clone())?,
-            quality:  self.quality.get_mut_slice(range)?,
+            sequence: self.sequence.get_slice_mut(range.clone())?,
+            quality:  self.quality.get_slice_mut(range)?,
         })
     }
 }

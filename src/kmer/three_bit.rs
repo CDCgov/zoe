@@ -4,7 +4,7 @@ use crate::{
     math::Uint,
     prelude::KmerCounter,
 };
-use std::hash::RandomState;
+use std::hash::{Hash, Hasher, RandomState};
 
 use super::{MismatchNumber, SupportedMismatchNumber};
 
@@ -92,11 +92,34 @@ where
 /// [`encode_kmer`]: KmerEncoder::encode_kmer
 /// [`decode_kmer`]: KmerEncoder::decode_kmer
 /// [`iter_from_sequence`]: KmerEncoder::iter_from_sequence
+#[derive(Clone, Debug)]
 pub struct ThreeBitKmerEncoder<const MAX_LEN: usize>
 where
     ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen, {
     kmer_length: usize,
     kmer_mask:   ThreeBitMaxLenToType<MAX_LEN>,
+}
+
+impl<const MAX_LEN: usize> PartialEq for ThreeBitKmerEncoder<MAX_LEN>
+where
+    ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen,
+{
+    #[inline]
+    fn eq(&self, other: &Self) -> bool {
+        self.kmer_length == other.kmer_length
+    }
+}
+
+impl<const MAX_LEN: usize> Eq for ThreeBitKmerEncoder<MAX_LEN> where ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen {}
+
+impl<const MAX_LEN: usize> Hash for ThreeBitKmerEncoder<MAX_LEN>
+where
+    ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen,
+{
+    #[inline]
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.kmer_length.hash(state);
+    }
 }
 
 impl<const MAX_LEN: usize, T: Uint> KmerEncoder<MAX_LEN> for ThreeBitKmerEncoder<MAX_LEN>

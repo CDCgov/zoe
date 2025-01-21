@@ -1,4 +1,7 @@
-use crate::kmer::{Kmer, KmerEncoder, KmerError, KmerLen, SupportedKmerLen};
+use crate::{
+    kmer::{Kmer, KmerEncoder, KmerError, KmerLen, SupportedKmerLen},
+    prelude::Len,
+};
 use std::{
     collections::{HashSet, hash_set},
     hash::{BuildHasher, RandomState},
@@ -18,7 +21,10 @@ use super::{MismatchNumber, SupportedMismatchNumber};
 /// [`insert_from_sequence`]: KmerSet::insert_from_sequence
 /// [`insert_from_sequence_with_variants`]:
 ///     KmerSet::insert_from_sequence_with_variants
-pub struct KmerSet<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S = RandomState> {
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct KmerSet<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S = RandomState>
+where
+    S: BuildHasher, {
     set:     HashSet<E::EncodedKmer, S>,
     encoder: E,
 }
@@ -39,7 +45,7 @@ impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>> KmerSet<MAX_LEN, E> {
     }
 }
 
-impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S> KmerSet<MAX_LEN, E, S> {
+impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> KmerSet<MAX_LEN, E, S> {
     /// Creates a new [`KmerSet`] with the specified k-mer length and hasher.
     ///
     /// # Errors
@@ -248,7 +254,7 @@ where
     }
 }
 
-impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S> IntoIterator for KmerSet<MAX_LEN, E, S>
+impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> IntoIterator for KmerSet<MAX_LEN, E, S>
 where
     KmerLen<MAX_LEN, E>: SupportedKmerLen,
 {
@@ -303,5 +309,17 @@ where
     #[inline]
     fn next(&mut self) -> Option<Kmer<MAX_LEN>> {
         self.set_into_iter.next().map(|x| self.encoder.decode_kmer(*x))
+    }
+}
+
+impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>> Len for KmerSet<MAX_LEN, E> {
+    #[inline]
+    fn is_empty(&self) -> bool {
+        self.set.is_empty()
+    }
+
+    #[inline]
+    fn len(&self) -> usize {
+        self.set.len()
     }
 }

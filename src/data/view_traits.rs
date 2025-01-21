@@ -84,7 +84,7 @@ pub trait SliceMut: Slice {
     fn slice_mut<R: SliceRange>(&mut self, range: R) -> Self::ViewMut<'_>;
     /// Create a mutable view of the data contained in `range`, or return `None`
     /// if it is out of bounds.
-    fn get_mut_slice<R: SliceRange>(&mut self, range: R) -> Option<Self::ViewMut<'_>>;
+    fn get_slice_mut<R: SliceRange>(&mut self, range: R) -> Option<Self::ViewMut<'_>>;
 }
 
 /// A macro for implementing [`Len`], given the owning type, the view type, the
@@ -246,7 +246,7 @@ macro_rules! impl_views_for_wrapper {
             }
 
             #[inline]
-            fn get_mut_slice<R: SliceRange>(&mut self, range: R) -> Option<$viewmut> {
+            fn get_slice_mut<R: SliceRange>(&mut self, range: R) -> Option<$viewmut> {
                 Some($viewmut(self.0.get_mut(range)?))
             }
         }
@@ -263,7 +263,7 @@ macro_rules! impl_views_for_wrapper {
             }
 
             #[inline]
-            fn get_mut_slice<R: SliceRange>(&mut self, range: R) -> Option<$viewmut> {
+            fn get_slice_mut<R: SliceRange>(&mut self, range: R) -> Option<$viewmut> {
                 Some($viewmut(self.0.get_mut(range)?))
             }
         }
