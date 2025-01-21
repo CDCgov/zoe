@@ -1,7 +1,21 @@
 [package]
 edition = "2024"
 name = "zoe"
-version = "0.0.11"
+version = "0.0.12"
+rust-version = "1.86"
+description = "A nightly library for viral genomics"
+license = "Apache-2.0"
+
+# Long-term maintainers of the Zoe library
+authors = ["Samuel S. Shepard <sshepard@cdc.gov>"]
+categories = [
+    "science::bioinformatics::sequence-analysis",
+    "science::bioinformatics::genomics",
+    "algorithms",
+]
+keywords = ["alignment", "simd", "kmer", "search", "distance"]
+repository = "https://github.com/CDCgov/zoe"
+
 
 [features]
 
