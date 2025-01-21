@@ -42,7 +42,7 @@ impl Iterator for TranslatedNucleotidesIter<'_> {
             if is_partial_codon(codon) {
                 Some(b'~')
             } else {
-                Some(StdGeneticCode::get(codon).unwrap_or(b'X'))
+                Some(StdGeneticCode::translate_codon(codon))
             }
         } else if self.has_remainder && is_partial_codon(self.codons.remainder()) {
             self.has_remainder = false;
@@ -81,7 +81,7 @@ pub fn translate_sequence(s: &[u8]) -> Vec<u8> {
         aa_sequence.push(if is_partial_codon(codon) {
             b'~'
         } else {
-            StdGeneticCode::get(codon).unwrap_or(b'X')
+            StdGeneticCode::translate_codon(codon)
         });
     }
 

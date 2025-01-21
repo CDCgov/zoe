@@ -20,7 +20,7 @@ pub(crate) mod extension;
 mod validation;
 
 pub use constants::{
-    mappings::{ByteIndexMap, DNA_PROFILE_MAP},
+    mappings::{ByteIndexMap, DNA_PROFILE_MAP, StdGeneticCode},
     matrices::{BiasedWeightMatrix, SimpleWeightMatrix},
 };
 pub use records::{fasta, fastq, sam};

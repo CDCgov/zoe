@@ -352,8 +352,9 @@ impl StdGeneticCode {
     const MASK: u32 = 0xFF_FF_FF;
     const TABLE: &[u32; Self::TABLE_SIZE] = &STD_GENETIC_CODE;
 
-    /// Retrieve the amino acid corresponding to a codon, or return None if the
-    /// translation cannot be resolved.
+    /// Retrieve the amino acid corresponding to a codon, or return `None` if
+    /// the translation cannot be resolved. To instead return 'X', see
+    /// [`translate_codon`](StdGeneticCode::translate_codon).
     ///
     /// # Panics
     ///
@@ -375,6 +376,34 @@ impl StdGeneticCode {
         } else {
             None
         }
+    }
+
+    /// Retrieve the amino acid corresponding to a codon, or return `'X'` if the
+    /// translation cannot be resolved. To instead return an `Option`, see
+    /// [`get`](StdGeneticCode::get).
+    ///
+    /// # Panics
+    ///
+    /// Panics if codon has fewer than three elements. Any additional elements
+    /// past the first three are ignored.
+    #[inline]
+    #[must_use]
+    pub fn translate_codon(codon: &[u8]) -> u8 {
+        Self::get(codon).unwrap_or(b'X')
+    }
+
+    /// Determine whether the provided codon is a stop codon.
+    ///
+    /// # Panics
+    ///
+    /// Panics if codon has fewer than three elements. Any additional elements
+    /// past the first three are ignored.
+    #[allow(clippy::cast_possible_truncation)]
+    #[must_use]
+    #[inline]
+    pub fn is_stop_codon(codon: &[u8]) -> bool {
+        // This has equivalent assembly as calling Self::get
+        Self::translate_codon(codon) == b'*'
     }
 
     #[must_use]
@@ -462,6 +491,8 @@ mod test {
 
         for (codon, aa) in gc {
             assert_eq!(aa, StdGeneticCode::get(codon).unwrap());
+            assert_eq!(aa, StdGeneticCode::translate_codon(codon));
+            assert_eq!(aa == b'*', StdGeneticCode::is_stop_codon(codon));
         }
     }
 

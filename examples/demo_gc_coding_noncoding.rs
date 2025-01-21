@@ -1,19 +1,26 @@
 use std::{env, ops::Range};
-use zoe::prelude::*;
+use zoe::{data::StdGeneticCode, prelude::*};
 
 // Given a FASTQ file containing sequences, calculate the percent GC content of
 // the coding regions (anywhere between a start and stop codon, or after a start
 // codon to the end of the sequence) and the noncoding regions, exclude the
-// start and stop codons themselves. Assumes T is used rather than U.
+// start and stop codons themselves.
 
-const STOP_CODONS: [&[u8]; 3] = [b"TAA", b"TAG", b"TGA"];
+fn find_start_codon(sequence: &NucleotidesView) -> Option<Range<usize>> {
+    sequence
+        .as_bytes()
+        .windows(3)
+        .position(|codon| StdGeneticCode::get(codon) == Some(b'M'))
+        .map(|start| start..start + 3)
+}
 
-fn find_stop_codon(sequence: &NucleotidesView, starting: usize) -> Option<Range<usize>> {
-    sequence[starting..]
+fn find_stop_codon(sequence: &NucleotidesView) -> Option<Range<usize>> {
+    sequence
+        .as_bytes()
         .chunks_exact(3)
-        .position(|x| STOP_CODONS.contains(&x))
+        .position(StdGeneticCode::is_stop_codon)
         .map(|num_codons_before_stop| {
-            let stop_codon_start = starting + num_codons_before_stop * 3;
+            let stop_codon_start = num_codons_before_stop * 3;
             stop_codon_start..stop_codon_start + 3
         })
 }
@@ -44,24 +51,24 @@ fn main() {
         let mut sequence = fastq_record.sequence.as_view();
 
         // Each execution of the loop represents one coding region
-        while let Some(start_codon_position) = sequence.find_substring(b"ATG") {
+        while let Some(start_codon_position) = find_start_codon(&sequence) {
             // Tally sequence before start codon
             let before_coding = sequence.slice(..start_codon_position.start);
             gc_noncoding += before_coding.gc_content();
             total_noncoding += before_coding.len();
+            sequence.restrict(start_codon_position.end..);
 
             // Find the stop codon position, respecting the reading frame, then
             // tally the coding region
-            if let Some(stop_codon_position) = find_stop_codon(&sequence, start_codon_position.end) {
-                let coding = sequence.slice(start_codon_position.end..stop_codon_position.start);
+            if let Some(stop_codon_position) = find_stop_codon(&sequence) {
+                let coding = sequence.slice(..stop_codon_position.start);
                 gc_coding += coding.gc_content();
                 total_coding += coding.len();
                 // The view is restricted to only hold the unprocessed portion
                 sequence.restrict(stop_codon_position.end..);
             } else {
-                let coding = sequence.slice(start_codon_position.end..);
-                gc_coding += coding.gc_content();
-                total_coding += coding.len();
+                gc_coding += sequence.gc_content();
+                total_coding += sequence.len();
                 // The view is restricted to be empty
                 sequence.restrict(sequence.len()..);
             }
