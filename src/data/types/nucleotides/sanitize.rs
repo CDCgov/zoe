@@ -26,15 +26,15 @@ impl ToDNA for &[u8] {}
 /// Provides DNA-specific methods for recoding a sequence.
 pub trait RecodeNucleotides: NucleotidesMutable {
     /// Recodes the stored sequence to an uppercase canonical (ACTG + N) one.
-    /// Any non-canonical base becomes N.
+    /// Any non-canonical base becomes N, including gaps.
     #[inline]
     fn recode_any_to_actgn_uc(&mut self) {
         self.nucleotide_mut_bytes().recode(ANY_TO_DNA_CANONICAL_UPPER);
     }
 
     /// Recodes the stored sequence of valid IUPAC codes to a canonical (ACTG +
-    /// N) sequence. Ambiguous bases become N while non-IUPAC bytes are left
-    /// unchanged.
+    /// N) sequence. Ambiguous bases become N while non-IUPAC bytes and gaps are
+    /// left unchanged.
     #[inline]
     fn recode_iupac_to_actgn(&mut self) {
         self.nucleotide_mut_bytes().recode(IUPAC_TO_DNA_CANONICAL);
@@ -42,7 +42,7 @@ pub trait RecodeNucleotides: NucleotidesMutable {
 
     /// Recodes the stored sequence of valid IUPAC codes to an uppercase
     /// canonical (ACTG + N) sequence. Ambiguous bases become N while non-IUPAC
-    /// bytes are left unchanged.
+    /// bytes and gaps are left unchanged.
     #[inline]
     fn recode_iupac_to_actgn_uc(&mut self) {
         self.nucleotide_mut_bytes().recode(IUPAC_TO_DNA_CANONICAL_UPPER);
@@ -58,24 +58,28 @@ impl<T: NucleotidesMutable> RecodeNucleotides for T {}
 
 pub trait RetainNucleotides: AsMut<Vec<u8>> {
     /// Only retains valid [IUPAC bases](https://www.bioinformatics.org/sms/iupac.html).
+    /// Gaps are retained.
     #[inline]
     fn retain_iupac_bases(&mut self) {
         self.as_mut().retain_by_validation(IS_IUPAC_BASE);
     }
 
     /// Only retains valid [IUPAC bases](https://www.bioinformatics.org/sms/iupac.html).
+    /// Gaps are NOT retained.
     #[inline]
     fn retain_unaligned_bases(&mut self) {
         self.as_mut().retain_by_validation(IS_UNALIGNED_IUPAC_BASE);
     }
 
     /// Only retains valid [IUPAC](https://www.bioinformatics.org/sms/iupac.html) DNA and converts to uppercase.
+    /// Gaps are retained.
     #[inline]
     fn retain_dna_uc(&mut self) {
         self.as_mut().retain_by_recoding(TO_DNA_UC);
     }
 
     /// Only retains valid, unaligned [IUPAC](https://www.bioinformatics.org/sms/iupac.html) DNA and converts to uppercase.
+    /// Gaps are NOT retained.
     #[inline]
     fn retain_unaligned_dna_uc(&mut self) {
         self.as_mut().retain_by_recoding(TO_UNALIGNED_DNA_UC);

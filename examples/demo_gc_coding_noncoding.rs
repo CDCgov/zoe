@@ -40,7 +40,7 @@ fn main() {
         // Create a view, whose bounds we will change to reflect the portion of
         // the sequence we are considering (this avoids needing to have an
         // indexing variable)
-        fastq_record.sequence.as_mut_bytes().make_ascii_uppercase();
+        fastq_record.sequence.recode_iupac_to_actgn_uc();
         let mut sequence = fastq_record.sequence.as_view();
 
         // Each execution of the loop represents one coding region

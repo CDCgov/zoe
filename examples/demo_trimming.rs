@@ -38,10 +38,9 @@ fn main() {
             fastq_view.restrict(..fastq_view.len() - num_g_end);
         }
 
-        if fastq_view.len() > 4 {
-            fastq_view.restrict(2..fastq_view.len() - 2);
-        } else {
-            fastq_view.restrict(fastq_view.len()..)
+        let hard_trim = 2;
+        if fastq_view.len() > hard_trim * 2 {
+            fastq_view.restrict(hard_trim..fastq_view.len() - hard_trim);
         }
 
         let search_region_len = fastq_view.len().min(30);
