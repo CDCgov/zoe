@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Added
 
-- Added a K-mer module for membership and counting queries. A 3-bit K-mer encoder is initially provided.
+- Added a k-mer module for membership and counting queries. A 3-bit k-mer encoder is initially provided.
 - View types have been added to fundamental types (e.g., `Nucleotides`) and some record types (e.g., FASTQ).
 - Added new documentation and this changelog.
 - Adds license info, notices, and disclaimers
