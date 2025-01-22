@@ -36,10 +36,11 @@ fn main() {
         .unwrap_or_die("Translate file error!")
         .flatten();
 
-    'fastq_loop: for fastq_record in iterator {
+    for mut fastq_record in iterator {
         // Create a view, whose bounds we will change to reflect the portion of
         // the sequence we are considering (this avoids needing to have an
         // indexing variable)
+        fastq_record.sequence.as_mut_bytes().make_ascii_uppercase();
         let mut sequence = fastq_record.sequence.as_view();
 
         // Each execution of the loop represents one coding region
@@ -58,9 +59,11 @@ fn main() {
                 // The view is restricted to only hold the unprocessed portion
                 sequence.restrict(stop_codon_position.end..);
             } else {
-                gc_coding += sequence.gc_content();
-                total_coding += sequence.len();
-                continue 'fastq_loop;
+                let coding = sequence.slice(start_codon_position.end..);
+                gc_coding += coding.gc_content();
+                total_coding += coding.len();
+                // The view is restricted to be empty
+                sequence.restrict(sequence.len()..);
             }
         }
 

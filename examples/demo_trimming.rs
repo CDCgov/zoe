@@ -38,7 +38,11 @@ fn main() {
             fastq_view.restrict(..fastq_view.len() - num_g_end);
         }
 
-        fastq_view.restrict(2..fastq_view.len() - 2);
+        if fastq_view.len() > 4 {
+            fastq_view.restrict(2..fastq_view.len() - 2);
+        } else {
+            fastq_view.restrict(fastq_view.len()..)
+        }
 
         let search_region_len = fastq_view.len().min(30);
         if let Some(kmer_pos) = kmer_set.find_kmers_rev(fastq_view.sequence.slice(..search_region_len)) {
