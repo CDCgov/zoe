@@ -270,7 +270,7 @@ where
     /// sequence must
     /// be valid for the [`KmerEncoder`] associated with this [`KmerCounter`].
     /// If no occurrence is found, then `None` is returned.
-    pub fn find_kmers(&self, seq: impl AsRef<[u8]>) -> Option<Range<usize>> {
+    pub fn find_in_seq(&self, seq: impl AsRef<[u8]>) -> Option<Range<usize>> {
         for (i, kmer) in self.encoder.iter_from_sequence(&seq).enumerate() {
             if self.contains_encoded(kmer) {
                 return Some(i..i + self.kmer_length());
@@ -283,7 +283,7 @@ where
     /// this [`KmerCounter`] within a provided sequence. The bases in the
     /// sequence must be valid for the [`KmerEncoder`] associated with this
     /// [`KmerCounter`]. If no occurrence is found, then `None` is returned.
-    pub fn find_kmers_rev(&self, seq: impl AsRef<[u8]>) -> Option<Range<usize>> {
+    pub fn find_in_seq_rev(&self, seq: impl AsRef<[u8]>) -> Option<Range<usize>> {
         for (i, kmer) in self.encoder.iter_from_sequence_rev(&seq).enumerate() {
             if self.contains_encoded(kmer) {
                 let end = seq.as_ref().len() - i;

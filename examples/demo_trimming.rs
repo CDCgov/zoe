@@ -44,7 +44,7 @@ fn main() {
         }
 
         let search_region_len = fastq_view.len().min(30);
-        if let Some(kmer_pos) = kmer_set.find_kmers_rev(fastq_view.sequence.slice(..search_region_len)) {
+        if let Some(kmer_pos) = kmer_set.find_in_seq_rev(fastq_view.sequence.slice(..search_region_len)) {
             fastq_view.restrict(kmer_pos.end..);
         }
 

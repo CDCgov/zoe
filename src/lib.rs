@@ -251,7 +251,7 @@ pub mod distance;
 /// Several convenience methods are provided, such as:
 /// * [`insert_from_sequence`], which quickly inserts/counts all overlapping
 ///   k-mers from a sequence
-/// * [`find_kmers`] and [`find_kmers_rev`], which search a sequence for any of
+/// * [`find_in_seq`] and [`find_in_seq_rev`], which search a sequence for any of
 ///   the stored k-mers
 ///
 /// [`KmerSet`] and [`KmerCounter`] are generic over the type of
@@ -294,7 +294,7 @@ pub mod distance;
 /// let sequence = b"TGCCCGTAACGTACAGTTTTACAGTTAGGTACCC";
 /// let mut kmer_set = ThreeBitKmerSet::<17>::new(17).unwrap();
 /// kmer_set.insert_from_sequence_with_variants::<1>(primer);
-/// let kmer_pos = kmer_set.find_kmers(sequence);
+/// let kmer_pos = kmer_set.find_in_seq(sequence);
 /// assert_eq!(kmer_pos, Some(14..31));
 /// ```
 ///
@@ -310,8 +310,8 @@ pub mod distance;
 /// [`ThreeBitKmerCounter`]: kmer::ThreeBitKmerCounter
 /// [`SupportedKmerLen`]: kmer::SupportedKmerLen
 /// [`insert_from_sequence`]: kmer::KmerSet::insert_from_sequence
-/// [`find_kmers`]: kmer::KmerSet::find_kmers
-/// [`find_kmers_rev`]: kmer::KmerSet::find_kmers_rev
+/// [`find_in_seq`]: kmer::KmerSet::find_in_seq
+/// [`find_in_seq_rev`]: kmer::KmerSet::find_in_seq_rev
 pub mod kmer;
 /// Mathematical utilities.
 pub mod math;

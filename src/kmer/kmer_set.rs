@@ -13,11 +13,11 @@ use super::{MismatchNumber, SupportedMismatchNumber};
 /// A [`KmerSet`] holds a set of encoded k-mers and provides methods for
 /// efficiently using them. For instance, a [`KmerSet`] can be used to find the
 /// leftmost or rightmost occurrence of k-mers in a sequence, using
-/// [`find_kmers`] or [`find_kmers_rev`]. A [`KmerSet`] can also be constructed
+/// [`find_in_seq`] or [`find_in_seq_rev`]. A [`KmerSet`] can also be constructed
 /// using [`insert_from_sequence`] or [`insert_from_sequence_with_variants`].
 ///
-/// [`find_kmers`]: KmerSet::find_kmers
-/// [`find_kmers_rev`]: KmerSet::find_kmers_rev
+/// [`find_in_seq`]: KmerSet::find_in_seq
+/// [`find_in_seq_rev`]: KmerSet::find_in_seq_rev
 /// [`insert_from_sequence`]: KmerSet::insert_from_sequence
 /// [`insert_from_sequence_with_variants`]:
 ///     KmerSet::insert_from_sequence_with_variants
@@ -230,7 +230,7 @@ where
     /// this set within a provided sequence. The bases in the sequence must be
     /// valid for the [`KmerEncoder`] associated with this [`KmerSet`]. If no
     /// occurrence is found, then `None` is returned.
-    pub fn find_kmers(&self, seq: impl AsRef<[u8]>) -> Option<Range<usize>> {
+    pub fn find_in_seq(&self, seq: impl AsRef<[u8]>) -> Option<Range<usize>> {
         for (i, kmer) in self.encoder.iter_from_sequence(&seq).enumerate() {
             if self.contains_encoded(kmer) {
                 return Some(i..i + self.kmer_length());
@@ -243,7 +243,7 @@ where
     /// this set within a provided sequence. The bases in the sequence must be
     /// valid for the [`KmerEncoder`] associated with this [`KmerSet`]. If no
     /// occurrence is found, then `None` is returned.
-    pub fn find_kmers_rev(&self, seq: impl AsRef<[u8]>) -> Option<Range<usize>> {
+    pub fn find_in_seq_rev(&self, seq: impl AsRef<[u8]>) -> Option<Range<usize>> {
         for (i, kmer) in self.encoder.iter_from_sequence_rev(&seq).enumerate() {
             if self.contains_encoded(kmer) {
                 let end = seq.as_ref().len() - i;
