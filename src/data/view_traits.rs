@@ -1,4 +1,7 @@
-use std::slice::SliceIndex;
+use std::{
+    ops::{Range, RangeBounds, RangeFrom, RangeInclusive, RangeTo, RangeToInclusive},
+    slice::SliceIndex,
+};
 
 /// A trait for types which have a length. The benefit of including this in a
 /// trait is that it can be used in a trait bound, such as [`Slice`].
@@ -55,11 +58,10 @@ pub trait DataViewMut {
     fn restrict<R: SliceRange>(&mut self, range: R);
 }
 
-// TODO: Maybe remove, since it seems there isn't a way to make this pub(crate)
-/// Alias for the types that can be used to index into an array and get an array
-/// out (i.e., ranges)
-pub trait SliceRange: SliceIndex<[u8], Output = [u8]> + Clone {}
-impl<T: SliceIndex<[u8], Output = [u8]> + Clone> SliceRange for T {}
+/// A trait alias for range types (with usize bounds, used to index into
+/// `&[u8]`).
+pub trait SliceRange: SliceIndex<[u8], Output = [u8]> + Clone + RangeBounds<usize> {}
+impl<T: SliceIndex<[u8], Output = [u8]> + Clone + RangeBounds<usize>> SliceRange for T {}
 
 /// Provides the ability to obtain an immutable view of a range of the data.
 pub trait Slice: Len {
@@ -268,6 +270,55 @@ macro_rules! impl_views_for_wrapper {
             }
         }
     };
+}
+
+/// Helper trait for adding a constant value to an index or range
+pub(crate) trait IndexAdjustable {
+    /// Add a constant value to the range or index
+    #[must_use]
+    fn add(&self, n: usize) -> Self;
+}
+
+impl IndexAdjustable for usize {
+    #[inline]
+    fn add(&self, n: usize) -> Self {
+        self + n
+    }
+}
+
+impl IndexAdjustable for Range<usize> {
+    #[inline]
+    fn add(&self, n: usize) -> Self {
+        self.start + n..self.end + n
+    }
+}
+
+impl IndexAdjustable for RangeInclusive<usize> {
+    #[inline]
+    fn add(&self, n: usize) -> Self {
+        self.start() + n..=self.end() + n
+    }
+}
+
+impl IndexAdjustable for RangeFrom<usize> {
+    #[inline]
+    fn add(&self, n: usize) -> Self {
+        self.start + n..
+    }
+}
+
+impl IndexAdjustable for RangeTo<usize> {
+    #[inline]
+    fn add(&self, n: usize) -> Self {
+        ..self.end + n
+    }
+}
+
+impl IndexAdjustable for RangeToInclusive<usize> {
+    #[inline]
+    fn add(&self, n: usize) -> Self {
+        ..=self.end + n
+    }
 }
 
 pub(crate) use impl_len;

@@ -11,13 +11,13 @@ pub use getter_traits::*;
 pub struct AminoAcids(pub(crate) Vec<u8>);
 
 /// The corresponding immutable view type for [`AminoAcids`]. See
-/// [Views](crate::data#header) for more details.
+/// [Views](crate::data#views) for more details.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Default)]
 #[repr(transparent)]
 pub struct AminoAcidsView<'a>(pub(crate) &'a [u8]);
 
 /// The corresponding mutable view type for [`AminoAcids`]. See
-/// [Views](crate::data#header) for more details.
+/// [Views](crate::data#views) for more details.
 #[derive(Eq, PartialEq, Ord, PartialOrd, Hash, Default)]
 #[repr(transparent)]
 pub struct AminoAcidsViewMut<'a>(pub(crate) &'a mut [u8]);

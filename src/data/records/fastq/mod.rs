@@ -18,7 +18,7 @@ pub struct FastQ {
 }
 
 /// The corresponding immutable view type for [`FastQ`]. See
-/// [Views](crate::data#header) for more details.
+/// [Views](crate::data#views) for more details.
 #[derive(Clone, Eq, PartialEq, Hash, Debug, Default)]
 pub struct FastQView<'a> {
     pub header:   &'a str,
@@ -27,7 +27,7 @@ pub struct FastQView<'a> {
 }
 
 /// The corresponding mutable view type for [`FastQ`]. See
-/// [Views](crate::data#header) for more details.
+/// [Views](crate::data#views) for more details.
 #[derive(Eq, PartialEq, Hash, Debug)]
 pub struct FastQViewMut<'a> {
     pub header:   &'a mut String,

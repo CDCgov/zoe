@@ -1,10 +1,11 @@
+use crate::search::RangeSearch;
+
 use super::{inexact::fuzzy_substring_match_simd, k_repeating::find_k_repeating};
 use std::{
     ops::Range,
     simd::{LaneCount, SupportedLaneCount, prelude::*},
 };
 
-///
 /// Trait for searching byte substrings.
 ///
 /// [`Nucleotides`](crate::data::types::nucleotides::Nucleotides),
@@ -12,7 +13,6 @@ use std::{
 /// [`QualityScores`](crate::data::types::phred::QualityScores) are printable
 /// subsets of ASCII underneath the hood and therefore be efficiently searched
 /// in this manner.
-///
 pub trait ByteSubstring {
     /// Returns `true` is the substring is found and `false` if not. Searches in
     /// the forward direction.
@@ -65,6 +65,32 @@ impl<T: AsRef<[u8]> + ?Sized> ByteSubstring for T {
     }
 }
 
+impl ByteSubstring for RangeSearch<'_> {
+    #[inline]
+    fn contains_substring(&self, needle: impl AsRef<[u8]>) -> bool {
+        self.slice.contains_substring(needle)
+    }
+
+    #[inline]
+    fn find_substring(&self, needle: impl AsRef<[u8]>) -> Option<Range<usize>> {
+        self.slice.find_substring(needle).map(|r| self.adjust_to_context(&r))
+    }
+
+    #[inline]
+    fn find_fuzzy_substring<const DIFFERENCES_ALLOWED: usize>(&self, needle: impl AsRef<[u8]>) -> Option<Range<usize>> {
+        self.slice
+            .find_fuzzy_substring::<DIFFERENCES_ALLOWED>(needle)
+            .map(|r| self.adjust_to_context(&r))
+    }
+
+    #[inline]
+    fn find_repeating_byte(&self, needle: u8, size: usize) -> Option<Range<usize>> {
+        self.slice
+            .find_repeating_byte(needle, size)
+            .map(|r| self.adjust_to_context(&r))
+    }
+}
+
 /// Similar to [`ByteSubstring`] but requires the input byte string to be
 /// mutable.
 pub trait ByteSubstringMut {
@@ -95,12 +121,13 @@ impl<T: AsMut<Vec<u8>> + AsRef<[u8]>> ByteSubstringMut for T {
     }
 }
 
-/// Finds the `needle` byte substring in the `haystack`, returning the starting index or [`None`] otherwise.
+/// Finds the `needle` byte substring in the `haystack`, returning the starting
+/// index or [`None`] otherwise.
 ///
 /// ### Limitations
 ///
-/// This is a naïve exact match implementation and should only be used for small byte strings.
-///
+/// This is a naïve exact match implementation and should only be used for small
+/// byte strings.
 #[inline]
 #[must_use]
 pub fn substring_match(haystack: &[u8], needle: &[u8]) -> Option<usize> {
@@ -153,7 +180,8 @@ where
     let n1 = Simd::from_array([first; N]);
     let n2 = Simd::from_array([last; N]);
 
-    // In order to verify the needle, we need to subtract it off. However, the last character in the vector counts.
+    // In order to verify the needle, we need to subtract it off. However, the
+    // last character in the vector counts.
     let chunks1 = haystack[..=(haystack.len() - needle.len())]
         .chunks_exact(N)
         .map(Simd::from_slice);

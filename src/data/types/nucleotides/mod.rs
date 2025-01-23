@@ -37,13 +37,13 @@ mod test;
 pub struct Nucleotides(pub(crate) Vec<u8>);
 
 /// The corresponding immutable view type for [`Nucleotides`]. See
-/// [Views](crate::data#header) for more details.
+/// [Views](crate::data#views) for more details.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Default)]
 #[repr(transparent)]
 pub struct NucleotidesView<'a>(pub(crate) &'a [u8]);
 
 /// The corresponding mutable view type for [`Nucleotides`]. See
-/// [Views](crate::data#header) for more details.
+/// [Views](crate::data#views) for more details.
 #[derive(Eq, PartialEq, Ord, PartialOrd, Hash, Default)]
 #[repr(transparent)]
 pub struct NucleotidesViewMut<'a>(pub(crate) &'a mut [u8]);

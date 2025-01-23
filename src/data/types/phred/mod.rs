@@ -16,14 +16,14 @@ pub use stats::*;
 pub struct QualityScores(pub(crate) Vec<EncodedQS>);
 
 /// The corresponding immutable view type for [`QualityScores`]. See
-/// [Views](crate::data#header) for more details. It is guaranteed to contain
+/// [Views](crate::data#views) for more details. It is guaranteed to contain
 /// graphic ASCII.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Default)]
 #[repr(transparent)]
 pub struct QualityScoresView<'a>(pub(crate) &'a [u8]);
 
 /// The corresponding mutable view type for [`QualityScores`]. See
-/// [Views](crate::data#header) for more details. It is guaranteed to contain
+/// [Views](crate::data#views) for more details. It is guaranteed to contain
 /// graphic ASCII.
 #[derive(Eq, PartialEq, Ord, PartialOrd, Hash, Default)]
 #[repr(transparent)]
