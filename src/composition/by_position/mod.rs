@@ -8,7 +8,8 @@ use crate::{
 use std::ops::{Add, AddAssign};
 use std::simd::{SimdElement, prelude::*};
 
-/// Nucleotide count statistics for A, C, G, T/U, N, -, other, invalid.
+/// Nucleotide count statistics for A, C, G, T/U, N, - (or gaps), other valid
+/// IUPAC codes, and invalid codes.
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct NucleotideCounts<T: Uint> {
     inner: [T; 8],
@@ -18,100 +19,134 @@ impl<T> NucleotideCounts<T>
 where
     T: Uint,
 {
+    /// Creates a new [`NucleotideCounts`] object with counts initialized to 0.
+    #[inline]
     #[must_use]
     pub fn new() -> Self {
         NucleotideCounts { inner: [T::ZERO; 8] }
     }
 
+    /// Retrives the counts as an array of size 8.
+    #[inline]
     #[must_use]
     pub fn into_inner(self) -> [T; 8] {
         self.inner
     }
 
+    /// Gets the count of the base A.
     #[inline]
+    #[must_use]
     pub fn a(&self) -> T {
         self.inner[0]
     }
+
+    /// Gets the count of the base C.
     #[inline]
+    #[must_use]
     pub fn c(&self) -> T {
         self.inner[1]
     }
+
+    /// Gets the count of the base G.
     #[inline]
+    #[must_use]
     pub fn g(&self) -> T {
         self.inner[2]
     }
+
+    /// Gets the count of the bases T and U.
     #[inline]
+    #[must_use]
     pub fn t(&self) -> T {
         self.inner[3]
     }
+
+    /// Gets the count of the base N.
     #[inline]
+    #[must_use]
     pub fn n(&self) -> T {
         self.inner[4]
     }
+
+    /// Gets the number of gaps.
     #[inline]
+    #[must_use]
     pub fn gap(&self) -> T {
         self.inner[5]
     }
+
+    /// Gets the number of other characters which are valid IUPAC.
     #[inline]
+    #[must_use]
     pub fn other(&self) -> T {
         self.inner[6]
     }
+
+    /// Gets the count of characters which are not valid IUPAC.
     #[inline]
+    #[must_use]
     pub fn invalid(&self) -> T {
         self.inner[7]
     }
 
-    /// Total count for A, T
+    /// Gets the total count of the bases A and T/U.
     #[inline]
+    #[must_use]
     pub fn total_at(&self) -> T
     where
         T: Add<Output = T>, {
         self.a() + self.t()
     }
 
-    /// Total count for A, T
+    /// Gets the total count of the bases G and C.
     #[inline]
+    #[must_use]
     pub fn total_gc(&self) -> T
     where
         T: Add<Output = T>, {
         self.g() + self.c()
     }
 
-    /// Total count for A, C, G, T
+    /// Gets the total count of the bases A, C, G, and T/U.
     #[inline]
+    #[must_use]
     pub fn total_actg(&self) -> T
     where
         T: Add<Output = T>, {
         self.inner[0..4].iter().fold(T::ZERO, |acc, &v| acc + v)
     }
 
-    /// Total count for A, C, G, T, N
+    /// Gets the total count of the bases A, C, G, T/U, and N
     #[inline]
+    #[must_use]
     pub fn total_actgn(&self) -> T
     where
         T: Add<Output = T>, {
         self.inner[0..5].iter().fold(T::ZERO, |acc, &v| acc + v)
     }
 
-    /// Total count for A, C, G, T, N
+    /// Gets the total count of the bases A, C, G, T/U, and N, as well as gaps.
     #[inline]
+    #[must_use]
     pub fn total_acgtn_gap(&self) -> T
     where
         T: Add<Output = T>, {
-        self.inner[0..5].iter().fold(T::ZERO, |acc, &v| acc + v)
+        self.inner[0..6].iter().fold(T::ZERO, |acc, &v| acc + v)
     }
 
-    /// Total valid IUPAC codes, including regular gaps.
+    /// Gets the total count of valid IUPAC codes, including regular gaps.
     #[inline]
+    #[must_use]
     pub fn total_valid(&self) -> T
     where
         T: Add<Output = T>, {
         self.inner[0..7].iter().fold(T::ZERO, |acc, &v| acc + v)
     }
 
-    /// The most frequent allele for A, C, G, T, and N. In case of ties, index
-    /// order is used, e.g., A > C > G > T > N.
+    /// The most frequent allele for A, C, G, T, and N. In case of ties, the
+    /// order `A > C > G > T > N` is used.
     #[inline]
+    #[must_use]
     pub fn plurality_acgtn(&self) -> u8 {
         let mut max_count = self.inner[0];
         let mut max_idx = 0;
@@ -131,6 +166,7 @@ where
     T: Add<Output = T>,
     T: Iterator<Item = T>,
 {
+    #[inline]
     fn default() -> Self {
         Self::new()
     }
@@ -140,6 +176,7 @@ macro_rules! impl_reduce {
     {  $($ty:ty),* } => {
         $(
             impl NucleotideCounts<$ty> {
+                /// Gets the total count of all characters processed.
                 #[inline]
                 #[must_use]
                 pub fn total_any(&self) -> $ty {
@@ -212,13 +249,18 @@ where
     }
 }
 
+/// Extension trait to allow a per-site vector of [`NucleotideCounts`] to be
+/// generated from an iterator of sequences, where the sequences are assumed to
+/// be from the same multiple sequence alignment.
 pub trait AlignmentComposition {
+    /// Gets a per-site vector of [`NucleotideCounts`] from an iterator of
+    /// sequences, where the sequences are assumed to be from the same multiple
+    /// sequence alignment.
     fn per_site_counts<T>(&mut self) -> Option<Vec<NucleotideCounts<T>>>
     where
         Self: Sized + Iterator,
         Self::Item: IntoIterator<Item = u8> + Sized,
-        T: Uint,
-        NucleotideCounts<T>: AddAssign<u8>, {
+        T: Uint, {
         if let Some(first) = self.next() {
             let mut counts: Vec<NucleotideCounts<T>> = first.into_iter().map(NucleotideCounts::from).collect();
 
@@ -236,6 +278,7 @@ pub trait AlignmentComposition {
 }
 impl<I: Iterator> AlignmentComposition for I {}
 
+/// Converts a base into an index for [`NucleotideCounts`].
 const fn base_to_inner_index(b: u8) -> usize {
     const TO_INNER: [u8; 256] = {
         const OTHER: u8 = 6;
@@ -266,9 +309,10 @@ const fn base_to_inner_index(b: u8) -> usize {
     TO_INNER[b as usize] as usize
 }
 
+/// Extension trait for creating a [`NucleotideCounts`] object from a sequence.
 pub trait ToBaseCounts: NucleotidesReadable {
-    /// Creates [`NucleotideCounts`] (ACGT + N + -) statistics using the
-    /// specified `const` [Uint].
+    /// Creates a [`NucleotideCounts`] object from a sequence using the
+    /// specified [`Uint`].
     #[inline]
     #[must_use]
     fn to_base_counts<T: Uint>(&self) -> NucleotideCounts<T> {
@@ -281,12 +325,14 @@ pub trait ToBaseCounts: NucleotidesReadable {
 impl<T: NucleotidesReadable> ToBaseCounts for T {}
 
 /// Extension trait to allow for a consensus sequence to be generated from a
-/// vector of [`NucleotideCounts`]. See [`CreateConsensus::plurality_acgtn`]
-/// for more details.
+/// vector of [`NucleotideCounts`]. See [`plurality_acgtn`] for more details.
+///
+/// [`plurality_acgtn`]: CreateConsensus::plurality_acgtn
 pub trait CreateConsensus {
     /// Given a vector of [`NucleotideCounts`] representing the counts in each
     /// position of a multiple sequence alignment, generate a consensus
     /// sequence. See [`NucleotideCounts::plurality_acgtn`] for more details.
+    #[must_use]
     fn plurality_acgtn(&self) -> Nucleotides;
 }
 
