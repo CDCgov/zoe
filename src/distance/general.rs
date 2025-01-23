@@ -41,7 +41,6 @@ pub fn hamming<T: Uint>(a: &[u8], b: &[u8]) -> usize {
 ///
 /// assert!(3 == hamming_simd::<16>(s1, s2));
 /// ```
-///
 #[must_use]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
 pub fn hamming_simd<const N: usize>(x: &[u8], y: &[u8]) -> usize

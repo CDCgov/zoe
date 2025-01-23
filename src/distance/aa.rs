@@ -27,7 +27,6 @@ pub trait AminoAcidsDistance: AminoAcidsReadable {
     /// let s3 = AminoAcidsView::from_bytes_unchecked(b"MANGAEEMANATEEMANGAEE");
     /// assert!(4 == s1.distance_hamming(&s3));
     /// ```
-    ///
     #[inline]
     #[must_use]
     fn distance_hamming<T: AminoAcidsReadable>(&self, other_sequence: &T) -> usize {

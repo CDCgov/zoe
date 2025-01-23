@@ -232,7 +232,22 @@ pub mod composition;
 /// [`to_owned_data`]: prelude::DataView::to_owned_data
 /// [`restrict`]: prelude::DataView::restrict
 pub mod data;
-/// Distance functions, especially for sequence data.
+/// ## Distance functions for sequence data and byte strings.
+///
+/// This module provides distance functions for DNA in the [`dna`] module, amino
+/// acids in the [`aa`] module, and byte substrings (such as [`hamming`] and
+/// [`hamming_simd`]).
+///
+/// Within both [`dna`] and [`aa`], there are standalone functions accepting
+/// byte slices, and there are trait methods [`NucleotidesDistance`] and
+/// [`AminoAcidsDistance`].
+///
+/// [`dna`]: distance::dna
+/// [`aa`]: distance::aa
+/// [`hamming`]: distance::hamming
+/// [`hamming_simd`]: distance::hamming_simd
+/// [`NucleotidesDistance`]: distance::dna::NucleotidesDistance
+/// [`AminoAcidsDistance`]: distance::aa::AminoAcidsDistance
 pub mod distance;
 
 /// ## K-mer processing, searching, and counting.
