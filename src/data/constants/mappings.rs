@@ -392,18 +392,21 @@ impl StdGeneticCode {
         Self::get(codon).unwrap_or(b'X')
     }
 
-    /// Determine whether the provided codon is a stop codon.
-    ///
-    /// # Panics
-    ///
-    /// Panics if codon has fewer than three elements. Any additional elements
-    /// past the first three are ignored.
-    #[allow(clippy::cast_possible_truncation)]
+    /// Determine whether the provided codon is a stop codon. Any additional
+    /// elements past the first three are ignored and partial codons are
+    /// considered `false`.
     #[must_use]
     #[inline]
-    pub fn is_stop_codon(codon: &[u8]) -> bool {
-        // This has equivalent assembly as calling Self::get
-        Self::translate_codon(codon) == b'*'
+    pub fn is_stop_codon(c: &[u8]) -> bool {
+        c.len() > 2
+            && matches!(
+                &[
+                    c[0].to_ascii_uppercase(),
+                    c[1].to_ascii_uppercase(),
+                    c[2].to_ascii_uppercase()
+                ],
+                b"TAA" | b"TAG" | b"TAR" | b"TGA" | b"TRA" | b"UAA" | b"UAG" | b"UAR" | b"UGA" | b"URA"
+            )
     }
 
     #[must_use]
