@@ -1,9 +1,12 @@
-use super::{Kmer, KmerError, KmerLen, MismatchNumber, SupportedKmerLen, SupportedMismatchNumber};
+use super::{
+    EncodedKmerCollection, Kmer, KmerCollectionContains, KmerError, KmerLen, MismatchNumber, SupportedKmerLen,
+    SupportedMismatchNumber,
+};
 use crate::{kmer::encoder::KmerEncoder, prelude::Len};
 use std::{
     collections::{HashMap, hash_map},
     hash::{BuildHasher, RandomState},
-    ops::{Index, Range},
+    ops::Index,
 };
 
 /// A [`KmerCounter`] stores counts of encoded k-mers, or it can be considered
@@ -67,18 +70,6 @@ impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> KmerCounter<
 where
     KmerLen<MAX_LEN, E>: SupportedKmerLen,
 {
-    /// Get the encoder associated with this [`KmerCounter`].
-    #[inline]
-    pub fn encoder(&self) -> &E {
-        &self.encoder
-    }
-
-    /// Get the length of the k-mers being stored in the counter.
-    #[inline]
-    pub fn kmer_length(&self) -> usize {
-        self.encoder.kmer_length()
-    }
-
     /// If the already encoded k-mer is present in this counter, then increment
     /// its count. Otherwise, add it to the counter with a count of 1. The
     /// encoded k-mer must have been generated using the [`KmerEncoder`]
@@ -111,36 +102,6 @@ where
         };
         self.insert_encoded_kmer(encoded_kmer);
         true
-    }
-
-    /// Return whether an already encoded k-mer is present in this counter
-    /// (i.e., has a count of at least 1). The encoded k-mer must have been
-    /// generated using the [`KmerEncoder`] associated with this
-    /// [`KmerCounter`].
-    #[inline]
-    pub fn contains_encoded(&self, encoded_kmer: E::EncodedKmer) -> bool {
-        self.map.contains_key(&encoded_kmer)
-    }
-
-    /// Return whether a k-mer is present in this counter (i.e., has a count of
-    /// at least 1). The bases and k-mer length are assumed to be valid for the
-    /// [`KmerEncoder`] associated with this [`KmerCounter`]. Consider
-    /// [`contains_checked`] when it is not known whether the bases and k-mer
-    /// length will be valid.
-    ///
-    /// [`contains_checked`]: KmerCounter::contains_checked
-    #[inline]
-    pub fn contains(&self, kmer: impl AsRef<[u8]>) -> bool {
-        self.contains_encoded(self.encoder.encode_kmer(kmer))
-    }
-
-    /// Return whether a k-mer is present in this counter (i.e., has a count of
-    /// at least 1). If the bases and k-mer length are not valid for the
-    /// [`KmerEncoder`] associated with this [`KmerCounter`], then `None` is
-    /// returned.
-    #[inline]
-    pub fn contains_checked(&self, kmer: impl AsRef<[u8]>) -> Option<bool> {
-        Some(self.contains_encoded(self.encoder.encode_kmer_checked(kmer)?))
     }
 
     /// Get the count of an already encoded k-mer. If the k-mer is not present
@@ -264,33 +225,26 @@ where
             self.insert_encoded_kmer_with_variants::<N>(encoded_kmer);
         }
     }
+}
 
-    /// Return the indices of the leftmost occurrence of any of the k-mers in
-    /// this [`KmerCounter`] within a provided sequence. The bases in the
-    /// sequence must
-    /// be valid for the [`KmerEncoder`] associated with this [`KmerCounter`].
-    /// If no occurrence is found, then `None` is returned.
-    pub fn find_in_seq(&self, seq: impl AsRef<[u8]>) -> Option<Range<usize>> {
-        for (i, kmer) in self.encoder.iter_from_sequence(&seq).enumerate() {
-            if self.contains_encoded(kmer) {
-                return Some(i..i + self.kmer_length());
-            }
-        }
-        None
+impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> EncodedKmerCollection<MAX_LEN>
+    for KmerCounter<MAX_LEN, E, S>
+{
+    type Encoder = E;
+    type EncodedKmer = E::EncodedKmer;
+
+    #[inline]
+    fn encoder(&self) -> &Self::Encoder {
+        &self.encoder
     }
+}
 
-    /// Return the indices of the rightmost occurrence of any of the k-mers in
-    /// this [`KmerCounter`] within a provided sequence. The bases in the
-    /// sequence must be valid for the [`KmerEncoder`] associated with this
-    /// [`KmerCounter`]. If no occurrence is found, then `None` is returned.
-    pub fn find_in_seq_rev(&self, seq: impl AsRef<[u8]>) -> Option<Range<usize>> {
-        for (i, kmer) in self.encoder.iter_from_sequence_rev(&seq).enumerate() {
-            if self.contains_encoded(kmer) {
-                let end = seq.as_ref().len() - i;
-                return Some(end - self.kmer_length()..end);
-            }
-        }
-        None
+impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> KmerCollectionContains<MAX_LEN>
+    for KmerCounter<MAX_LEN, E, S>
+{
+    #[inline]
+    fn contains_encoded(&self, kmer: Self::EncodedKmer) -> bool {
+        self.map.contains_key(&kmer)
     }
 }
 

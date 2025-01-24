@@ -266,8 +266,10 @@ pub mod distance;
 /// Several convenience methods are provided, such as:
 /// * [`insert_from_sequence`], which quickly inserts/counts all overlapping
 ///   k-mers from a sequence
-/// * [`find_in_seq`] and [`find_in_seq_rev`], which search a sequence for any of
-///   the stored k-mers
+/// * [`find_in_seq`] and [`find_in_seq_rev`], which search a sequence for any
+///   of the stored k-mers. The [`FindKmers`] trait provides similar methods
+///   [`find_kmers`] and [`find_kmers_rev`] directly on the sequence, and
+///   accepting the kmer collection as an argument.
 ///
 /// [`KmerSet`] and [`KmerCounter`] are generic over the type of
 /// [`KmerEncoder`]. *Zoe* currently provides a single encoder,
@@ -313,6 +315,17 @@ pub mod distance;
 /// assert_eq!(kmer_pos, Some(14..31));
 /// ```
 ///
+/// This can be equivalent performed using:
+/// ```
+/// # use zoe::{kmer::{ThreeBitKmerSet, FindKmers}, prelude::*};
+/// let primer: Nucleotides = b"TGATAGTTTTAGAGTTAGGTAG".into();
+/// let sequence: Nucleotides = b"TGCCCGTAACGTACAGTTTTACAGTTAGGTACCC".into();
+/// let mut kmer_set = ThreeBitKmerSet::<17>::new(17).unwrap();
+/// kmer_set.insert_from_sequence_with_variants::<1>(primer);
+/// let kmer_pos = sequence.find_kmers(&kmer_set);
+/// assert_eq!(kmer_pos, Some(14..31));
+/// ```
+///
 /// [`HashSet`]: std::collections::HashSet
 /// [`Display`]: std::fmt::Display
 /// [`Kmer`]: kmer::Kmer
@@ -325,8 +338,11 @@ pub mod distance;
 /// [`ThreeBitKmerCounter`]: kmer::ThreeBitKmerCounter
 /// [`SupportedKmerLen`]: kmer::SupportedKmerLen
 /// [`insert_from_sequence`]: kmer::KmerSet::insert_from_sequence
-/// [`find_in_seq`]: kmer::KmerSet::find_in_seq
-/// [`find_in_seq_rev`]: kmer::KmerSet::find_in_seq_rev
+/// [`find_in_seq`]: kmer::KmerCollectionContains::find_in_seq
+/// [`find_in_seq_rev`]: kmer::KmerCollectionContains::find_in_seq_rev
+/// [`FindKmers`]: kmer::FindKmers
+/// [`find_kmers`]: kmer::FindKmers::find_kmers
+/// [`find_kmers_rev`]: kmer::FindKmers::find_kmers_rev
 pub mod kmer;
 /// Mathematical utilities.
 pub mod math;
@@ -361,7 +377,7 @@ pub mod prelude {
     };
     #[cfg(feature = "rand")]
     pub use crate::generate::rand_sequence;
-    pub use crate::kmer::{KmerCounter, KmerEncoder, KmerSet};
+    pub use crate::kmer::{EncodedKmerCollection, FindKmers, KmerCollectionContains, KmerCounter, KmerEncoder, KmerSet};
     pub use crate::search::{ByteSubstring, ByteSubstringMut};
 }
 
