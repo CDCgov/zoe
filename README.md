@@ -1,9 +1,9 @@
 ***This document is under governance review. When the review completes as appropriate per local and agency processes, the project team will be allowed to remove this notice. This material is draft.***
 
-# Zoe
+# The Zoe Anthology
 
 [Zoe](https://en.wikipedia.org/wiki/Zoe_(name)) provides both broad and highly specialized implementations for
-bioinformatics. In particular, we focus on common data formats and methods relevant for the sequencing of RNA viruses.
+bioinformatics. In particular, we focus on common data formats and methods relevant for the sequencing of RNA viruses. Read the [documentation](https://cdcgov.github.io/zoe).
 
 **This library runs on Rust *nightly*.**
 
@@ -20,9 +20,26 @@ bioinformatics. In particular, we focus on common data formats and methods relev
 
 ## FAQ
 
+### How do I add this crate?
+
+<!-- Provided *Zoe* has published the latest version to [crates.io](https://crates.io/), within your project you can simply use: `cargo add zoe` -->
+
+If you would like to pin to a Github tag or commit, you could use the following within your `Cargo.toml` project file:
+
+```toml
+[dependencies]
+# Fill in VERSION_TAG_HERE with tagged version:
+zoe = { git = "https://github.com/CDCgov/zoe", tag = "VERSION_TAG_HERE"}
+
+# OR, fill in MAIN_COMMIT_HERE:
+zoe = { git = "https://github.com/CDCgov/zoe", commit = "MAIN_COMMIT_HERE"}
+```
+
+*CAUTION: because feature branches get routinely deleted, pinning to feature branches (via branch, commit or tag) should only be used for active development or forks!*
+
 ### Yes, yes, but will *Zoe* ever move to stable Rust?
 
-*Zoe* has used a number of nightly features over its lifetime. Some have been stabilized (e.g., `let_chains`,`lazy_cell`,`const_fn_floating_point_arithmetic`) while others have been removed (`iter_collect_into`), avoided (`array_chunks`, `iter_array_chunks`), or forbidden due to incompleteness (`generic_const_exprs`).
+*Zoe* has used a number of nightly features over its lifetime. Some have been stabilized (e.g., <!--`let_chains`, -->`lazy_cell`,`const_fn_floating_point_arithmetic`) while others have been removed (`iter_collect_into`), avoided (`array_chunks`, `iter_array_chunks`), or forbidden due to incompleteness (`generic_const_exprs`).
 
 In order for *Zoe* to move to stable, the portable SIMD [nightly feature](https://github.com/rust-lang/rust/issues/86656) would first need to be stabilized since it is an essential component of the library. After that, *Zoe* could march towards stable Rust by gating, working around or removing any remaining nightly features. Notwithstanding, development of *Zoe* is likely to continue on nightly, if only for convenient access to nightly bencher, the latest LLVM code generation, and convenient use of rustfmt's unstable [features](https://rust-lang.github.io/rustfmt/?version=master&search=).
 
@@ -43,23 +60,6 @@ This list may not be up-to-date or exhaustive, but some example usage:
 
 While it is always welcome to cite *Zoe* as the implementation (see [`CITATION.bib`](https://github.com/CDCgov/zoe/blob/main/BIBLIOGRAPHY.bib))for the method being used. To that end, the innermost function (not convenience methods) usually contains all relevant citations to it (raise an issue if not). In addition, the complete bibliography of methods used in this library is included in [BibTex](https://en.wikipedia.org/wiki/BibTeX) format for easy inclusion in a mansuscript (see [`BIBLIOGRAPHY.bib`](https://github.com/CDCgov/zoe/blob/main/BIBLIOGRAPHY.bib)).
 
-### How do I add this crate?
-
-<!-- Provided *Zoe* has published the latest version to [crates.io](https://crates.io/), within your project you can simply use: `cargo add zoe` -->
-
-If you would like to pin to a Github tag or commit, you could use the following within your `Cargo.toml` project file:
-
-```toml
-[dependencies]
-# Fill in VERSION_TAG_HERE with tagged version:
-zoe = { git = "https://github.com/CDCgov/zoe", tag = "VERSION_TAG_HERE"}
-
-# OR, fill in MAIN_COMMIT_HERE:
-zoe = { git = "https://github.com/CDCgov/zoe", commit = "MAIN_COMMIT_HERE"}
-```
-
-*CAUTION: because feature branches get routinely deleted, pinning to feature branches (via branch, commit or tag) should only be used for active development or forks!*
-
 ## Crate Features
 
 Zoe is designed to minimize large dependency trees and binary sizes while providing
@@ -76,36 +76,35 @@ at the user's discretion.
 
 ## Notices
 
-Copyright is public domain but [attributions to the original authors are welcomed](CITATION.bib). The software license uses [ASL2](http://www.apache.org/licenses/LICENSE-2.0.html). For direct correspondence on the project, feel free to contact: [Samuel S. Shepard](mailto:sshepard@cdc.gov), Centers for Disease Control and Prevention or reach out to other [contributors](CONTRIBUTORS.md).
+### Contact Info
+
+For direct correspondence on the project, feel free to contact: [Samuel S. Shepard](mailto:sshepard@cdc.gov), Centers for Disease Control and Prevention or reach out to other [contributors](CONTRIBUTORS.md).
 
 ### Public Domain Standard Notice
 
-This repository constitutes a work of the United States Government and is not subject to domestic copyright protection under 17 USC § 105. This repository is in the public domain within the United States, and copyright and related rights in the work worldwide are waived through the CC0 1.0 Universal public domain dedication. All contributions to this repository will be released under the CC0 dedication. By submitting a pull request you are agreeing to comply with this waiver of copyright interest.
+This repository constitutes a work of the United States Government and is not subject to domestic copyright protection under 17 USC § 105. This repository is in the public domain within the United States, and copyright and related rights in the work worldwide are waived through the [CC0 1.0 Universal public domain dedication](https://creativecommons.org/publicdomain/zero/1.0/).  All contributions to this repository will be released under the CC0 dedication.  By submitting a pull request you are agreeing to comply with this waiver of copyright interest.
 
 ### License Standard Notice
 
-The repository utilizes code licensed under the terms of the Apache Software
-License and therefore is licensed under ASL v2 or later.
+The repository utilizes code licensed under the terms of the Apache Software License and therefore is licensed under ASL v2 or later. This source code in this repository is free: you can redistribute it and/or modify it under the terms of the Apache Software License version 2, or (at your option) any later version. This source code in this repository is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the Apache Software License for more details. You should have received a copy of the Apache Software License along with this program. If not, see: <http://www.apache.org/licenses/LICENSE-2.0.html>. The source code forked from other open source projects will inherit its license.
 
-This source code in this repository is free: you can redistribute it and/or modify it under
-the terms of the Apache Software License version 2, or (at your option) any
-later version.
+### Privacy Standard Notice
 
-This source code in this repository is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the Apache Software License for more details.
-
-You should have received a copy of the Apache Software License along with this
-program. If not, see <http://www.apache.org/licenses/LICENSE-2.0.html>
-
-The source code forked from other open source projects will inherit its license.
+This repository contains only non-sensitive, publicly available data and information. All material and community participation is covered by the [Disclaimer](https://github.com/CDCgov/template/blob/main/DISCLAIMER.md). For more information about CDC's privacy policy, please visit <http://www.cdc.gov/other/privacy.html>.
 
 ### Contributing Standard Notice
 
-Anyone is encouraged to [contribute](CONTRIBUTORS.md) to the repository by [forking](https://help.github.com/articles/fork-a-repo) and submitting a pull request. (If you are new to GitHub, you might start with a [basic tutorial](https://help.github.com/articles/set-up-git).) By contributing to this project, you grant a world-wide, royalty-free, perpetual, irrevocable, non-exclusive, transferable license to all users under the terms of the [Apache Software License v2](http://www.apache.org/licenses/LICENSE-2.0.html) or later.
+Anyone is encouraged to contribute to the repository by [forking](https://help.github.com/articles/fork-a-repo) and submitting a pull request. (If you are new to GitHub, you might start with a [basic tutorial](https://help.github.com/articles/set-up-git).) By contributing to this project, you grant a world-wide, royalty-free, perpetual, irrevocable, non-exclusive, transferable license to all users under the terms of the [Apache Software License v2](http://www.apache.org/licenses/LICENSE-2.0.html) or later.
 
 All comments, messages, pull requests, and other submissions received through CDC including this GitHub page may be subject to applicable federal law, including but not limited to the Federal Records Act, and may be archived. Learn more at [http://www.cdc.gov/other/privacy.html](http://www.cdc.gov/other/privacy.html).
 
 ### Records Management Standard Notice
 
 This repository is not a source of government records, but is a copy to increase collaboration and collaborative potential. All government records will be published through the [CDC web site](http://www.cdc.gov).
+
+### Additional Standard Notices
+
+- [CDC's Template Repository](https://github.com/CDCgov/template)
+- [Contributing to this repository](https://github.com/CDCgov/template/blob/main/CONTRIBUTING.md)
+- [Public domain notices and disclaimers](https://github.com/CDCgov/template/blob/main/DISCLAIMER.md)
+- [Code of conduct](https://github.com/CDCgov/template/blob/main/code-of-conduct.md)

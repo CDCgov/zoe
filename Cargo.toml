@@ -15,10 +15,12 @@ categories = [
 ]
 keywords = ["alignment", "simd", "kmer", "search", "distance"]
 repository = "https://github.com/CDCgov/zoe"
+readme = "README.md"
 
+[lib]
+name = "zoe"
 
 [features]
-
 default = ["rand"]
 
 # An optional feature for generating random nucleotide and amino acid sequences
