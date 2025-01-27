@@ -13,14 +13,25 @@ pub trait Translate: NucleotidesReadable {
         AminoAcids(translate_sequence(self.nucleotide_bytes()))
     }
 
+    #[inline]
+    #[must_use]
+    fn translate_to_stop(&self) -> AminoAcids {
+        let aa_iter = self.to_aa_iter();
+        let mut out = Vec::with_capacity(aa_iter.len());
+        for aa in aa_iter {
+            out.push(aa);
+            if aa == b'*' {
+                return AminoAcids(out);
+            }
+        }
+        AminoAcids(out)
+    }
+
     /// Creates an iterator for [`AminoAcids`] translation.
     #[inline]
     #[must_use]
     fn to_aa_iter(&self) -> TranslatedNucleotidesIter {
-        TranslatedNucleotidesIter {
-            codons:        self.nucleotide_bytes().chunks_exact(3),
-            has_remainder: true,
-        }
+        TranslatedNucleotidesIter::new(self.nucleotide_bytes())
     }
 }
 
@@ -30,13 +41,26 @@ impl<T: NucleotidesReadable> Translate for T {}
 ///
 /// [`Nucleotides`]: crate::prelude::Nucleotides
 pub struct TranslatedNucleotidesIter<'a> {
+    // TODO: this can be made into array chunks for further performance, but
+    // best to wait until the feature is more likely to be adopted and/or needed
+    // by other functions in Zoe.
     codons:        ChunksExact<'a, u8>,
     has_remainder: bool,
+}
+
+impl<'a> TranslatedNucleotidesIter<'a> {
+    #[inline]
+    fn new(seq: &'a [u8]) -> Self {
+        let codons = seq.chunks_exact(3);
+        let has_remainder = !codons.remainder().is_empty();
+        Self { codons, has_remainder }
+    }
 }
 
 impl Iterator for TranslatedNucleotidesIter<'_> {
     type Item = u8;
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(codon) = self.codons.next() {
             if is_partial_codon(codon) {
@@ -44,14 +68,22 @@ impl Iterator for TranslatedNucleotidesIter<'_> {
             } else {
                 Some(StdGeneticCode::translate_codon(codon))
             }
-        } else if self.has_remainder && is_partial_codon(self.codons.remainder()) {
+        } else if self.has_remainder {
             self.has_remainder = false;
             Some(b'~')
         } else {
             None
         }
     }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let size = usize::from(self.has_remainder) + self.codons.size_hint().0;
+        (size, Some(size))
+    }
 }
+
+impl ExactSizeIterator for TranslatedNucleotidesIter<'_> {}
 
 /// A codon is considered *partial* if it has fewer than 3 IUPAC bases.
 #[inline]
@@ -71,24 +103,6 @@ fn is_partial_codon(codon: &[u8]) -> bool {
 #[inline]
 #[must_use]
 pub fn translate_sequence(s: &[u8]) -> Vec<u8> {
-    // TODO: this and the translation iterator can be made into array chunks
-    // for further performance, but best to wait until the feature is more
-    // likely to be adopted and/or needed by other functions in Zoe.
-    let mut codons = s.chunks_exact(3);
-    let mut aa_sequence = Vec::with_capacity(s.len() / 3 + 1);
-
-    for codon in codons.by_ref() {
-        aa_sequence.push(if is_partial_codon(codon) {
-            b'~'
-        } else {
-            StdGeneticCode::translate_codon(codon)
-        });
-    }
-
-    let tail = codons.remainder();
-    if is_partial_codon(tail) {
-        aa_sequence.push(b'~');
-    }
-
-    aa_sequence
+    // This was shown to be just as efficient as a manual implementation
+    TranslatedNucleotidesIter::new(s).collect::<Vec<_>>()
 }
