@@ -1,10 +1,10 @@
 use super::{
-    EncodedKmerCollection, Kmer, KmerCollectionContains, KmerError, KmerLen, MismatchNumber, SupportedKmerLen,
+    EncodedKmerCollection, Kmer, KmerCollectionContains, KmerEncode, KmerError, KmerLen, MismatchNumber, SupportedKmerLen,
     SupportedMismatchNumber,
 };
 use crate::{kmer::encoder::KmerEncoder, prelude::Len};
 use std::{
-    collections::{HashMap, hash_map},
+    collections::HashMap,
     hash::{BuildHasher, RandomState},
     ops::Index,
 };
@@ -116,6 +116,27 @@ where
         true
     }
 
+    /// Insert k-mers from an iterator into the [`KmerCounter`]. The k-mers can
+    /// be either encoded or decoded. Encoded k-mers must have been generated
+    /// using the [`KmerEncoder`] associated with this [`KmerCounter`]. Decoded
+    /// k-mers must have bases and k-mer lengths which are valid for the
+    /// [`KmerEncoder`].
+    ///
+    /// <div class="warning note">
+    ///
+    /// **Note**
+    ///
+    /// When there is a choice, it is more efficient to use an iterator over
+    /// encoded k-mers rather than decoded ones.
+    ///
+    /// </div>
+    #[inline]
+    pub fn insert_from_iter<I: IntoIterator<Item: KmerEncode<MAX_LEN, E>>>(&mut self, iter: I) {
+        for kmer in iter {
+            self.insert_encoded_kmer(kmer.encode_kmer(&self.encoder));
+        }
+    }
+
     /// Get the count of an already encoded k-mer. If the k-mer is not present
     /// in the counter, then `0` is returned. The encoded k-mer must have been
     /// generated using the [`KmerEncoder`] associated with this
@@ -146,19 +167,30 @@ where
         Some(self.get_encoded(self.encoder.encode_kmer_checked(kmer)?))
     }
 
-    /// Iterate over the decoded k-mers and counts in the counter.
+    /// Visits the decoded k-mers and counts in the counter.
     #[inline]
-    pub fn iter_decoded(&self) -> KmerCounterDecodedIter<'_, MAX_LEN, E> {
-        KmerCounterDecodedIter {
-            map_into_iter: self.map.iter(),
-            encoder:       &self.encoder,
-        }
+    pub fn iter_decoded(&self) -> impl Iterator<Item = (Kmer<MAX_LEN>, &usize)> {
+        self.map.iter().map(|(k, c)| (self.encoder.decode_kmer(*k), c))
     }
 
-    /// Iterate over the encoded k-mers and counts in the counter.
+    /// Visits the encoded k-mers and counts in the counter.
     #[inline]
-    pub fn iter_encoded(&self) -> hash_map::Iter<'_, E::EncodedKmer, usize> {
+    pub fn iter_encoded(&self) -> impl Iterator<Item = (&E::EncodedKmer, &usize)> {
         self.map.iter()
+    }
+
+    /// Visits the decoded k-mers in the counter. Each unique k-mer is yielded
+    /// once regardless of count.
+    #[inline]
+    pub fn keys_decoded(&self) -> impl Iterator<Item = Kmer<MAX_LEN>> {
+        self.map.keys().map(|encoded_kmer| self.encoder().decode_kmer(*encoded_kmer))
+    }
+
+    /// Visits the encoded k-mers in the counter. Each unique k-mer is yielded
+    /// once regardless of count.
+    #[inline]
+    pub fn keys_encoded(&self) -> impl Iterator<Item = &E::EncodedKmer> {
+        self.map.keys()
     }
 
     /// Insert all k-mers into the counter with at most `N` mismatches compared
@@ -294,27 +326,6 @@ where
     #[inline]
     fn next(&mut self) -> Option<(Kmer<MAX_LEN>, usize)> {
         self.map_into_iter.next().map(|(x, c)| (self.encoder.decode_kmer(x), c))
-    }
-}
-
-/// An iterator over a [`KmerCounter`] yielding decoded k-mers and their
-/// counts. The iterator takes the original counter by reference.
-pub struct KmerCounterDecodedIter<'a, const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>>
-where
-    KmerLen<MAX_LEN, E>: SupportedKmerLen, {
-    pub(crate) map_into_iter: hash_map::Iter<'a, E::EncodedKmer, usize>,
-    pub(crate) encoder:       &'a E,
-}
-
-impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>> Iterator for KmerCounterDecodedIter<'_, MAX_LEN, E>
-where
-    KmerLen<MAX_LEN, E>: SupportedKmerLen,
-{
-    type Item = (Kmer<MAX_LEN>, usize);
-
-    #[inline]
-    fn next(&mut self) -> Option<(Kmer<MAX_LEN>, usize)> {
-        self.map_into_iter.next().map(|(x, &c)| (self.encoder.decode_kmer(*x), c))
     }
 }
 

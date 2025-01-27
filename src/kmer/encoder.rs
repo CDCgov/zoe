@@ -2,7 +2,7 @@ use std::hash::Hash;
 
 use crate::{data::CheckSequence, kmer::errors::KmerError, prelude::Nucleotides};
 
-use super::{MismatchNumber, SupportedMismatchNumber};
+use super::{KmerEncode, MismatchNumber, SupportedMismatchNumber};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Kmer<const MAX_LEN: usize> {
@@ -129,7 +129,7 @@ where
     /// The type of an encoded base.
     type EncodedBase;
     /// The type of an encoded k-mer.
-    type EncodedKmer: From<Self::EncodedBase> + Eq + Hash + Copy;
+    type EncodedKmer: From<Self::EncodedBase> + Eq + Hash + Copy + KmerEncode<MAX_LEN, Self>;
     /// An iterator over the encoded overlapping k-mers in a sequence, from left
     /// to right.
     type SeqIter<'a>: Iterator<Item = Self::EncodedKmer>;

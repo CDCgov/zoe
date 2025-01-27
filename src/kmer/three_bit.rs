@@ -111,7 +111,7 @@ where
 /// This k-mer encoding is inspired by the 2-bit encoding found in
 /// [BBDuk](https://jgi.doe.gov/data-and-tools/software-tools/bbtools/bb-tools-user-guide/bbduk-guide/)
 /// from the [BBMap](https://sourceforge.net/projects/bbmap/) project.
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct ThreeBitKmerEncoder<const MAX_LEN: usize>
 where
     ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen, {

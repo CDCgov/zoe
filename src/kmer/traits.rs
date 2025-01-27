@@ -1,8 +1,44 @@
 use crate::search::RangeSearch;
 
-use super::KmerEncoder;
+use super::{Kmer, KmerEncoder, SupportedKmerLen, ThreeBitEncodedKmer, ThreeBitKmerLen};
 use std::ops::Range;
 
+// TODO: Maybe should consume self
+/// Trait to support converting an iterator of k-mers into a collection. This
+/// trait provides a way to convert an encoded or decoded k-mer into an encoded
+/// k-mer. Hence, it is implemented on [`Kmer`], as well as each potential type
+/// used as an encoded k-mer.
+pub trait KmerEncode<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>> {
+    fn encode_kmer(&self, encoder: &E) -> E::EncodedKmer;
+}
+
+impl<const MAX_LEN: usize, E> KmerEncode<MAX_LEN, E> for ThreeBitEncodedKmer<MAX_LEN>
+where
+    ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen,
+    E: KmerEncoder<MAX_LEN, EncodedKmer = Self>,
+{
+    fn encode_kmer(&self, _encoder: &E) -> E::EncodedKmer {
+        *self
+    }
+}
+
+impl<const MAX_LEN: usize, E> KmerEncode<MAX_LEN, E> for &ThreeBitEncodedKmer<MAX_LEN>
+where
+    ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen,
+    E: KmerEncoder<MAX_LEN, EncodedKmer = ThreeBitEncodedKmer<MAX_LEN>>,
+{
+    fn encode_kmer(&self, _encoder: &E) -> E::EncodedKmer {
+        **self
+    }
+}
+
+impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>> KmerEncode<MAX_LEN, E> for Kmer<MAX_LEN> {
+    fn encode_kmer(&self, encoder: &E) -> E::EncodedKmer {
+        encoder.encode_kmer(self)
+    }
+}
+
+/// Trait for encoded k-mer collections.
 pub trait EncodedKmerCollection<const MAX_LEN: usize> {
     type Encoder: KmerEncoder<MAX_LEN, EncodedKmer = Self::EncodedKmer>;
     type EncodedKmer;
