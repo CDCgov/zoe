@@ -2,7 +2,7 @@
 // TODO: revisit truncation issues
 
 use super::*;
-use crate::{data::types::cigar::Cigar, math::Uint, simd::SimdExt};
+use crate::{data::types::cigar::Cigar, math::Int, simd::SimdExt};
 use std::{
     ops::{AddAssign, Shl},
     simd::{LaneCount, SimdElement, SupportedLaneCount, prelude::*},
@@ -318,7 +318,7 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
 pub fn sw_simd_score<T, const N: usize, const S: usize>(reference: &[u8], query: &StripedProfile<T, N, S>) -> Option<T>
 where
-    T: Uint + SimdElement + From<u8> + Default + PartialEq + std::ops::Add<Output = T> + std::fmt::Debug,
+    T: Int + SimdElement + From<u8> + Default + PartialEq + std::ops::Add<Output = T> + std::fmt::Debug,
     LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdUint<Scalar = T>
         + Shl<T, Output = Simd<T, N>>
@@ -328,22 +328,22 @@ where
     let num_vecs = query.number_vectors();
     let profile: &Vec<Simd<T, N>> = &query.profile;
 
-    let zero = T::ZERO;
+    let min = T::MIN;
     let gap_opens = Simd::splat(query.gap_open);
     let gap_extends = Simd::splat(query.gap_extend);
-    let zeroes = Simd::splat(T::ZERO);
+    let minimums = Simd::splat(T::MIN);
     let biases = Simd::splat(query.bias);
 
-    let mut load = vec![zeroes; num_vecs];
-    let mut store = vec![zeroes; num_vecs];
-    let mut e_scores = vec![zeroes; num_vecs];
-    let mut max_scores = zeroes; // Minimum value for unsigned
+    let mut load = vec![minimums; num_vecs];
+    let mut store = vec![minimums; num_vecs];
+    let mut e_scores = vec![minimums; num_vecs];
+    let mut max_scores = minimums; // Minimum value for unsigned
 
     let map = query.mapping;
 
     for ref_index in reference.iter().copied().map(|r| map.to_index(r)) {
-        let mut F = zeroes;
-        let mut H = store[num_vecs - 1].shift_elements_right_z::<1>(zero);
+        let mut F = minimums;
+        let mut H = store[num_vecs - 1].shift_elements_right_z::<1>(min);
 
         (load, store) = (store, load);
 
@@ -353,7 +353,10 @@ where
         for j in 0..num_vecs {
             let mut E = e_scores[j];
 
-            H = H.saturating_add(scores_vec[j]).saturating_sub(biases);
+            H = H.saturating_add(scores_vec[j]);
+            if !T::SIGNED {
+                H = H.saturating_sub(biases);
+            }
 
             max_scores = max_scores.simd_max(H);
 
@@ -371,11 +374,12 @@ where
 
         let mut j = 0;
         H = store[j];
-        F = F.shift_elements_right_z::<1>(zero);
+        F = F.shift_elements_right_z::<1>(min);
 
-        // (F - (H - Go)) --> 0
-        let mut mask = F.saturating_sub(H.saturating_sub(gap_opens)).simd_eq(zeroes);
-        while !mask.all() {
+        // ¬∀x (F = (H - Go))
+        //  ∃x (F > (H - Go)), given 1-sided
+        let mut mask = F.simd_gt(H.saturating_sub(gap_opens));
+        while mask.any() {
             // Update & save H
             H = H.simd_max(F);
             store[j] = H;
@@ -385,21 +389,30 @@ where
             j += 1;
             if j >= num_vecs {
                 j = 0;
-                F = F.shift_elements_right_z::<1>(zero);
+                F = F.shift_elements_right_z::<1>(min);
             }
 
             // New J here
             H = store[j];
 
-            mask = F.saturating_sub(H.saturating_sub(gap_opens)).simd_eq(zeroes);
+            mask = F.simd_gt(H.saturating_sub(gap_opens));
         }
     }
 
     let best = max_scores.reduce_max();
 
-    // If we would have overflowed, return none, otherwise return the best score
-    // We add one because we care if the value is equal to the MAX.
-    best.checked_addition(query.bias + T::ONE).map(|_| best)
+    if T::SIGNED {
+        // NB: Without widening the return type, we really don't benefit from the shifted score.
+        // MAX + 1 returns (must be carried out separately) us to 0-base and
+        // filter if at capacity.
+        best.checked_addition(T::MAX)
+            .and_then(|b| b.checked_addition(T::ONE))
+            .filter(|b| *b != T::MAX)
+    } else {
+        // If we would have overflowed, return none, otherwise return the best score
+        // We add one because we care if the value is equal to the MAX.
+        best.checked_addition(query.bias + T::ONE).map(|_| best)
+    }
 }
 
 #[cfg(test)]

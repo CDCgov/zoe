@@ -4,7 +4,7 @@ use crate::{
         SimpleWeightMatrix, err::QueryProfileError, mappings::ByteIndexMap, matrices::BiasedWeightMatrix,
         types::cigar::Cigar,
     },
-    math::Uint,
+    math::Int,
 };
 use std::{
     convert::Into,
@@ -140,7 +140,7 @@ where
 
 impl<T, const N: usize, const S: usize> StripedProfile<T, N, S>
 where
-    T: Uint + SimdElement + From<u8>,
+    T: Int + SimdElement + From<u8>,
     LaneCount<N>: SupportedLaneCount,
 {
     /// Creates a new striped profile from a sequence and scoring matrix.

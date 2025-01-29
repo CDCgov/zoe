@@ -53,9 +53,11 @@ pub trait Int:
     const MAX: Self;
     const MIN: Self;
     const BITS: u32;
+    const SIGNED: bool;
 }
 
 pub trait Uint: Int + From<u8> {}
+pub trait Iint: Int + From<i8> {}
 
 macro_rules! impl_int {
     { $($ty:ty),* } => {
@@ -63,6 +65,7 @@ macro_rules! impl_int {
         impl Int for $ty {
             const ZERO: $ty = 0;
             const ONE: $ty = 1;
+            const SIGNED: bool = stringify!($ty).as_bytes()[0] == b'i';
 
             #[inline]
             fn from_bool(b: bool) -> $ty {
@@ -111,11 +114,13 @@ macro_rules! impl_int {
      }
 }
 
-macro_rules! impl_uint {
-    { $($ty:ty),* } => {
-        $( impl Uint for $ty {} )*
+macro_rules! impl_xint {
+    ($tr:ty; $($ty:ty),*) => {
+        $( impl $tr for $ty {} )*
     }
 }
 
 impl_int!(i8, i16, i32, i64, isize, i128, u8, u16, u32, u64, usize, u128);
-impl_uint!(u8, u16, u32, u64, usize, u128);
+
+impl_xint!(Uint; u8, u16, u32, u64, usize, u128);
+impl_xint!(Iint; i8, i16, i32, i64, isize, i128);
