@@ -12,14 +12,25 @@ use super::{EncodedKmerCollection, KmerCollectionContains, MismatchNumber, Suppo
 /// A [`KmerSet`] holds a set of encoded k-mers and provides methods for
 /// efficiently using them. For instance, a [`KmerSet`] can be used to find the
 /// leftmost or rightmost occurrence of k-mers in a sequence, using
-/// [`find_in_seq`] or [`find_in_seq_rev`]. A [`KmerSet`] can also be constructed
-/// using [`insert_from_sequence`] or [`insert_from_sequence_with_variants`].
+/// [`find_in_seq`] or [`find_in_seq_rev`]. A [`KmerSet`] can also be
+/// constructed using [`insert_from_sequence`] or
+/// [`insert_from_sequence_with_variants`].
+///
+/// Consider using the alias [`ThreeBitKmerSet`], unless you are using a custom
+/// [`KmerEncoder`].
+///
+/// <div class="warning info">
+///
+/// For guidance on picking the appropriate `MAX_LEN`, see [`SupportedKmerLen`].
+///
+/// </div>
 ///
 /// [`find_in_seq`]: KmerSet::find_in_seq
 /// [`find_in_seq_rev`]: KmerSet::find_in_seq_rev
 /// [`insert_from_sequence`]: KmerSet::insert_from_sequence
 /// [`insert_from_sequence_with_variants`]:
 ///     KmerSet::insert_from_sequence_with_variants
+/// [`ThreeBitKmerSet`]: super::ThreeBitKmerSet
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct KmerSet<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S = RandomState>
 where

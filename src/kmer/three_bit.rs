@@ -18,10 +18,22 @@ pub(crate) type ThreeBitMaxLenToType<const MAX_LEN: usize> = MaxLenToType<MAX_LE
 
 /// A type alias for a [`KmerSet`] with the [`ThreeBitKmerEncoder`] as its
 /// encoder.
+///
+/// <div class="warning info">
+///
+/// For guidance on picking the appropriate `MAX_LEN`, see [`SupportedKmerLen`].
+///
+/// </div>
 pub type ThreeBitKmerSet<const MAX_LEN: usize, S = RandomState> = KmerSet<MAX_LEN, ThreeBitKmerEncoder<MAX_LEN>, S>;
 
 /// A type alias for a [`KmerCounter`] with the [`ThreeBitKmerEncoder`] as its
 /// encoder.
+///
+/// <div class="warning info">
+///
+/// For guidance on picking the appropriate `MAX_LEN`, see [`SupportedKmerLen`].
+///
+/// </div>
 pub type ThreeBitKmerCounter<const MAX_LEN: usize, S = RandomState> = KmerCounter<MAX_LEN, ThreeBitKmerEncoder<MAX_LEN>, S>;
 
 /// An encoded k-mer using the [`ThreeBitKmerEncoder`]. In most use cases,
@@ -81,6 +93,12 @@ where
 /// `A`, `C`, `G`, `T`, and `N` to all be represented. This encoder does not
 /// preserve case or the distinction between `T` and `U`. `N` is used as a
 /// catch-all for bases that are not `ACGTUNacgtun`.
+///
+/// <div class="warning info">
+///
+/// For guidance on picking the appropriate `MAX_LEN`, see [`SupportedKmerLen`].
+///
+/// </div>
 ///
 /// ### Acknowledgements
 ///

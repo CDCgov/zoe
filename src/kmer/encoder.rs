@@ -112,8 +112,15 @@ impl<const MAX_LEN: usize> AsRef<[u8]> for Kmer<MAX_LEN> {
 /// possible with a [`KmerSet`]) or counting the k-mers in a sequence (as is
 /// possible with a [`KmerCounter`]).
 ///
+/// <div class="warning info">
+///
+/// For guidance on picking the appropriate `MAX_LEN`, see [`SupportedKmerLen`].
+///
+/// </div>
+///
 /// [`KmerSet`]: super::kmer_set::KmerSet
 /// [`KmerCounter`]: super::kmer_counter::KmerCounter
+/// [`SupportedKmerLen`]: super::SupportedKmerLen
 pub trait KmerEncoder<const MAX_LEN: usize>
 where
     Self: Sized, {

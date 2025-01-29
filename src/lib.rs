@@ -255,9 +255,6 @@ pub mod distance;
 /// This module provides structs and methods for handling common k-mer
 /// operations efficiently using integer encodings. A k-mer is a short
 /// subsequence of nucleotides, which are represented in *Zoe* by [`Kmer`].
-/// Although the length of the k-mer might not be known at compile time, a
-/// maximum possible length (`MAX_LEN`) is required, which is used to determine
-/// the appropriate integer type to store the encoded k-mer.
 ///
 /// *Zoe* has two structs to store k-mers:
 /// * A [`KmerSet`], which is a [`HashSet`] for k-mers
@@ -271,7 +268,14 @@ pub mod distance;
 ///   [`find_kmers`] and [`find_kmers_rev`] directly on the sequence, and
 ///   accepting the kmer collection as an argument.
 ///
-/// [`KmerSet`] and [`KmerCounter`] are generic over the type of
+/// Many structs related to k-mers, including [`KmerSet`] and [`KmerCounter`],
+/// are generic over a maximum possible k-mer length `MAX_LEN`. This is used to
+/// determine (at compile-time) the appropriate integer type to store the
+/// encoded k-mer. The actual k-mer length can be set to a different value at
+/// runtime as long as it is less than `MAX_LEN`. For guidance on picking the
+/// appropriate `MAX_LEN`, see [`SupportedKmerLen`].
+///
+/// [`KmerSet`] and [`KmerCounter`] are also generic over the type of
 /// [`KmerEncoder`]. *Zoe* currently provides a single encoder,
 /// [`ThreeBitKmerEncoder`], which uses three bits to store each base. It allows
 /// for `A`, `C`, `G`, `T`, and `N` to all be represented. It does not preserve
@@ -281,7 +285,7 @@ pub mod distance;
 /// For convenience, the type aliases [`ThreeBitKmerSet`] and
 /// [`ThreeBitKmerCounter`] are provided.
 ///
-/// For guidance on picking the appropriate `MAX_LEN`, see [`SupportedKmerLen`].
+/// <div class="warning">
 ///
 /// When performing more specialized k-mer operations, you may need to directly
 /// encode and decode k-mers, rather than relying on the methods in [`KmerSet`]
@@ -289,6 +293,8 @@ pub mod distance;
 /// encode and decode the k-mer. For [`ThreeBitEncodedKmer`], there also exists
 /// a [`Display`] implementation that does not require access to the encoder,
 /// but this is suboptimal; it is preferred to decode the k-mer first.
+///
+/// </div>
 ///
 /// ## Examples
 ///

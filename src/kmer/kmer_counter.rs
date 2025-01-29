@@ -10,9 +10,19 @@ use std::{
 };
 
 /// A [`KmerCounter`] stores counts of encoded k-mers, or it can be considered
-/// as a multiset. [`KmerCounter`] has most of the same methods as [`KmerSet`].
+/// as a multiset. [`KmerCounter`] has many of the same methods as [`KmerSet`].
+///
+/// Consider using the alias [`ThreeBitKmerCounter`], unless you are using a
+/// custom [`KmerEncoder`].
+///
+/// <div class="warning info">
+///
+/// For guidance on picking the appropriate `MAX_LEN`, see [`SupportedKmerLen`].
+///
+/// </div>
 ///
 /// [`KmerSet`]: super::KmerSet
+/// [`ThreeBitKmerCounter`]: super::ThreeBitKmerCounter
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct KmerCounter<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S = RandomState>
 where

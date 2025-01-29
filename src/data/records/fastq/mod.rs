@@ -10,6 +10,13 @@ pub use reader::*;
 
 /// Holds data for a single [Read](https://en.wikipedia.org/wiki/Read_(biology))
 /// or [FASTQ](https://en.wikipedia.org/wiki/FASTQ_format) record.
+///
+/// <div class="warning">
+///
+/// If mutating the `sequence` or `quality` fields, the user must ensure they
+/// remain the same length.
+///
+/// </div>
 #[derive(Clone, Eq, PartialEq, Hash, Debug, Default)]
 pub struct FastQ {
     pub header:   String,
@@ -19,6 +26,16 @@ pub struct FastQ {
 
 /// The corresponding immutable view type for [`FastQ`]. See
 /// [Views](crate::data#views) for more details.
+///
+/// <div class="warning">
+///
+/// If mutating the `sequence` or `quality` fields, the user must ensure they
+/// remain the same length. For example, do not call [`restrict`] on individual
+/// fields.
+///
+/// </div>
+///
+/// [`restrict`]: DataView::restrict
 #[derive(Clone, Eq, PartialEq, Hash, Debug, Default)]
 pub struct FastQView<'a> {
     pub header:   &'a str,
@@ -28,6 +45,16 @@ pub struct FastQView<'a> {
 
 /// The corresponding mutable view type for [`FastQ`]. See
 /// [Views](crate::data#views) for more details.
+///
+/// <div class="warning">
+///
+/// If mutating the `sequence` or `quality` fields, the user must ensure they
+/// remain the same length. For example, do not call [`restrict`] on individual
+/// fields.
+///
+/// </div>
+///
+/// [`restrict`]: DataView::restrict
 #[derive(Eq, PartialEq, Hash, Debug)]
 pub struct FastQViewMut<'a> {
     pub header:   &'a mut String,

@@ -6,8 +6,10 @@ use std::ops::{Bound, Index};
 /// search range](crate::search#restricting-the-search-range) for more details.
 ///
 /// <div class="warning">
-/// All string search methods called on this struct return indices with respect
-/// to the original sequence, not the subsequence.
+///
+/// All string search methods called on a [`RangeSearch`] struct return indices
+/// with respect to the original sequence, not the subsequence.
+///
 /// </div>
 pub struct RangeSearch<'a> {
     pub(crate) slice:       &'a [u8],
