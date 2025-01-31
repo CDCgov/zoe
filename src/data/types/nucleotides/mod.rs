@@ -1,6 +1,6 @@
 use crate::{
     alignment::{LocalProfiles, SharedProfiles},
-    data::{err::QueryProfileError, matrices::BiasedWeightMatrix},
+    data::{err::QueryProfileError, matrices::WeightMatrix},
     prelude::*,
 };
 use std::simd::{LaneCount, SupportedLaneCount};
@@ -137,11 +137,11 @@ impl Nucleotides {
     /// # Example
     ///
     /// ```
-    /// # use zoe::{data::BiasedWeightMatrix, prelude::Nucleotides};
+    /// # use zoe::{data::WeightMatrix, prelude::Nucleotides};
     /// let reference: &[u8] = b"GGCCACAGGATTGAG";
     /// let query: Nucleotides = b"CTCAGATTG".into();
     ///
-    /// const WEIGHTS: BiasedWeightMatrix<5> = BiasedWeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
+    /// const WEIGHTS: WeightMatrix<u8, 5> = WeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
     ///
     /// let profile = query.into_local_profile::<32, 5>(&WEIGHTS, 3, 1).unwrap();
     /// let score = profile.smith_waterman_score_from_u8(reference).unwrap();
@@ -149,7 +149,7 @@ impl Nucleotides {
     /// ```
     #[inline]
     pub fn into_local_profile<'a, 'b, const N: usize, const S: usize>(
-        &'b self, matrix: &'a BiasedWeightMatrix<S>, gap_open: u8, gap_extend: u8,
+        &'b self, matrix: &'a WeightMatrix<u8, S>, gap_open: u8, gap_extend: u8,
     ) -> Result<LocalProfiles<'a, N, S>, QueryProfileError>
     where
         LaneCount<N>: SupportedLaneCount,
@@ -167,11 +167,11 @@ impl Nucleotides {
     /// # Example
     ///
     /// ```
-    /// # use zoe::{data::BiasedWeightMatrix, prelude::Nucleotides};
+    /// # use zoe::{data::WeightMatrix, prelude::Nucleotides};
     /// let reference: &[u8] = b"GGCCACAGGATTGAG";
     /// let query: Nucleotides = b"CTCAGATTG".into();
     ///
-    /// const WEIGHTS: BiasedWeightMatrix<5> = BiasedWeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
+    /// const WEIGHTS: WeightMatrix<u8,5> = WeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
     ///
     /// let profile = query.into_shared_profile::<32, 5>(&WEIGHTS, 3, 1).unwrap();
     /// let score = profile.smith_waterman_score_from_u8(reference).unwrap();
@@ -179,7 +179,7 @@ impl Nucleotides {
     /// ```
     #[inline]
     pub fn into_shared_profile<'a, const N: usize, const S: usize>(
-        &self, matrix: &'a BiasedWeightMatrix<S>, gap_open: u8, gap_extend: u8,
+        &self, matrix: &'a WeightMatrix<u8, S>, gap_open: u8, gap_extend: u8,
     ) -> Result<SharedProfiles<'a, N, S>, QueryProfileError>
     where
         LaneCount<N>: SupportedLaneCount, {

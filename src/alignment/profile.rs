@@ -1,9 +1,6 @@
 use crate::{
     alignment::sw::{sw_scalar_score, sw_simd_score},
-    data::{
-        SimpleWeightMatrix, err::QueryProfileError, mappings::ByteIndexMap, matrices::BiasedWeightMatrix,
-        types::cigar::Cigar,
-    },
+    data::{WeightMatrix, err::QueryProfileError, mappings::ByteIndexMap, types::cigar::Cigar},
     math::Int,
 };
 use std::{
@@ -15,8 +12,8 @@ use std::{
 use super::sw::sw_scalar_alignment;
 
 #[inline]
-pub(crate) fn validate_profile_args<Q: AsRef<[u8]>>(
-    query: Q, gap_open: u8, gap_extend: u8,
+pub(crate) fn validate_profile_args<Q: AsRef<[u8]>, U: Int>(
+    query: Q, gap_open: U, gap_extend: U,
 ) -> Result<(), QueryProfileError> {
     if query.as_ref().is_empty() {
         Err(QueryProfileError::EmptyQuery)
@@ -38,7 +35,7 @@ pub(crate) fn validate_profile_args<Q: AsRef<[u8]>>(
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScalarProfile<'a, const S: usize> {
     pub(crate) query:      &'a [u8],
-    pub(crate) matrix:     SimpleWeightMatrix<S>,
+    pub(crate) matrix:     WeightMatrix<i8, S>,
     pub(crate) gap_open:   i32,
     pub(crate) gap_extend: i32,
 }
@@ -52,7 +49,7 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// [`QueryProfileError::BadGapWeights`] if `gap_extend` is greater than
     /// `gap_open`.
     pub fn new<Q: AsRef<[u8]> + ?Sized>(
-        query: &'a Q, matrix: SimpleWeightMatrix<S>, gap_open: u8, gap_extend: u8,
+        query: &'a Q, matrix: WeightMatrix<i8, S>, gap_open: u8, gap_extend: u8,
     ) -> Result<Self, QueryProfileError> {
         validate_profile_args(query, gap_open, gap_extend)?;
 
@@ -72,11 +69,11 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// ### Example
     ///
     /// ```
-    /// # use zoe::{alignment::{ScalarProfile, sw::sw_scalar_score}, data::SimpleWeightMatrix};
+    /// # use zoe::{alignment::{ScalarProfile, sw::sw_scalar_score}, data::WeightMatrix};
     /// let reference: &[u8] = b"GGCCACAGGATTGAG";
     /// let query: &[u8] = b"CTCAGATTG";
     ///
-    /// const WEIGHTS: SimpleWeightMatrix<5> = SimpleWeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
+    /// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
     ///
     /// let profile = ScalarProfile::<5>::new(query, WEIGHTS, 3, 1).unwrap();
     /// let score = profile.smith_waterman_score(reference);
@@ -97,11 +94,11 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// ### Example
     ///
     /// ```
-    /// # use zoe::{alignment::{ScalarProfile, sw::sw_scalar_score}, data::SimpleWeightMatrix};
+    /// # use zoe::{alignment::{ScalarProfile, sw::sw_scalar_score}, data::WeightMatrix};
     /// let reference: &[u8] = b"GGCCACAGGATTGAG";
     /// let query: &[u8] = b"CTCAGATTG";
     ///
-    /// const WEIGHTS: SimpleWeightMatrix<5> = SimpleWeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
+    /// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
     ///
     /// let profile = ScalarProfile::<5>::new(query, WEIGHTS, 3, 1).unwrap();
     /// let (start, cigar, score) = profile.smith_waterman_alignment(reference);
@@ -140,29 +137,33 @@ where
 
 impl<T, const N: usize, const S: usize> StripedProfile<T, N, S>
 where
-    T: Int + SimdElement + From<u8>,
+    T: Int + SimdElement,
     LaneCount<N>: SupportedLaneCount,
 {
     /// Creates a new striped profile from a sequence and scoring matrix.
     ///
-    /// See: [`BiasedWeightMatrix`]
+    /// See: [`WeightMatrix`]
     ///
     /// # Errors
     ///
     /// Will return [`QueryProfileError::EmptyQuery`] if `query` is empty or
     /// [`QueryProfileError::BadGapWeights`] if `gap_extend` is greater than
     /// `gap_open`.
-    pub fn new(
-        query: &[u8], matrix: &BiasedWeightMatrix<S>, gap_open: u8, gap_extend: u8,
-    ) -> Result<Self, QueryProfileError> {
+    pub fn new<U>(query: &[u8], matrix: &WeightMatrix<U, S>, gap_open: U, gap_extend: U) -> Result<Self, QueryProfileError>
+    where
+        T: From<U>,
+        U: Int, {
         validate_profile_args(query, gap_open, gap_extend)?;
         Ok(Self::new_unchecked(query, matrix, gap_open, gap_extend))
     }
 
     /// Creates a new striped profile from a sequence and scoring matrix.
     ///
-    /// See: [`BiasedWeightMatrix`]
-    pub(crate) fn new_unchecked(query: &[u8], matrix: &BiasedWeightMatrix<S>, gap_open: u8, gap_extend: u8) -> Self {
+    /// See: [`WeightMatrix`]
+    pub(crate) fn new_unchecked<U>(query: &[u8], matrix: &WeightMatrix<U, S>, gap_open: U, gap_extend: U) -> Self
+    where
+        T: From<U>,
+        U: Int, {
         // SupportedLaneCount cannot presently be zero.
         let number_vectors = query.len().div_ceil(N);
         let total_lanes = N * number_vectors;
@@ -213,11 +214,11 @@ where
     /// ### Example
     ///
     /// ```
-    /// # use zoe::{alignment::{StripedProfile, sw::sw_simd_score}, data::BiasedWeightMatrix};
+    /// # use zoe::{alignment::{StripedProfile, sw::sw_simd_score}, data::WeightMatrix};
     /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///
-    /// const WEIGHTS: BiasedWeightMatrix<5> = BiasedWeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
+    /// const WEIGHTS: WeightMatrix<u8, 5> = WeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
     ///
     /// let profile = StripedProfile::<u8, 32, 5>::new(query, &WEIGHTS, 3, 1).unwrap();
     /// let score = profile.smith_waterman_score(reference).unwrap();
@@ -242,11 +243,11 @@ where
     /// ### Example
     ///
     /// ```
-    /// # use zoe::{alignment::{StripedProfile, sw::sw_simd_score}, data::BiasedWeightMatrix};
+    /// # use zoe::{alignment::{StripedProfile, sw::sw_simd_score}, data::WeightMatrix};
     /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///
-    /// const WEIGHTS: BiasedWeightMatrix<5> = BiasedWeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
+    /// const WEIGHTS: WeightMatrix<u8, 5> = WeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
     ///
     /// let profile = StripedProfile::<u16, 32, 5>::new(query, &WEIGHTS, 3, 1).unwrap();
     /// let score = profile.smith_waterman_score(reference).unwrap();
@@ -271,11 +272,11 @@ where
     /// ### Example
     ///
     /// ```
-    /// # use zoe::{alignment::{StripedProfile, sw::sw_simd_score}, data::BiasedWeightMatrix};
+    /// # use zoe::{alignment::{StripedProfile, sw::sw_simd_score}, data::WeightMatrix};
     /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///
-    /// const WEIGHTS: BiasedWeightMatrix<5> = BiasedWeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
+    /// const WEIGHTS: WeightMatrix<u8, 5> = WeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
     ///
     /// let profile = StripedProfile::<u32, 32, 5>::new(query, &WEIGHTS, 3, 1).unwrap();
     /// let score = profile.smith_waterman_score(reference).unwrap();
@@ -300,11 +301,11 @@ where
     /// ### Example
     ///
     /// ```
-    /// # use zoe::{alignment::{StripedProfile, sw::sw_simd_score}, data::BiasedWeightMatrix};
+    /// # use zoe::{alignment::{StripedProfile, sw::sw_simd_score}, data::WeightMatrix};
     /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///
-    /// const WEIGHTS: BiasedWeightMatrix<5> = BiasedWeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
+    /// const WEIGHTS: WeightMatrix<u8, 5> = WeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
     ///
     /// let profile = StripedProfile::<u64, 32, 5>::new(query, &WEIGHTS, 3, 1).unwrap();
     /// let score = profile.smith_waterman_score(reference).unwrap();
@@ -323,10 +324,10 @@ mod bench {
     extern crate test;
     use super::*;
     use crate::alignment::sw::test_data::{GAP_EXTEND, GAP_OPEN};
-    use crate::data::{constants::matrices::SimpleWeightMatrix, mappings::DNA_PROFILE_MAP};
+    use crate::data::{constants::matrices::WeightMatrix, mappings::DNA_PROFILE_MAP};
     pub(crate) static DATA: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/KJ907631.1.txt")); // H5 HA, complete CDS
-    pub(crate) static MATRIX: BiasedWeightMatrix<5> =
-        SimpleWeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N')).into_biased_matrix();
+    pub(crate) static MATRIX: WeightMatrix<u8, 5> =
+        WeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N')).into_biased_matrix();
 
     #[bench]
     fn build_profile_u8(b: &mut Bencher) {

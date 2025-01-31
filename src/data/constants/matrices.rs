@@ -1,4 +1,7 @@
-use super::mappings::{ByteIndexMap, DNA_PROFILE_MAP};
+use crate::{
+    data::mappings::{ByteIndexMap, DNA_PROFILE_MAP},
+    math::Int,
+};
 
 // Physiochemical distance matrix using the euclidean distance between all amino acid factors.
 pub(crate) static PHYSIOCHEMICAL_FACTORS: [[Option<f32>; 256]; 256] = {
@@ -85,64 +88,51 @@ pub(crate) static PHYSIOCHEMICAL_FACTORS: [[Option<f32>; 256]; 256] = {
     pcd
 };
 
-/// A biased weight matrix representing the scores for various matches and
-/// mismatches when performing sequence alignment. The internal representation
-/// stores the weights as nonnegative integers along with a bias, hence the
-/// name. This is used for SIMD alignment algorithms. For scalar alignment
-/// algorithms, use [`SimpleWeightMatrix`].
-///
-/// To construct a new biased weight matrix, either use
-/// [`new_biased_dna_matrix`] or create a [`SimpleWeightMatrix`] and then call
-/// [`into_biased_matrix`].
-///
-/// [`new_biased_dna_matrix`]: BiasedWeightMatrix::new_biased_dna_matrix
-/// [`into_biased_matrix`]: SimpleWeightMatrix::into_biased_matrix
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-pub struct BiasedWeightMatrix<const S: usize> {
-    pub(crate) weights: [[u8; S]; S],
-    pub(crate) mapping: &'static ByteIndexMap<S>,
-    pub(crate) bias:    u8,
-}
-
-impl BiasedWeightMatrix<5> {
-    /// Creates a new [`BiasedWeightMatrix`] with a fixed `matching` score,
+impl WeightMatrix<u8, 5> {
+    /// Creates a new [`WeightMatrix`] with a fixed `matching` score,
     /// `mismatch` score, and optionally ignoring a base. A pair of bases where
     /// either is the ignored base will always have a score of 0.
     #[inline]
     #[must_use]
     pub const fn new_biased_dna_matrix(matching: i8, mismatch: i8, ignoring: Option<u8>) -> Self {
-        SimpleWeightMatrix::new(&DNA_PROFILE_MAP, matching, mismatch, ignoring).into_biased_matrix()
+        WeightMatrix::new(&DNA_PROFILE_MAP, matching, mismatch, ignoring).into_biased_matrix()
     }
 }
 
-/// A simple weight matrix representing the scores for various matches and
-/// mismatches when performing sequence alignment. The internal representation
-/// stores the weights as signed integers. This is used for scalar alignment
-/// algorithms. For SIMD alignment algorithms, use [`BiasedWeightMatrix`].
+/// A weight matrix representing the scores for various matches and
+/// mismatches when performing sequence alignment.
 ///
 /// To construct a new simple weight matrix, either directly initialize a struct
 /// containing a given `weights` and `mapping`, or use [`new`] or
 /// [`new_dna_matrix`].
 ///
-/// [`new`]: SimpleWeightMatrix::new
-/// [`new_dna_matrix`]: SimpleWeightMatrix::new_dna_matrix
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct SimpleWeightMatrix<const S: usize> {
-    pub weights: [[i8; S]; S],
-    pub mapping: &'static ByteIndexMap<S>,
+/// To construct a new biased weight matrix, either use
+/// [`new_biased_dna_matrix`] or create a signed matrix and then call
+/// [`into_biased_matrix`]. The internal representation stores the weights as
+/// nonnegative integers along with a bias, hence the name.
+///
+/// [`new`]: WeightMatrix::new
+/// [`new_dna_matrix`]: WeightMatrix::new_dna_matrix
+/// [`new_biased_dna_matrix`]: WeightMatrix::new_biased_dna_matrix
+/// [`into_biased_matrix`]: WeightMatrix::into_biased_matrix
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
+pub struct WeightMatrix<T: Int, const S: usize> {
+    pub weights:     [[T; S]; S],
+    pub mapping:     &'static ByteIndexMap<S>,
+    pub(crate) bias: T,
 }
 
-impl<const S: usize> SimpleWeightMatrix<S> {
-    /// Creates a new [`SimpleWeightMatrix`] with a given alphabet represented
+impl<const S: usize> WeightMatrix<i8, S> {
+    /// Creates a new, signed [`WeightMatrix`] with a given alphabet represented
     /// by `mapping`, a fixed `matching` score and `mismatch` score, and an
     /// optionally ignored base. A pair of bases where either is the ignored
     /// base will always have a score of 0.
     ///
     /// If working with DNA, consider using [`new_dna_matrix`]. For more
     /// flexibility with the scoring, you can directly initialize a
-    /// [`SimpleWeightMatrix`].
+    /// [`WeightMatrix`].
     ///
-    /// [`new_dna_matrix`]: SimpleWeightMatrix::new_dna_matrix
+    /// [`new_dna_matrix`]: WeightMatrix::new_dna_matrix
     #[must_use]
     pub const fn new(mapping: &'static ByteIndexMap<S>, matching: i8, mismatch: i8, ignoring: Option<u8>) -> Self {
         let mut weights = [[0i8; S]; S];
@@ -181,7 +171,11 @@ impl<const S: usize> SimpleWeightMatrix<S> {
             i += 1;
         }
 
-        SimpleWeightMatrix { weights, mapping }
+        WeightMatrix {
+            weights,
+            mapping,
+            bias: 0,
+        }
     }
 
     /// For a given `reference_base` and `query_base`, retrieves the weight
@@ -210,11 +204,10 @@ impl<const S: usize> SimpleWeightMatrix<S> {
         min
     }
 
-    /// Converts the [`SimpleWeightMatrix`] (for scalar alignment) to a
-    /// [`BiasedWeightMatrix`] (for SIMD alignment).
+    /// Converts the signed [`WeightMatrix`] to an unsigned, biased one.
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     #[must_use]
-    pub const fn into_biased_matrix(self) -> BiasedWeightMatrix<S> {
+    pub const fn into_biased_matrix(self) -> WeightMatrix<u8, S> {
         let bias = self.get_bias();
         let mut weights = [[0u8; S]; S];
         let mapping = self.mapping;
@@ -233,17 +226,17 @@ impl<const S: usize> SimpleWeightMatrix<S> {
         // We can provide the bias as the unsigned version.
         let bias = bias.unsigned_abs();
 
-        BiasedWeightMatrix { weights, mapping, bias }
+        WeightMatrix { weights, mapping, bias }
     }
 }
 
-impl SimpleWeightMatrix<5> {
-    /// Creates a new [`SimpleWeightMatrix`] with a fixed `matching` score,
+impl WeightMatrix<i8, 5> {
+    /// Creates a new signed [`WeightMatrix`] with a fixed `matching` score,
     /// `mismatch` score, and optionally ignoring a base. A pair of bases where
     /// either is the ignored base will always have a score of 0.
     #[must_use]
     pub const fn new_dna_matrix(matching: i8, mismatch: i8, ignoring: Option<u8>) -> Self {
-        SimpleWeightMatrix::new(&DNA_PROFILE_MAP, matching, mismatch, ignoring)
+        WeightMatrix::new(&DNA_PROFILE_MAP, matching, mismatch, ignoring)
     }
 }
 
@@ -255,19 +248,20 @@ mod test {
     fn create_simple() {
         static RESIDUE_MAP: ByteIndexMap<2> = ByteIndexMap::new(*b"AB", b'A');
 
-        let result1 = SimpleWeightMatrix {
+        let result1 = WeightMatrix {
             weights: [[1, 0], [0, 1]],
             mapping: &RESIDUE_MAP,
+            bias:    0,
         };
 
-        let result2 = SimpleWeightMatrix::new(&RESIDUE_MAP, 1, 0, None);
+        let result2 = WeightMatrix::new(&RESIDUE_MAP, 1, 0, None);
         assert_eq!(result1, result2);
     }
 
     #[allow(non_snake_case)]
     #[test]
     fn create_IRMA_matrix() {
-        let result1 = SimpleWeightMatrix {
+        let result1 = WeightMatrix {
             weights: [
                 [2, -5, -5, -5, 0],
                 [-5, 2, -5, -5, 0],
@@ -276,9 +270,10 @@ mod test {
                 [0, 0, 0, 0, 0],
             ],
             mapping: &DNA_PROFILE_MAP,
+            bias:    0,
         };
 
-        let result2 = SimpleWeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N'));
+        let result2 = WeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N'));
 
         assert_eq!(result1, result2);
     }

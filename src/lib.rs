@@ -31,12 +31,9 @@
 ///    catch-all. Otherwise, you can define your own alphabet using
 ///    [`ByteIndexMap::new`].
 ///
-/// 2. Specify the matrix of weights used for scoring matches and mismatches.
-///    SIMD algorithms require a [`BiasedWeightMatrix`], while scalar algorithms
-///    use a [`SimpleWeightMatrix`]. For DNA, either can be quickly constructed
-///    with [`new_biased_dna_matrix`] and [`new_dna_matrix`] respectively. For a
-///    custom alphabet, use [`SimpleWeightMatrix::new`] and then convert it into
-///    a [`BiasedWeightMatrix`] using [`into_biased_matrix`] if using SIMD.
+/// 2. Specify the [`WeightMatrix`] used for scoring matches and mismatches. For
+///     DNA, [`new_biased_dna_matrix`] and [`new_dna_matrix`] are convenient
+///     constructors.
 ///
 /// 3. Build the query profile, with either [`ScalarProfile::new`] or
 ///    [`StripedProfile::new`] (for SIMD). This step combines the query, matrix
@@ -54,11 +51,11 @@
 /// [`StripedProfile::new`] specify the gap open penalty as 3 and the gap extend
 /// penalty as 1.
 /// ```
-/// # use zoe::{alignment::StripedProfile, data::BiasedWeightMatrix};
+/// # use zoe::{alignment::StripedProfile, data::WeightMatrix};
 /// let reference: &[u8] = b"GGCCACAGGATTGAG";
 /// let query: &[u8] = b"CTCAGATTG";
 ///
-/// const WEIGHTS: BiasedWeightMatrix<5> = BiasedWeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
+/// const WEIGHTS: WeightMatrix<u8, 5> = WeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
 ///
 /// let profile = StripedProfile::<u8, 32, 5>::new(query, &WEIGHTS, 3, 1).unwrap();
 /// let score = profile.smith_waterman_score(reference).unwrap();
@@ -71,13 +68,13 @@
 /// ```
 /// # use zoe::{
 /// #     alignment::StripedProfile,
-/// #     data::{BiasedWeightMatrix, ByteIndexMap, SimpleWeightMatrix},
+/// #     data::{WeightMatrix, ByteIndexMap},
 /// # };
 /// let reference: &[u8] = b"BDAACAABDDDB";
 /// let query: &[u8] = b"AABDDAB";
 ///
 /// const MAPPING: ByteIndexMap<4> = ByteIndexMap::new(*b"ABCD", b'A');
-/// const WEIGHTS: BiasedWeightMatrix<4> = SimpleWeightMatrix::new(&MAPPING, 1, -1, None).into_biased_matrix();
+/// const WEIGHTS: WeightMatrix<u8, 4> = WeightMatrix::new(&MAPPING, 1, -1, None).into_biased_matrix();
 ///
 /// let profile = StripedProfile::<u8, 32, 4>::new(query, &WEIGHTS, 4, 2).unwrap();
 /// let score = profile.smith_waterman_score(reference).unwrap();
@@ -104,11 +101,11 @@
 ///
 /// Below is the previous example using DNA, but with this higher-level API:
 /// ```
-/// # use zoe::{data::BiasedWeightMatrix, prelude::Nucleotides};
+/// # use zoe::{data::WeightMatrix, prelude::Nucleotides};
 /// let reference: &[u8] = b"GGCCACAGGATTGAG";
 /// let query: Nucleotides = b"CTCAGATTG".into();
 ///
-/// const WEIGHTS: BiasedWeightMatrix<5> = BiasedWeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
+/// const WEIGHTS: WeightMatrix<u8, 5> = WeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
 ///
 /// let profile = query.into_local_profile::<32, 5>(&WEIGHTS, 3, 1).unwrap();
 /// let score = profile.smith_waterman_score_from_u8(reference).unwrap();
@@ -119,13 +116,13 @@
 /// ```
 /// # use zoe::{
 /// #     alignment::LocalProfiles,
-/// #     data::{BiasedWeightMatrix, ByteIndexMap, SimpleWeightMatrix},
+/// #     data::{WeightMatrix, ByteIndexMap},
 /// # };
 /// let reference: &[u8] = b"BDAACAABDDDB";
 /// let query: &[u8] = b"AABDDAB";
 ///
 /// const MAPPING: ByteIndexMap<4> = ByteIndexMap::new(*b"ABCD", b'A');
-/// const WEIGHTS: BiasedWeightMatrix<4> = SimpleWeightMatrix::new(&MAPPING, 1, -1, None).into_biased_matrix();
+/// const WEIGHTS: WeightMatrix<u8, 4> = WeightMatrix::new(&MAPPING, 1, -1, None).into_biased_matrix();
 ///
 /// let profile = LocalProfiles::<32, 4>::new_with_u8(query, &WEIGHTS, 4, 2).unwrap();
 /// let score = profile.smith_waterman_score_from_u8(reference).unwrap();
@@ -136,12 +133,11 @@
 /// [`sw_simd_score`]: alignment::sw::sw_simd_score
 /// [`sw_scalar_alignment`]: alignment::sw::sw_scalar_alignment
 /// [`ByteIndexMap::new`]: data::ByteIndexMap::new
-/// [`BiasedWeightMatrix`]: data::BiasedWeightMatrix
-/// [`SimpleWeightMatrix`]: data::SimpleWeightMatrix
-/// [`SimpleWeightMatrix::new`]: data::SimpleWeightMatrix::new
-/// [`into_biased_matrix`]: data::SimpleWeightMatrix::into_biased_matrix
-/// [`new_biased_dna_matrix`]: data::BiasedWeightMatrix::new_biased_dna_matrix
-/// [`new_dna_matrix`]: data::SimpleWeightMatrix::new_dna_matrix
+/// [`WeightMatrix`]: data::WeightMatrix
+/// [`WeightMatrix::new`]: data::WeightMatrix::new
+/// [`into_biased_matrix`]: data::WeightMatrix::into_biased_matrix
+/// [`new_biased_dna_matrix`]: data::WeightMatrix::new_biased_dna_matrix
+/// [`new_dna_matrix`]: data::WeightMatrix::new_dna_matrix
 /// [`QueryProfileError`]: data::err::QueryProfileError
 /// [`Nucleotides::into_local_profile`]:
 ///     data::types::nucleotides::Nucleotides::into_local_profile

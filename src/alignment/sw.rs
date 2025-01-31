@@ -2,7 +2,11 @@
 // TODO: revisit truncation issues
 
 use super::*;
-use crate::{data::types::cigar::Cigar, math::Int, simd::SimdExt};
+use crate::{
+    data::types::cigar::Cigar,
+    math::Int,
+    simd::{SimdAnyInt, SimdExt},
+};
 use std::{
     ops::{AddAssign, Shl},
     simd::{LaneCount, SimdElement, SupportedLaneCount, prelude::*},
@@ -23,11 +27,11 @@ use std::{
 /// ### Example
 ///
 /// ```
-/// # use zoe::{alignment::{ScalarProfile, sw::sw_scalar_score}, data::SimpleWeightMatrix};
+/// # use zoe::{alignment::{ScalarProfile, sw::sw_scalar_score}, data::WeightMatrix};
 /// let reference: &[u8] = b"GGCCACAGGATTGAG";
 /// let query: &[u8] = b"CTCAGATTG";
 ///
-/// const WEIGHTS: SimpleWeightMatrix<5> = SimpleWeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
+/// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
 ///
 /// let profile = ScalarProfile::<5>::new(query, WEIGHTS, 3, 1).unwrap();
 /// let score = sw_scalar_score(&reference, &profile);
@@ -123,11 +127,11 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 /// ### Example
 ///
 ///  ```
-/// # use zoe::{alignment::{ScalarProfile, sw::sw_scalar_alignment}, data::SimpleWeightMatrix};
+/// # use zoe::{alignment::{ScalarProfile, sw::sw_scalar_alignment}, data::WeightMatrix};
 /// let reference: &[u8] = b"GGCCACAGGATTGAG";
 /// let query: &[u8] = b"CTCAGATTG";
 ///
-/// const WEIGHTS: SimpleWeightMatrix<5> = SimpleWeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
+/// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
 ///
 /// let profile = ScalarProfile::<5>::new(query, WEIGHTS, 3, 1).unwrap();
 /// let (start, cigar, score) = sw_scalar_alignment(&reference, &profile);
@@ -275,11 +279,11 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
 /// ### Example
 ///
 /// ```
-/// # use zoe::{alignment::{StripedProfile, sw::sw_simd_score}, data::BiasedWeightMatrix};
+/// # use zoe::{alignment::{StripedProfile, sw::sw_simd_score}, data::WeightMatrix};
 /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
 /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
 ///
-/// const WEIGHTS: BiasedWeightMatrix<5> = BiasedWeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
+/// const WEIGHTS: WeightMatrix<u8, 5> = WeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
 ///
 /// let profile = StripedProfile::<u8, 32, 5>::new(query, &WEIGHTS, 3, 1).unwrap();
 /// let score = sw_simd_score(&reference, &profile).unwrap();
@@ -318,9 +322,9 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
 pub fn sw_simd_score<T, const N: usize, const S: usize>(reference: &[u8], query: &StripedProfile<T, N, S>) -> Option<T>
 where
-    T: Int + SimdElement + From<u8> + Default + PartialEq + std::ops::Add<Output = T> + std::fmt::Debug,
+    T: Int + SimdElement + Default + PartialEq + std::ops::Add<Output = T> + std::fmt::Debug,
     LaneCount<N>: SupportedLaneCount,
-    Simd<T, N>: SimdUint<Scalar = T>
+    Simd<T, N>: SimdAnyInt<T, N>
         + Shl<T, Output = Simd<T, N>>
         + AddAssign<Simd<T, N>>
         + SimdOrd
@@ -418,14 +422,14 @@ where
 #[cfg(test)]
 pub(crate) mod test_data {
     use super::ScalarProfile;
-    use crate::data::{BiasedWeightMatrix, SimpleWeightMatrix};
+    use crate::data::WeightMatrix;
     use std::sync::LazyLock;
 
     pub(crate) static REFERENCE: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/NC_007362.1.txt")); // H5 HA
     pub(crate) static QUERY: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/NC_026433.1.txt")); // H1 HA1
 
-    pub(crate) static WEIGHTS: SimpleWeightMatrix<5> = SimpleWeightMatrix::new_dna_matrix(2, -5, Some(b'N'));
-    pub(crate) static BIASED_WEIGHTS: BiasedWeightMatrix<5> = WEIGHTS.into_biased_matrix();
+    pub(crate) static WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(2, -5, Some(b'N'));
+    pub(crate) static BIASED_WEIGHTS: WeightMatrix<u8, 5> = WEIGHTS.into_biased_matrix();
     pub(crate) static SCALAR_PROFILE: LazyLock<ScalarProfile<5>> =
         LazyLock::new(|| ScalarProfile::new(QUERY, WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap());
 
@@ -437,12 +441,12 @@ pub(crate) mod test_data {
 mod test {
     use super::{test_data::*, *};
     use crate::alignment::profile::StripedProfile;
-    use crate::data::constants::matrices::SimpleWeightMatrix;
+    use crate::data::constants::matrices::WeightMatrix;
     use crate::data::mappings::DNA_PROFILE_MAP;
 
     #[test]
     fn sw() {
-        let weights = SimpleWeightMatrix::new_dna_matrix(2, -5, Some(b'N'));
+        let weights = WeightMatrix::new_dna_matrix(2, -5, Some(b'N'));
         let profile = ScalarProfile::new(QUERY, weights, GAP_OPEN, GAP_EXTEND).unwrap();
         let (r, _, score) = sw_scalar_alignment(REFERENCE, &profile);
         assert_eq!((337, 37), (r, score));
@@ -465,21 +469,34 @@ mod test {
         let profile = StripedProfile::<u16, 16, 5>::new(b"ACGTUNacgtun", &BIASED_WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
         let score = sw_simd_score(b"ACGTTNACGTTN", &profile);
         assert_eq!(score, Some(20));
+
+        let profile =
+            StripedProfile::<i16, 16, 5>::new(b"ACGTUNacgtun", &WEIGHTS, GAP_OPEN as i8, GAP_EXTEND as i8).unwrap();
+        let score = sw_simd_score(b"ACGTTNACGTTN", &profile);
+        assert_eq!(score, Some(20));
     }
 
     #[test]
     fn sw_simd() {
-        let matrix = SimpleWeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N')).into_biased_matrix();
+        let matrix_i = WeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N'));
+        let matrix_u = matrix_i.into_biased_matrix();
+
         let profile =
-            StripedProfile::<u8, 16, 5>::new(REFERENCE, &matrix, GAP_OPEN, GAP_EXTEND).expect("Sequence is non-empty");
+            StripedProfile::<u8, 16, 5>::new(REFERENCE, &matrix_u, GAP_OPEN, GAP_EXTEND).expect("Sequence is non-empty");
         let score = profile.smith_waterman_score(QUERY);
+        assert_eq!(Some(37), score);
+
+        // TO-DO: fix ergonomics
+        let profile = StripedProfile::<i16, 16, 5>::new(REFERENCE, &matrix_i, GAP_OPEN as i8, GAP_EXTEND as i8)
+            .expect("Sequence is non-empty");
+        let score: Option<i16> = sw_simd_score(QUERY, &profile);
         assert_eq!(Some(37), score);
     }
 
     #[test]
     fn sw_simd_poly_a() {
         let v: Vec<_> = std::iter::repeat(b'A').take(100).collect();
-        let matrix = SimpleWeightMatrix::new_dna_matrix(2, -5, Some(b'N')).into_biased_matrix();
+        let matrix = WeightMatrix::new_dna_matrix(2, -5, Some(b'N')).into_biased_matrix();
         let profile = StripedProfile::<u16, 16, 5>::new(&v, &matrix, GAP_OPEN, GAP_EXTEND).expect("Sequence is non-empty");
         let score = profile.smith_waterman_score(&v);
         assert_eq!(Some(200), score);
@@ -488,7 +505,7 @@ mod test {
     #[test]
     fn sw_simd_single() {
         let v: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/CY137594.txt"));
-        let matrix = SimpleWeightMatrix::<5>::new_dna_matrix(2, -5, Some(b'N')).into_biased_matrix();
+        let matrix = WeightMatrix::<i8, 5>::new_dna_matrix(2, -5, Some(b'N')).into_biased_matrix();
         let profile = StripedProfile::<u16, 16, 5>::new(v, &matrix, GAP_OPEN, GAP_EXTEND).expect("Sequence is non-empty");
         let score = profile.smith_waterman_score(v);
         assert_eq!(Some(3372), score);
@@ -498,9 +515,9 @@ mod test {
     fn sw_simd_regression() {
         let query = b"AGA";
         let reference = b"AA";
-        let matrix = SimpleWeightMatrix::new(&DNA_PROFILE_MAP, 10, -10, Some(b'N')).into_biased_matrix();
+        let matrix = WeightMatrix::new(&DNA_PROFILE_MAP, 10, -10, Some(b'N')).into_biased_matrix();
         let profile = StripedProfile::<u16, 4, 5>::new(query, &matrix, 5, 5).expect("Sequence is non-empty");
-        let score = profile.smith_waterman_score(reference);
+        let score: Option<u64> = profile.smith_waterman_score(reference);
         assert_eq!(Some(15), score);
     }
 
@@ -509,7 +526,7 @@ mod test {
         let query = b"AAAA";
         let reference = b"AAAA";
 
-        let matrix = SimpleWeightMatrix::new(&DNA_PROFILE_MAP, 127, 0, Some(b'N')).into_biased_matrix();
+        let matrix = WeightMatrix::new(&DNA_PROFILE_MAP, 127, 0, Some(b'N')).into_biased_matrix();
         let profile = StripedProfile::<u8, 8, 5>::new(query, &matrix, GAP_OPEN, GAP_EXTEND).expect("Sequence is non-empty");
         let score = profile.smith_waterman_score(reference);
         assert!(score.is_none());
@@ -518,9 +535,17 @@ mod test {
     #[test]
     fn sw_simd_profile_set() {
         let v: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/CY137594.txt"));
-        let matrix = SimpleWeightMatrix::<5>::new_dna_matrix(2, -5, Some(b'N')).into_biased_matrix();
-        let profile = LocalProfiles::<16, 5>::new(&v, &matrix, GAP_OPEN, GAP_EXTEND).expect("Sequence is non-empty");
+        let matrix_i = WeightMatrix::<i8, 5>::new_dna_matrix(2, -5, Some(b'N'));
+        let matrix_u = matrix_i.into_biased_matrix();
+
+        let profile = LocalProfiles::<16, 5>::new(&v, &matrix_u, GAP_OPEN, GAP_EXTEND).expect("Sequence is non-empty");
         let score = profile.smith_waterman_score_from_u8(&v);
+        assert_eq!(Some(3372), score);
+
+        // TODO: Fix ergonomics
+        let profile = StripedProfile::<i16, 16, 5>::new(v, &matrix_i, GAP_OPEN as i8, GAP_EXTEND as i8)
+            .expect("Sequence is non-empty");
+        let score = sw_simd_score(v, &profile);
         assert_eq!(Some(3372), score);
     }
 }
@@ -545,26 +570,50 @@ mod bench {
     }
 
     #[bench]
-    fn sw_simd_no_profile_n16u8(b: &mut Bencher) {
+    fn sw_simd_no_profile_16n08u(b: &mut Bencher) {
         let query_profile = StripedProfile::new(REFERENCE, &BIASED_WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
         b.iter(|| sw_simd_score::<u8, 16, 5>(QUERY, &query_profile));
     }
 
     #[bench]
-    fn sw_simd_no_profile_n16u16(b: &mut Bencher) {
+    fn sw_simd_no_profile_16n16u(b: &mut Bencher) {
         let query_profile = StripedProfile::new(REFERENCE, &BIASED_WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
         b.iter(|| sw_simd_score::<u16, 16, 5>(QUERY, &query_profile));
     }
 
     #[bench]
-    fn sw_simd_no_profile_n32u8(b: &mut Bencher) {
+    fn sw_simd_no_profile_32n08u(b: &mut Bencher) {
         let query_profile = StripedProfile::new(REFERENCE, &BIASED_WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
         b.iter(|| sw_simd_score::<u8, 32, 5>(QUERY, &query_profile));
     }
 
     #[bench]
-    fn sw_simd_no_profile_n32u16(b: &mut Bencher) {
+    fn sw_simd_no_profile_32n16u(b: &mut Bencher) {
         let query_profile = StripedProfile::new(REFERENCE, &BIASED_WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
         b.iter(|| sw_simd_score::<u16, 32, 5>(QUERY, &query_profile));
+    }
+
+    #[bench]
+    fn sw_simd_no_profile_16n08i(b: &mut Bencher) {
+        let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN as i8, GAP_EXTEND as i8).unwrap();
+        b.iter(|| sw_simd_score::<i8, 16, 5>(QUERY, &query_profile));
+    }
+
+    #[bench]
+    fn sw_simd_no_profile_16n16i(b: &mut Bencher) {
+        let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN as i8, GAP_EXTEND as i8).unwrap();
+        b.iter(|| sw_simd_score::<i16, 16, 5>(QUERY, &query_profile));
+    }
+
+    #[bench]
+    fn sw_simd_no_profile_32n08i(b: &mut Bencher) {
+        let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN as i8, GAP_EXTEND as i8).unwrap();
+        b.iter(|| sw_simd_score::<i8, 32, 5>(QUERY, &query_profile));
+    }
+
+    #[bench]
+    fn sw_simd_no_profile_32n16i(b: &mut Bencher) {
+        let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN as i8, GAP_EXTEND as i8).unwrap();
+        b.iter(|| sw_simd_score::<i16, 32, 5>(QUERY, &query_profile));
     }
 }

@@ -1,5 +1,5 @@
 use super::{StripedProfile, validate_profile_args};
-use crate::data::{err::QueryProfileError, matrices::BiasedWeightMatrix};
+use crate::data::{err::QueryProfileError, matrices::WeightMatrix};
 use std::{
     cell::OnceCell,
     simd::{LaneCount, SupportedLaneCount},
@@ -19,7 +19,7 @@ pub struct LocalProfiles<'a, const N: usize, const S: usize>
 where
     LaneCount<N>: SupportedLaneCount, {
     pub(crate) query:       &'a [u8],
-    pub(crate) matrix:      &'a BiasedWeightMatrix<S>,
+    pub(crate) matrix:      &'a WeightMatrix<u8, S>,
     pub(crate) gap_open:    u8,
     pub(crate) gap_extend:  u8,
     pub(crate) profile_u8:  OnceCell<StripedProfile<u8, N, S>>,
@@ -42,7 +42,7 @@ where
     /// `gap_open`.
     #[inline]
     pub fn new<T: AsRef<[u8]> + ?Sized>(
-        query: &'a T, matrix: &'a BiasedWeightMatrix<S>, gap_open: u8, gap_extend: u8,
+        query: &'a T, matrix: &'a WeightMatrix<u8, S>, gap_open: u8, gap_extend: u8,
     ) -> Result<Self, QueryProfileError> {
         validate_profile_args(query.as_ref(), gap_open, gap_extend)?;
 
@@ -68,7 +68,7 @@ where
     /// `gap_open`.
     #[inline]
     pub fn new_with_u8<T: AsRef<[u8]> + ?Sized>(
-        query: &'a T, matrix: &'a BiasedWeightMatrix<S>, gap_open: u8, gap_extend: u8,
+        query: &'a T, matrix: &'a WeightMatrix<u8, S>, gap_open: u8, gap_extend: u8,
     ) -> Result<Self, QueryProfileError> {
         let p = LocalProfiles::new(query, matrix, gap_open, gap_extend)?;
         p.get_u8();
@@ -85,7 +85,7 @@ where
     /// `gap_open`.
     #[inline]
     pub fn new_with_u16<T: AsRef<[u8]> + ?Sized>(
-        query: &'a T, matrix: &'a BiasedWeightMatrix<S>, gap_open: u8, gap_extend: u8,
+        query: &'a T, matrix: &'a WeightMatrix<u8, S>, gap_open: u8, gap_extend: u8,
     ) -> Result<Self, QueryProfileError> {
         let p = LocalProfiles::new(query, matrix, gap_open, gap_extend)?;
         p.get_u16();
@@ -140,11 +140,11 @@ where
     /// ### Example
     ///
     /// ```
-    /// # use zoe::{alignment::{LocalProfiles, sw::sw_simd_score}, data::BiasedWeightMatrix};
+    /// # use zoe::{alignment::{LocalProfiles, sw::sw_simd_score}, data::WeightMatrix};
     /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///
-    /// const WEIGHTS: BiasedWeightMatrix<5> = BiasedWeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
+    /// const WEIGHTS: WeightMatrix<u8, 5> = WeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
     ///
     /// let profile = LocalProfiles::<32, 5>::new_with_u8(query, &WEIGHTS, 3, 1).unwrap();
     /// let score = profile.smith_waterman_score_from_u8(reference).unwrap();
@@ -169,11 +169,11 @@ where
     /// ### Example
     ///
     /// ```
-    /// # use zoe::{alignment::{LocalProfiles, sw::sw_simd_score}, data::BiasedWeightMatrix};
+    /// # use zoe::{alignment::{LocalProfiles, sw::sw_simd_score}, data::WeightMatrix};
     /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///
-    /// const WEIGHTS: BiasedWeightMatrix<5> = BiasedWeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
+    /// const WEIGHTS: WeightMatrix<u8, 5> = WeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
     ///
     /// let profile = LocalProfiles::<32, 5>::new_with_u16(query, &WEIGHTS, 3, 1).unwrap();
     /// let score = profile.smith_waterman_score_from_u16(reference).unwrap();
@@ -198,11 +198,11 @@ where
     /// ### Example
     ///
     /// ```
-    /// # use zoe::{alignment::{LocalProfiles, sw::sw_simd_score}, data::BiasedWeightMatrix};
+    /// # use zoe::{alignment::{LocalProfiles, sw::sw_simd_score}, data::WeightMatrix};
     /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///
-    /// const WEIGHTS: BiasedWeightMatrix<5> = BiasedWeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
+    /// const WEIGHTS: WeightMatrix<u8, 5> = WeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
     ///
     /// let profile = LocalProfiles::<32, 5>::new(query, &WEIGHTS, 3, 1).unwrap();
     /// let score = profile.smith_waterman_score_from_u32(reference).unwrap();
@@ -231,7 +231,7 @@ pub struct SharedProfiles<'a, const N: usize, const S: usize>
 where
     LaneCount<N>: SupportedLaneCount, {
     pub(crate) query:       Box<[u8]>,
-    pub(crate) matrix:      &'a BiasedWeightMatrix<S>,
+    pub(crate) matrix:      &'a WeightMatrix<u8, S>,
     pub(crate) gap_open:    u8,
     pub(crate) gap_extend:  u8,
     pub(crate) profile_u8:  OnceLock<StripedProfile<u8, N, S>>,
@@ -255,7 +255,7 @@ where
     /// `gap_open`.
     #[inline]
     pub fn new(
-        query: Box<[u8]>, matrix: &'a BiasedWeightMatrix<S>, gap_open: u8, gap_extend: u8,
+        query: Box<[u8]>, matrix: &'a WeightMatrix<u8, S>, gap_open: u8, gap_extend: u8,
     ) -> Result<Self, QueryProfileError> {
         validate_profile_args(&query, gap_open, gap_extend)?;
 
@@ -281,7 +281,7 @@ where
     /// `gap_open`.
     #[inline]
     pub fn new_with_u8(
-        query: Box<[u8]>, matrix: &'a BiasedWeightMatrix<S>, gap_open: u8, gap_extend: u8,
+        query: Box<[u8]>, matrix: &'a WeightMatrix<u8, S>, gap_open: u8, gap_extend: u8,
     ) -> Result<Self, QueryProfileError> {
         let p = SharedProfiles::new(query, matrix, gap_open, gap_extend)?;
         p.get_u8();
@@ -298,7 +298,7 @@ where
     /// `gap_open`.
     #[inline]
     pub fn new_with_u16(
-        query: Box<[u8]>, matrix: &'a BiasedWeightMatrix<S>, gap_open: u8, gap_extend: u8,
+        query: Box<[u8]>, matrix: &'a WeightMatrix<u8, S>, gap_open: u8, gap_extend: u8,
     ) -> Result<Self, QueryProfileError> {
         let p = SharedProfiles::new(query, matrix, gap_open, gap_extend)?;
         p.get_u16();
@@ -353,11 +353,11 @@ where
     /// ### Example
     ///
     /// ```
-    /// # use zoe::{alignment::{SharedProfiles, sw::sw_simd_score}, data::BiasedWeightMatrix};
+    /// # use zoe::{alignment::{SharedProfiles, sw::sw_simd_score}, data::WeightMatrix};
     /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///
-    /// const WEIGHTS: BiasedWeightMatrix<5> = BiasedWeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
+    /// const WEIGHTS: WeightMatrix<u8, 5> = WeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
     ///
     /// let profile = SharedProfiles::<32, 5>::new(query.into(), &WEIGHTS, 3, 1).unwrap();
     /// let score = profile.smith_waterman_score_from_u8(reference).unwrap();
@@ -382,11 +382,11 @@ where
     /// ### Example
     ///
     /// ```
-    /// # use zoe::{alignment::{SharedProfiles, sw::sw_simd_score}, data::BiasedWeightMatrix};
+    /// # use zoe::{alignment::{SharedProfiles, sw::sw_simd_score}, data::WeightMatrix};
     /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///
-    /// const WEIGHTS: BiasedWeightMatrix<5> = BiasedWeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
+    /// const WEIGHTS: WeightMatrix<u8, 5> = WeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
     ///
     /// let profile = SharedProfiles::<32, 5>::new(query.into(), &WEIGHTS, 3, 1).unwrap();
     /// let score = profile.smith_waterman_score_from_u16(reference).unwrap();
@@ -411,11 +411,11 @@ where
     /// ### Example
     ///
     /// ```
-    /// # use zoe::{alignment::{SharedProfiles, sw::sw_simd_score}, data::BiasedWeightMatrix};
+    /// # use zoe::{alignment::{SharedProfiles, sw::sw_simd_score}, data::WeightMatrix};
     /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///
-    /// const WEIGHTS: BiasedWeightMatrix<5> = BiasedWeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
+    /// const WEIGHTS: WeightMatrix<u8, 5> = WeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
     ///
     /// let profile = SharedProfiles::<32, 5>::new(query.into(), &WEIGHTS, 3, 1).unwrap();
     /// let score = profile.smith_waterman_score_from_u32(reference).unwrap();

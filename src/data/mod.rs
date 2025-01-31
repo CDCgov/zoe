@@ -21,7 +21,7 @@ mod validation;
 
 pub use constants::{
     mappings::{ByteIndexMap, DNA_PROFILE_MAP, StdGeneticCode},
-    matrices::{BiasedWeightMatrix, SimpleWeightMatrix},
+    matrices::WeightMatrix,
 };
 pub use records::{fasta, fastq, sam};
 pub use types::{amino_acids, cigar, nucleotides, phred};

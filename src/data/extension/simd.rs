@@ -48,6 +48,81 @@ where
     }
 }
 
+// Do not use in a prelude to avoid conflicts with `std::simd::SimdInt` and `std::simd::SimdUint`.
+pub trait SimdAnyInt<T, const N: usize>
+where
+    LaneCount<N>: SupportedLaneCount,
+    T: SimdElement, {
+    fn reduce_max(self) -> T;
+    fn reduce_min(self) -> T;
+    fn saturating_sub(self, rhs: Self) -> Self;
+    fn saturating_add(self, rhs: Self) -> Self;
+}
+
+macro_rules! impl_simd_any_int_signed {
+    ($($t:ty),*) => {
+        $(
+            impl<const N: usize> SimdAnyInt<$t, N> for Simd<$t, N>
+            where
+                LaneCount<N>: SupportedLaneCount,
+            {
+                #[inline]
+                fn reduce_max(self) -> $t {
+                    <Self as std::simd::num::SimdInt>::reduce_max(self)
+                }
+
+                #[inline]
+                fn reduce_min(self) -> $t {
+                    <Self as std::simd::num::SimdInt>::reduce_min(self)
+                }
+
+                #[inline]
+                fn saturating_sub(self, rhs: Self) -> Self {
+                    <Self as std::simd::num::SimdInt>::saturating_sub(self, rhs)
+                }
+
+                #[inline]
+                fn saturating_add(self, rhs: Self) -> Self {
+                    <Self as std::simd::num::SimdInt>::saturating_add(self, rhs)
+                }
+            }
+        )*
+    };
+}
+impl_simd_any_int_signed!(i8, i16, i32, i64, isize);
+
+macro_rules! impl_simd_any_int_unsigned {
+    ($($t:ty),*) => {
+        $(
+            impl<const N: usize> SimdAnyInt<$t, N> for Simd<$t, N>
+            where
+                LaneCount<N>: SupportedLaneCount,
+            {
+                #[inline]
+                fn reduce_max(self) -> $t {
+                    <Self as std::simd::num::SimdUint>::reduce_max(self)
+                }
+
+                #[inline]
+                fn reduce_min(self) -> $t {
+                    <Self as std::simd::num::SimdUint>::reduce_min(self)
+                }
+
+                #[inline]
+                fn saturating_sub(self, rhs: Self) -> Self {
+                    <Self as std::simd::num::SimdUint>::saturating_sub(self, rhs)
+                }
+
+                #[inline]
+                fn saturating_add(self, rhs: Self) -> Self {
+                    <Self as std::simd::num::SimdUint>::saturating_add(self, rhs)
+                }
+            }
+        )*
+    };
+}
+impl_simd_any_int_unsigned!(u8, u16, u32, u64, usize);
+
 #[allow(dead_code)]
 pub(crate) trait SimdByteFunctions<const N: usize>
 where
