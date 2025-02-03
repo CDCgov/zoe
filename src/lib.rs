@@ -285,14 +285,14 @@ pub mod distance;
 /// For convenience, the type aliases [`ThreeBitKmerSet`] and
 /// [`ThreeBitKmerCounter`] are provided.
 ///
-/// <div class="warning">
+/// <div class="warning important">
+///
+/// **Important**
 ///
 /// When performing more specialized k-mer operations, you may need to directly
 /// encode and decode k-mers, rather than relying on the methods in [`KmerSet`]
 /// or [`KmerCounter`]. It is important to use the same [`KmerEncoder`] to both
-/// encode and decode the k-mer. For [`ThreeBitEncodedKmer`], there also exists
-/// a [`Display`] implementation that does not require access to the encoder,
-/// but this is suboptimal; it is preferred to decode the k-mer first.
+/// encode and decode the k-mer.
 ///
 /// </div>
 ///

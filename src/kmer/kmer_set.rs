@@ -19,7 +19,9 @@ use super::{EncodedKmerCollection, KmerCollectionContains, MismatchNumber, Suppo
 /// Consider using the alias [`ThreeBitKmerSet`], unless you are using a custom
 /// [`KmerEncoder`].
 ///
-/// <div class="warning info">
+/// <div class="warning tip">
+///
+/// **Tip**
 ///
 /// For guidance on picking the appropriate `MAX_LEN`, see [`SupportedKmerLen`].
 ///

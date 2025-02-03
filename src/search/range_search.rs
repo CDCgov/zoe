@@ -5,7 +5,9 @@ use std::ops::{Bound, Index};
 /// the search range when performing a string search. See [Restricting the
 /// search range](crate::search#restricting-the-search-range) for more details.
 ///
-/// <div class="warning">
+/// <div class="warning note">
+///
+/// **Note**
 ///
 /// All string search methods called on a [`RangeSearch`] struct return indices
 /// with respect to the original sequence, not the subsequence.
@@ -43,9 +45,13 @@ impl<'a> RangeSearch<'a> {
 pub trait ToRangeSearch: AsRef<[u8]> {
     /// Restrict the search to be in `range`.
     ///
-    /// <div class="warning">
+    /// <div class="warning note">
+    ///
+    /// **Note**
+    ///
     /// All string search methods called on the resulting struct return indices
     /// with respect to the original sequence, not the subsequence.
+    ///
     /// </div>
     #[inline]
     fn search_in<R: SliceRange>(&self, range: R) -> RangeSearch {
@@ -55,9 +61,13 @@ pub trait ToRangeSearch: AsRef<[u8]> {
     /// Restrict the search to be in only the first `n` bytes. If the sequence
     /// is less than `n` bytes long, then the full sequence is searched.
     ///
-    /// <div class="warning">
+    /// <div class="warning note">
+    ///
+    /// **Note**
+    ///
     /// All string search methods called on the resulting struct return indices
     /// with respect to the original sequence, not the subsequence.
+    ///
     /// </div>
     #[inline]
     fn search_in_first(&self, n: usize) -> RangeSearch {
@@ -68,9 +78,13 @@ pub trait ToRangeSearch: AsRef<[u8]> {
     /// Restrict the search to be in only the last `n` bytes. If the sequence
     /// is less than `n` bytes long, then the full sequence is searched.
     ///
-    /// <div class="warning">
+    /// <div class="warning note">
+    ///
+    /// **Note**
+    ///
     /// All string search methods called on the resulting struct return indices
     /// with respect to the original sequence, not the subsequence.
+    ///
     /// </div>
     #[inline]
     fn search_in_last(&self, n: usize) -> RangeSearch {

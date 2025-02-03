@@ -1,17 +1,14 @@
 <!-- Courtesy: https://github.com/victe/rust-latex-doc-minimal-example/blob/master/src/docs-header.html -->
 
-<link rel="stylesheet"
-    href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"
-    integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+"
-    crossorigin="anonymous">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"
+    integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
 
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"
     integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg"
     crossorigin="anonymous"></script>
 
 
-<script
-    src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
     integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk"
     crossorigin="anonymous"></script>
 
@@ -28,16 +25,45 @@
     });
 </script>
 
-<!-- Styling for Info Boxes -->
+<!-- 
+    Styling for Info Boxes. The Default is the provided Warning style. This
+    will get us closer to Github markdown: https://github.com/orgs/community/discussions/16925 
+-->
 
 <style>
-    .content .docblock .warning.info {
+    /* NOTE styling - Blue */
+    .content .docblock .warning.note {
         border-left: 2px solid #008cff;
     }
-</style>
 
-<style>
-    .content .docblock .warning.info::before {
+    .content .docblock .warning.note::before {
         color: #008cff;
+    }
+
+    /* TIP styling - Green */
+    .content .docblock .warning.tip {
+        border-left: 2px solid #28a745;
+    }
+
+    .content .docblock .warning.tip::before {
+        color: #28a745;
+    }
+
+    /* IMPORTANT styling - Purple */
+    .content .docblock .warning.important {
+        border-left: 2px solid #6f42c1;
+    }
+
+    .content .docblock .warning.important::before {
+        color: #6f42c1;
+    }
+
+    /* CAUTION styling - Red */
+    .content .docblock .warning.caution {
+        border-left: 2px solid #d73a49;
+    }
+
+    .content .docblock .warning.caution::before {
+        color: #d73a49;
     }
 </style>

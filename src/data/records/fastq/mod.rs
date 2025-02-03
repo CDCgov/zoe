@@ -13,6 +13,8 @@ pub use reader::*;
 ///
 /// <div class="warning">
 ///
+/// **Warning**
+///
 /// If mutating the `sequence` or `quality` fields, the user must ensure they
 /// remain the same length.
 ///
@@ -28,6 +30,8 @@ pub struct FastQ {
 /// [Views](crate::data#views) for more details.
 ///
 /// <div class="warning">
+///
+/// **Warning**
 ///
 /// If mutating the `sequence` or `quality` fields, the user must ensure they
 /// remain the same length. For example, do not call [`restrict`] on individual
@@ -47,6 +51,8 @@ pub struct FastQView<'a> {
 /// [Views](crate::data#views) for more details.
 ///
 /// <div class="warning">
+///
+/// **Warning**
 ///
 /// If mutating the `sequence` or `quality` fields, the user must ensure they
 /// remain the same length. For example, do not call [`restrict`] on individual
