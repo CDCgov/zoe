@@ -13,6 +13,9 @@ use std::{
 /// [`QualityScores`](crate::data::types::phred::QualityScores) are printable
 /// subsets of ASCII underneath the hood and therefore be efficiently searched
 /// in this manner.
+///
+/// This trait is also compatible with [`RangeSearch`]. See [Restricting the
+/// search range](crate::search#restricting-the-search-range) for more details.
 pub trait ByteSubstring {
     /// Returns `true` is the substring is found and `false` if not. Searches in
     /// the forward direction.

@@ -2,17 +2,24 @@ use crate::data::view_traits::{IndexAdjustable, SliceRange};
 use std::ops::{Bound, Index};
 
 /// A subsequence along with its starting index. This is used for restricting
-/// the search range when performing a string search. See [Restricting the
-/// search range](crate::search#restricting-the-search-range) for more details.
+/// the search range when performing a search. See [Restricting the search
+/// range](crate::search#restricting-the-search-range) for more details.
+///
+/// It is compatible with:
+/// * Performing string search via the [`ByteSubstring`] trait
+/// * Searching for k-mers with [`FindKmers`]
 ///
 /// <div class="warning note">
 ///
 /// **Note**
 ///
-/// All string search methods called on a [`RangeSearch`] struct return indices
-/// with respect to the original sequence, not the subsequence.
+/// All search methods called on a [`RangeSearch`] struct return indices with
+/// respect to the original sequence, not the subsequence.
 ///
 /// </div>
+///
+/// [`ByteSubstring`]: crate::search::substring::ByteSubstring
+/// [`FindKmers`]: crate::kmer::FindKmers
 pub struct RangeSearch<'a> {
     pub(crate) slice:       &'a [u8],
     pub(crate) starting_at: usize,

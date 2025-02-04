@@ -1,4 +1,4 @@
-use crate::data::nucleotides::NucleotidesReadable;
+use crate::search::RangeSearch;
 
 use super::KmerEncoder;
 use std::ops::Range;
@@ -80,26 +80,45 @@ pub trait KmerCollectionContains<const MAX_LEN: usize>: EncodedKmerCollection<MA
 }
 
 /// Provides methods for searching for a kmer in a collection.
-pub trait FindKmers<const MAX_LEN: usize>: NucleotidesReadable {
+///
+/// This trait is also compatible with [`RangeSearch`]. See [Restricting the
+/// search range](crate::search#restricting-the-search-range) for more details.
+pub trait FindKmers<const MAX_LEN: usize> {
     /// Return the indices of the leftmost occurrence of any of the k-mers in a
     /// collection. The bases in the sequence must be valid for the
     /// [`KmerEncoder`] associated with the collection. If no occurrence is
     /// found, then `None` is returned.
-    #[inline]
     #[must_use]
-    fn find_kmers<T: KmerCollectionContains<MAX_LEN>>(&self, kmers: &T) -> Option<Range<usize>> {
-        kmers.find_in_seq(self.nucleotide_bytes())
-    }
+    fn find_kmers<T: KmerCollectionContains<MAX_LEN>>(&self, kmers: &T) -> Option<Range<usize>>;
 
     /// Return the indices of the rightmost occurrence of any of the k-mers in a
     /// collection. The bases in the sequence must be valid for the
     /// [`KmerEncoder`] associated with the collection. If no occurrence is
     /// found, then `None` is returned.
-    #[inline]
     #[must_use]
+    fn find_kmers_rev<T: KmerCollectionContains<MAX_LEN>>(&self, kmers: &T) -> Option<Range<usize>>;
+}
+
+impl<const MAX_LEN: usize, Q: AsRef<[u8]>> FindKmers<MAX_LEN> for Q {
+    #[inline]
+    fn find_kmers<T: KmerCollectionContains<MAX_LEN>>(&self, kmers: &T) -> Option<Range<usize>> {
+        kmers.find_in_seq(self.as_ref())
+    }
+
+    #[inline]
     fn find_kmers_rev<T: KmerCollectionContains<MAX_LEN>>(&self, kmers: &T) -> Option<Range<usize>> {
-        kmers.find_in_seq_rev(self.nucleotide_bytes())
+        kmers.find_in_seq_rev(self.as_ref())
     }
 }
 
-impl<const MAX_LEN: usize, T: NucleotidesReadable> FindKmers<MAX_LEN> for T {}
+impl<const MAX_LEN: usize> FindKmers<MAX_LEN> for RangeSearch<'_> {
+    #[inline]
+    fn find_kmers<T: KmerCollectionContains<MAX_LEN>>(&self, kmers: &T) -> Option<Range<usize>> {
+        self.slice.find_kmers(kmers).map(|r| self.adjust_to_context(&r))
+    }
+
+    #[inline]
+    fn find_kmers_rev<T: KmerCollectionContains<MAX_LEN>>(&self, kmers: &T) -> Option<Range<usize>> {
+        self.slice.find_kmers_rev(kmers).map(|r| self.adjust_to_context(&r))
+    }
+}
