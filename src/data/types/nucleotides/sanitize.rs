@@ -5,12 +5,11 @@ use crate::{
             IUPAC_TO_DNA_CANONICAL_UPPER, TO_DNA_UC, TO_UNALIGNED_DNA_UC,
         },
         types::nucleotides::NucleotidesMutable,
-        validation::recode::Recode,
-        validation::retain::RetainSequence,
+        validation::{recode::Recode, retain::RetainSequence},
+        view_traits::SliceRange,
     },
     prelude::*,
 };
-use std::ops::Range;
 
 pub trait ToDNA: AsRef<[u8]> {
     fn filter_to_dna(&self) -> Nucleotides {
@@ -48,9 +47,9 @@ pub trait RecodeNucleotides: NucleotidesMutable {
         self.nucleotide_mut_bytes().recode(IUPAC_TO_DNA_CANONICAL_UPPER);
     }
 
-    /// Masks the provided [`Range`] with `N`. If the range does not exist, the
+    /// Masks the provided `range` with `N`. If the range does not exist, the
     /// function does nothing.
-    fn mask_if_exists(&mut self, range: Range<usize>) {
+    fn mask_if_exists<R: SliceRange>(&mut self, range: R) {
         self.nucleotide_mut_bytes().mask_if_exists(range, b'N');
     }
 }

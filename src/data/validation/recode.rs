@@ -1,4 +1,4 @@
-use std::ops::Range;
+use crate::data::view_traits::SliceRange;
 
 /// Provides method for recoding a sequence based on a byte mapping.
 pub trait Recode: AsMut<[u8]> {
@@ -10,10 +10,10 @@ pub trait Recode: AsMut<[u8]> {
         }
     }
 
-    /// Replaces the provided [`Range`] with the specified byte. If the range
-    /// does not exist, the function does nothing.
+    /// Replaces the provided `range` with the specified byte. If the range does
+    /// not exist, the function does nothing.
     #[inline]
-    fn mask_if_exists(&mut self, range: Range<usize>, replacement: u8) {
+    fn mask_if_exists<R: SliceRange>(&mut self, range: R, replacement: u8) {
         if let Some(slice) = self.as_mut().get_mut(range) {
             for b in slice {
                 *b = replacement;
