@@ -46,3 +46,14 @@ fn test_make_reverse_complement() {
         String::from_utf8_lossy(&seq2)
     );
 }
+
+#[test]
+fn test_simd_make_reverse_complement() {
+    let mut seq2 = SEQ.clone();
+    make_reverse_complement_simd::<32>(&mut seq2);
+
+    assert_eq!(
+        String::from_utf8_lossy(&reverse_complement(&SEQ)),
+        String::from_utf8_lossy(&seq2)
+    );
+}

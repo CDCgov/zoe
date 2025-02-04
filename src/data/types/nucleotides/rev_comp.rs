@@ -4,16 +4,6 @@ use crate::{
 };
 use std::simd::{LaneCount, SupportedLaneCount};
 
-/// Performs the DNA reverse complement of the byte slice in place.
-/// Assumes ASCII input.
-#[inline]
-pub fn make_reverse_complement(bases: &mut [u8]) {
-    bases.reverse();
-    for x in bases {
-        *x = TO_REVERSE_COMPLEMENT[*x as usize];
-    }
-}
-
 /// Performs the DNA reverse complement of the byte slice into a new vector.
 /// Assumes ASCII input.
 #[inline]
@@ -38,7 +28,6 @@ pub fn reverse_complement(bases: &[u8]) -> Vec<u8> {
 /// relevant versus the scalar implementation.
 #[inline]
 #[must_use]
-#[allow(dead_code)]
 pub fn reverse_complement_simd<const N: usize>(bases: &[u8]) -> Vec<u8>
 where
     LaneCount<N>: SupportedLaneCount, {
@@ -72,4 +61,46 @@ where
     reverse_complement.extend(pre.iter().rev().copied().map(|x| TO_REVERSE_COMPLEMENT[x as usize]));
 
     reverse_complement
+}
+
+/// Performs the DNA reverse complement of the byte slice in place.
+/// Assumes ASCII input.
+#[inline]
+pub fn make_reverse_complement(bases: &mut [u8]) {
+    bases.reverse();
+    for x in bases {
+        *x = TO_REVERSE_COMPLEMENT[*x as usize];
+    }
+}
+
+/// Reverse complement of a nucleotide sequences using explicit SIMD
+/// instructions in-place. Similar to [`reverse_complement_simd`].
+#[inline]
+pub fn make_reverse_complement_simd<const N: usize>(bases: &mut [u8])
+where
+    LaneCount<N>: SupportedLaneCount, {
+    bases.reverse();
+    let (pre, mid, sfx) = bases.as_simd_mut::<N>();
+
+    for x in pre {
+        *x = TO_REVERSE_COMPLEMENT[*x as usize];
+    }
+    for x in sfx {
+        *x = TO_REVERSE_COMPLEMENT[*x as usize];
+    }
+
+    for v in mid {
+        let lowercase = v.is_ascii_lowercase();
+        *v = lowercase.make_selected_ascii_uppercase(v);
+
+        v.exchange_byte_pairs(b'T', b'A');
+        v.exchange_byte_pairs(b'G', b'C');
+        v.exchange_byte_pairs(b'R', b'Y');
+        v.exchange_byte_pairs(b'K', b'M');
+        v.exchange_byte_pairs(b'B', b'V');
+        v.exchange_byte_pairs(b'H', b'D');
+        v.if_value_then_replace(b'U', b'A');
+
+        *v = lowercase.make_selected_ascii_lowercase(v);
+    }
 }
