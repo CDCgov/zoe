@@ -66,6 +66,8 @@
 //! [`to_owned_data`]: crate::prelude::DataView::to_owned_data
 //! [`restrict`]: crate::prelude::DataView::restrict
 
+#[cfg(feature = "arbitrary")]
+pub mod arbitrary;
 /// A module with error types and convenience traits for handling [`Result`].
 pub mod err;
 /// A module for records types--usually for I/O--that are structures of other

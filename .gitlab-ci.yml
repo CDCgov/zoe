@@ -33,7 +33,7 @@ pages:
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
   script:
-    - cargo doc --no-deps --document-private-items
+    - cargo doc --no-deps --document-private-items --all-features
     - mv target/doc public/
     - echo "<meta http-equiv=\"refresh\" content=\"0; url=${CI_PROJECT_TITLE}\">" > public/index.html
   artifacts:

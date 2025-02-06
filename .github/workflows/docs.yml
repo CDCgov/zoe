@@ -32,7 +32,7 @@ jobs:
           rustup default nightly
       - name: Build Documentation
         run: |
-          cargo doc --no-deps
+          cargo doc --no-deps --all-features
           echo '<meta http-equiv="refresh" content="0; url=zoe/index.html">' > target/doc/index.html
 
       - name: Upload artifact
