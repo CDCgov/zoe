@@ -1,7 +1,7 @@
 use crate::{
     alignment::sw::{sw_scalar_score, sw_simd_score},
     data::{WeightMatrix, err::QueryProfileError, mappings::ByteIndexMap, types::cigar::Cigar},
-    math::AnyInt,
+    math::{AnyInt, FromSameSignedness},
 };
 use std::{
     convert::Into,
@@ -151,7 +151,7 @@ where
     /// `gap_open`.
     pub fn new<U>(query: &[u8], matrix: &WeightMatrix<U, S>, gap_open: U, gap_extend: U) -> Result<Self, QueryProfileError>
     where
-        T: From<U>,
+        T: FromSameSignedness<U>,
         U: AnyInt, {
         validate_profile_args(query, gap_open, gap_extend)?;
         Ok(Self::new_unchecked(query, matrix, gap_open, gap_extend))

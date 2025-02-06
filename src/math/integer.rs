@@ -136,3 +136,25 @@ impl_int!(i8, i16, i32, i64, isize, i128, u8, u16, u32, u64, usize, u128);
 
 impl_xint!(Uint; u8, u16, u32, u64, usize, u128);
 impl_xint!(Int; i8, i16, i32, i64, isize, i128);
+
+pub trait FromSameSignedness<T>: From<T> {}
+
+macro_rules! impl_from_same_sign {
+    ($smaller:ty => $($bigger:ty),*) => {
+        $(
+            impl FromSameSignedness<$smaller> for $bigger {}
+        )*
+    };
+}
+
+impl_from_same_sign! {u8 => u8, u16, u32, u64, u128}
+impl_from_same_sign! {u16 => u16, u32, u64, u128}
+impl_from_same_sign! {u32 => u32, u64, u128}
+impl_from_same_sign! {u64 => u64, u128}
+impl_from_same_sign! {u128 => u128}
+
+impl_from_same_sign! {i8 => i8, i16, i32, i64, i128}
+impl_from_same_sign! {i16 => i16, i32, i64, i128}
+impl_from_same_sign! {i32 => i32, i64, i128}
+impl_from_same_sign! {i64 => i64, i128}
+impl_from_same_sign! {i128 => i128}
