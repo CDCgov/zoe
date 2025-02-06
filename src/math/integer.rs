@@ -4,12 +4,14 @@ use std::{
     ops::{Add, AddAssign, BitAnd, BitOr, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign},
 };
 
-pub trait Int:
+pub trait AnyInt:
     Sized
     + Copy
     + Debug
     + Ord
     + Hash
+    + Default
+    + PartialEq
     + Add<Output = Self>
     + Sub<Output = Self>
     + AddAssign
@@ -37,7 +39,9 @@ pub trait Int:
 
     fn from_bool(b: bool) -> Self;
     fn as_usize(self) -> usize;
-    fn checked_addition(&self, other: Self) -> Option<Self>;
+    fn as_u64(self) -> u64;
+    fn as_i64(self) -> i64;
+    fn checked_add(self, other: Self) -> Option<Self>;
     fn trailing_zeros(self) -> u32;
     fn count_ones(self) -> u32;
 
@@ -56,13 +60,13 @@ pub trait Int:
     const SIGNED: bool;
 }
 
-pub trait Uint: Int + From<u8> {}
-pub trait Iint: Int + From<i8> {}
+pub trait Uint: AnyInt + From<u8> {}
+pub trait Int: AnyInt + From<i8> {}
 
 macro_rules! impl_int {
     { $($ty:ty),* } => {
         $(
-        impl Int for $ty {
+        impl AnyInt for $ty {
             const ZERO: $ty = 0;
             const ONE: $ty = 1;
             const SIGNED: bool = stringify!($ty).as_bytes()[0] == b'i';
@@ -72,12 +76,20 @@ macro_rules! impl_int {
                 <$ty>::from(b)
             }
 
-            #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
+            #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation, clippy::cast_lossless, clippy::cast_possible_wrap)]
             #[inline]
             fn as_usize(self) -> usize { self as usize }
 
+            #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation, clippy::cast_lossless, clippy::cast_possible_wrap)]
             #[inline]
-            fn checked_addition(&self,other: Self) -> Option<Self> {
+            fn as_u64(self) -> u64 { self as u64 }
+
+            #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation, clippy::cast_lossless, clippy::cast_possible_wrap)]
+            #[inline]
+            fn as_i64(self) -> i64 { self as i64 }
+
+            #[inline]
+            fn checked_add(self, other: Self) -> Option<Self> {
                 self.checked_add(other)
             }
 
@@ -123,4 +135,4 @@ macro_rules! impl_xint {
 impl_int!(i8, i16, i32, i64, isize, i128, u8, u16, u32, u64, usize, u128);
 
 impl_xint!(Uint; u8, u16, u32, u64, usize, u128);
-impl_xint!(Iint; i8, i16, i32, i64, isize, i128);
+impl_xint!(Int; i8, i16, i32, i64, isize, i128);

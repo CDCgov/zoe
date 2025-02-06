@@ -53,9 +53,13 @@ pub trait SimdAnyInt<T, const N: usize>
 where
     LaneCount<N>: SupportedLaneCount,
     T: SimdElement, {
+    #[must_use]
     fn reduce_max(self) -> T;
+    #[must_use]
     fn reduce_min(self) -> T;
+    #[must_use]
     fn saturating_sub(self, rhs: Self) -> Self;
+    #[must_use]
     fn saturating_add(self, rhs: Self) -> Self;
 }
 

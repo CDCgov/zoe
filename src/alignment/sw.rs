@@ -4,7 +4,7 @@
 use super::*;
 use crate::{
     data::types::cigar::Cigar,
-    math::Int,
+    math::AnyInt,
     simd::{SimdAnyInt, SimdExt},
 };
 use std::{
@@ -322,7 +322,7 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
 pub fn sw_simd_score<T, const N: usize, const S: usize>(reference: &[u8], query: &StripedProfile<T, N, S>) -> Option<T>
 where
-    T: Int + SimdElement + Default + PartialEq + std::ops::Add<Output = T> + std::fmt::Debug,
+    T: AnyInt + SimdElement + Default + PartialEq + std::ops::Add<Output = T> + std::fmt::Debug,
     LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdAnyInt<T, N>
         + Shl<T, Output = Simd<T, N>>
@@ -409,13 +409,13 @@ where
         // NB: Without widening the return type, we really don't benefit from the shifted score.
         // MAX + 1 returns (must be carried out separately) us to 0-base and
         // filter if at capacity.
-        best.checked_addition(T::MAX)
-            .and_then(|b| b.checked_addition(T::ONE))
+        best.checked_add(T::MAX)
+            .and_then(|b| b.checked_add(T::ONE))
             .filter(|b| *b != T::MAX)
     } else {
         // If we would have overflowed, return none, otherwise return the best score
         // We add one because we care if the value is equal to the MAX.
-        best.checked_addition(query.bias + T::ONE).map(|_| best)
+        best.checked_add(query.bias + T::ONE).map(|_| best)
     }
 }
 

@@ -43,13 +43,13 @@ pub(crate) trait Float:
     const ZERO: Self;
 
     /// Generic absolute value for [`Float`]
-    fn float_abs(&self) -> Self;
+    fn abs(self) -> Self;
     /// Generic minimum of 2 values for [`Float`]
-    fn float_min(&self, other: Self) -> Self;
+    fn min(self, other: Self) -> Self;
     /// Generic `is_nan` calculation for [`Float`]
-    fn float_is_nan(&self) -> bool;
+    fn is_nan(self) -> bool;
     /// Generic `is_infinite` for [`Float`]
-    fn float_is_infinite(&self) -> bool;
+    fn is_infinite(self) -> bool;
 }
 
 macro_rules! impl_float {
@@ -60,19 +60,19 @@ macro_rules! impl_float {
             const MAX: Self = <$ty>::MAX;
             const ZERO: Self = 0.0;
 
-            fn float_abs(&self) -> Self {
+            fn abs(self) -> Self {
                 self.abs()
             }
 
-            fn float_min(&self, other: Self) -> Self {
+            fn min(self, other: Self) -> Self {
                 self.min(other)
             }
 
-            fn float_is_nan(&self) -> bool {
+            fn is_nan(self) -> bool {
                 self.is_nan()
             }
 
-            fn float_is_infinite(&self) -> bool {
+            fn is_infinite(self) -> bool {
                 self.is_infinite()
             }
         } )*
@@ -95,9 +95,9 @@ where
     /// Port courtesy of <https://floating-point-gui.de/errors/comparison/>
     fn nearly_equal(self, b: Self, eps: T) -> bool {
         let a = self;
-        let abs_a = a.float_abs();
-        let abs_b = b.float_abs();
-        let diff = (a - b).float_abs();
+        let abs_a = a.abs();
+        let abs_b = b.abs();
+        let diff = (a - b).abs();
         let zero = Self::ZERO;
 
         if a == b {
@@ -109,7 +109,7 @@ where
             diff < eps * Self::MIN
         } else {
             // use relative error
-            diff / (abs_a + abs_b).float_min(Self::MAX) < eps
+            diff / (abs_a + abs_b).min(Self::MAX) < eps
         }
     }
 }
@@ -132,7 +132,7 @@ where
 pub(crate) trait MapFloat: Float {
     #[inline]
     fn into_option(self) -> Option<Self> {
-        if self.float_is_infinite() || self.float_is_nan() {
+        if self.is_infinite() || self.is_nan() {
             None
         } else {
             Some(self)

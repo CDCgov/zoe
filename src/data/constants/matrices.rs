@@ -1,6 +1,6 @@
 use crate::{
     data::mappings::{ByteIndexMap, DNA_PROFILE_MAP},
-    math::Int,
+    math::AnyInt,
 };
 
 // Physiochemical distance matrix using the euclidean distance between all amino acid factors.
@@ -116,7 +116,7 @@ impl WeightMatrix<u8, 5> {
 /// [`new_biased_dna_matrix`]: WeightMatrix::new_biased_dna_matrix
 /// [`into_biased_matrix`]: WeightMatrix::into_biased_matrix
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-pub struct WeightMatrix<T: Int, const S: usize> {
+pub struct WeightMatrix<T: AnyInt, const S: usize> {
     pub weights:     [[T; S]; S],
     pub mapping:     &'static ByteIndexMap<S>,
     pub(crate) bias: T,

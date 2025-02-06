@@ -1,7 +1,7 @@
 use crate::{
     alignment::sw::{sw_scalar_score, sw_simd_score},
     data::{WeightMatrix, err::QueryProfileError, mappings::ByteIndexMap, types::cigar::Cigar},
-    math::Int,
+    math::AnyInt,
 };
 use std::{
     convert::Into,
@@ -12,7 +12,7 @@ use std::{
 use super::sw::sw_scalar_alignment;
 
 #[inline]
-pub(crate) fn validate_profile_args<Q: AsRef<[u8]>, U: Int>(
+pub(crate) fn validate_profile_args<Q: AsRef<[u8]>, U: AnyInt>(
     query: Q, gap_open: U, gap_extend: U,
 ) -> Result<(), QueryProfileError> {
     if query.as_ref().is_empty() {
@@ -137,7 +137,7 @@ where
 
 impl<T, const N: usize, const S: usize> StripedProfile<T, N, S>
 where
-    T: Int + SimdElement,
+    T: AnyInt + SimdElement,
     LaneCount<N>: SupportedLaneCount,
 {
     /// Creates a new striped profile from a sequence and scoring matrix.
@@ -152,7 +152,7 @@ where
     pub fn new<U>(query: &[u8], matrix: &WeightMatrix<U, S>, gap_open: U, gap_extend: U) -> Result<Self, QueryProfileError>
     where
         T: From<U>,
-        U: Int, {
+        U: AnyInt, {
         validate_profile_args(query, gap_open, gap_extend)?;
         Ok(Self::new_unchecked(query, matrix, gap_open, gap_extend))
     }
@@ -163,7 +163,7 @@ where
     pub(crate) fn new_unchecked<U>(query: &[u8], matrix: &WeightMatrix<U, S>, gap_open: U, gap_extend: U) -> Self
     where
         T: From<U>,
-        U: Int, {
+        U: AnyInt, {
         // SupportedLaneCount cannot presently be zero.
         let number_vectors = query.len().div_ceil(N);
         let total_lanes = N * number_vectors;
