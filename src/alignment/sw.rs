@@ -7,10 +7,7 @@ use crate::{
     math::AnyInt,
     simd::{SimdAnyInt, SimdExt},
 };
-use std::{
-    ops::{AddAssign, Shl},
-    simd::{LaneCount, SimdElement, SupportedLaneCount, prelude::*},
-};
+use std::simd::{LaneCount, SimdElement, SupportedLaneCount, prelude::*};
 
 /// Smith-Waterman algorithm, yielding the optimal score.
 ///
@@ -59,7 +56,7 @@ use std::{
 ///    <https://doi.org/10.1101/031500>
 ///
 #[must_use]
-pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S>) -> i32 {
+pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S>) -> u64 {
     struct SWCells {
         matching:   i32,
         endgap_up:  i32,
@@ -108,7 +105,8 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
         }
     }
 
-    best_score
+    // Score must be non-negative
+    best_score.as_u64()
 }
 
 /// Smith-Waterman alignment, yielding the reference starting position (indexed
@@ -320,15 +318,11 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
 #[allow(non_snake_case)]
 #[must_use]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
-pub fn sw_simd_score<T, const N: usize, const S: usize>(reference: &[u8], query: &StripedProfile<T, N, S>) -> Option<T>
+pub fn sw_simd_score<T, const N: usize, const S: usize>(reference: &[u8], query: &StripedProfile<T, N, S>) -> Option<u64>
 where
-    T: AnyInt + SimdElement + Default + PartialEq + std::ops::Add<Output = T> + std::fmt::Debug,
+    T: AnyInt + SimdElement,
     LaneCount<N>: SupportedLaneCount,
-    Simd<T, N>: SimdAnyInt<T, N>
-        + Shl<T, Output = Simd<T, N>>
-        + AddAssign<Simd<T, N>>
-        + SimdOrd
-        + SimdPartialEq<Mask = Mask<<T as SimdElement>::Mask, N>>, {
+    Simd<T, N>: SimdAnyInt<T, N>, {
     let num_vecs = query.number_vectors();
     let profile: &Vec<Simd<T, N>> = &query.profile;
 
@@ -406,16 +400,23 @@ where
     let best = max_scores.reduce_max();
 
     if T::SIGNED {
-        // NB: Without widening the return type, we really don't benefit from the shifted score.
-        // MAX + 1 returns (must be carried out separately) us to 0-base and
-        // filter if at capacity.
-        best.checked_add(T::MAX)
-            .and_then(|b| b.checked_add(T::ONE))
-            .filter(|b| *b != T::MAX)
+        // Signed int maximums are positive and always less than u64::MAX.
+        // NB: i128 is not a valid SimdElement.
+        let best = best.as_i64();
+        let t_max = T::MAX.as_i64();
+        let limit = 2u64.pow(T::BITS) - 1;
+
+        // Map best score to an unsigned range. Note that: MAX+1 = abs(MIN). If
+        // we would have overflowed, return None, otherwise return the best
+        // score. For `i64`, a half range is allowed.
+        best.checked_add(t_max)
+            .and_then(|b| b.checked_add(1))
+            .map(AnyInt::as_u64)
+            .filter(|b| *b < limit)
     } else {
-        // If we would have overflowed, return none, otherwise return the best score
-        // We add one because we care if the value is equal to the MAX.
-        best.checked_add(query.bias + T::ONE).map(|_| best)
+        // If we would have overflowed, return None, otherwise return the best
+        // score. We add one because we care if the value is equal to the MAX.
+        best.checked_add(query.bias + T::ONE).map(|_| best.as_u64())
     }
 }
 
@@ -489,7 +490,7 @@ mod test {
         // TO-DO: fix ergonomics
         let profile = StripedProfile::<i16, 16, 5>::new(REFERENCE, &matrix_i, GAP_OPEN as i8, GAP_EXTEND as i8)
             .expect("Sequence is non-empty");
-        let score: Option<i16> = sw_simd_score(QUERY, &profile);
+        let score: Option<u64> = sw_simd_score(QUERY, &profile);
         assert_eq!(Some(37), score);
     }
 
@@ -536,16 +537,10 @@ mod test {
     fn sw_simd_profile_set() {
         let v: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/CY137594.txt"));
         let matrix_i = WeightMatrix::<i8, 5>::new_dna_matrix(2, -5, Some(b'N'));
-        let matrix_u = matrix_i.into_biased_matrix();
 
-        let profile = LocalProfiles::<16, 5>::new(&v, &matrix_u, GAP_OPEN, GAP_EXTEND).expect("Sequence is non-empty");
-        let score = profile.smith_waterman_score_from_u8(&v);
-        assert_eq!(Some(3372), score);
-
-        // TODO: Fix ergonomics
-        let profile = StripedProfile::<i16, 16, 5>::new(v, &matrix_i, GAP_OPEN as i8, GAP_EXTEND as i8)
-            .expect("Sequence is non-empty");
-        let score = sw_simd_score(v, &profile);
+        let profile =
+            LocalProfiles::<16, 5>::new(&v, &matrix_i, GAP_OPEN as i8, GAP_EXTEND as i8).expect("Sequence is non-empty");
+        let score = profile.smith_waterman_score_from_i8(&v);
         assert_eq!(Some(3372), score);
     }
 }

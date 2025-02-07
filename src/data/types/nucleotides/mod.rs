@@ -141,15 +141,15 @@ impl Nucleotides {
     /// let reference: &[u8] = b"GGCCACAGGATTGAG";
     /// let query: Nucleotides = b"CTCAGATTG".into();
     ///
-    /// const WEIGHTS: WeightMatrix<u8, 5> = WeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
+    /// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
     ///
     /// let profile = query.into_local_profile::<32, 5>(&WEIGHTS, 3, 1).unwrap();
-    /// let score = profile.smith_waterman_score_from_u8(reference).unwrap();
+    /// let score = profile.smith_waterman_score_from_i8(reference).unwrap();
     /// assert_eq!(score, 27);
     /// ```
     #[inline]
     pub fn into_local_profile<'a, 'b, const N: usize, const S: usize>(
-        &'b self, matrix: &'a WeightMatrix<u8, S>, gap_open: u8, gap_extend: u8,
+        &'b self, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
     ) -> Result<LocalProfiles<'a, N, S>, QueryProfileError>
     where
         LaneCount<N>: SupportedLaneCount,
@@ -171,15 +171,15 @@ impl Nucleotides {
     /// let reference: &[u8] = b"GGCCACAGGATTGAG";
     /// let query: Nucleotides = b"CTCAGATTG".into();
     ///
-    /// const WEIGHTS: WeightMatrix<u8,5> = WeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
+    /// const WEIGHTS: WeightMatrix<i8,5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
     ///
     /// let profile = query.into_shared_profile::<32, 5>(&WEIGHTS, 3, 1).unwrap();
-    /// let score = profile.smith_waterman_score_from_u8(reference).unwrap();
+    /// let score = profile.smith_waterman_score_from_i8(reference).unwrap();
     /// assert_eq!(score, 27);
     /// ```
     #[inline]
     pub fn into_shared_profile<'a, const N: usize, const S: usize>(
-        &self, matrix: &'a WeightMatrix<u8, S>, gap_open: u8, gap_extend: u8,
+        &self, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
     ) -> Result<SharedProfiles<'a, N, S>, QueryProfileError>
     where
         LaneCount<N>: SupportedLaneCount, {

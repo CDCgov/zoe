@@ -92,8 +92,8 @@
 /// query profiles for `u8`, `u16`, `u32`, and `u64`. To create one of these,
 /// you can call [`LocalProfiles::new_with_u8`], [`SharedProfiles::new_with_u8`],
 /// or one of the other constructors. Then, call
-/// [`LocalProfiles::smith_waterman_score_from_u8`],
-/// [`SharedProfiles::smith_waterman_score_from_u8`], or one of the other
+/// [`LocalProfiles::smith_waterman_score_from_i8`],
+/// [`SharedProfiles::smith_waterman_score_from_i8`], or one of the other
 /// methods.
 ///
 /// When using DNA, you can also create a profile by using
@@ -105,10 +105,10 @@
 /// let reference: &[u8] = b"GGCCACAGGATTGAG";
 /// let query: Nucleotides = b"CTCAGATTG".into();
 ///
-/// const WEIGHTS: WeightMatrix<u8, 5> = WeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
+/// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
 ///
 /// let profile = query.into_local_profile::<32, 5>(&WEIGHTS, 3, 1).unwrap();
-/// let score = profile.smith_waterman_score_from_u8(reference).unwrap();
+/// let score = profile.smith_waterman_score_from_i8(reference).unwrap();
 /// assert_eq!(score, 27);
 /// ```
 ///
@@ -122,10 +122,10 @@
 /// let query: &[u8] = b"AABDDAB";
 ///
 /// const MAPPING: ByteIndexMap<4> = ByteIndexMap::new(*b"ABCD", b'A');
-/// const WEIGHTS: WeightMatrix<u8, 4> = WeightMatrix::new(&MAPPING, 1, -1, None).into_biased_matrix();
+/// const WEIGHTS: WeightMatrix<i8, 4> = WeightMatrix::new(&MAPPING, 1, -1, None);
 ///
-/// let profile = LocalProfiles::<32, 4>::new_with_u8(query, &WEIGHTS, 4, 2).unwrap();
-/// let score = profile.smith_waterman_score_from_u8(reference).unwrap();
+/// let profile = LocalProfiles::<32, 4>::new_with_i8(query, &WEIGHTS, 4, 2).unwrap();
+/// let score = profile.smith_waterman_score_from_i8(reference).unwrap();
 /// assert_eq!(score, 5);
 /// ```
 ///

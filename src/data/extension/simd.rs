@@ -1,4 +1,7 @@
-use std::simd::{LaneCount, SimdElement, SupportedLaneCount, Swizzle, prelude::*};
+use std::{
+    ops::{AddAssign, Shl, Shr, SubAssign},
+    simd::{LaneCount, SimdElement, SupportedLaneCount, Swizzle, prelude::*},
+};
 
 pub(crate) trait SimdExt<T> {
     #[allow(dead_code)]
@@ -49,7 +52,13 @@ where
 }
 
 // Do not use in a prelude to avoid conflicts with `std::simd::SimdInt` and `std::simd::SimdUint`.
-pub trait SimdAnyInt<T, const N: usize>
+pub trait SimdAnyInt<T, const N: usize>:
+    SimdOrd
+    + SimdPartialEq<Mask = Mask<<T as SimdElement>::Mask, N>>
+    + AddAssign<Simd<T, N>>
+    + SubAssign<Simd<T, N>>
+    + Shl<T, Output = Simd<T, N>>
+    + Shr<T, Output = Simd<T, N>>
 where
     LaneCount<N>: SupportedLaneCount,
     T: SimdElement, {

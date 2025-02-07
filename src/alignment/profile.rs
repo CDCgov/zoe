@@ -2,6 +2,7 @@ use crate::{
     alignment::sw::{sw_scalar_score, sw_simd_score},
     data::{WeightMatrix, err::QueryProfileError, mappings::ByteIndexMap, types::cigar::Cigar},
     math::{AnyInt, FromSameSignedness},
+    simd::SimdAnyInt,
 };
 use std::{
     convert::Into,
@@ -81,7 +82,7 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// ```
     #[inline]
     #[must_use]
-    pub fn smith_waterman_score(&self, seq: &[u8]) -> i32 {
+    pub fn smith_waterman_score(&self, seq: &[u8]) -> u64 {
         sw_scalar_score(seq, self)
     }
 
@@ -202,9 +203,11 @@ where
     }
 }
 
-impl<const N: usize, const S: usize> StripedProfile<u8, N, S>
+impl<T, const N: usize, const S: usize> StripedProfile<T, N, S>
 where
     LaneCount<N>: SupportedLaneCount,
+    T: AnyInt + SimdElement,
+    Simd<T, N>: SimdAnyInt<T, N>,
 {
     /// Computes the Smith-Waterman local alignment score between the `u8`
     /// profile and a passed sequence. Returns [`None`] if the score overflowed.
@@ -227,94 +230,7 @@ where
     #[inline]
     #[must_use]
     pub fn smith_waterman_score(&self, seq: &[u8]) -> Option<u64> {
-        sw_simd_score::<u8, N, S>(seq, self).map(Into::into)
-    }
-}
-
-impl<const N: usize, const S: usize> StripedProfile<u16, N, S>
-where
-    LaneCount<N>: SupportedLaneCount,
-{
-    /// Computes the Smith-Waterman local alignment score between the `u16`
-    /// profile and a passed sequence. Returns [`None`] if the score overflowed.
-    ///
-    /// For more info, see: [`sw_simd_score`].
-    ///
-    /// ### Example
-    ///
-    /// ```
-    /// # use zoe::{alignment::{StripedProfile, sw::sw_simd_score}, data::WeightMatrix};
-    /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
-    /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
-    ///
-    /// const WEIGHTS: WeightMatrix<u8, 5> = WeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
-    ///
-    /// let profile = StripedProfile::<u16, 32, 5>::new(query, &WEIGHTS, 3, 1).unwrap();
-    /// let score = profile.smith_waterman_score(reference).unwrap();
-    /// assert_eq!(score, 26);
-    /// ```
-    #[inline]
-    #[must_use]
-    pub fn smith_waterman_score(&self, seq: &[u8]) -> Option<u64> {
-        sw_simd_score::<u16, N, S>(seq, self).map(Into::into)
-    }
-}
-
-impl<const N: usize, const S: usize> StripedProfile<u32, N, S>
-where
-    LaneCount<N>: SupportedLaneCount,
-{
-    /// Computes the Smith-Waterman local alignment score between the `u32`
-    /// profile and a passed sequence. Returns [`None`] if the score overflowed.
-    ///
-    /// For more info, see: [`sw_simd_score`].
-    ///
-    /// ### Example
-    ///
-    /// ```
-    /// # use zoe::{alignment::{StripedProfile, sw::sw_simd_score}, data::WeightMatrix};
-    /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
-    /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
-    ///
-    /// const WEIGHTS: WeightMatrix<u8, 5> = WeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
-    ///
-    /// let profile = StripedProfile::<u32, 32, 5>::new(query, &WEIGHTS, 3, 1).unwrap();
-    /// let score = profile.smith_waterman_score(reference).unwrap();
-    /// assert_eq!(score, 26);
-    /// ```
-    #[inline]
-    #[must_use]
-    pub fn smith_waterman_score(&self, seq: &[u8]) -> Option<u64> {
-        sw_simd_score::<u32, N, S>(seq, self).map(Into::into)
-    }
-}
-
-impl<const N: usize, const S: usize> StripedProfile<u64, N, S>
-where
-    LaneCount<N>: SupportedLaneCount,
-{
-    /// Computes the Smith-Waterman local alignment score between the `u64`
-    /// profile and a passed sequence. Returns [`None`] if the score overflowed.
-    ///
-    /// For more info, see: [`sw_simd_score`].
-    ///
-    /// ### Example
-    ///
-    /// ```
-    /// # use zoe::{alignment::{StripedProfile, sw::sw_simd_score}, data::WeightMatrix};
-    /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
-    /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
-    ///
-    /// const WEIGHTS: WeightMatrix<u8, 5> = WeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
-    ///
-    /// let profile = StripedProfile::<u64, 32, 5>::new(query, &WEIGHTS, 3, 1).unwrap();
-    /// let score = profile.smith_waterman_score(reference).unwrap();
-    /// assert_eq!(score, 26);
-    /// ```
-    #[inline]
-    #[must_use]
-    pub fn smith_waterman_score(&self, seq: &[u8]) -> Option<u64> {
-        sw_simd_score::<u64, N, S>(seq, self)
+        sw_simd_score::<T, N, S>(seq, self)
     }
 }
 
