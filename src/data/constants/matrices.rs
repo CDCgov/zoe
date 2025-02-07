@@ -99,17 +99,17 @@ impl WeightMatrix<u8, 5> {
     }
 }
 
-/// A weight matrix representing the scores for various matches and
-/// mismatches when performing sequence alignment.
+/// A weight matrix representing the scores for various matches and mismatches
+/// when performing sequence alignment.
 ///
-/// To construct a new simple weight matrix, either directly initialize a struct
-/// containing a given `weights` and `mapping`, or use [`new`] or
-/// [`new_dna_matrix`].
+/// Often, a signed weight matrix is needed, in which case `T` should be `i8`.
+/// To construct a new signed weight matrix, use [`new`] or [`new_dna_matrix`].
 ///
-/// To construct a new biased weight matrix, either use
-/// [`new_biased_dna_matrix`] or create a signed matrix and then call
-/// [`into_biased_matrix`]. The internal representation stores the weights as
-/// nonnegative integers along with a bias, hence the name.
+/// Unsigned weight matrices are also supported, in which case `T` should be
+/// `u8`. To construct a new unsigned weight matrix, first create a signed
+/// weight matrix, then call [`into_biased_matrix`]. This will shift all entries
+/// in the matrix to become nonnegative, and then store the resulting shift. One
+/// can also use [`new_biased_dna_matrix`].
 ///
 /// [`new`]: WeightMatrix::new
 /// [`new_dna_matrix`]: WeightMatrix::new_dna_matrix
@@ -128,9 +128,7 @@ impl<const S: usize> WeightMatrix<i8, S> {
     /// optionally ignored base. A pair of bases where either is the ignored
     /// base will always have a score of 0.
     ///
-    /// If working with DNA, consider using [`new_dna_matrix`]. For more
-    /// flexibility with the scoring, you can directly initialize a
-    /// [`WeightMatrix`].
+    /// If working with DNA, consider using [`new_dna_matrix`].
     ///
     /// [`new_dna_matrix`]: WeightMatrix::new_dna_matrix
     #[must_use]
@@ -204,7 +202,7 @@ impl<const S: usize> WeightMatrix<i8, S> {
         min
     }
 
-    /// Converts the signed [`WeightMatrix`] to an unsigned, biased one.
+    /// Converts the signed [`WeightMatrix`] to an unsigned, biased matrix.
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     #[must_use]
     pub const fn into_biased_matrix(self) -> WeightMatrix<u8, S> {

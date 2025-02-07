@@ -18,13 +18,13 @@
 /// sequence data via the Smith-Waterman algorithm. For generating the score
 /// (useful for database searches and determining whether sequences are
 /// related), this includes both a traditional implementation (see
-/// [`sw_scalar_score`]) and the usual striped SIMD implementation (see
+/// [`sw_scalar_score`]) and a striped SIMD implementation (see
 /// [`sw_simd_score`]). The function [`sw_scalar_alignment`] can be used to
 /// generate the alignment itself.
 ///
 /// To calculate an alignment score or generate an alignment, follow these
-/// steps. The first two are designed to be possible at compile time, and the
-/// subsequent two to execute at runtime.
+/// steps. The first two are designed to be done at compile time, and the
+/// subsequent two to be done at runtime.
 ///
 /// 1. Choose an alphabet. *Zoe* provides an easy interface to work with DNA,
 ///    assuming the bases `ACGT` are case-insensitive and `N` is used as a
@@ -32,8 +32,7 @@
 ///    [`ByteIndexMap::new`].
 ///
 /// 2. Specify the [`WeightMatrix`] used for scoring matches and mismatches. For
-///     DNA, [`new_biased_dna_matrix`] and [`new_dna_matrix`] are convenient
-///     constructors.
+///     DNA, [`new_dna_matrix`] is a convenient constructor.
 ///
 /// 3. Build the query profile, with either [`ScalarProfile::new`] or
 ///    [`StripedProfile::new`] (for SIMD). This step combines the query, matrix
@@ -47,24 +46,25 @@
 ///    reused in multiple different calls.
 ///
 /// Below is an example using DNA. We use a match score of 4 and a mismatch
-/// score of -2, as defined in `WEIGHTS`. The last two arguments to
-/// [`StripedProfile::new`] specify the gap open penalty as 3 and the gap extend
-/// penalty as 1.
+/// score of -2, as defined in `WEIGHTS`. We also choose to use a
+/// `StripedProfile` (so that the SIMD algorithm is used) with integer type `i8`
+/// and 32 lanes.
 /// ```
 /// # use zoe::{alignment::StripedProfile, data::WeightMatrix};
 /// let reference: &[u8] = b"GGCCACAGGATTGAG";
 /// let query: &[u8] = b"CTCAGATTG";
 ///
-/// const WEIGHTS: WeightMatrix<u8, 5> = WeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
+/// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
+/// const GAP_OPEN: i8 = -3;
+/// const GAP_EXTEND: i8 = -1;
 ///
-/// let profile = StripedProfile::<u8, 32, 5>::new(query, &WEIGHTS, 3, 1).unwrap();
+/// let profile = StripedProfile::<i8, 32, 5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
 /// let score = profile.smith_waterman_score(reference).unwrap();
 /// assert_eq!(score, 27);
 /// ```
 ///
 /// Below is an example using a different alphabet. Matches are given a score of
-/// 1, mismatches are given a score of -1, the gap open penalty is 4, and the
-/// gap extend penalty is 2.
+/// 1 and mismatches are given a score of -1.
 /// ```
 /// # use zoe::{
 /// #     alignment::StripedProfile,
@@ -74,25 +74,27 @@
 /// let query: &[u8] = b"AABDDAB";
 ///
 /// const MAPPING: ByteIndexMap<4> = ByteIndexMap::new(*b"ABCD", b'A');
-/// const WEIGHTS: WeightMatrix<u8, 4> = WeightMatrix::new(&MAPPING, 1, -1, None).into_biased_matrix();
+/// const WEIGHTS: WeightMatrix<i8, 4> = WeightMatrix::new(&MAPPING, 1, -1, None);
+/// const GAP_OPEN: i8 = -4;
+/// const GAP_EXTEND: i8 = -2;
 ///
-/// let profile = StripedProfile::<u8, 32, 4>::new(query, &WEIGHTS, 4, 2).unwrap();
+/// let profile = StripedProfile::<i8, 32, 4>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
 /// let score = profile.smith_waterman_score(reference).unwrap();
 /// assert_eq!(score, 5);
 /// ```
 ///
 /// When using the SIMD algorithm, you must specify the number of lanes `N` and
-/// integer type `T`. If the integer type has too small of a range, it is
-/// possible the alignment will overflow (in which case `None` is returned). A
-/// higher-level abstraction to avoid this is [`LocalProfiles`] and
-/// [`SharedProfiles`].
+/// integer type `T` (typically i8, i16, i32, or i64). If the integer type has
+/// too small of a range, it is possible the alignment score will overflow (in
+/// which case `None` is returned). A higher-level abstraction to avoid this is
+/// [`LocalProfiles`] and [`SharedProfiles`].
 ///
 /// The former is designed for use within a single thread, while the latter
 /// allows multiple threads to access it. Both store a set of lazily-evaluated
-/// query profiles for `u8`, `u16`, `u32`, and `u64`. To create one of these,
-/// you can call [`LocalProfiles::new_with_u8`], [`SharedProfiles::new_with_u8`],
-/// or one of the other constructors. Then, call
-/// [`LocalProfiles::smith_waterman_score_from_i8`],
+/// query profiles for `i8`, `i16`, `i32`, and `i64`. To create one of these,
+/// you can call [`LocalProfiles::new_with_i8`],
+/// [`SharedProfiles::new_with_i8`], or one of the other constructors. Then,
+/// call [`LocalProfiles::smith_waterman_score_from_i8`],
 /// [`SharedProfiles::smith_waterman_score_from_i8`], or one of the other
 /// methods.
 ///
@@ -106,8 +108,10 @@
 /// let query: Nucleotides = b"CTCAGATTG".into();
 ///
 /// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
+/// const GAP_OPEN: i8 = -3;
+/// const GAP_EXTEND: i8 = -1;
 ///
-/// let profile = query.into_local_profile::<32, 5>(&WEIGHTS, 3, 1).unwrap();
+/// let profile = query.into_local_profile::<32, 5>(&WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
 /// let score = profile.smith_waterman_score_from_i8(reference).unwrap();
 /// assert_eq!(score, 27);
 /// ```
@@ -123,8 +127,10 @@
 ///
 /// const MAPPING: ByteIndexMap<4> = ByteIndexMap::new(*b"ABCD", b'A');
 /// const WEIGHTS: WeightMatrix<i8, 4> = WeightMatrix::new(&MAPPING, 1, -1, None);
+/// const GAP_OPEN: i8 = -4;
+/// const GAP_EXTEND: i8 = -2;
 ///
-/// let profile = LocalProfiles::<32, 4>::new_with_i8(query, &WEIGHTS, 4, 2).unwrap();
+/// let profile = LocalProfiles::<32, 4>::new_with_i8(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
 /// let score = profile.smith_waterman_score_from_i8(reference).unwrap();
 /// assert_eq!(score, 5);
 /// ```
@@ -151,12 +157,12 @@
 ///     alignment::StripedProfile::smith_waterman_score
 /// [`LocalProfiles`]: alignment::LocalProfiles
 /// [`SharedProfiles`]: alignment::SharedProfiles
-/// [`LocalProfiles::new_with_u8`]: alignment::LocalProfiles::new_with_u8
-/// [`SharedProfiles::new_with_u8`]: alignment::SharedProfiles::new_with_u8
-/// [`LocalProfiles::smith_waterman_score_from_u8`]:
-///     alignment::LocalProfiles::smith_waterman_score_from_u8
-/// [`SharedProfiles::smith_waterman_score_from_u8`]:
-///     alignment::SharedProfiles::smith_waterman_score_from_u8
+/// [`LocalProfiles::new_with_i8`]: alignment::LocalProfiles::new_with_i8
+/// [`SharedProfiles::new_with_i8`]: alignment::SharedProfiles::new_with_i8
+/// [`LocalProfiles::smith_waterman_score_from_i8`]:
+///     alignment::LocalProfiles::smith_waterman_score_from_i8
+/// [`SharedProfiles::smith_waterman_score_from_i8`]:
+///     alignment::SharedProfiles::smith_waterman_score_from_i8
 pub mod alignment;
 /// Composition and consensus functions.
 pub mod composition;

@@ -12,14 +12,30 @@ use std::{
 
 use super::sw::sw_scalar_alignment;
 
+/// Validate the arguments for [`ScalarProfile`] or [`StripedProfile`].
+///
+/// # Errors
+///
+/// The following errors are possible:
+/// * [`QueryProfileError::EmptyQuery`] if `query` is empty
+/// * [`QueryProfileError::GapOpenOutOfRange`] if `gap_open` is not between -127
+///   and 0, inclusive
+/// * [`QueryProfileError::GapExtendOutOfRange`] if `gap_extend` is not between
+///   -127 and 0, inclusive
+/// * [`QueryProfileError::BadGapWeights`] if `gap_extend` is less than
+///   `gap_open`
 #[inline]
-pub(crate) fn validate_profile_args<Q: AsRef<[u8]>, U: AnyInt>(
-    query: Q, gap_open: U, gap_extend: U,
+pub(crate) fn validate_profile_args<Q: AsRef<[u8]>>(
+    query: Q, gap_open: i8, gap_extend: i8,
 ) -> Result<(), QueryProfileError> {
     if query.as_ref().is_empty() {
         Err(QueryProfileError::EmptyQuery)
-    } else if gap_extend > gap_open {
-        Err(QueryProfileError::BadGapWeights)
+    } else if !(-127..=0).contains(&gap_open) {
+        Err(QueryProfileError::GapOpenOutOfRange { gap_open })
+    } else if !(-127..=0).contains(&gap_extend) {
+        Err(QueryProfileError::GapExtendOutOfRange { gap_extend })
+    } else if gap_extend < gap_open {
+        Err(QueryProfileError::BadGapWeights { gap_open, gap_extend })
     } else {
         Ok(())
     }
@@ -46,19 +62,24 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     ///
     /// # Errors
     ///
-    /// Will return [`QueryProfileError::EmptyQuery`] if `query` is empty or
-    /// [`QueryProfileError::BadGapWeights`] if `gap_extend` is greater than
-    /// `gap_open`.
+    /// The following errors are possible:
+    /// * [`QueryProfileError::EmptyQuery`] if `query` is empty
+    /// * [`QueryProfileError::GapOpenOutOfRange`] if `gap_open` is not between
+    ///   -127 and 0, inclusive
+    /// * [`QueryProfileError::GapExtendOutOfRange`] if `gap_extend` is not
+    ///   between -127 and 0, inclusive
+    /// * [`QueryProfileError::BadGapWeights`] if `gap_extend` is less than
+    ///   `gap_open`
     pub fn new<Q: AsRef<[u8]> + ?Sized>(
-        query: &'a Q, matrix: WeightMatrix<i8, S>, gap_open: u8, gap_extend: u8,
+        query: &'a Q, matrix: WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
     ) -> Result<Self, QueryProfileError> {
         validate_profile_args(query, gap_open, gap_extend)?;
 
         Ok(ScalarProfile {
             query: query.as_ref(),
             matrix,
-            gap_open: -i32::from(gap_open),
-            gap_extend: -i32::from(gap_extend),
+            gap_open: i32::from(gap_open),
+            gap_extend: i32::from(gap_extend),
         })
     }
 
@@ -75,8 +96,10 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// let query: &[u8] = b"CTCAGATTG";
     ///
     /// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
+    /// const GAP_OPEN: i8 = -3;
+    /// const GAP_EXTEND: i8 = -1;
     ///
-    /// let profile = ScalarProfile::<5>::new(query, WEIGHTS, 3, 1).unwrap();
+    /// let profile = ScalarProfile::<5>::new(query, WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
     /// let score = profile.smith_waterman_score(reference);
     /// assert_eq!(score, 27);
     /// ```
@@ -100,8 +123,10 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// let query: &[u8] = b"CTCAGATTG";
     ///
     /// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
+    /// const GAP_OPEN: i8 = -3;
+    /// const GAP_EXTEND: i8 = -1;
     ///
-    /// let profile = ScalarProfile::<5>::new(query, WEIGHTS, 3, 1).unwrap();
+    /// let profile = ScalarProfile::<5>::new(query, WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
     /// let (start, cigar, score) = profile.smith_waterman_alignment(reference);
     /// assert_eq!(start, 4);
     /// assert_eq!(cigar, b"5M1D4M".into());
@@ -121,7 +146,9 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
 /// during alignment.
 ///
 /// # Type Parameters
-/// * `T` - The numeric type used for scores (u8, u16, u32, or u64)
+/// * `T` - The numeric type used for scores. i8, i16, i32, and i64 use the
+///   signed algorithm, which is the most common. u8, u16, u32, and u64 use the
+///   unsigned algorithm.
 /// * `N` - The number of SIMD lanes (usually 16, 32 or 64)
 /// * `S` - The size of the alphabet (usually 5 for DNA including *N*)
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -147,10 +174,17 @@ where
     ///
     /// # Errors
     ///
-    /// Will return [`QueryProfileError::EmptyQuery`] if `query` is empty or
-    /// [`QueryProfileError::BadGapWeights`] if `gap_extend` is greater than
-    /// `gap_open`.
-    pub fn new<U>(query: &[u8], matrix: &WeightMatrix<U, S>, gap_open: U, gap_extend: U) -> Result<Self, QueryProfileError>
+    /// The following errors are possible:
+    /// * [`QueryProfileError::EmptyQuery`] if `query` is empty
+    /// * [`QueryProfileError::GapOpenOutOfRange`] if `gap_open` is not between
+    ///   -127 and 0, inclusive
+    /// * [`QueryProfileError::GapExtendOutOfRange`] if `gap_extend` is not
+    ///   between -127 and 0, inclusive
+    /// * [`QueryProfileError::BadGapWeights`] if `gap_extend` is less than
+    ///   `gap_open`
+    pub fn new<U>(
+        query: &[u8], matrix: &WeightMatrix<U, S>, gap_open: i8, gap_extend: i8,
+    ) -> Result<Self, QueryProfileError>
     where
         T: FromSameSignedness<U>,
         U: AnyInt, {
@@ -161,7 +195,7 @@ where
     /// Creates a new striped profile from a sequence and scoring matrix.
     ///
     /// See: [`WeightMatrix`]
-    pub(crate) fn new_unchecked<U>(query: &[u8], matrix: &WeightMatrix<U, S>, gap_open: U, gap_extend: U) -> Self
+    pub(crate) fn new_unchecked<U>(query: &[u8], matrix: &WeightMatrix<U, S>, gap_open: i8, gap_extend: i8) -> Self
     where
         T: From<U>,
         U: AnyInt, {
@@ -188,16 +222,16 @@ where
 
         StripedProfile {
             profile,
-            gap_open: gap_open.into(),
-            gap_extend: gap_extend.into(),
+            gap_open: T::from_literal(-gap_open),
+            gap_extend: T::from_literal(-gap_extend),
             bias,
             mapping: matrix.mapping,
         }
     }
 
     /// Returns the number of SIMD vectors in the profile.
-    #[must_use]
     #[inline]
+    #[must_use]
     pub fn number_vectors(&self) -> usize {
         self.profile.len() / S
     }
@@ -222,8 +256,10 @@ where
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///
     /// const WEIGHTS: WeightMatrix<u8, 5> = WeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
+    /// const GAP_OPEN: i8 = -3;
+    /// const GAP_EXTEND: i8 = -1;
     ///
-    /// let profile = StripedProfile::<u8, 32, 5>::new(query, &WEIGHTS, 3, 1).unwrap();
+    /// let profile = StripedProfile::<u8, 32, 5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
     /// let score = profile.smith_waterman_score(reference).unwrap();
     /// assert_eq!(score, 26);
     /// ```

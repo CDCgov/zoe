@@ -79,14 +79,24 @@ impl std::error::Error for DistanceError {}
 #[derive(Debug)]
 pub enum QueryProfileError {
     EmptyQuery,
-    BadGapWeights,
+    GapOpenOutOfRange { gap_open: i8 },
+    GapExtendOutOfRange { gap_extend: i8 },
+    BadGapWeights { gap_open: i8, gap_extend: i8 },
 }
 
 impl Display for QueryProfileError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let message = match self {
             QueryProfileError::EmptyQuery => "The alignment query was empty",
-            QueryProfileError::BadGapWeights => "The gap extend penalty was greater than the gap open penalty",
+            QueryProfileError::GapOpenOutOfRange { gap_open } => {
+                &format!("The gap open weight must be between -127 and 0, but {gap_open} was provided")
+            }
+            QueryProfileError::GapExtendOutOfRange { gap_extend } => {
+                &format!("The gap extend weight must be between -127 and 0, but {gap_extend} was provided")
+            }
+            QueryProfileError::BadGapWeights { gap_open, gap_extend } => &format!(
+                "The gap open weight must be less than or equal to the gap extend weight, but {gap_open} (gap open) and {gap_extend} (gap extend) were provided"
+            ),
         };
 
         write!(f, "{message}")

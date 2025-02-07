@@ -9,11 +9,15 @@ use std::{
 /// A lazily-evaluated set of striped alignment profiles for local
 /// (thread-specific) use. This is an abstraction around [`StripedProfile`],
 /// providing convenience methods for automatically increasing the integer width
-/// and rerunning the alignment when overflow occurs. The number of SIMD lanes
-/// `N` must be specified.
+/// and rerunning the alignment when overflow occurs. This only supports the
+/// unsigned version of the algorithm.
 ///
 /// If it is necessary to share between multiple threads, consider using
 /// [`SharedProfiles`].
+///
+/// # Type Parameters
+/// * `N` - The number of SIMD lanes (usually 16, 32 or 64)
+/// * `S` - The size of the alphabet (usually 5 for DNA including *N*)
 #[derive(Debug, Clone)]
 pub struct LocalProfiles<'a, const N: usize, const S: usize>
 where
@@ -33,13 +37,19 @@ where
     LaneCount<N>: SupportedLaneCount,
 {
     /// Creates an empty [`LocalProfiles`]. Usually you want to use
-    /// [`LocalProfiles::new_with_i8`] or [`LocalProfiles::new_with_i16`] instead.
+    /// [`LocalProfiles::new_with_i8`] or [`LocalProfiles::new_with_i16`]
+    /// instead.
     ///
     /// # Errors
     ///
-    /// Will return [`QueryProfileError::EmptyQuery`] if `query` is empty or
-    /// [`QueryProfileError::BadGapWeights`] if `gap_extend` is greater than
-    /// `gap_open`.
+    /// The following errors are possible:
+    /// * [`QueryProfileError::EmptyQuery`] if `query` is empty
+    /// * [`QueryProfileError::GapOpenOutOfRange`] if `gap_open` is not between
+    ///   -127 and 0, inclusive
+    /// * [`QueryProfileError::GapExtendOutOfRange`] if `gap_extend` is not
+    ///   between -127 and 0, inclusive
+    /// * [`QueryProfileError::BadGapWeights`] if `gap_extend` is less than
+    ///   `gap_open`
     #[inline]
     pub fn new<T: AsRef<[u8]> + ?Sized>(
         query: &'a T, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
@@ -63,9 +73,14 @@ where
     ///
     /// # Errors
     ///
-    /// Will return [`QueryProfileError::EmptyQuery`] if `query` is empty or
-    /// [`QueryProfileError::BadGapWeights`] if `gap_extend` is greater than
-    /// `gap_open`.
+    /// The following errors are possible:
+    /// * [`QueryProfileError::EmptyQuery`] if `query` is empty
+    /// * [`QueryProfileError::GapOpenOutOfRange`] if `gap_open` is not between
+    ///   -127 and 0, inclusive
+    /// * [`QueryProfileError::GapExtendOutOfRange`] if `gap_extend` is not
+    ///   between -127 and 0, inclusive
+    /// * [`QueryProfileError::BadGapWeights`] if `gap_extend` is less than
+    ///   `gap_open`
     #[inline]
     pub fn new_with_i8<T: AsRef<[u8]> + ?Sized>(
         query: &'a T, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
@@ -80,9 +95,14 @@ where
     ///
     /// # Errors
     ///
-    /// Will return [`QueryProfileError::EmptyQuery`] if `query` is empty or
-    /// [`QueryProfileError::BadGapWeights`] if `gap_extend` is greater than
-    /// `gap_open`.
+    /// The following errors are possible:
+    /// * [`QueryProfileError::EmptyQuery`] if `query` is empty
+    /// * [`QueryProfileError::GapOpenOutOfRange`] if `gap_open` is not between
+    ///   -127 and 0, inclusive
+    /// * [`QueryProfileError::GapExtendOutOfRange`] if `gap_extend` is not
+    ///   between -127 and 0, inclusive
+    /// * [`QueryProfileError::BadGapWeights`] if `gap_extend` is less than
+    ///   `gap_open`
     #[inline]
     pub fn new_with_i16<T: AsRef<[u8]> + ?Sized>(
         query: &'a T, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
@@ -145,13 +165,15 @@ where
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///
     /// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
+    /// const GAP_OPEN: i8 = -3;
+    /// const GAP_EXTEND: i8 = -1;
     ///
-    /// let profile = LocalProfiles::<32, 5>::new_with_i8(query, &WEIGHTS, 3, 1).unwrap();
+    /// let profile = LocalProfiles::<32, 5>::new_with_i8(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
     /// let score = profile.smith_waterman_score_from_i8(reference).unwrap();
     /// assert_eq!(score, 26);
     /// ```
-    #[must_use]
     #[inline]
+    #[must_use]
     pub fn smith_waterman_score_from_i8<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u64> {
         let query = query.as_ref();
         self.get_i8()
@@ -174,13 +196,15 @@ where
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///
     /// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
+    /// const GAP_OPEN: i8 = -3;
+    /// const GAP_EXTEND: i8 = -1;
     ///
-    /// let profile = LocalProfiles::<32, 5>::new_with_i16(query, &WEIGHTS, 3, 1).unwrap();
+    /// let profile = LocalProfiles::<32, 5>::new_with_i16(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
     /// let score = profile.smith_waterman_score_from_i16(reference).unwrap();
     /// assert_eq!(score, 26);
     /// ```
-    #[must_use]
     #[inline]
+    #[must_use]
     pub fn smith_waterman_score_from_i16<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u64> {
         let query = query.as_ref();
         self.get_i16()
@@ -203,13 +227,15 @@ where
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///
     /// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
+    /// const GAP_OPEN: i8 = -3;
+    /// const GAP_EXTEND: i8 = -1;
     ///
-    /// let profile = LocalProfiles::<32, 5>::new(query, &WEIGHTS, 3, 1).unwrap();
+    /// let profile = LocalProfiles::<32, 5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
     /// let score = profile.smith_waterman_score_from_i32(reference).unwrap();
     /// assert_eq!(score, 26);
     /// ```
-    #[must_use]
     #[inline]
+    #[must_use]
     pub fn smith_waterman_score_from_i32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u64> {
         let query = query.as_ref();
         self.get_i32()
@@ -221,11 +247,15 @@ where
 /// A lazily-evaluated set of striped alignment profiles which can be shared
 /// across threads. This is an abstraction around [`StripedProfile`], providing
 /// convenience methods for automatically increasing the integer width and
-/// rerunning the alignment when overflow occurs. The number of SIMD lanes `N`
-/// must be specified.
+/// rerunning the alignment when overflow occurs. This only supports the
+/// unsigned version of the algorithm.
 ///
 /// When sharing between threads is not needed, consider using [`LocalProfiles`]
 /// instead.
+///
+/// # Type Parameters
+/// * `N` - The number of SIMD lanes (usually 16, 32 or 64)
+/// * `S` - The size of the alphabet (usually 5 for DNA including *N*)
 #[derive(Debug, Clone)]
 pub struct SharedProfiles<'a, const N: usize, const S: usize>
 where
@@ -250,9 +280,14 @@ where
     ///
     /// # Errors
     ///
-    /// Will return [`QueryProfileError::EmptyQuery`] if `query` is empty or
-    /// [`QueryProfileError::BadGapWeights`] if `gap_extend` is greater than
-    /// `gap_open`.
+    /// The following errors are possible:
+    /// * [`QueryProfileError::EmptyQuery`] if `query` is empty
+    /// * [`QueryProfileError::GapOpenOutOfRange`] if `gap_open` is not between
+    ///   -127 and 0, inclusive
+    /// * [`QueryProfileError::GapExtendOutOfRange`] if `gap_extend` is not
+    ///   between -127 and 0, inclusive
+    /// * [`QueryProfileError::BadGapWeights`] if `gap_extend` is less than
+    ///   `gap_open`
     #[inline]
     pub fn new(
         query: Box<[u8]>, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
@@ -276,9 +311,14 @@ where
     ///
     /// # Errors
     ///
-    /// Will return [`QueryProfileError::EmptyQuery`] if `query` is empty or
-    /// [`QueryProfileError::BadGapWeights`] if `gap_extend` is greater than
-    /// `gap_open`.
+    /// The following errors are possible:
+    /// * [`QueryProfileError::EmptyQuery`] if `query` is empty
+    /// * [`QueryProfileError::GapOpenOutOfRange`] if `gap_open` is not between
+    ///   -127 and 0, inclusive
+    /// * [`QueryProfileError::GapExtendOutOfRange`] if `gap_extend` is not
+    ///   between -127 and 0, inclusive
+    /// * [`QueryProfileError::BadGapWeights`] if `gap_extend` is less than
+    ///   `gap_open`
     #[inline]
     pub fn new_with_i8(
         query: Box<[u8]>, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
@@ -293,9 +333,14 @@ where
     ///
     /// # Errors
     ///
-    /// Will return [`QueryProfileError::EmptyQuery`] if `query` is empty or
-    /// [`QueryProfileError::BadGapWeights`] if `gap_extend` is greater than
-    /// `gap_open`.
+    /// The following errors are possible:
+    /// * [`QueryProfileError::EmptyQuery`] if `query` is empty
+    /// * [`QueryProfileError::GapOpenOutOfRange`] if `gap_open` is not between
+    ///   -127 and 0, inclusive
+    /// * [`QueryProfileError::GapExtendOutOfRange`] if `gap_extend` is not
+    ///   between -127 and 0, inclusive
+    /// * [`QueryProfileError::BadGapWeights`] if `gap_extend` is less than
+    ///   `gap_open`
     #[inline]
     pub fn new_with_i16(
         query: Box<[u8]>, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
@@ -358,13 +403,15 @@ where
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///
     /// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
+    /// const GAP_OPEN: i8 = -3;
+    /// const GAP_EXTEND: i8 = -1;
     ///
-    /// let profile = SharedProfiles::<32, 5>::new(query.into(), &WEIGHTS, 3, 1).unwrap();
+    /// let profile = SharedProfiles::<32, 5>::new(query.into(), &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
     /// let score = profile.smith_waterman_score_from_i8(reference).unwrap();
     /// assert_eq!(score, 26);
     /// ```
-    #[must_use]
     #[inline]
+    #[must_use]
     pub fn smith_waterman_score_from_i8<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u64> {
         let query = query.as_ref();
         self.get_i8()
@@ -387,13 +434,15 @@ where
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///
     /// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
+    /// const GAP_OPEN: i8 = -3;
+    /// const GAP_EXTEND: i8 = -1;
     ///
-    /// let profile = SharedProfiles::<32, 5>::new(query.into(), &WEIGHTS, 3, 1).unwrap();
+    /// let profile = SharedProfiles::<32, 5>::new(query.into(), &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
     /// let score = profile.smith_waterman_score_from_i16(reference).unwrap();
     /// assert_eq!(score, 26);
     /// ```
-    #[must_use]
     #[inline]
+    #[must_use]
     pub fn smith_waterman_score_from_i16<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u64> {
         let query = query.as_ref();
         self.get_i16()
@@ -416,13 +465,15 @@ where
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///
     /// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
+    /// const GAP_OPEN: i8 = -3;
+    /// const GAP_EXTEND: i8 = -1;
     ///
-    /// let profile = SharedProfiles::<32, 5>::new(query.into(), &WEIGHTS, 3, 1).unwrap();
+    /// let profile = SharedProfiles::<32, 5>::new(query.into(), &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
     /// let score = profile.smith_waterman_score_from_i32(reference).unwrap();
     /// assert_eq!(score, 26);
     /// ```
-    #[must_use]
     #[inline]
+    #[must_use]
     pub fn smith_waterman_score_from_i32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u64> {
         let query = query.as_ref();
         self.get_i32()
@@ -440,9 +491,9 @@ mod test {
     #[test]
     fn sw_simd_profile_set() {
         let v: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/CY137594.txt"));
-        let profiles = LocalProfiles::<32, 5>::new(&v, &WEIGHTS, GAP_OPEN as i8, GAP_EXTEND as i8).unwrap();
+        let profiles = LocalProfiles::<32, 5>::new(&v, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
         let profile1 = profiles.get_i8();
-        let profile2 = StripedProfile::<i8, 32, 5>::new(v, &WEIGHTS, GAP_OPEN as i8, GAP_EXTEND as i8).unwrap();
+        let profile2 = StripedProfile::<i8, 32, 5>::new(v, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
         assert_eq!(profile1, &profile2);
     }
 }

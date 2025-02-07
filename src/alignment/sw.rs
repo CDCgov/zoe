@@ -29,8 +29,10 @@ use std::simd::{LaneCount, SimdElement, SupportedLaneCount, prelude::*};
 /// let query: &[u8] = b"CTCAGATTG";
 ///
 /// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
+/// const GAP_OPEN: i8 = -3;
+/// const GAP_EXTEND: i8 = -1;
 ///
-/// let profile = ScalarProfile::<5>::new(query, WEIGHTS, 3, 1).unwrap();
+/// let profile = ScalarProfile::<5>::new(query, WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
 /// let score = sw_scalar_score(&reference, &profile);
 /// assert_eq!(score, 27);
 /// ```
@@ -130,8 +132,10 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 /// let query: &[u8] = b"CTCAGATTG";
 ///
 /// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
+/// const GAP_OPEN: i8 = -3;
+/// const GAP_EXTEND: i8 = -1;
 ///
-/// let profile = ScalarProfile::<5>::new(query, WEIGHTS, 3, 1).unwrap();
+/// let profile = ScalarProfile::<5>::new(query, WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
 /// let (start, cigar, score) = sw_scalar_alignment(&reference, &profile);
 /// assert_eq!(start, 4);
 /// assert_eq!(cigar, b"5M1D4M".into());
@@ -282,8 +286,10 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
 /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
 ///
 /// const WEIGHTS: WeightMatrix<u8, 5> = WeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
+/// const GAP_OPEN: i8 = -3;
+/// const GAP_EXTEND: i8 = -1;
 ///
-/// let profile = StripedProfile::<u8, 32, 5>::new(query, &WEIGHTS, 3, 1).unwrap();
+/// let profile = StripedProfile::<u8, 32, 5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
 /// let score = sw_simd_score(&reference, &profile).unwrap();
 /// assert_eq!(score, 26);
 /// ```
@@ -400,19 +406,10 @@ where
     let best = max_scores.reduce_max();
 
     if T::SIGNED {
-        // Signed int maximums are positive and always less than u64::MAX.
-        // NB: i128 is not a valid SimdElement.
-        let best = best.as_i64();
-        let t_max = T::MAX.as_i64();
-        let limit = 2u64.pow(T::BITS) - 1;
-
         // Map best score to an unsigned range. Note that: MAX+1 = abs(MIN). If
-        // we would have overflowed, return None, otherwise return the best
-        // score. For `i64`, a half range is allowed.
-        best.checked_add(t_max)
-            .and_then(|b| b.checked_add(1))
-            .map(AnyInt::as_u64)
-            .filter(|b| *b < limit)
+        // we would have overflowed (saturated), return None, otherwise return
+        // the best score.
+        (best < T::MAX).then(|| (T::MAX.as_u64() + 1).wrapping_add_signed(best.as_i64()))
     } else {
         // If we would have overflowed, return None, otherwise return the best
         // score. We add one because we care if the value is equal to the MAX.
@@ -434,8 +431,8 @@ pub(crate) mod test_data {
     pub(crate) static SCALAR_PROFILE: LazyLock<ScalarProfile<5>> =
         LazyLock::new(|| ScalarProfile::new(QUERY, WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap());
 
-    pub(crate) const GAP_OPEN: u8 = 10;
-    pub(crate) const GAP_EXTEND: u8 = 1;
+    pub(crate) const GAP_OPEN: i8 = -10;
+    pub(crate) const GAP_EXTEND: i8 = -1;
 }
 
 #[cfg(test)]
@@ -456,7 +453,7 @@ mod test {
         assert_eq!(37, score);
 
         let v: Vec<_> = std::iter::repeat(b'A').take(100).collect();
-        let profile = ScalarProfile::new(&v, weights, GAP_OPEN, GAP_EXTEND).expect("Sequence is non-empty");
+        let profile = ScalarProfile::new(&v, weights, GAP_OPEN, GAP_EXTEND).unwrap();
         let score = sw_scalar_score(&v, &profile);
         assert_eq!(200, score);
     }
@@ -471,8 +468,7 @@ mod test {
         let score = sw_simd_score(b"ACGTTNACGTTN", &profile);
         assert_eq!(score, Some(20));
 
-        let profile =
-            StripedProfile::<i16, 16, 5>::new(b"ACGTUNacgtun", &WEIGHTS, GAP_OPEN as i8, GAP_EXTEND as i8).unwrap();
+        let profile = StripedProfile::<i16, 16, 5>::new(b"ACGTUNacgtun", &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
         let score = sw_simd_score(b"ACGTTNACGTTN", &profile);
         assert_eq!(score, Some(20));
     }
@@ -482,15 +478,12 @@ mod test {
         let matrix_i = WeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N'));
         let matrix_u = matrix_i.into_biased_matrix();
 
-        let profile =
-            StripedProfile::<u8, 16, 5>::new(REFERENCE, &matrix_u, GAP_OPEN, GAP_EXTEND).expect("Sequence is non-empty");
+        let profile = StripedProfile::<u8, 16, 5>::new(REFERENCE, &matrix_u, GAP_OPEN, GAP_EXTEND).unwrap();
         let score = profile.smith_waterman_score(QUERY);
         assert_eq!(Some(37), score);
 
-        // TO-DO: fix ergonomics
-        let profile = StripedProfile::<i16, 16, 5>::new(REFERENCE, &matrix_i, GAP_OPEN as i8, GAP_EXTEND as i8)
-            .expect("Sequence is non-empty");
-        let score: Option<u64> = sw_simd_score(QUERY, &profile);
+        let profile = StripedProfile::<i16, 16, 5>::new(REFERENCE, &matrix_i, GAP_OPEN, GAP_EXTEND).unwrap();
+        let score = profile.smith_waterman_score(QUERY);
         assert_eq!(Some(37), score);
     }
 
@@ -498,7 +491,7 @@ mod test {
     fn sw_simd_poly_a() {
         let v: Vec<_> = std::iter::repeat(b'A').take(100).collect();
         let matrix = WeightMatrix::new_dna_matrix(2, -5, Some(b'N')).into_biased_matrix();
-        let profile = StripedProfile::<u16, 16, 5>::new(&v, &matrix, GAP_OPEN, GAP_EXTEND).expect("Sequence is non-empty");
+        let profile = StripedProfile::<u16, 16, 5>::new(&v, &matrix, GAP_OPEN, GAP_EXTEND).unwrap();
         let score = profile.smith_waterman_score(&v);
         assert_eq!(Some(200), score);
     }
@@ -507,7 +500,7 @@ mod test {
     fn sw_simd_single() {
         let v: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/CY137594.txt"));
         let matrix = WeightMatrix::<i8, 5>::new_dna_matrix(2, -5, Some(b'N')).into_biased_matrix();
-        let profile = StripedProfile::<u16, 16, 5>::new(v, &matrix, GAP_OPEN, GAP_EXTEND).expect("Sequence is non-empty");
+        let profile = StripedProfile::<u16, 16, 5>::new(v, &matrix, GAP_OPEN, GAP_EXTEND).unwrap();
         let score = profile.smith_waterman_score(v);
         assert_eq!(Some(3372), score);
     }
@@ -517,7 +510,7 @@ mod test {
         let query = b"AGA";
         let reference = b"AA";
         let matrix = WeightMatrix::new(&DNA_PROFILE_MAP, 10, -10, Some(b'N')).into_biased_matrix();
-        let profile = StripedProfile::<u16, 4, 5>::new(query, &matrix, 5, 5).expect("Sequence is non-empty");
+        let profile = StripedProfile::<u16, 4, 5>::new(query, &matrix, -5, -5).unwrap();
         let score: Option<u64> = profile.smith_waterman_score(reference);
         assert_eq!(Some(15), score);
     }
@@ -528,7 +521,7 @@ mod test {
         let reference = b"AAAA";
 
         let matrix = WeightMatrix::new(&DNA_PROFILE_MAP, 127, 0, Some(b'N')).into_biased_matrix();
-        let profile = StripedProfile::<u8, 8, 5>::new(query, &matrix, GAP_OPEN, GAP_EXTEND).expect("Sequence is non-empty");
+        let profile = StripedProfile::<u8, 8, 5>::new(query, &matrix, GAP_OPEN, GAP_EXTEND).unwrap();
         let score = profile.smith_waterman_score(reference);
         assert!(score.is_none());
     }
@@ -538,8 +531,7 @@ mod test {
         let v: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/CY137594.txt"));
         let matrix_i = WeightMatrix::<i8, 5>::new_dna_matrix(2, -5, Some(b'N'));
 
-        let profile =
-            LocalProfiles::<16, 5>::new(&v, &matrix_i, GAP_OPEN as i8, GAP_EXTEND as i8).expect("Sequence is non-empty");
+        let profile = LocalProfiles::<16, 5>::new(&v, &matrix_i, GAP_OPEN, GAP_EXTEND).unwrap();
         let score = profile.smith_waterman_score_from_i8(&v);
         assert_eq!(Some(3372), score);
     }
@@ -590,25 +582,25 @@ mod bench {
 
     #[bench]
     fn sw_simd_no_profile_16n08i(b: &mut Bencher) {
-        let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN as i8, GAP_EXTEND as i8).unwrap();
+        let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
         b.iter(|| sw_simd_score::<i8, 16, 5>(QUERY, &query_profile));
     }
 
     #[bench]
     fn sw_simd_no_profile_16n16i(b: &mut Bencher) {
-        let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN as i8, GAP_EXTEND as i8).unwrap();
+        let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
         b.iter(|| sw_simd_score::<i16, 16, 5>(QUERY, &query_profile));
     }
 
     #[bench]
     fn sw_simd_no_profile_32n08i(b: &mut Bencher) {
-        let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN as i8, GAP_EXTEND as i8).unwrap();
+        let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
         b.iter(|| sw_simd_score::<i8, 32, 5>(QUERY, &query_profile));
     }
 
     #[bench]
     fn sw_simd_no_profile_32n16i(b: &mut Bencher) {
-        let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN as i8, GAP_EXTEND as i8).unwrap();
+        let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
         b.iter(|| sw_simd_score::<i16, 32, 5>(QUERY, &query_profile));
     }
 }

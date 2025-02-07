@@ -142,8 +142,10 @@ impl Nucleotides {
     /// let query: Nucleotides = b"CTCAGATTG".into();
     ///
     /// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
+    /// const GAP_OPEN: i8 = -3;
+    /// const GAP_EXTEND: i8 = -1;
     ///
-    /// let profile = query.into_local_profile::<32, 5>(&WEIGHTS, 3, 1).unwrap();
+    /// let profile = query.into_local_profile::<32, 5>(&WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
     /// let score = profile.smith_waterman_score_from_i8(reference).unwrap();
     /// assert_eq!(score, 27);
     /// ```
@@ -172,8 +174,10 @@ impl Nucleotides {
     /// let query: Nucleotides = b"CTCAGATTG".into();
     ///
     /// const WEIGHTS: WeightMatrix<i8,5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
+    /// const GAP_OPEN: i8 = -3;
+    /// const GAP_EXTEND: i8 = -1;
     ///
-    /// let profile = query.into_shared_profile::<32, 5>(&WEIGHTS, 3, 1).unwrap();
+    /// let profile = query.into_shared_profile::<32, 5>(&WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
     /// let score = profile.smith_waterman_score_from_i8(reference).unwrap();
     /// assert_eq!(score, 27);
     /// ```
