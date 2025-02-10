@@ -146,6 +146,12 @@ pub(crate) const ANY_TO_DNA_CANONICAL_UPPER: [u8; 256] = {
     v
 };
 
+/// Represents a mapping between bytes and indices. For example, this could be a
+/// map from DNA bases to profile indices, such as [`DNA_PROFILE_MAP`].
+///
+/// # Type Parameters
+/// * `KEYS` - The number of bytes being mapped (such as 5 for DNA including
+///   *N*)
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct ByteIndexMap<const KEYS: usize> {
     pub(crate) index_map: [u8; 256],

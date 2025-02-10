@@ -102,8 +102,10 @@ pub trait ByteSubstringMut {
     /// the forward direction.
     fn remove_first_substring(&mut self, needle: impl AsRef<[u8]>) -> Option<Range<usize>>;
 
-    /// Replace a single byte of the stored sequence. Please see the
-    /// *retain* and *recode* functions for a more wholistic approach.
+    /// Replace a single byte of the stored sequence. See the [`Recode`]
+    /// trait for a more wholistic approach.
+    ///
+    /// [`Recode`]: crate::data::Recode
     fn replace_all_bytes(&mut self, needle: u8, replacement: u8);
 }
 

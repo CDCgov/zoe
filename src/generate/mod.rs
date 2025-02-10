@@ -1,3 +1,5 @@
+/// Generate a random sequence from alphabet `alpha` with length `length` and a
+/// random seed `seed`. Requires `rand` feature to be enabled.
 #[must_use]
 pub fn rand_sequence(alpha: &[u8], length: usize, seed: u64) -> Vec<u8> {
     use rand_xoshiro::{

@@ -206,7 +206,7 @@ impl Nucleotides {
     // Associated functions
 
     /// Generates a random DNA sequence of given `length` and using a random
-    /// `seed`.  Canonical DNA only contains A, C, G, or T. Requires `rand`
+    /// `seed`. Canonical DNA only contains A, C, G, or T. Requires `rand`
     /// feature to be enabled.
     #[cfg(feature = "rand")]
     #[must_use]

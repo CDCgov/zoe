@@ -11,9 +11,9 @@ use crate::{
     prelude::*,
 };
 
-pub trait ToDNA: AsRef<[u8]> {
-    fn filter_to_dna(&self) -> Nucleotides {
-        let mut n = Nucleotides(self.as_ref().to_vec());
+pub trait ToDNA: Into<Nucleotides> {
+    fn filter_to_dna(self) -> Nucleotides {
+        let mut n = self.into();
         n.retain_dna_uc();
         n
     }

@@ -1,3 +1,20 @@
+//! ## Distance functions for sequence data and byte strings.
+//!
+//! This module provides distance functions for DNA in the [`dna`] module, amino
+//! acids in the [`aa`] module, and byte substrings (such as [`hamming`] and
+//! [`hamming_simd`]).
+//!
+//! Within both [`dna`] and [`aa`], there are standalone functions accepting
+//! byte slices, and there are trait methods [`NucleotidesDistance`] and
+//! [`AminoAcidsDistance`].
+//!
+//! [`dna`]: dna
+//! [`aa`]: aa
+//! [`hamming`]: hamming
+//! [`hamming_simd`]: hamming_simd
+//! [`NucleotidesDistance`]: dna::NucleotidesDistance
+//! [`AminoAcidsDistance`]: aa::AminoAcidsDistance
+
 /// Amino acid distance functions.
 ///
 /// ## Examples:
