@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file. The format is roughly based on [Keep a Changelog], and this project tries to adheres to [Semantic Versioning].
 
+## [0.0.13] - 2025-02-18
+
+### Added
+
+- Updated README notices for open-sourcing Zoe on Github!
+- Added optional feature "arbitrary" to support fuzzing Zoe types
+- Added supported for the *signed* striped SW scoring function (generally faster)
+- Added set operations for k-mer sets and anew trait for finding k-mers in sequences
+- Added support for restricted range searching in `ByteSubstring` and `FindKmers`
+- Added `make_reverse_complement_simd` and `translate_to_stop` functions
+- Added `SimdAnyInt` + `FromSameSignedness` traits to improve integer generics
+- Added note / warning documentation styles
+
+### Changed
+
+- Profile set structs now use signed integers
+- `SimpleWeightMatrix` and `BiasedWeightMatrix` are now `WeightMatrix`
+- Improved AA translation efficiency
+- Updates integer traits and implementations for `Cigar`
+- Doc improvements
+
 ## [0.0.12] - 2025-01-22
 
 ### Added
@@ -79,6 +100,7 @@ All notable changes to this project will be documented in this file. The format 
 - **Added**: Initial internal release. Provides various readers and types for bioinformatics data manipulation.
 
 <!-- Versions -->
+[0.0.13]: https://github.com/CDCgov/zoe/compare/v0.0.12...v0.0.13
 [0.0.12]: https://github.com/CDCgov/zoe/compare/v0.0.11...v0.0.12
 [0.0.11]: https://github.com/CDCgov/zoe/compare/v0.0.10...v0.0.11
 [0.0.10]: https://github.com/CDCgov/zoe/compare/v0.0.9...v0.0.10

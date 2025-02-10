@@ -106,7 +106,7 @@ where
 ///
 /// </div>
 ///
-/// ### Acknowledgements
+/// ## Acknowledgements
 ///
 /// This k-mer encoding is inspired by the 2-bit encoding found in
 /// [BBDuk](https://jgi.doe.gov/data-and-tools/software-tools/bbtools/bb-tools-user-guide/bbduk-guide/)
@@ -153,7 +153,7 @@ where
 
     /// Creates a new [`ThreeBitKmerEncoder`] with the specified k-mer length.
     ///
-    /// # Errors
+    /// ## Errors
     ///
     /// Returns [`KmerError::InvalidLength`] if `kmer_length` is less than 2 or
     /// greater than the specified `MAX_LEN`.
@@ -197,7 +197,7 @@ where
     /// otherwise. Consider [`decode_base_checked`] when it is not known whether
     /// the base will be valid.
     ///
-    /// # Panics
+    /// ## Panics
     ///
     /// The [`ThreeBitKmerEncoder`] represents each base by a `u8` in `3..=8`.
     /// Other inputs may panic or cause unexpected behavior.
@@ -257,7 +257,7 @@ where
     /// output. Consider [`decode_kmer_checked`] when it is not known whether
     /// the bases and k-mer length will be valid.
     ///
-    /// # Panics
+    /// ## Panics
     ///
     /// If an invalid base is encountered (a three-bit value outside `3..=8`),
     /// then this function will panic or cause unexpected behavior.
@@ -530,7 +530,7 @@ impl<const MAX_LEN: usize> ExactSizeIterator for ThreeBitOneMismatchIter<MAX_LEN
 /// distance of `N` away from a provided k-mer, where `N >= 2`. The original
 /// k-mer is included in the iterator.
 ///
-/// ### Acknowledgements
+/// ## Acknowledgements
 ///
 /// The code for subset iteration was inspired by [this
 /// blog](https://fishi.devtail.io/weblog/2015/05/18/common-bitwise-techniques-subset-iterations/)

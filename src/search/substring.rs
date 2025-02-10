@@ -129,7 +129,7 @@ impl<T: AsMut<Vec<u8>> + AsRef<[u8]>> ByteSubstringMut for T {
 /// Finds the `needle` byte substring in the `haystack`, returning the starting
 /// index or [`None`] otherwise.
 ///
-/// ### Limitations
+/// ## Limitations
 ///
 /// This is a naïve exact match implementation and should only be used for small
 /// byte strings.
@@ -153,11 +153,11 @@ pub fn substring_match(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 /// The const parameter `N` is used to specify the number of SIMD lanes for the
 /// search.
 ///
-/// ### Limitations
+/// ## Limitations
 ///
 /// The current version is not optimized for larger needles (> 30 bp).
 ///
-/// ### Citation
+/// ## Citation
 ///
 /// 1. Muła, Wojciech (2018). "SIMD-friendly algorithms for substring searching."
 ///    Available at:

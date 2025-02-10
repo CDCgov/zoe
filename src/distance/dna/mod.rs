@@ -21,16 +21,16 @@ pub(crate) use tabulation::{hamming_dist_from_sub_matrix, total_and_frequencies}
 /// length--the smaller of the two--are compared. The algorithm uses SIMD
 /// operations for improved performance.
 ///
-/// # Returns
+/// ## Returns
 ///
 /// * `Some(f64)` - The p-distance between sequences if valid positions are found.
 /// * `None` - If no valid positions are found to compare.
 ///
-/// # Type Parameters
+/// ## Type Parameters
 ///
 /// * `N` - SIMD lane count, must be a supported lane count
 ///
-/// # Example
+/// ## Example
 ///
 /// ```
 /// # use zoe::distance::dna::p_distance_acgt;
@@ -152,7 +152,7 @@ where
 pub trait NucleotidesDistance: NucleotidesReadable {
     /// Calculates hamming distance between [`self`] and another sequence.
     ///
-    /// # Example
+    /// ## Example
     /// ```
     /// # use zoe::{
     /// #     data::types::nucleotides::{Nucleotides, NucleotidesView},
@@ -237,7 +237,7 @@ impl<T: NucleotidesReadable> NucleotidesDistance for T {}
 /// where $d$ is the JC-69 evolutionary distance and $p$ is the proportion of differing sites
 /// between the two sequences. (p-distance)
 ///
-/// ### Citations
+/// ## Citations
 ///
 /// - Jukes, T., and Cantor, C. (1969). "Evolution of Protein Molecules."
 ///   Mammalian Protein Metabolism, New York: Academic Press, III(3), 21–132.
@@ -271,7 +271,7 @@ pub fn jukes_cantor_69(seq1: &[u8], seq2: &[u8]) -> Option<f64> {
 /// and $q$ is the proportion of transversions. $\left( q = \frac{\text{transversions}}{\text{total bases}}\right)$
 ///
 ///
-/// ### Citations
+/// ## Citations
 ///
 /// - Kimura, M. (1980). "A simple method for estimating evolutionary rates of
 ///   base substitutions through comparative studies of nucleotide sequences."
@@ -308,7 +308,7 @@ pub fn kimura_80(seq1: &[u8], seq2: &[u8]) -> Option<f64> {
 /// $q$ is the proportion of type 1 transversions, $\left( q = \frac{\text{transv. 1}}{\text{total bases}}\right)$
 /// and $r$ is the proportion of type 2 transversions. $\left( r = \frac{\text{transv. 2}}{\text{total bases}}\right)$
 ///
-/// ### Citations
+/// ## Citations
 ///
 /// - Kimura, M.  1981. "Estimation of evolutionary distances between homologous
 ///   nucleotide sequences."  Proc. Natl. Acad. Sci. U.S.A. 78, 454–458.
@@ -340,7 +340,7 @@ pub fn kimura_81(seq1: &[u8], seq2: &[u8]) -> Option<f64> {
 ///
 /// and $p$ is the proportion of transitions, $\left( p = \frac{\text{transitions}}{\text{total bases}}\right)$.
 ///
-/// ### Citations
+/// ## Citations
 ///
 /// - Felsenstein, J.  1981. "Evolutionary trees from DNA sequences: a maximum
 ///   likelihood approach."  J. Mol. Evol. 17, 368–376.
@@ -383,7 +383,7 @@ pub fn felsenstein_81(seq1: &[u8], seq2: &[u8]) -> Option<f64> {
 /// $q$ is the proportion of type 1 transversions, $\left( q = \frac{\text{transv. 1}}{\text{total bases}}\right)$
 /// and $r$ is the proportion of type 2 transversions. $\left( r = \frac{\text{transv. 2}}{\text{total bases}}\right)$
 ///
-/// ### Citations
+/// ## Citations
 ///
 /// - Tamura, K., and M. Nei.  1993. "Estimation of the number of nucleotide
 ///   substitutions in the control region of mitochondrial DNA in humans and

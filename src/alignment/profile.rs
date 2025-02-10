@@ -14,7 +14,7 @@ use super::sw::sw_scalar_alignment;
 
 /// Validate the arguments for [`ScalarProfile`] or [`StripedProfile`].
 ///
-/// # Errors
+/// ## Errors
 ///
 /// The following errors are possible:
 /// * [`QueryProfileError::EmptyQuery`] if `query` is empty
@@ -47,7 +47,7 @@ pub(crate) fn validate_profile_args<Q: AsRef<[u8]>>(
 /// an alignment. The API mirrors that of [`StripedProfile`], but this profile
 /// does not use SIMD or create a striped layout.
 ///
-/// # Type Parameters
+/// ## Type Parameters
 /// * `S` - The size of the alphabet (usually 5 for DNA including *N*)
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScalarProfile<'a, const S: usize> {
@@ -60,7 +60,7 @@ pub struct ScalarProfile<'a, const S: usize> {
 impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// Create a new profile for use with the scalar alignment algorithm.
     ///
-    /// # Errors
+    /// ## Errors
     ///
     /// The following errors are possible:
     /// * [`QueryProfileError::EmptyQuery`] if `query` is empty
@@ -88,7 +88,7 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     ///
     /// For more info, see: [`sw_scalar_score`].
     ///
-    /// ### Example
+    /// ## Example
     ///
     /// ```
     /// # use zoe::{alignment::{ScalarProfile, sw::sw_scalar_score}, data::WeightMatrix};
@@ -115,7 +115,7 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     ///
     /// For more info, see: [`sw_scalar_alignment`].
     ///
-    /// ### Example
+    /// ## Example
     ///
     /// ```
     /// # use zoe::{alignment::{ScalarProfile, sw::sw_scalar_score}, data::WeightMatrix};
@@ -145,7 +145,7 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
 /// specified mapping, arranged in a striped pattern to optimize SIMD operations
 /// during alignment.
 ///
-/// # Type Parameters
+/// ## Type Parameters
 /// * `T` - The numeric type used for scores. i8, i16, i32, and i64 use the
 ///   signed algorithm, which is the most common. u8, u16, u32, and u64 use the
 ///   unsigned algorithm.
@@ -172,7 +172,7 @@ where
     ///
     /// See: [`WeightMatrix`]
     ///
-    /// # Errors
+    /// ## Errors
     ///
     /// The following errors are possible:
     /// * [`QueryProfileError::EmptyQuery`] if `query` is empty
@@ -248,7 +248,7 @@ where
     ///
     /// For more info, see: [`sw_simd_score`].
     ///
-    /// ### Example
+    /// ## Example
     ///
     /// ```
     /// # use zoe::{alignment::{StripedProfile, sw::sw_simd_score}, data::WeightMatrix};

@@ -20,7 +20,7 @@ pub fn reverse_complement(bases: &[u8]) -> Vec<u8> {
 /// Reverse complement of a nucleotide sequences using explicit SIMD
 /// instructions.
 ///
-/// # Note
+/// ## Note
 ///
 /// Works well for Haswell and above architectures. Recommend 32 lanes for x86.
 /// Both [`swizzle_dyn`](std::simd::prelude::Simd::swizzle_dyn) and

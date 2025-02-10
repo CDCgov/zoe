@@ -10,7 +10,7 @@ use crate::data::byte_types::ByteMappings;
 /// substitution between the sequences, or used to calculate evolutionary
 /// distances.
 ///
-/// ### Example
+/// ## Example
 /// ```
 /// # use zoe::distance::dna::dna_substitution_matrix;
 /// let seq1: &[u8] = b"GATCAGATTTGCATTGGTT";

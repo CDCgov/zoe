@@ -149,7 +149,7 @@ pub(crate) const ANY_TO_DNA_CANONICAL_UPPER: [u8; 256] = {
 /// Represents a mapping between bytes and indices. For example, this could be a
 /// map from DNA bases to profile indices, such as [`DNA_PROFILE_MAP`].
 ///
-/// # Type Parameters
+/// ## Type Parameters
 /// * `KEYS` - The number of bytes being mapped (such as 5 for DNA including
 ///   *N*)
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
@@ -164,7 +164,7 @@ impl<const S: usize> ByteIndexMap<S> {
     /// profile indices. Any byte that is not specified in `byte_keys` is mapped
     /// to the same thing as `catch_all`.
     ///
-    /// # Panics
+    /// ## Panics
     /// No duplicates can be present in `byte_keys`. `catch_all` must be present
     /// in `byte_keys`.
     #[allow(clippy::cast_possible_truncation)]
@@ -194,7 +194,7 @@ impl<const S: usize> ByteIndexMap<S> {
     /// bytes and indices. For example, this could be a map from DNA bases to
     /// profile indices. Both `byte_keys` and `catch_all` ignore case.
     ///
-    /// # Panics
+    /// ## Panics
     /// No duplicates can be present in `byte_keys`. `catch_all` must be present
     /// in `byte_keys`.
     #[allow(clippy::cast_possible_truncation)]
@@ -362,7 +362,7 @@ impl StdGeneticCode {
     /// the translation cannot be resolved. To instead return 'X', see
     /// [`translate_codon`](StdGeneticCode::translate_codon).
     ///
-    /// # Panics
+    /// ## Panics
     ///
     /// Panics if codon has fewer than three elements. Any additional elements
     /// past the first three are ignored.
@@ -388,7 +388,7 @@ impl StdGeneticCode {
     /// translation cannot be resolved. To instead return an `Option`, see
     /// [`get`](StdGeneticCode::get).
     ///
-    /// # Panics
+    /// ## Panics
     ///
     /// Panics if codon has fewer than three elements. Any additional elements
     /// past the first three are ignored.

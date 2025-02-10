@@ -129,12 +129,12 @@ impl Nucleotides {
 
     /// Creates a [`LocalProfiles`] for alignment.
     ///
-    /// # Errors
+    /// ## Errors
     ///
     /// Returns an [`QueryProfileError`] if the profile creation fails due to
     /// invalid sequence data or unsupported parameters.
     ///
-    /// # Example
+    /// ## Example
     ///
     /// ```
     /// # use zoe::{data::WeightMatrix, prelude::Nucleotides};
@@ -161,12 +161,12 @@ impl Nucleotides {
 
     /// Creates a [`SharedProfiles`] for alignment.
     ///
-    /// # Errors
+    /// ## Errors
     ///
     /// Returns an [`QueryProfileError`] if the profile creation fails due to invalid
     /// sequence data or unsupported parameters.
     ///
-    /// # Example
+    /// ## Example
     ///
     /// ```
     /// # use zoe::{data::WeightMatrix, prelude::Nucleotides};

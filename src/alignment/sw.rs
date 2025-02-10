@@ -21,7 +21,7 @@ use std::simd::{LaneCount, SimdElement, SupportedLaneCount, prelude::*};
 /// $W(k)$ is the total penalty for the gap. In order to use $W(k) = uk + v$,
 /// simply pass gap open as the gap open plus gap extension.
 ///
-/// ### Example
+/// ## Example
 ///
 /// ```
 /// # use zoe::{alignment::{ScalarProfile, sw::sw_scalar_score}, data::WeightMatrix};
@@ -37,13 +37,13 @@ use std::simd::{LaneCount, SimdElement, SupportedLaneCount, prelude::*};
 /// assert_eq!(score, 27);
 /// ```
 ///
-/// ### Complexity
+/// ## Complexity
 ///
 /// Time: $O(mn)$
 ///
 /// Space: $O(m)$ where $m$ is the length of the query
 ///
-/// ### Citations
+/// ## Citations
 ///
 /// 1. Smith, Temple F. & Waterman, Michael S. (1981). "Identification of Common
 ///    Molecular Subsequences" (PDF). Journal of Molecular Biology. 147 (1):
@@ -124,7 +124,7 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 /// $W(k)$ is the total penalty for the gap. In order to use $W(k) = uk + v$,
 /// simply pass gap open as the gap open plus gap extension.
 ///
-/// ### Example
+/// ## Example
 ///
 ///  ```
 /// # use zoe::{alignment::{ScalarProfile, sw::sw_scalar_alignment}, data::WeightMatrix};
@@ -142,13 +142,13 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 /// assert_eq!(score, 27);
 /// ```
 ///
-/// ### Complexity
+/// ## Complexity
 ///
 /// Time: $O(mn)$
 ///
 /// Space: $O(mn)$
 ///
-/// ### Citations
+/// ## Citations
 ///
 /// 1. Smith, Temple F. & Waterman, Michael S. (1981). "Identification of Common
 ///    Molecular Subsequences" (PDF). Journal of Molecular Biology. 147 (1):
@@ -278,7 +278,7 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
 /// $W(k)$ is the total penalty for the gap. In order to use $W(k) = uk + v$,
 /// simply pass gap open as the gap open plus gap extension.
 ///
-/// ### Example
+/// ## Example
 ///
 /// ```
 /// # use zoe::{alignment::{StripedProfile, sw::sw_simd_score}, data::WeightMatrix};
@@ -294,13 +294,13 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
 /// assert_eq!(score, 26);
 /// ```
 ///
-/// ### Complexity
+/// ## Complexity
 ///
 /// Time: $O(mn)$, with the average case as $mn/N$ for $N$ SIMD lanes
 ///
 /// Space: $O(n)$
 ///
-/// ### Limitations
+/// ## Limitations
 ///
 /// The SIMD algorithm used here may not perform as well when both the query and
 /// reference are short. If the query and reference are both shorter than 25
@@ -308,7 +308,7 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
 /// query and reference are both shorter than 10 bases, consider using the
 /// scalar algorithm [`sw_scalar_score`].
 ///
-/// ### Citations
+/// ## Citations
 ///
 /// 1. Smith, Temple F. & Waterman, Michael S. (1981). "Identification of Common
 ///    Molecular Subsequences" (PDF). Journal of Molecular Biology. 147 (1):

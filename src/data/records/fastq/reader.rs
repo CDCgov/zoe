@@ -25,7 +25,7 @@ impl<R: std::io::Read> FastQReader<R> {
 impl FastQReader<std::fs::File> {
     /// Reads a fastq file into an iterator backed by a buffered reader.
     ///
-    /// # Errors
+    /// ## Errors
     ///
     /// Will return `Err` if file or permissions do not exist.
     pub fn from_filename<P>(filename: P) -> Result<FastQReader<File>, std::io::Error>

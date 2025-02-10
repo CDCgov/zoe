@@ -6,7 +6,7 @@ use std::{
 /// Provides the starting index of a matched "fuzzy substring" with however many
 /// `differences_allowed` from the needle, otherwise [`None`] is returned.
 ///
-/// ### Limitations
+/// ## Limitations
 ///
 /// The naïve algorithm should not be used except for small haystacks.
 ///
@@ -71,13 +71,13 @@ where
 ///
 /// This algorithm implements a portable version of (1).
 ///
-/// ### Limitations
+/// ## Limitations
 ///
 /// Not optimized for either large needles or large differences allowed (`K`).
 /// However, it should be quite suitable for short oligonucleotide searches with
 /// 1 or 2 mismatches.
 ///
-/// ### Citation
+/// ## Citation
 ///
 /// 1. Tamanna Chhabra, Sukhpal Singh Ghuman, and Jorma Tarhio (2023). "String
 ///    Searching with Mismatches Using Avx2 and Avx-512 Instructions." doi:

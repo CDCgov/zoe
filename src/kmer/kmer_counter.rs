@@ -36,7 +36,7 @@ where
 impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>> KmerCounter<MAX_LEN, E> {
     /// Creates a new [`KmerCounter`] with the specified k-mer length.
     ///
-    /// # Errors
+    /// ## Errors
     ///
     /// Returns [`KmerError::InvalidLength`] if `kmer_length` is less than 2 or
     /// greater than `MAX_LEN`.
@@ -53,7 +53,7 @@ impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> KmerCounter<
     /// Creates a new [`KmerCounter`] with the specified k-mer length
     /// and hasher.
     ///
-    /// # Errors
+    /// ## Errors
     ///
     /// Returns [`KmerError::InvalidLength`] if `kmer_length` is less than 2 or
     /// greater than `MAX_LEN`.

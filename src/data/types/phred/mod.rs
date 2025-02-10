@@ -45,7 +45,7 @@ impl QualityScores {
     /// Creates a [`QualityScores`] struct from a `Vec<u8>` without checking for
     /// values being in the proper range (see [`is_graphic_simd`]).
     ///
-    /// # Safety
+    /// ## Safety
     /// The [`Vec<u8>`] must be in range `!`..=`~`.
     ///
     /// [`is_graphic_simd`]:
@@ -72,7 +72,7 @@ impl QualityScores {
 
     /// Gets the ASCII encoded quality scores as a mutable byte slice.
     ///
-    /// # Safety
+    /// ## Safety
     /// Any modifications to the bytes must ensure that they remain graphic
     /// ASCII.
     #[inline]
@@ -155,7 +155,7 @@ impl<'a> QualityScoresView<'a> {
     /// Creates a [`QualityScoresView`] struct from a byte slice without
     /// checking for values being in the proper range (see [`is_graphic_simd`]).
     ///
-    /// # Safety
+    /// ## Safety
     /// Bytes in `v` must be in range `!`..=`~`.
     ///
     /// [`is_graphic_simd`]:
@@ -212,7 +212,7 @@ impl<'a> QualityScoresViewMut<'a> {
     /// Creates a [`QualityScoresViewMut`] struct from a byte slice without
     /// checking for values being in the proper range (see [`is_graphic_simd`]).
     ///
-    /// # Safety
+    /// ## Safety
     /// Bytes in `v` must be in range `!`..=`~`.
     ///
     /// [`is_graphic_simd`]:
@@ -233,7 +233,7 @@ impl<'a> QualityScoresViewMut<'a> {
     /// Gets a mutable reference to the underlying raw byte slice (ASCII encoded
     /// quality scores).
     ///
-    /// # Safety
+    /// ## Safety
     /// Any modifications to the bytes must ensure that they remain graphic
     /// ASCII.
     #[inline]

@@ -35,7 +35,7 @@ impl<const MAX_LEN: usize> std::fmt::Display for Kmer<MAX_LEN> {
 impl<const MAX_LEN: usize> Kmer<MAX_LEN> {
     /// Create a new `Kmer` instance.
     ///
-    /// # Panics
+    /// ## Panics
     ///
     /// Panics if the buffer does not contain valid ASCII, or if the length of
     /// `bases` is less than 2 or longer than `MAX_LEN`.
@@ -57,7 +57,7 @@ impl<const MAX_LEN: usize> Kmer<MAX_LEN> {
 
     /// Create a new `Kmer` instance from a length and buffer.
     ///
-    /// # Safety
+    /// ## Safety
     ///
     /// `buffer` must be valid ASCII, and length must be between 2 and
     /// `MAX_LEN`.
@@ -143,7 +143,7 @@ where
 
     /// Creates a new [`KmerEncoder`] with the specified k-mer length.
     ///
-    /// # Errors
+    /// ## Errors
     /// Returns [`KmerError::InvalidLength`] if `kmer_length` is not a valid
     /// length for the encoding.
     fn new(kmer_length: usize) -> Result<Self, KmerError>;

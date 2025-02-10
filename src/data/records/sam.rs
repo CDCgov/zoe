@@ -83,7 +83,7 @@ impl SamData {
     /// quality scores based on the `Cigar` as well as the alignment range for
     /// the reference.
     ///
-    /// # Panics
+    /// ## Panics
     ///
     /// Currently panics on invalid cigar states. To be removed in the future
     /// for either a `Result` or type-state validated Cigars.
@@ -690,7 +690,7 @@ impl<R: std::io::Read> Iterator for SAMReader<R> {
 impl SAMReader<std::fs::File> {
     /// Reads a SAM text file into an iterator backed by a buffered reader.
     ///
-    /// # Errors
+    /// ## Errors
     ///
     /// Will return `Err` if file or permissions or the like do not exist.
     pub fn from_filename<P>(filename: P) -> Result<SAMReader<File>, std::io::Error>

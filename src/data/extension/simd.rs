@@ -157,7 +157,7 @@ where
 
     /// All instances of `find` are mapped to `replace`.
     ///
-    /// # Examples:
+    /// ## Examples:
     /// ```ignore
     ///     let mut s = Simd::from_array([1,2,4,1]);
     ///     s.if_value_then_replace(1, 4);
@@ -168,7 +168,7 @@ where
 
     /// All instances of `this` or `that` byte are swapped or exchanged.
     ///
-    /// # Examples:
+    /// ## Examples:
     /// ```ignore
     ///     let mut s = Simd::from_array([1,2,4,1]);
     ///     s.exchange_byte_pairs(1, 4);

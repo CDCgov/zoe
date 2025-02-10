@@ -156,7 +156,7 @@ where
 /// The SIMD lanes `N`, unroll factor `UF` are const parameters that can be used
 /// to adjust performance characteristics.
 ///
-/// ### Acknowledgements
+/// ## Acknowledgements
 ///
 /// The unrolling algorithm inspired from previous work in the excellent [memchr crate](https://crates.io/crates/memchr).
 ///

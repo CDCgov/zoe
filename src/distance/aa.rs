@@ -8,11 +8,11 @@ use crate::{
 };
 
 pub trait AminoAcidsDistance: AminoAcidsReadable {
-    /// # Distance
+    /// ## Distance
     ///
     /// Calculates hamming distance between `self` and another sequence.
     ///
-    /// # Example
+    /// ## Example
     /// ```
     /// # use zoe::{
     /// #     data::types::amino_acids::{AminoAcids, AminoAcidsView},
@@ -36,7 +36,7 @@ pub trait AminoAcidsDistance: AminoAcidsReadable {
     /// Calculates physiochemical distance between `self`and another protein
     /// sequence. See: [`crate::distance::aa::physiochemical`]
     ///
-    /// # Citation
+    /// ## Citation
     /// For factor analysis used by the function:
     ///
     /// > Atchley et al. 2008. "Solving the protein sequence metric problem."
@@ -44,11 +44,11 @@ pub trait AminoAcidsDistance: AminoAcidsReadable {
     /// > Apr 25.
     ///
     ///
-    /// # Errors
+    /// ## Errors
     /// If either argument is empty or the sequence characters are invalid, an
     /// error is thrown. See [`DistanceError`].
     ///
-    /// # Example
+    /// ## Example
     /// ```
     /// # use zoe::{
     /// #     data::types::amino_acids::{AminoAcids, AminoAcidsView},
@@ -77,7 +77,7 @@ impl AminoAcidsDistance for AminoAcidsViewMut<'_> {}
 /// over physiochemical factors. Only valid amino acids are permitted in the
 /// denominator.
 ///
-/// # Example
+/// ## Example
 /// ```
 /// # use zoe::distance::aa::physiochemical;
 ///
@@ -87,14 +87,14 @@ impl AminoAcidsDistance for AminoAcidsViewMut<'_> {}
 /// assert!( (physiochemical(s1,s2).unwrap()  - 1.1464952).abs() < 0.01 )
 /// ```
 ///
-/// # Citation
+/// ## Citation
 /// For factor analysis used by the function:
 ///
 /// 1. Atchley et al. 2008. "Solving the protein sequence metric problem." Proc
 ///    Natl Acad Sci U S A. 2005 May 3;102(18):6395-400. Published 2005 Apr 25.
 ///
 ///
-/// # Errors
+/// ## Errors
 ///
 /// If either argument is empty or the sequence characters are invalid, an error
 /// is thrown. See [`DistanceError`].

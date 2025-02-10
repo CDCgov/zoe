@@ -15,7 +15,7 @@ use std::{
 /// If it is necessary to share between multiple threads, consider using
 /// [`SharedProfiles`].
 ///
-/// # Type Parameters
+/// ## Type Parameters
 /// * `N` - The number of SIMD lanes (usually 16, 32 or 64)
 /// * `S` - The size of the alphabet (usually 5 for DNA including *N*)
 #[derive(Debug, Clone)]
@@ -40,7 +40,7 @@ where
     /// [`LocalProfiles::new_with_i8`] or [`LocalProfiles::new_with_i16`]
     /// instead.
     ///
-    /// # Errors
+    /// ## Errors
     ///
     /// The following errors are possible:
     /// * [`QueryProfileError::EmptyQuery`] if `query` is empty
@@ -71,7 +71,7 @@ where
     /// Creates an empty [`LocalProfiles`] and eagerly initializes the `i8`
     /// profile.
     ///
-    /// # Errors
+    /// ## Errors
     ///
     /// The following errors are possible:
     /// * [`QueryProfileError::EmptyQuery`] if `query` is empty
@@ -93,7 +93,7 @@ where
     /// Creates an empty [`LocalProfiles`] and eagerly initializes the `i16`
     /// profile.
     ///
-    /// # Errors
+    /// ## Errors
     ///
     /// The following errors are possible:
     /// * [`QueryProfileError::EmptyQuery`] if `query` is empty
@@ -157,7 +157,7 @@ where
     /// to the `i64` profile. Execution stops when the score returned no longer
     /// overflows the profile's integer range.
     ///
-    /// ### Example
+    /// ## Example
     ///
     /// ```
     /// # use zoe::{alignment::{LocalProfiles, sw::sw_simd_score}, data::WeightMatrix};
@@ -188,7 +188,7 @@ where
     /// profiles and works its way up to the `i64` profile. Execution stops when
     /// the score returned no longer overflows the profile's integer range.
     ///
-    /// ### Example
+    /// ## Example
     ///
     /// ```
     /// # use zoe::{alignment::{LocalProfiles, sw::sw_simd_score}, data::WeightMatrix};
@@ -219,7 +219,7 @@ where
     /// Execution stops when the score returned no longer overflows the
     /// profile's integer range.
     ///
-    /// ### Example
+    /// ## Example
     ///
     /// ```
     /// # use zoe::{alignment::{LocalProfiles, sw::sw_simd_score}, data::WeightMatrix};
@@ -253,7 +253,7 @@ where
 /// When sharing between threads is not needed, consider using [`LocalProfiles`]
 /// instead.
 ///
-/// # Type Parameters
+/// ## Type Parameters
 /// * `N` - The number of SIMD lanes (usually 16, 32 or 64)
 /// * `S` - The size of the alphabet (usually 5 for DNA including *N*)
 #[derive(Debug, Clone)]
@@ -278,7 +278,7 @@ where
     /// [`SharedProfiles::new_with_i8`] or [`SharedProfiles::new_with_i16`]
     /// instead.
     ///
-    /// # Errors
+    /// ## Errors
     ///
     /// The following errors are possible:
     /// * [`QueryProfileError::EmptyQuery`] if `query` is empty
@@ -309,7 +309,7 @@ where
     /// Creates an empty [`SharedProfiles`] and eagerly initializes the `i8`
     /// profile.
     ///
-    /// # Errors
+    /// ## Errors
     ///
     /// The following errors are possible:
     /// * [`QueryProfileError::EmptyQuery`] if `query` is empty
@@ -331,7 +331,7 @@ where
     /// Creates an empty [`SharedProfiles`] and eagerly initializes the `i16`
     /// profile.
     ///
-    /// # Errors
+    /// ## Errors
     ///
     /// The following errors are possible:
     /// * [`QueryProfileError::EmptyQuery`] if `query` is empty
@@ -395,7 +395,7 @@ where
     /// to the `i64` profile. Execution stops when the score returned no longer
     /// overflows the profile's integer range.
     ///
-    /// ### Example
+    /// ## Example
     ///
     /// ```
     /// # use zoe::{alignment::{SharedProfiles, sw::sw_simd_score}, data::WeightMatrix};
@@ -426,7 +426,7 @@ where
     /// profiles and works its way up to the `i64` profile. Execution stops when
     /// the score returned no longer overflows the profile's integer range.
     ///
-    /// ### Example
+    /// ## Example
     ///
     /// ```
     /// # use zoe::{alignment::{SharedProfiles, sw::sw_simd_score}, data::WeightMatrix};
@@ -457,7 +457,7 @@ where
     /// Execution stops when the score returned no longer overflows the
     /// profile's integer range.
     ///
-    /// ### Example
+    /// ## Example
     ///
     /// ```
     /// # use zoe::{alignment::{SharedProfiles, sw::sw_simd_score}, data::WeightMatrix};

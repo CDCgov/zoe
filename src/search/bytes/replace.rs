@@ -16,7 +16,7 @@ where
 /// Finds and replace the specified byte value with another byte for some
 /// mutable byte slice.
 ///
-/// ### Limitations
+/// ## Limitations
 ///
 /// Uses SIMD, but mostly useful just when the CPU target is below x86-64-v4,
 /// otherwise the scalar code auto-vectorizes to the same performance (N=32).

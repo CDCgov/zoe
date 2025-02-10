@@ -10,7 +10,7 @@ use crate::math::Uint;
 /// `u32` have been known to auto-vectorize more nicely.
 ///
 ///
-/// # Example
+/// ## Example
 /// ```
 /// # use zoe::distance::hamming;
 ///
@@ -32,7 +32,7 @@ pub fn hamming<T: Uint>(a: &[u8], b: &[u8]) -> usize {
 /// The const argument `N` is the number of SIMD lanes to use at a time. Unless
 /// compiling for a specific platform, a choice of 16 or 32 is a good value.
 ///
-/// # Example
+/// ## Example
 /// ```
 /// use zoe::distance::hamming_simd;
 ///

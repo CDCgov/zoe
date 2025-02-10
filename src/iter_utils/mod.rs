@@ -11,7 +11,7 @@
 ///
 /// The algorithm is based on code found at (1).
 ///
-/// ### Acknowledgements
+/// ## Acknowledgements
 ///
 /// This solution was chiefly derived from an answer found online for
 /// "[Is there a smarter way to do this? Iterators](https://www.reddit.com/r/rust/comments/8x6ep7/is_there_a_smarter_way_to_do_this_iterators/)"

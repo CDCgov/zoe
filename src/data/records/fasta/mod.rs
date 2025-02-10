@@ -251,7 +251,7 @@ impl<R: std::io::Read> FastaReader<R> {
 impl FastaReader<std::fs::File> {
     /// Reads a fasta file into an iterator backed by a buffered reader.
     ///
-    /// # Errors
+    /// ## Errors
     ///
     /// Will return `Err` if file or permissions or the like do not exist or if the first record is invalid.
     pub fn from_filename<P>(filename: P) -> Result<FastaReader<File>, std::io::Error>

@@ -3,7 +3,7 @@ use std::simd::{LaneCount, SupportedLaneCount, prelude::*};
 
 /// Non-SIMD component of [`find_k_repeating`].
 ///
-/// ### Limitations
+/// ## Limitations
 ///
 /// Not optimized for small needles <21bp. Use [`find_k_repeating`] to more
 /// appropriately handle this case.
@@ -75,7 +75,7 @@ where
 /// is used, enabling faster skipping through the string in a similar manner
 /// to the Boyer-Moore algorithm.
 ///
-/// ### Limitations
+/// ## Limitations
 ///
 /// Not optimized for needles that are of comparable size to the haystack (e.g.,
 /// over half the size of the haystack).

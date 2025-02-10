@@ -80,7 +80,7 @@ impl Default for AlignmentStates {
 /// returns two aligned sequences with gaps inserted according to the CIGAR
 /// operations.
 ///
-/// # Panics
+/// ## Panics
 ///
 /// Panics if an invalid cigar string character is provided. Valid characters
 /// are: MIDNSHP=X
