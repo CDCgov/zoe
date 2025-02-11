@@ -88,17 +88,6 @@ pub(crate) static PHYSIOCHEMICAL_FACTORS: [[Option<f32>; 256]; 256] = {
     pcd
 };
 
-impl WeightMatrix<u8, 5> {
-    /// Creates a new [`WeightMatrix`] with a fixed `matching` score,
-    /// `mismatch` score, and optionally ignoring a base. A pair of bases where
-    /// either is the ignored base will always have a score of 0.
-    #[inline]
-    #[must_use]
-    pub const fn new_biased_dna_matrix(matching: i8, mismatch: i8, ignoring: Option<u8>) -> Self {
-        WeightMatrix::new(&DNA_PROFILE_MAP, matching, mismatch, ignoring).into_biased_matrix()
-    }
-}
-
 /// A weight matrix representing the scores for various matches and mismatches
 /// when performing sequence alignment.
 ///
@@ -122,15 +111,38 @@ pub struct WeightMatrix<T: AnyInt, const S: usize> {
     pub(crate) bias: T,
 }
 
+impl<T: AnyInt, const S: usize> WeightMatrix<T, S> {
+    /// For a given `reference_base` and `query_base`, retrieves the weight
+    /// stored in the matrix.
+    #[inline]
+    #[must_use]
+    pub const fn get_weight(&self, reference_base: u8, query_base: u8) -> T {
+        self.weights[self.mapping.to_index(reference_base)][self.mapping.to_index(query_base)]
+    }
+}
+
+impl WeightMatrix<u8, 5> {
+    /// Creates a new [`WeightMatrix`] with a fixed `matching` score,
+    /// `mismatch` score, and optionally ignoring a base. A pair of bases where
+    /// either is the ignored base will always have a score of 0.
+    #[inline]
+    #[must_use]
+    pub const fn new_biased_dna_matrix(matching: i8, mismatch: i8, ignoring: Option<u8>) -> Self {
+        WeightMatrix::new(&DNA_PROFILE_MAP, matching, mismatch, ignoring).into_biased_matrix()
+    }
+}
+
 impl<const S: usize> WeightMatrix<i8, S> {
     /// Creates a new, signed [`WeightMatrix`] with a given alphabet represented
     /// by `mapping`, a fixed `matching` score and `mismatch` score, and an
     /// optionally ignored base. A pair of bases where either is the ignored
     /// base will always have a score of 0.
     ///
-    /// If working with DNA, consider using [`new_dna_matrix`].
+    /// If working with DNA, consider using [`new_dna_matrix`]. For more
+    /// flexibility, use [`new_custom`].
     ///
     /// [`new_dna_matrix`]: WeightMatrix::new_dna_matrix
+    /// [`new_custom`]: WeightMatrix::new_custom
     #[must_use]
     pub const fn new(mapping: &'static ByteIndexMap<S>, matching: i8, mismatch: i8, ignoring: Option<u8>) -> Self {
         let mut weights = [[0i8; S]; S];
@@ -176,11 +188,21 @@ impl<const S: usize> WeightMatrix<i8, S> {
         }
     }
 
-    /// For a given `reference_base` and `query_base`, retrieves the weight
-    /// stored in the matrix.
+    /// Creates a new, signed [`WeightMatrix`] with a given alphabet represented
+    /// by `mapping` and a custom weight matrix (where the rows represent the
+    /// reference residue, and the columns represent the query residue).
+    ///
+    /// For simpler weight matrices depending only on matches/mismatches,
+    /// consider using [`new`].
+    ///
+    /// [`new`]: WeightMatrix::new
     #[must_use]
-    pub const fn get_weight(&self, reference_base: u8, query_base: u8) -> i8 {
-        self.weights[self.mapping.to_index(reference_base)][self.mapping.to_index(query_base)]
+    pub const fn new_custom(mapping: &'static ByteIndexMap<S>, weights: [[i8; S]; S]) -> Self {
+        WeightMatrix {
+            weights,
+            mapping,
+            bias: 0,
+        }
     }
 
     /// Computes the matrix bias, which should be lesser of 0 and the smallest
@@ -253,7 +275,11 @@ mod test {
         };
 
         let result2 = WeightMatrix::new(&RESIDUE_MAP, 1, 0, None);
+
+        let result3 = WeightMatrix::new_custom(&RESIDUE_MAP, [[1, 0], [0, 1]]);
+
         assert_eq!(result1, result2);
+        assert_eq!(result1, result3);
     }
 
     #[allow(non_snake_case)]
@@ -273,6 +299,15 @@ mod test {
 
         let result2 = WeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N'));
 
+        let result3 = WeightMatrix::new_custom(&DNA_PROFILE_MAP, [
+            [2, -5, -5, -5, 0],
+            [-5, 2, -5, -5, 0],
+            [-5, -5, 2, -5, 0],
+            [-5, -5, -5, 2, 0],
+            [0, 0, 0, 0, 0],
+        ]);
+
         assert_eq!(result1, result2);
+        assert_eq!(result1, result3);
     }
 }
