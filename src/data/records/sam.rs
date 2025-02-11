@@ -97,7 +97,7 @@ impl SamData {
         let mut q_aln: Vec<u8> = Vec::new();
         let mut insertions = Vec::new();
 
-        for Ciglet { inc, op } in self.cigar.into_iter() {
+        for Ciglet { inc, op } in &self.cigar {
             match op {
                 b'M' | b'=' | b'X' => {
                     for _ in 0..inc {

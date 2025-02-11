@@ -1,4 +1,6 @@
-/// A CIGAR string.
+/// A [CIGAR string] of length-opcode pairs used in sequence alignment.
+///
+/// [CIGAR string]: https://en.wikipedia.org/wiki/Sequence_alignment#CIGAR_Format
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub struct Cigar(pub(crate) Vec<u8>);
 
@@ -10,18 +12,19 @@ const USIZE_WIDTH: usize = 10;
 const USIZE_WIDTH: usize = 20;
 
 impl Cigar {
+    /// Expands a CIGAR to an opcode-only byte string, e.g. "3M" → "MMM".
     #[must_use]
     pub(crate) fn expand_cigar(&self) -> ExpandedCigar {
         let mut expanded = Vec::new();
 
-        for Ciglet { inc, op } in self.into_iter() {
+        for Ciglet { inc, op } in self {
             expanded.extend(std::iter::repeat(op).take(inc));
         }
 
         ExpandedCigar(expanded)
     }
 
-    // TODO: Docs
+    /// Sums lengths for operations `M`, `D`, `N`, `X`, and `=`.
     #[must_use]
     pub fn match_length(&self) -> usize {
         self.into_iter()
@@ -30,8 +33,20 @@ impl Cigar {
             .sum()
     }
 
-    // TODO: Docs
-    pub fn into_iter(&self) -> impl Iterator<Item = Ciglet> + '_ {
+    /// Returns an iterator of [`Ciglet`] for the CIGAR.
+    #[inline]
+    #[must_use]
+    pub fn iter(&self) -> CigletIterator<'_> {
+        CigletIterator::new(&self.0)
+    }
+}
+
+impl<'a> IntoIterator for &'a Cigar {
+    type Item = Ciglet;
+    type IntoIter = CigletIterator<'a>;
+
+    #[inline]
+    fn into_iter(self) -> Self::IntoIter {
         CigletIterator::new(&self.0)
     }
 }
@@ -78,10 +93,12 @@ impl From<ExpandedCigar> for Cigar {
     }
 }
 
-/// A single increment quantifier-operation pair.
+/// A single increment-opcode pair.
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Ciglet {
+    /// Increment or repetition count.
     pub inc: usize,
+    /// Alignment operation code.
     pub op:  u8,
 }
 
@@ -92,6 +109,7 @@ pub struct CigletIterator<'a> {
 }
 
 impl<'a> CigletIterator<'a> {
+    /// Constructs an iterator from a CIGAR byte buffer.
     #[inline]
     fn new(buffer: &'a [u8]) -> Self {
         CigletIterator {
@@ -155,10 +173,12 @@ impl std::fmt::Debug for Ciglet {
     }
 }
 
+/// A CIGAR string as an "expanded" opcode-only byte string, e.g. `3M` → `MMM`.
 #[derive(Clone, PartialEq)]
 pub(crate) struct ExpandedCigar(Vec<u8>);
 
 impl ExpandedCigar {
+    /// Condenses the [`ExpandedCigar`] back to its standard form,  e.g. `MMM` → `3M`.
     #[inline]
     #[must_use]
     pub(crate) fn condense_to_cigar(self) -> Cigar {
@@ -341,7 +361,7 @@ mod tests {
     fn test_add_state() {
         let cigar: Cigar = "4S10M2I2D3M4H4P".into();
         let mut states = AlignmentStates::new();
-        for Ciglet { inc, op } in cigar.into_iter() {
+        for Ciglet { inc, op } in &cigar {
             for _ in 0..inc {
                 states.add_state(op);
             }

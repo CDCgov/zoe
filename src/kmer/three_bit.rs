@@ -111,11 +111,6 @@ where
 /// This k-mer encoding is inspired by the 2-bit encoding found in
 /// [BBDuk](https://jgi.doe.gov/data-and-tools/software-tools/bbtools/bb-tools-user-guide/bbduk-guide/)
 /// from the [BBMap](https://sourceforge.net/projects/bbmap/) project.
-///
-/// [`get_variants_one_mismatch`]: KmerEncoder::get_variants_one_mismatch
-/// [`encode_kmer`]: KmerEncoder::encode_kmer
-/// [`decode_kmer`]: KmerEncoder::decode_kmer
-/// [`iter_from_sequence`]: KmerEncoder::iter_from_sequence
 #[derive(Clone, Debug)]
 pub struct ThreeBitKmerEncoder<const MAX_LEN: usize>
 where
@@ -466,9 +461,8 @@ where
     ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen<T = T>,
 {
     /// Create a new [`ThreeBitOneMismatchIter`] from a provided `encoded_kmer`
-    /// and `kmer_length`. For most purposes, use
-    /// [`ThreeBitKmerEncoder::get_variants_one_mismatch`] to obtain an
-    /// iterator.
+    /// and `kmer_length`. For most purposes, use [`KmerEncoder::get_variants`]
+    /// to obtain an iterator.
     #[inline]
     #[must_use]
     pub(crate) fn new(encoded_kmer: ThreeBitEncodedKmer<MAX_LEN>, kmer_encoder: &ThreeBitKmerEncoder<MAX_LEN>) -> Self {

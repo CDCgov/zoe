@@ -93,7 +93,7 @@ pub fn pairwise_align_with_cigar(reference: &[u8], query: &[u8], cigar: &Cigar, 
     let mut ref_aln: Vec<u8> = Vec::with_capacity(reference.len() + (query.len() / 2));
     let mut query_aln: Vec<u8> = Vec::with_capacity(query.len() + (reference.len() / 2));
 
-    for Ciglet { inc, op } in cigar.into_iter() {
+    for Ciglet { inc, op } in cigar {
         match op {
             b'M' | b'=' | b'X' => {
                 ref_aln.extend_from_slice(&reference[ref_index..ref_index + inc]);
