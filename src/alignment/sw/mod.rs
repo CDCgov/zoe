@@ -513,40 +513,35 @@ where
             H = load[v];
         }
 
-        let mut v = 0;
-        H = store[v];
-
-        F = F.shift_elements_right::<1>(min);
-
         // ¬∀x (F = (H - Go))
         //  ∃x (F > (H - Go)), given 1-sided
-        let mut mask = F.simd_gt(H.saturating_sub(gap_opens));
-        while mask.any() {
-            H = H.simd_max(F);
-            store[v] = H;
+        'lazy_f: for _ in 0..N {
+            F = F.shift_elements_right::<1>(min);
 
-            // SAFETY: we have initialized all members of the row in the full loop
-            let mut flags = unsafe { backtrack_row[v].assume_init() };
+            for v in 0..num_vecs {
+                H = store[v];
 
-            let stopped = H.simd_eq(minimums);
+                if !F.simd_gt(H.saturating_sub(gap_opens)).any() {
+                    break 'lazy_f;
+                }
 
-            flags.simd_correct_and_set_left(F.simd_eq(H).cast());
+                H = H.simd_max(F);
+                store[v] = H;
+                let mut flags = unsafe { backtrack_row[v].assume_init() };
 
-            H = H.saturating_sub(gap_opens);
-            F = F.saturating_sub(gap_extends);
+                let stopped = H.simd_eq(minimums);
 
-            flags.simd_left_extending(F.simd_gt(H).cast());
-            flags.simd_stop(stopped.cast());
-            backtrack_row[v].write(flags);
+                flags.simd_correct_and_set_left(F.simd_eq(H).cast());
 
-            v += 1;
-            if v == num_vecs {
-                v = 0;
-                F = F.shift_elements_right::<1>(min);
+                H = H.saturating_sub(gap_opens);
+                F = F.saturating_sub(gap_extends);
+                //let E = e_scores[v];
+
+                flags.simd_left_extending(F.simd_gt(H).cast());
+                //flags.simd_up_extending(E.simd_gt(H).cast());
+                flags.simd_stop(stopped.cast());
+                backtrack_row[v].write(flags);
             }
-
-            H = store[v];
-            mask = F.simd_gt(H.saturating_sub(gap_opens));
         }
 
         let row_best = max_scores.reduce_max();
