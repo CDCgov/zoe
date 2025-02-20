@@ -103,18 +103,18 @@ pub fn pairwise_align_with_cigar(reference: &[u8], query: &[u8], cigar: &Cigar, 
             }
             b'D' => {
                 ref_aln.extend_from_slice(&reference[ref_index..ref_index + inc]);
-                query_aln.extend(std::iter::repeat(b'-').take(inc));
+                query_aln.extend(std::iter::repeat_n(b'-', inc));
                 ref_index += inc;
             }
             b'I' => {
-                ref_aln.extend(std::iter::repeat(b'-').take(inc));
+                ref_aln.extend(std::iter::repeat_n(b'-', inc));
                 query_aln.extend_from_slice(&query[query_index..query_index + inc]);
                 query_index += inc;
             }
             b'S' => query_index += inc,
             b'N' => {
                 ref_aln.extend_from_slice(&reference[ref_index..ref_index + inc]);
-                query_aln.extend(std::iter::repeat(b'N').take(inc));
+                query_aln.extend(std::iter::repeat_n(b'N', inc));
                 ref_index += inc;
             }
             b'H' | b'P' => {}
@@ -297,12 +297,11 @@ mod test {
 
     #[test]
     fn align_with_cigar() {
-        let data: [(usize, Cigar, [AminoAcids; 4]); 1] = [(2, "4M".into(), [
-            b"PLEASANTLY".into(),
-            b"MEANLY".into(),
-            b"LEAS".into(),
-            b"MEAN".into(),
-        ])];
+        let data: [(usize, Cigar, [AminoAcids; 4]); 1] = [(
+            2,
+            "4M".into(),
+            [b"PLEASANTLY".into(), b"MEANLY".into(), b"LEAS".into(), b"MEAN".into()],
+        )];
 
         for (rpos, cig, [ref_input, query_input, ref_output, query_ouptut]) in data {
             assert_eq!(

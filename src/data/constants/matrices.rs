@@ -299,13 +299,16 @@ mod test {
 
         let result2 = WeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N'));
 
-        let result3 = WeightMatrix::new_custom(&DNA_PROFILE_MAP, [
-            [2, -5, -5, -5, 0],
-            [-5, 2, -5, -5, 0],
-            [-5, -5, 2, -5, 0],
-            [-5, -5, -5, 2, 0],
-            [0, 0, 0, 0, 0],
-        ]);
+        let result3 = WeightMatrix::new_custom(
+            &DNA_PROFILE_MAP,
+            [
+                [2, -5, -5, -5, 0],
+                [-5, 2, -5, -5, 0],
+                [-5, -5, 2, -5, 0],
+                [-5, -5, -5, 2, 0],
+                [0, 0, 0, 0, 0],
+            ],
+        );
 
         assert_eq!(result1, result2);
         assert_eq!(result1, result3);

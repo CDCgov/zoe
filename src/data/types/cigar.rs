@@ -18,7 +18,7 @@ impl Cigar {
         let mut expanded = Vec::new();
 
         for Ciglet { inc, op } in self {
-            expanded.extend(std::iter::repeat(op).take(inc));
+            expanded.extend(std::iter::repeat_n(op, inc));
         }
 
         ExpandedCigar(expanded)

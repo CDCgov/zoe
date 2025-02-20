@@ -10,7 +10,7 @@ use std::{
     cmp::{max, min},
     fs::File,
     io::{BufRead, Error as IOError, ErrorKind},
-    iter::repeat,
+    iter::repeat_n,
     ops::{Add, AddAssign, Range},
     path::Path,
 };
@@ -284,17 +284,17 @@ impl SamData {
                     if insert1 == insert2 {
                         merged_seq.extend_from_slice(insert1.to_ascii_lowercase().as_slice());
                         merged_quals.extend(quals1.iter().zip(quals2).map(|(q1, q2)| max(*q1, *q2)));
-                        merged_cigars.extend(repeat(b'I').take(insert1.len()));
+                        merged_cigars.extend(repeat_n(b'I', insert1.len()));
                     } else if insert2.contains_substring(insert1) {
                         merged_seq.extend_from_slice(insert1.to_ascii_lowercase().as_slice());
                         merged_quals.extend_from_slice(quals1);
-                        merged_cigars.extend(repeat(b'I').take(insert1.len()));
+                        merged_cigars.extend(repeat_n(b'I', insert1.len()));
 
                         stats.insert_errors += 1;
                     } else if insert1.contains_substring(insert2) {
                         merged_seq.extend_from_slice(insert2.to_ascii_lowercase().as_slice());
                         merged_quals.extend_from_slice(quals2);
-                        merged_cigars.extend(repeat(b'I').take(insert2.len()));
+                        merged_cigars.extend(repeat_n(b'I', insert2.len()));
 
                         stats.insert_errors += 1;
                     } else {
@@ -316,7 +316,7 @@ impl SamData {
 
                         merged_seq.extend_from_slice(insert.to_ascii_lowercase().as_slice());
                         merged_quals.extend_from_slice(quals);
-                        merged_cigars.extend(repeat(b'I').take(insert.len()));
+                        merged_cigars.extend(repeat_n(b'I', insert.len()));
                     }
                 }
                 (None, Some(r2)) => {
@@ -334,7 +334,7 @@ impl SamData {
                         // Remove lower-casing if it does nothing downstream.
                         merged_seq.extend_from_slice(insert.to_ascii_lowercase().as_slice());
                         merged_quals.extend_from_slice(quals);
-                        merged_cigars.extend(repeat(b'I').take(insert.len()));
+                        merged_cigars.extend(repeat_n(b'I', insert.len()));
                     }
                 }
                 _ => {}
@@ -432,18 +432,19 @@ fn make_merged_qname(s: &str) -> String {
     merged
 }
 
-/// [`PairedMergeStats`] holds statistics related to read pair merging
-/// operations.
+/// [`PairedMergeStats`] holds statistics related to read pair merging operations.
 ///
-/// * `observations`    - The total number of overlapping or paired bases.
-/// * `true_variations` - Paired bases that agree with each other but disagree
-///                       with consensus.
-/// * `variant_errors`  - Paired bases that disagree with each other.
-/// * `deletion_errors` - Paired bases where one is a deletion and one is not.
-/// * `insert_obs`      - The total number of paired insertions, in agreement or
-///                       otherwise.
-/// * `insert_errors`   - The total number of mismatching paired insertions,
-///                       including disagreement in insertion presence.
+/// ## Fields
+///
+/// - `observations` -      Total number of overlapping or paired bases
+/// - `true_variations` -   Paired bases that agree with each other but disagree
+///   with consensus
+/// - `variant_errors` -    Paired bases that disagree with each other
+/// - `deletion_errors` -   Paired bases where one is a deletion and one is not
+/// - `insert_obs` -        Total number of paired insertions, in agreement or
+///   otherwise
+/// - `insert_errors` -     Total number of mismatching paired insertions,
+///   including disagreement in insertion presence
 #[derive(Copy, Clone, Debug, Default)]
 pub struct PairedMergeStats {
     pub observations:    u64,
@@ -484,13 +485,12 @@ impl AddAssign for PairedMergeStats {
 
 /// Represents a single insertion in a [`SamAligned`] record.
 ///
-/// * `ref_index`   - The reference index (0-based) before which the insertion
-///                   occurs.
-/// * `query_start` - The starting index (0-based) of the insertion in the query
-///                   sequence.
-/// * `query_end`   - The ending index (0-based, non-inclusive) of the insertion
-///                   in the query sequence.
-// TODO: revise for Rust 2024
+/// - `ref_index`   - The reference index (0-based) before which the insertion
+///   occurs.
+/// - `query_start` - The starting index (0-based) of the insertion in the query
+///   sequence.
+/// - `query_end`   - The ending index (0-based, non-inclusive) of the insertion
+///   in the query sequence.
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub struct SamInsertion {
     pub ref_index:   usize,

@@ -54,11 +54,11 @@ pub mod aa;
 ///
 /// * __Alignment:__ both sequences must be aligned.
 /// * __Pairwise deletion:__ If a gap or ambiguous (non-ACGT) base is present in
-///     any position of the aligned sequences, the bases in that position are
-///     excluded from the analysis for both sequences.
+///   any position of the aligned sequences, the bases in that position are
+///   excluded from the analysis for both sequences.
 /// * __Unequal sequence lengths:__ If sequences are of different lengths, bases
-///     in the longer sequence that extend beyond the length of the shorter
-///     sequence are disregarded.
+///   in the longer sequence that extend beyond the length of the shorter
+///   sequence are disregarded.
 ///
 /// ## Examples:
 ///

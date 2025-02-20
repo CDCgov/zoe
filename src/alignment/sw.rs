@@ -452,7 +452,7 @@ mod test {
         let score = sw_scalar_score(REFERENCE, &profile);
         assert_eq!(37, score);
 
-        let v: Vec<_> = std::iter::repeat(b'A').take(100).collect();
+        let v: Vec<_> = std::iter::repeat_n(b'A', 100).collect();
         let profile = ScalarProfile::new(&v, weights, GAP_OPEN, GAP_EXTEND).unwrap();
         let score = sw_scalar_score(&v, &profile);
         assert_eq!(200, score);
@@ -489,7 +489,7 @@ mod test {
 
     #[test]
     fn sw_simd_poly_a() {
-        let v: Vec<_> = std::iter::repeat(b'A').take(100).collect();
+        let v: Vec<_> = std::iter::repeat_n(b'A', 100).collect();
         let matrix = WeightMatrix::new_dna_matrix(2, -5, Some(b'N')).into_biased_matrix();
         let profile = StripedProfile::<u16, 16, 5>::new(&v, &matrix, GAP_OPEN, GAP_EXTEND).unwrap();
         let score = profile.smith_waterman_score(&v);

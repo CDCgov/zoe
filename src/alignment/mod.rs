@@ -18,7 +18,7 @@
 //!    [`ByteIndexMap::new`].
 //!
 //! 2. Specify the [`WeightMatrix`] used for scoring matches and mismatches. For
-//!     DNA, [`new_dna_matrix`] is a convenient constructor.
+//!    DNA, [`new_dna_matrix`] is a convenient constructor.
 //!
 //! 3. Build the query profile, with either [`ScalarProfile::new`] or
 //!    [`StripedProfile::new`] (for SIMD). This step combines the query, matrix
