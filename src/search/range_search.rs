@@ -1,5 +1,8 @@
-use crate::data::view_traits::{IndexAdjustable, SliceRange};
-use std::ops::{Bound, Index};
+use crate::{
+    data::view_traits::{IndexAdjustable, SliceRange},
+    kmer::{FindKmers, KmerCollectionContains},
+};
+use std::ops::{Bound, Index, Range};
 
 /// A subsequence along with its starting index. This is used for restricting
 /// the search range when performing a search. See [Restricting the search
@@ -42,6 +45,73 @@ impl<'a> RangeSearch<'a> {
     #[inline]
     pub(crate) fn adjust_to_context<I: IndexAdjustable>(&self, index: &I) -> I {
         index.add(self.starting_at)
+    }
+
+    // FindKmers methods. These need to be distinct from the FindKmers trait
+    // because the methods need to consume the RangeSearch struct, rather than
+    // take them by reference. Otherwise, a bunch of useless let bindings are
+    // required.
+
+    /// Return the indices of the leftmost occurrence of any of the k-mers in a
+    /// collection. The bases in the sequence must be valid for the
+    /// [`KmerEncoder`] associated with the collection. If no occurrence is
+    /// found, then `None` is returned.
+    ///
+    /// To find all matches rather than just the first, use [`find_all_kmers`].
+    /// A similar unrestricted version of this method exists in [`FindKmers`].
+    ///
+    /// [`find_all_kmers`]: FindKmers::find_all_kmers
+    /// [`KmerEncoder`]: crate::kmer::KmerEncoder
+    #[inline]
+    pub fn find_kmers<const MAX_LEN: usize, T>(self, kmers: &T) -> Option<Range<usize>>
+    where
+        T: KmerCollectionContains<MAX_LEN>, {
+        self.slice.find_kmers(kmers).map(|r| self.adjust_to_context(&r))
+    }
+
+    /// Return the indices of the rightmost occurrence of any of the k-mers in a
+    /// collection. The bases in the sequence must be valid for the
+    /// [`KmerEncoder`] associated with the collection. If no occurrence is
+    /// found, then `None` is returned.
+    ///
+    /// To find all matches rather than just the last, use [`find_all_kmers`]. A
+    /// similar unrestricted version of this method exists in [`FindKmers`].
+    ///
+    /// [`find_all_kmers`]: FindKmers::find_all_kmers
+    /// [`KmerEncoder`]: crate::kmer::KmerEncoder
+    #[inline]
+    pub fn find_kmers_rev<const MAX_LEN: usize, T>(self, kmers: &T) -> Option<Range<usize>>
+    where
+        T: KmerCollectionContains<MAX_LEN>, {
+        self.slice.find_kmers_rev(kmers).map(|r| self.adjust_to_context(&r))
+    }
+
+    /// Returns an iterator over the indices of all matches between the k-mers
+    /// in the sequence and those in a collection.
+    ///
+    /// Consider using [`find_kmers`] if only a single match is needed. A
+    /// similar unrestricted version of this method exists in [`FindKmers`].
+    ///
+    /// [`find_kmers`]: FindKmers::find_kmers
+    #[inline]
+    pub fn find_all_kmers<const MAX_LEN: usize, T>(self, kmers: &'a T) -> impl Iterator<Item = Range<usize>> + 'a
+    where
+        T: KmerCollectionContains<MAX_LEN>, {
+        kmers.find_all_in_seq(self.slice).map(move |r| self.adjust_to_context(&r))
+    }
+
+    /// Returns an iterator over the indices of all matches between the k-mers
+    /// in the sequence and those in a collection, in reverse order.
+    ///
+    /// Consider using [`find_kmers_rev`] if only a single match is needed. A
+    /// similar unrestricted version of this method exists in [`FindKmers`].
+    ///
+    /// [`find_kmers_rev`]: FindKmers::find_kmers_rev
+    #[inline]
+    pub fn find_all_kmers_rev<const MAX_LEN: usize, T>(self, kmers: &'a T) -> impl Iterator<Item = Range<usize>> + 'a
+    where
+        T: KmerCollectionContains<MAX_LEN>, {
+        kmers.find_all_in_seq_rev(self.slice).map(move |r| self.adjust_to_context(&r))
     }
 }
 

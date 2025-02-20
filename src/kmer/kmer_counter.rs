@@ -329,7 +329,10 @@ where
     }
 }
 
-impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>> Len for KmerCounter<MAX_LEN, E> {
+impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S> Len for KmerCounter<MAX_LEN, E, S>
+where
+    S: BuildHasher,
+{
     #[inline]
     fn is_empty(&self) -> bool {
         self.map.is_empty()
