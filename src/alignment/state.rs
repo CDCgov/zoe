@@ -1,7 +1,10 @@
-use crate::data::types::{
-    amino_acids::AminoAcids,
-    cigar::{Cigar, Ciglet},
-    nucleotides::Nucleotides,
+use crate::data::{
+    cigar::CigletIterator,
+    types::{
+        amino_acids::AminoAcids,
+        cigar::{Cigar, Ciglet},
+        nucleotides::Nucleotides,
+    },
 };
 
 #[derive(Clone, Debug)]
@@ -70,28 +73,33 @@ impl AlignmentStates {
 }
 
 impl Default for AlignmentStates {
+    #[inline]
     fn default() -> Self {
         Self::new()
     }
 }
 
 /// Aligns two sequences using a CIGAR string, inserting gaps as needed. Takes a
-/// reference sequence, query sequence, CIGAR stringl reference position, and
-/// returns two aligned sequences with gaps inserted according to the CIGAR
-/// operations.
+/// reference sequence, query sequence, CIGAR string, and a reference position,
+/// and returns two aligned sequences with gaps inserted according to the CIGAR
+/// operations. The first output is the reference, and the second is the query.
+///
+/// Only the portion of the sequences corresponding to the cigar string are
+/// included in the output.
 ///
 /// ## Panics
 ///
-/// Panics if an invalid cigar string character is provided. Valid characters
-/// are: MIDNSHP=X
+/// * All operations in the CIGAR string must be characters in `MIDNSHP=X`.
+/// * The reference and query must be at least as long as the length specified
+///   in the CIGAR string.
 #[inline]
 #[must_use]
 pub fn pairwise_align_with_cigar(reference: &[u8], query: &[u8], cigar: &Cigar, ref_position: usize) -> (Vec<u8>, Vec<u8>) {
     let mut ref_index = ref_position - 1;
     let mut query_index = 0;
 
-    let mut ref_aln: Vec<u8> = Vec::with_capacity(reference.len() + (query.len() / 2));
-    let mut query_aln: Vec<u8> = Vec::with_capacity(query.len() + (reference.len() / 2));
+    let mut ref_aln = Vec::with_capacity(reference.len() + (query.len() / 2));
+    let mut query_aln = Vec::with_capacity(query.len() + (reference.len() / 2));
 
     for Ciglet { inc, op } in cigar {
         match op {
@@ -127,45 +135,177 @@ pub fn pairwise_align_with_cigar(reference: &[u8], query: &[u8], cigar: &Cigar, 
 }
 
 /// Enables sequence expansion based on alignment information.
-pub trait PairwiseSequence {
-    type Output;
+pub trait PairwiseSequence: AsRef<[u8]> {
+    type Output: From<Vec<u8>>;
 
-    /// Aligns two sequences using a CIGAR string starting at the
-    /// given reference position.
-    fn align_with_cigar(&self, query: &Self, cigar: &Cigar, position: usize) -> (Self::Output, Self::Output);
+    /// Aligns two sequences using a CIGAR string starting at the given
+    /// reference position. See [`pairwise_align_with_cigar`] for more details.
+    ///
+    /// ## Panics
+    ///
+    /// * All opcodes in the CIGAR string must be characters in `MIDNSHP=X`.
+    /// * The reference and query must be at least as long as the length
+    ///   specified in the CIGAR string.
+    #[inline]
+    fn align_with_cigar(&self, query: &Self, cigar: &Cigar, position: usize) -> (Self::Output, Self::Output) {
+        let (r, q) = pairwise_align_with_cigar(self.as_ref(), query.as_ref(), cigar, position);
+        (r.into(), q.into())
+    }
+
+    /// Returns an iterator over the bases in `query` aligned to `self`, as
+    /// specified by the CIGAR string `cigar` and the starting `position`. The
+    /// first base in the output is from the reference, and the second base is
+    /// from the query. Gaps are represented by `None`.
+    ///
+    /// This has equivalent behavior as [`align_with_cigar`] but as an iterator.
+    /// [`align_with_cigar`] may offer faster performance since it processes
+    /// each ciglet at once, but [`align_with_cigar_iter`] avoids allocations
+    /// and may offer a more convenient syntax for handling gaps.
+    ///
+    /// ## Panics
+    ///
+    /// * All opcodes in the CIGAR string must be characters in `MIDNSHP=X`.
+    /// * The reference and query must be at least as long as the length
+    ///   specified in the CIGAR string.
+    ///
+    /// [`align_with_cigar`]: PairwiseSequence::align_with_cigar
+    /// [`align_with_cigar_iter`]: PairwiseSequence::align_with_cigar_iter
+    #[inline]
+    fn align_with_cigar_iter<'a>(&'a self, query: &'a Self, cigar: &'a Cigar, position: usize) -> AlignWithCigarIter<'a> {
+        AlignWithCigarIter::new(self.as_ref(), query.as_ref(), cigar, position)
+    }
 }
 
 impl PairwiseSequence for Vec<u8> {
     type Output = Self;
-
-    fn align_with_cigar(&self, query: &Self, cigar: &Cigar, position: usize) -> (Self::Output, Self::Output) {
-        pairwise_align_with_cigar(self, query, cigar, position)
-    }
 }
 
 impl PairwiseSequence for &[u8] {
     type Output = Vec<u8>;
-
-    fn align_with_cigar(&self, query: &Self, cigar: &Cigar, position: usize) -> (Self::Output, Self::Output) {
-        pairwise_align_with_cigar(self, query, cigar, position)
-    }
 }
 
 impl PairwiseSequence for Nucleotides {
     type Output = Self;
-
-    fn align_with_cigar(&self, query: &Self, cigar: &Cigar, position: usize) -> (Self::Output, Self::Output) {
-        let (r, q) = pairwise_align_with_cigar(self.as_ref(), query.as_ref(), cigar, position);
-        (r.into(), q.into())
-    }
 }
 
 impl PairwiseSequence for AminoAcids {
     type Output = Self;
+}
 
-    fn align_with_cigar(&self, query: &Self, cigar: &Cigar, position: usize) -> (Self::Output, Self::Output) {
-        let (r, q) = pairwise_align_with_cigar(self.as_ref(), query.as_ref(), cigar, position);
-        (r.into(), q.into())
+/// Iterator yielding the aligned bases as specified by a CIGAR string. The
+/// first base is from the reference, and the second base is from the query.
+/// Gaps are represented by `None`.
+pub struct AlignWithCigarIter<'a> {
+    reference_buffer: &'a [u8],
+    query_buffer:     &'a [u8],
+    ciglets:          CigletIterator<'a>,
+    inc:              usize,
+    op:               u8,
+}
+
+impl<'a> AlignWithCigarIter<'a> {
+    /// Creates a new [`AlignWithCigarIter`] from a reference, query, cigar
+    /// string, and reference position.
+    #[inline]
+    #[must_use]
+    fn new(reference: &'a [u8], query: &'a [u8], cigar: &'a Cigar, ref_position: usize) -> Self {
+        let ref_index = ref_position - 1;
+        let reference_buffer = &reference[ref_index..];
+        let query_buffer = query;
+        let mut ciglets = cigar.into_iter();
+        // If no valid ciglets, initialize with inc at 0 so that iterator is empty
+        let Ciglet { inc, op } = ciglets.next().unwrap_or(Ciglet { inc: 0, op: b'M' });
+
+        AlignWithCigarIter {
+            reference_buffer,
+            query_buffer,
+            ciglets,
+            inc,
+            op,
+        }
+    }
+
+    /// Get the next operation from the iterator. This will advance the Ciglet
+    /// iterator if necessary. `None` is returned if the CIGAR string has
+    /// reached its end.
+    #[inline]
+    #[must_use]
+    fn get_next_op(&mut self) -> Option<u8> {
+        if self.inc > 0 {
+            self.inc -= 1;
+            Some(self.op)
+        } else {
+            let Ciglet { inc, op } = self.ciglets.next()?;
+            self.inc = inc;
+            self.op = op;
+            self.get_next_op()
+        }
+    }
+
+    /// Forcibly skip to the next Ciglet in the iterator.
+    #[inline]
+    #[must_use]
+    fn skip_to_next_ciglet(&mut self) -> Option<()> {
+        let Ciglet { inc, op } = self.ciglets.next()?;
+        self.inc = inc;
+        self.op = op;
+        Some(())
+    }
+
+    /// Remove a base from the beginning of the reference buffer.
+    ///
+    /// ## Panics
+    /// The reference must contain at least one base.
+    #[inline]
+    #[must_use]
+    fn advance_reference(&mut self) -> u8 {
+        let out = self.reference_buffer[0];
+        self.reference_buffer = &self.reference_buffer[1..];
+        out
+    }
+
+    /// Remove a base from the beginning of the query buffer.
+    ///
+    /// ## Panics
+    /// The query must contain at least one base.
+    #[inline]
+    #[must_use]
+    fn advance_query(&mut self) -> u8 {
+        let out = self.query_buffer[0];
+        self.query_buffer = &self.query_buffer[1..];
+        out
+    }
+}
+
+impl Iterator for AlignWithCigarIter<'_> {
+    type Item = (Option<u8>, Option<u8>);
+
+    /// # Panics
+    ///
+    /// The reference and query must be at least as long as the length specified
+    /// in the CIGAR string.
+    fn next(&mut self) -> Option<Self::Item> {
+        let op = self.get_next_op()?;
+
+        match op {
+            b'M' | b'=' | b'X' => Some((Some(self.advance_reference()), Some(self.advance_query()))),
+            b'D' => Some((Some(self.advance_reference()), None)),
+            b'I' => Some((None, Some(self.advance_query()))),
+            b'S' => {
+                // Skip this Ciglet. The query buffer is advanced by inc+1 since
+                // inc was decremented in get_next_op
+                self.query_buffer = &self.query_buffer[self.inc + 1..];
+                self.skip_to_next_ciglet()?;
+                self.next()
+            }
+            b'N' => Some((Some(self.advance_reference()), Some(b'N'))),
+            b'H' | b'P' => {
+                // Skip this Ciglet without modifying either buffer
+                self.skip_to_next_ciglet()?;
+                self.next()
+            }
+            _ => panic!("CIGAR op '{op}' not supported.\n"),
+        }
     }
 }
 

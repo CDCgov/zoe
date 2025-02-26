@@ -20,10 +20,12 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+mod cigar;
 mod nucleotides;
 mod string;
 mod vec;
 
+pub use cigar::*;
 pub use nucleotides::*;
 pub use string::*;
 pub use vec::*;
