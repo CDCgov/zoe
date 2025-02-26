@@ -1,6 +1,6 @@
 use crate::{
     data::{
-        constants::alphas::NUCLEIC_IUPAC,
+        constants::alphas::DNA_IUPAC,
         types::nucleotides::{Nucleotides, NucleotidesReadable},
     },
     math::Uint,
@@ -289,8 +289,8 @@ const fn base_to_inner_index(b: u8) -> usize {
 
         // Valid IUPAC is OTHER
         let mut i = 0;
-        while i < NUCLEIC_IUPAC.len() {
-            v[NUCLEIC_IUPAC[i] as usize] = OTHER;
+        while i < DNA_IUPAC.len() {
+            v[DNA_IUPAC[i] as usize] = OTHER;
             i += 1;
         }
 

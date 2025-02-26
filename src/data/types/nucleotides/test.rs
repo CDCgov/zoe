@@ -1,11 +1,11 @@
 use super::*;
-use crate::data::{alphas::NUCLEIC_IUPAC_UNALIGNED, types::nucleotides::make_reverse_complement};
+use crate::data::{alphas::DNA_IUPAC_UNALIGNED, types::nucleotides::make_reverse_complement};
 use std::sync::LazyLock;
 
 const N: usize = 1200;
 const SEED: u64 = 42;
 
-static SEQ: LazyLock<Vec<u8>> = LazyLock::new(|| crate::generate::rand_sequence(NUCLEIC_IUPAC_UNALIGNED, N, SEED));
+static SEQ: LazyLock<Vec<u8>> = LazyLock::new(|| crate::generate::rand_sequence(DNA_IUPAC_UNALIGNED, N, SEED));
 
 #[test]
 fn test_translate() {

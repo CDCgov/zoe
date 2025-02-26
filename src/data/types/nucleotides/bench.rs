@@ -1,7 +1,7 @@
 use test::Bencher;
 extern crate test;
 use super::*;
-use crate::data::{alphas::ENGLISH, mappings::TO_UNALIGNED_DNA_UC};
+use crate::data::{alphas::ENGLISH, mappings::TO_DNA_UNALIGNED_UC};
 use std::sync::LazyLock;
 
 const N: usize = 1200;
@@ -18,7 +18,7 @@ fn translate_sequence_long(b: &mut Bencher) {
 fn validate_retain_unaligned_base_uc(b: &mut Bencher) {
     b.iter(|| {
         SEQ.clone().retain_mut(|b| {
-            *b = TO_UNALIGNED_DNA_UC[*b as usize];
+            *b = TO_DNA_UNALIGNED_UC[*b as usize];
             *b > 0
         });
     });
@@ -31,7 +31,7 @@ fn validate_filtermap_unaligned_base_uc(b: &mut Bencher) {
             .clone()
             .iter_mut()
             .filter_map(|b| {
-                *b = TO_UNALIGNED_DNA_UC[*b as usize];
+                *b = TO_DNA_UNALIGNED_UC[*b as usize];
                 if *b > 0 { Some(*b) } else { None }
             })
             .collect();

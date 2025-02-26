@@ -265,8 +265,11 @@ where
 pub(crate) trait SimdMaskFunctions<const N: usize>
 where
     LaneCount<N>: SupportedLaneCount, {
+    #[must_use]
     fn make_selected_ascii_uppercase(&self, bytes: &Simd<u8, N>) -> Simd<u8, N>;
+    #[must_use]
     fn make_selected_ascii_lowercase(&self, bytes: &Simd<u8, N>) -> Simd<u8, N>;
+    #[must_use]
     fn bitmask_offset(&self) -> usize;
 }
 
@@ -274,19 +277,16 @@ impl<const N: usize> SimdMaskFunctions<N> for Mask<i8, N>
 where
     LaneCount<N>: SupportedLaneCount,
 {
-    #[must_use]
     #[inline]
     fn make_selected_ascii_uppercase(&self, bytes: &Simd<u8, N>) -> Simd<u8, N> {
         self.select(*bytes ^ Simd::splat(0b0010_0000), *bytes)
     }
 
-    #[must_use]
     #[inline]
     fn make_selected_ascii_lowercase(&self, bytes: &Simd<u8, N>) -> Simd<u8, N> {
         self.select(*bytes | Simd::splat(0b0010_0000), *bytes)
     }
 
-    #[must_use]
     #[inline]
     fn bitmask_offset(&self) -> usize {
         self.to_bitmask().trailing_zeros() as usize

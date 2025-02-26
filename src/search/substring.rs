@@ -19,22 +19,25 @@ use std::{
 pub trait ByteSubstring {
     /// Returns `true` is the substring is found and `false` if not. Searches in
     /// the forward direction.
+    #[must_use]
     fn contains_substring(&self, needle: impl AsRef<[u8]>) -> bool;
     /// Returns the substring's index range if found or [`None`] if not. Searches in
     /// the forward direction.
+    #[must_use]
     fn find_substring(&self, needle: impl AsRef<[u8]>) -> Option<Range<usize>>;
     /// Finds the `needle` in the `haystack` using inexact matching up to the
     /// `DIFFERENCES_ALLOWED`. See [`fuzzy_substring_match_simd`] for
     /// more details.
+    #[must_use]
     fn find_fuzzy_substring<const DIFFERENCES_ALLOWED: usize>(&self, needle: impl AsRef<[u8]>) -> Option<Range<usize>>;
     /// Find contiguous, repeating byte characters in a byte slice. See [`find_k_repeating`]
     /// for more details.
+    #[must_use]
     fn find_repeating_byte(&self, needle: u8, size: usize) -> Option<Range<usize>>;
 }
 
 impl<T: AsRef<[u8]> + ?Sized> ByteSubstring for T {
     #[inline]
-    #[must_use]
     fn contains_substring(&self, needle: impl AsRef<[u8]>) -> bool {
         let haystack = self.as_ref();
         let needle = needle.as_ref();
@@ -43,7 +46,6 @@ impl<T: AsRef<[u8]> + ?Sized> ByteSubstring for T {
     }
 
     #[inline]
-    #[must_use]
     fn find_substring(&self, needle: impl AsRef<[u8]>) -> Option<Range<usize>> {
         let haystack = self.as_ref();
         let needle = needle.as_ref();
@@ -51,7 +53,6 @@ impl<T: AsRef<[u8]> + ?Sized> ByteSubstring for T {
     }
 
     #[inline]
-    #[must_use]
     fn find_fuzzy_substring<const DIFFERENCES_ALLOWED: usize>(&self, needle: impl AsRef<[u8]>) -> Option<Range<usize>> {
         let haystack = self.as_ref();
         let needle = needle.as_ref();
@@ -60,7 +61,6 @@ impl<T: AsRef<[u8]> + ?Sized> ByteSubstring for T {
     }
 
     #[inline]
-    #[must_use]
     fn find_repeating_byte(&self, needle: u8, size: usize) -> Option<Range<usize>> {
         let haystack = self.as_ref();
 

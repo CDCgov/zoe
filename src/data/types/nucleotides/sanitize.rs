@@ -1,8 +1,9 @@
 use crate::{
     data::{
         mappings::{
-            ANY_TO_DNA_CANONICAL_UPPER, IS_IUPAC_BASE, IS_UNALIGNED_IUPAC_BASE, IUPAC_TO_DNA_CANONICAL,
-            IUPAC_TO_DNA_CANONICAL_UPPER, TO_DNA_UC, TO_UNALIGNED_DNA_UC,
+            ANY_TO_DNA_CANONICAL_UC, IS_DNA_CANONICAL_UNALIGNED, IS_DNA_CANONICAL_UNALIGNED_UC, IS_DNA_IUPAC,
+            IS_DNA_IUPAC_UNALIGNED, IS_DNA_IUPAC_UNALIGNED_UC, IUPAC_TO_DNA_CANONICAL, IUPAC_TO_DNA_CANONICAL_UC, TO_DNA_UC,
+            TO_DNA_UNALIGNED_UC,
         },
         types::nucleotides::NucleotidesMutable,
         validation::{recode::Recode, retain::RetainSequence},
@@ -10,6 +11,8 @@ use crate::{
     },
     prelude::*,
 };
+
+use super::NucleotidesReadable;
 
 pub trait ToDNA: Into<Nucleotides> {
     fn filter_to_dna(self) -> Nucleotides {
@@ -28,7 +31,7 @@ pub trait RecodeNucleotides: NucleotidesMutable {
     /// Any non-canonical base becomes N, including gaps.
     #[inline]
     fn recode_any_to_actgn_uc(&mut self) {
-        self.nucleotide_mut_bytes().recode(ANY_TO_DNA_CANONICAL_UPPER);
+        self.nucleotide_mut_bytes().recode(ANY_TO_DNA_CANONICAL_UC);
     }
 
     /// Recodes the stored sequence of valid IUPAC codes to a canonical (ACTG +
@@ -44,15 +47,17 @@ pub trait RecodeNucleotides: NucleotidesMutable {
     /// bytes and gaps are left unchanged.
     #[inline]
     fn recode_iupac_to_actgn_uc(&mut self) {
-        self.nucleotide_mut_bytes().recode(IUPAC_TO_DNA_CANONICAL_UPPER);
+        self.nucleotide_mut_bytes().recode(IUPAC_TO_DNA_CANONICAL_UC);
     }
 
     /// Masks the provided `range` with `N`. If the range does not exist, the
     /// function does nothing.
+    #[inline]
     fn mask_if_exists<R: SliceRange>(&mut self, range: R) {
         self.nucleotide_mut_bytes().mask_if_exists(range, b'N');
     }
 }
+
 impl<T: NucleotidesMutable> RecodeNucleotides for T {}
 
 pub trait RetainNucleotides: AsMut<Vec<u8>> {
@@ -60,14 +65,14 @@ pub trait RetainNucleotides: AsMut<Vec<u8>> {
     /// Gaps are retained.
     #[inline]
     fn retain_iupac_bases(&mut self) {
-        self.as_mut().retain_by_validation(IS_IUPAC_BASE);
+        self.as_mut().retain_by_validation(IS_DNA_IUPAC);
     }
 
     /// Only retains valid [IUPAC bases](https://www.bioinformatics.org/sms/iupac.html).
     /// Gaps are NOT retained.
     #[inline]
     fn retain_unaligned_bases(&mut self) {
-        self.as_mut().retain_by_validation(IS_UNALIGNED_IUPAC_BASE);
+        self.as_mut().retain_by_validation(IS_DNA_IUPAC_UNALIGNED);
     }
 
     /// Only retains valid [IUPAC](https://www.bioinformatics.org/sms/iupac.html) DNA and converts to uppercase.
@@ -81,9 +86,45 @@ pub trait RetainNucleotides: AsMut<Vec<u8>> {
     /// Gaps are NOT retained.
     #[inline]
     fn retain_unaligned_dna_uc(&mut self) {
-        self.as_mut().retain_by_recoding(TO_UNALIGNED_DNA_UC);
+        self.as_mut().retain_by_recoding(TO_DNA_UNALIGNED_UC);
     }
 }
 
 impl RetainNucleotides for Nucleotides {}
 impl RetainNucleotides for Vec<u8> {}
+
+pub trait CheckNucleotides: NucleotidesReadable {
+    /// Check if nucleotide sequence only contains valid IUPAC bases, without
+    /// gaps
+    #[inline]
+    fn is_iupac_unaligned(&self) -> bool {
+        self.nucleotide_bytes().iter().all(|&b| IS_DNA_IUPAC_UNALIGNED[b as usize])
+    }
+
+    /// Check if nucleotide sequence only contains valid uppercase IUPAC bases,
+    /// without gaps
+    #[inline]
+    fn is_iupac_unaligned_uc(&self) -> bool {
+        self.nucleotide_bytes().iter().all(|&b| IS_DNA_IUPAC_UNALIGNED_UC[b as usize])
+    }
+
+    /// Check if nucleotide sequence only contains valid canonical bases,
+    /// without gaps
+    #[inline]
+    fn is_canonical_unaligned(&self) -> bool {
+        self.nucleotide_bytes()
+            .iter()
+            .all(|&b| IS_DNA_CANONICAL_UNALIGNED[b as usize])
+    }
+
+    /// Check if nucleotide sequence only contains valid uppercase canonical
+    /// bases, without gaps
+    #[inline]
+    fn is_canonical_unaligned_uc(&self) -> bool {
+        self.nucleotide_bytes()
+            .iter()
+            .all(|&b| IS_DNA_CANONICAL_UNALIGNED_UC[b as usize])
+    }
+}
+
+impl<T: NucleotidesReadable> CheckNucleotides for T {}

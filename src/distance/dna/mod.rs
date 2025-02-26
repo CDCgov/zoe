@@ -407,28 +407,32 @@ pub fn tamura_nei_93(seq1: &[u8], seq2: &[u8]) -> Option<f64> {
 pub trait DistanceFromMatrix {
     /// Computes the JC69 distance from the given matrix. See
     /// [`jukes_cantor_69`] for more details.
+    #[must_use]
     fn jc69_distance(&self) -> Option<f64>;
 
     /// Computes the K80 distance from the given matrix. See [`kimura_80`] for
     /// more details.
+    #[must_use]
     fn k80_distance(&self) -> Option<f64>;
 
     /// Computes the K81 distance from the given matrix. See [`kimura_81`] for
     /// more details.
+    #[must_use]
     fn k81_distance(&self) -> Option<f64>;
 
     /// Computes the F81 distance from the given matrix. See [`felsenstein_81`]
     /// for more details.
+    #[must_use]
     fn f81_distance(&self) -> Option<f64>;
 
     /// Computes the TN93 distance from the given matrix. See [`tamura_nei_93`]
     /// for more details.
+    #[must_use]
     fn tn93_distance(&self) -> Option<f64>;
 }
 
 impl DistanceFromMatrix for [[u32; 4]; 4] {
     #[inline]
-    #[must_use]
     fn jc69_distance(&self) -> Option<f64> {
         let total_bases: u32 = self.iter().flatten().sum();
         let hamming = hamming_dist_from_sub_matrix(self);
@@ -438,7 +442,6 @@ impl DistanceFromMatrix for [[u32; 4]; 4] {
     }
 
     #[inline]
-    #[must_use]
     fn k80_distance(&self) -> Option<f64> {
         let total_bases = self.iter().flatten().sum::<u32>();
         let synonymous = self[0][0] + self[1][1] + self[2][2] + self[3][3];
@@ -452,7 +455,6 @@ impl DistanceFromMatrix for [[u32; 4]; 4] {
     }
 
     #[inline]
-    #[must_use]
     fn k81_distance(&self) -> Option<f64> {
         let total_bases = f64::from(self.iter().flatten().sum::<u32>());
         let transv1 = f64::from(self[0][3] + self[3][0] + self[1][2] + self[2][1]);
@@ -471,7 +473,6 @@ impl DistanceFromMatrix for [[u32; 4]; 4] {
     }
 
     #[inline]
-    #[must_use]
     fn f81_distance(&self) -> Option<f64> {
         let (total_bases, bf) = total_and_frequencies(self);
 
@@ -485,7 +486,6 @@ impl DistanceFromMatrix for [[u32; 4]; 4] {
     }
 
     #[inline]
-    #[must_use]
     fn tn93_distance(&self) -> Option<f64> {
         let (total_bases, bf) = total_and_frequencies(self);
         let total_bases = f64::from(total_bases);

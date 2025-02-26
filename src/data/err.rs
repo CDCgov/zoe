@@ -12,13 +12,13 @@ macro_rules! unwrap_or_return_some_err {
 
 /// Trait for specifying getting exit codes from errors.
 pub trait GetCode {
+    #[must_use]
     fn get_code(&self) -> i32 {
         1
     }
 }
 
 impl GetCode for std::io::Error {
-    #[must_use]
     #[inline]
     fn get_code(&self) -> i32 {
         self.raw_os_error().unwrap_or(1)
