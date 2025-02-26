@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file. The format 
 ### Changed
 
 - `from_filename` on the different readers now throw an error for empty files, and `from_readable` is introduced to enable the same check for any input type
+- Implement `DoubleEndedIterator` for `CigletIterator`
 
 ## [0.0.16] - 2025-04-28
 

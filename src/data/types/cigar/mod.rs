@@ -293,6 +293,71 @@ impl Iterator for CigletIterator<'_> {
     }
 }
 
+impl DoubleEndedIterator for CigletIterator<'_> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        let op = match self.buffer {
+            [rest @ .., op] if matches!(op, b'M' | b'I' | b'D' | b'N' | b'S' | b'H' | b'P' | b'X' | b'=') => {
+                self.buffer = rest;
+                *op
+            }
+            _ => return None,
+        };
+
+        let mut num = 0;
+
+        if let [rest @ .., b] = self.buffer {
+            if b.is_ascii_digit() {
+                num += usize::from(b - b'0');
+            } else {
+                return (num > 0).then_some(Ciglet { inc: num, op });
+            }
+            self.buffer = rest;
+        } else {
+            return None;
+        }
+
+        let mut multiplier = 1;
+        let mut index = 1;
+
+        while let [rest @ .., b] = self.buffer
+            && index < USIZE_WIDTH - 1
+        {
+            if b.is_ascii_digit() {
+                multiplier *= 10;
+                num += usize::from(b - b'0') * multiplier;
+            } else {
+                return (num > 0).then_some(Ciglet { inc: num, op });
+            }
+            self.buffer = rest;
+            index += 1;
+        }
+        if self.buffer.is_empty() {
+            return (num > 0).then_some(Ciglet { inc: num, op });
+        }
+
+        let mut num_zeros = 0;
+
+        while let [rest @ .., b] = self.buffer {
+            if b.is_ascii_digit() {
+                if *b == b'0' {
+                    num_zeros += 1;
+                } else {
+                    for _ in 0..=num_zeros {
+                        multiplier = multiplier.checked_mul(10)?;
+                    }
+                    num = usize::from(b - b'0').checked_mul(multiplier)?.checked_add(num)?;
+                }
+                self.buffer = rest;
+            } else {
+                return (num > 0).then_some(Ciglet { inc: num, op });
+            }
+            index += 1;
+        }
+
+        Some(Ciglet { inc: num, op })
+    }
+}
+
 impl std::fmt::Display for Ciglet {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
