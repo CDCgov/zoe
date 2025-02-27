@@ -1,6 +1,6 @@
 #![allow(clippy::cast_precision_loss)]
 
-use crate::{composition::FrequencyTable, prelude::*};
+use crate::prelude::*;
 
 mod stats;
 mod std_traits;
@@ -272,21 +272,6 @@ impl<'a> QualityScoresViewMut<'a> {
     pub fn make_reverse(&mut self) {
         self.0.reverse();
     }
-}
-
-impl FrequencyTable for QualityScores {
-    const MIN: u8 = b'!';
-    const MAX: u8 = b'~';
-}
-
-impl FrequencyTable for QualityScoresView<'_> {
-    const MIN: u8 = b'!';
-    const MAX: u8 = b'~';
-}
-
-impl FrequencyTable for QualityScoresViewMut<'_> {
-    const MIN: u8 = b'!';
-    const MAX: u8 = b'~';
 }
 
 /// Type alias for the quality score when returned as `f32`

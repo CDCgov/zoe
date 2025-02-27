@@ -1,66 +1,54 @@
-/// Creates a frequency table from byte slices and performs operations on said
-/// table.
-pub trait FrequencyTable: AsRef<[u8]> {
-    const MIN: u8 = 0;
-    const MAX: u8 = 255;
+/// Represents the frequency of u8 bytes within a sequence.
+#[derive(Clone, Debug)]
+pub struct FrequencyTable<const MIN: u8 = 0, const MAX: u8 = 255> {
+    table:     [usize; 256],
+    num_items: usize,
+}
 
-    /// Generate a frequency table for the given range.
+impl<const MIN: u8, const MAX: u8> FrequencyTable<MIN, MAX> {
+    /// Initialize a new empty frequency table (with counts as zero).
     #[inline]
     #[must_use]
-    fn get_frequency_table(&self) -> ([usize; 256], usize) {
-        let raw_data = self.as_ref();
-        let mut count_table = [0; 256];
-        let mut valid_items = 0;
-
-        for &num in raw_data {
-            count_table[num as usize] += 1;
-            if Self::MIN <= num && num <= Self::MAX {
-                valid_items += 1;
-            }
-        }
-        (count_table, valid_items)
+    pub fn new() -> Self {
+        Self::default()
     }
 
-    /// Generate a frequency table but assume all values are in range.
+    /// Generate a frequency table.
     #[inline]
     #[must_use]
-    fn get_frequency_table_unchecked(&self) -> ([usize; 256], usize) {
-        let raw_data = self.as_ref();
-        let mut count_table = [0; 256];
+    pub fn new_from<Q: AsRef<[u8]> + ?Sized>(seq: &Q) -> Self {
+        let mut out = Self::new();
+        out.tally_from(seq);
+        out
+    }
 
-        for &num in raw_data {
-            count_table[num as usize] += 1;
-        }
+    /// Generate a frequency table, but assume all values are in range.
+    #[inline]
+    pub fn new_from_unchecked<Q: AsRef<[u8]> + ?Sized>(seq: &Q) -> Self {
+        let mut out = Self::new();
+        out.tally_from_unchecked(seq);
+        out
+    }
 
-        (count_table, raw_data.len())
+    /// Tally the counts from a sequence into an already existing frequency
+    /// table.
+    #[inline]
+    pub fn tally_from<Q: AsRef<[u8]> + ?Sized>(&mut self, seq: &Q) {
+        self.num_items += tally_from::<MIN, MAX, _>(seq, &mut self.table);
+    }
+
+    /// Tally the counts from a sequence into an already existing frequency
+    /// table, but assume all values are in range.
+    #[inline]
+    pub fn tally_from_unchecked<Q: AsRef<[u8]> + ?Sized>(&mut self, seq: &Q) {
+        self.num_items += tally_from_unchecked(seq, &mut self.table);
     }
 
     /// Calculate the median value in the frequency table.
     #[inline]
     #[must_use]
-    fn get_median(&self) -> Option<f32> {
-        if self.as_ref().is_empty() {
-            return None;
-        }
-
-        let (count_table, num_items) = Self::get_frequency_table(self);
-        median_from_table(&count_table, num_items, Self::MIN)
-    }
-
-    /// Calculate the median value in the frequency table but assume all values
-    /// are in `MIN..=MAX`.
-    #[inline]
-    #[must_use]
-    fn get_median_unchecked(&self) -> Option<f32> {
-        let data = self.as_ref();
-        if data.is_empty() {
-            return None;
-        } else if data.len() == 1 {
-            return data.first().map(|&b| b.into());
-        }
-
-        let (count_table, num_items) = Self::get_frequency_table_unchecked(self);
-        median_from_table(&count_table, num_items, Self::MIN)
+    pub fn get_median(&self) -> Option<f32> {
+        get_median::<MIN>(&self.table, self.num_items)
     }
 
     // Calculate the minimum, median, and maximum values from the frequency
@@ -68,88 +56,49 @@ pub trait FrequencyTable: AsRef<[u8]> {
     // independently.
     #[inline]
     #[must_use]
-    fn get_min_med_max(&self) -> Option<(u8, f32, u8)> {
-        if self.as_ref().is_empty() {
-            return None;
-        }
-
-        let (count_table, num_items) = Self::get_frequency_table(self);
-
-        let mut min = None;
-        for i in Self::MIN..=Self::MAX {
-            let count = count_table[i as usize];
-            if count > 0 {
-                min = Some(i);
-                break;
-            }
-        }
-
-        let mut max = None;
-        for i in (Self::MIN..=Self::MAX).rev() {
-            let count = count_table[i as usize];
-            if count > 0 {
-                max = Some(i);
-                break;
-            }
-        }
-
-        Some((min?, median_from_table(&count_table, num_items, Self::MIN)?, max?))
-    }
-
-    // Calculate the minimum, median, and maximum values from the frequency
-    // table. Assumes values are aleady in range for `MIN..=MAX`.
-    #[inline]
-    #[must_use]
-    fn get_min_med_max_unchecked(&self) -> Option<(u8, f32, u8)> {
-        let data = self.as_ref();
-        if data.is_empty() {
-            return None;
-        } else if data.len() == 1 {
-            return Some((data[0], data[0].into(), data[0]));
-        }
-
-        let (count_table, num_items) = Self::get_frequency_table_unchecked(self);
-
-        let mut min = None;
-        for i in Self::MIN..=Self::MAX {
-            let count = count_table[i as usize];
-            if count > 0 {
-                min = Some(i);
-                break;
-            }
-        }
-
-        let mut max = None;
-        for i in (Self::MIN..=Self::MAX).rev() {
-            let count = count_table[i as usize];
-            if count > 0 {
-                max = Some(i);
-                break;
-            }
-        }
-
-        Some((min?, median_from_table(&count_table, num_items, Self::MIN)?, max?))
+    pub fn get_min_med_max(&self) -> Option<(u8, f32, u8)> {
+        get_min_med_max::<MIN, MAX>(&self.table, self.num_items)
     }
 }
 
-/// Private function to get the median from a frequency table.
-#[must_use]
 #[inline]
-fn median_from_table(count_table: &[usize; 256], num_items: usize, min: u8) -> Option<f32> {
+#[must_use]
+pub(crate) fn tally_from<const MIN: u8, const MAX: u8, Q: AsRef<[u8]> + ?Sized>(seq: &Q, table: &mut [usize; 256]) -> usize {
+    let mut num_items = 0;
+    for &num in seq.as_ref() {
+        table[num as usize] += 1;
+        if (MIN..=MAX).contains(&num) {
+            num_items += 1;
+        }
+    }
+    num_items
+}
+
+#[inline]
+#[must_use]
+pub(crate) fn tally_from_unchecked<Q: AsRef<[u8]> + ?Sized>(seq: &Q, table: &mut [usize; 256]) -> usize {
+    for &num in seq.as_ref() {
+        table[num as usize] += 1;
+    }
+    seq.as_ref().len()
+}
+
+#[inline]
+#[must_use]
+pub(crate) fn get_median<const MIN: u8>(table: &[usize; 256], num_items: usize) -> Option<f32> {
     if num_items == 0 {
         return None;
     }
 
     // Consume half of our target total, rounding up
     let threshold = num_items.div_ceil(2);
-    let mut index: u16 = min.into();
-    let mut total = 0;
+    let mut index: u16 = MIN.into();
+    let mut total = table[index as usize];
 
     while total < threshold {
-        total += count_table[index as usize];
         index += 1;
+        total += table[index as usize];
     }
-    index -= 1;
 
     // total > Floor(N/2), total ≥ Ceil(N/2)
     let threshold = num_items / 2;
@@ -161,10 +110,47 @@ fn median_from_table(count_table: &[usize; 256], num_items: usize, min: u8) -> O
     // ⇒ total = N/2
     } else {
         let mut next_index = index + 1;
-        while count_table[next_index as usize] == 0 {
+        while table[next_index as usize] == 0 {
             next_index += 1;
         }
         Some(f32::from(index + next_index) / 2.0)
+    }
+}
+
+#[inline]
+#[must_use]
+pub(crate) fn get_min_med_max<const MIN: u8, const MAX: u8>(
+    table: &[usize; 256], num_items: usize,
+) -> Option<(u8, f32, u8)> {
+    let mut min = None;
+    for i in MIN..=MAX {
+        let count = table[i as usize];
+        if count > 0 {
+            min = Some(i);
+            break;
+        }
+    }
+
+    let mut max = None;
+    for i in (MIN..=MAX).rev() {
+        let count = table[i as usize];
+        if count > 0 {
+            max = Some(i);
+            break;
+        }
+    }
+
+    // TODO: Reduce to a single pass through data
+    Some((min?, get_median::<MIN>(table, num_items)?, max?))
+}
+
+impl<const MIN: u8, const MAX: u8> Default for FrequencyTable<MIN, MAX> {
+    #[inline]
+    fn default() -> Self {
+        FrequencyTable {
+            table:     [0; 256],
+            num_items: 0,
+        }
     }
 }
 
@@ -172,32 +158,6 @@ fn median_from_table(count_table: &[usize; 256], num_items: usize, min: u8) -> O
 mod test {
     #![allow(clippy::type_complexity)]
     use super::*;
-
-    struct BigFake(Vec<u8>);
-
-    impl FrequencyTable for BigFake {
-        const MIN: u8 = 0;
-        const MAX: u8 = 255;
-    }
-
-    impl AsRef<[u8]> for BigFake {
-        fn as_ref(&self) -> &[u8] {
-            &self.0
-        }
-    }
-
-    struct SmallFake(Vec<u8>);
-
-    impl FrequencyTable for SmallFake {
-        const MIN: u8 = 222;
-        const MAX: u8 = 240;
-    }
-
-    impl AsRef<[u8]> for SmallFake {
-        fn as_ref(&self) -> &[u8] {
-            &self.0
-        }
-    }
 
     #[test]
     fn median_full() {
@@ -212,8 +172,8 @@ mod test {
         ];
 
         for (v, expected) in median_data {
-            let bf: BigFake = BigFake(v);
-            assert_eq!(bf.get_median(), expected);
+            let freq_table = FrequencyTable::<0, 255>::new_from(&v);
+            assert_eq!(freq_table.get_median(), expected);
         }
     }
 
@@ -230,21 +190,21 @@ mod test {
         ];
 
         for (v, expected) in median_data {
-            let bf: SmallFake = SmallFake(v);
-            assert_eq!(bf.get_median(), expected);
+            let freq_table = FrequencyTable::<222, 240>::new_from(&v);
+            assert_eq!(freq_table.get_median(), expected);
         }
     }
 
     #[test]
     fn median_data_too_large() {
-        let f = SmallFake(vec![222, 245, 230, 233]);
-        assert_eq!(f.get_median(), Some(230.0));
+        let freq_table = FrequencyTable::<222, 240>::new_from(&[222, 245, 230, 233]);
+        assert_eq!(freq_table.get_median(), Some(230.0));
     }
 
     #[test]
     fn median_data_too_small() {
-        let f = SmallFake(vec![222, 200, 230, 233]);
-        assert_eq!(f.get_median(), Some(230.0));
+        let freq_table = FrequencyTable::<222, 240>::new_from(&[222, 200, 230, 233]);
+        assert_eq!(freq_table.get_median(), Some(230.0));
     }
 
     #[test]
@@ -260,8 +220,8 @@ mod test {
         ];
 
         for (v, expected) in all_data {
-            let bf: BigFake = BigFake(v);
-            assert_eq!(bf.get_min_med_max(), expected);
+            let freq_table = FrequencyTable::<0, 255>::new_from(&v);
+            assert_eq!(freq_table.get_min_med_max(), expected);
         }
     }
 
@@ -278,20 +238,20 @@ mod test {
         ];
 
         for (v, expected) in median_data {
-            let bf: SmallFake = SmallFake(v);
-            assert_eq!(bf.get_min_med_max(), expected);
+            let freq_table = FrequencyTable::<222, 240>::new_from(&v);
+            assert_eq!(freq_table.get_min_med_max(), expected);
         }
     }
 
     #[test]
     fn med_min_max_too_small() {
-        let f = SmallFake(vec![222, 200, 230, 233]);
-        assert_eq!(f.get_median(), Some(230.0));
+        let freq_table = FrequencyTable::<222, 240>::new_from(&[222, 200, 230, 233]);
+        assert_eq!(freq_table.get_median(), Some(230.0));
     }
 
     #[test]
     fn med_min_max_too_large() {
-        let f = SmallFake(vec![222, 245, 230, 233]);
-        assert_eq!(f.get_median(), Some(230.0));
+        let freq_table = FrequencyTable::<222, 240>::new_from(&[222, 245, 230, 233]);
+        assert_eq!(freq_table.get_median(), Some(230.0));
     }
 }

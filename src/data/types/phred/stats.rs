@@ -1,8 +1,8 @@
-use crate::composition::FrequencyTable;
+use crate::composition::{get_median, get_min_med_max, tally_from_unchecked};
 
 use super::{Len, QScoreFloat, QScoreInt, QualityScores, QualityScoresView, QualityScoresViewMut};
 
-pub trait QualityStats: AsRef<[u8]> + FrequencyTable + Len {
+pub trait QualityStats: AsRef<[u8]> + Len {
     /// Minimum phred quality score using a full counting sort
     #[inline]
     #[must_use]
@@ -21,17 +21,20 @@ pub trait QualityStats: AsRef<[u8]> + FrequencyTable + Len {
     #[inline]
     #[must_use]
     fn median(&self) -> Option<QScoreFloat> {
-        // Safety: we have validated that QualityScores are valid
-        self.get_median_unchecked().map(|q| QScoreFloat(q - 33.0))
+        let mut table = [0; 256];
+        // Safety: QualityScores are graphic ASCII
+        let num_items = tally_from_unchecked(self, &mut table);
+        get_median::<b'!'>(&table, num_items).map(|q| q.into())
     }
 
     /// Efficiently obtain tuple of (min, median, max)
     #[inline]
     #[must_use]
     fn min_median_max(&self) -> Option<(QScoreInt, QScoreFloat, QScoreInt)> {
-        // Safety: we have validated that QualityScores are valid
-        self.get_min_med_max_unchecked()
-            .map(|(min, median, max)| (min.into(), median.into(), max.into()))
+        let mut table = [0; 256];
+        // Safety: QualityScores are graphic ASCII
+        let num_items = tally_from_unchecked(self, &mut table);
+        get_min_med_max::<b'!', b'~'>(&table, num_items).map(|(min, median, max)| (min.into(), median.into(), max.into()))
     }
 
     /// The geometric mean error represented as a phred quality score floating
