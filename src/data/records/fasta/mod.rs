@@ -60,7 +60,7 @@ impl FastaSeq {
     /// Retains only valid DNA characters, removing alignment characters as well.
     #[must_use]
     pub fn to_dna_unaligned(mut self) -> FastaNT {
-        self.sequence.retain_unaligned_dna_uc();
+        self.sequence.retain_iupac_uc();
         FastaNT {
             name:     self.name,
             sequence: Nucleotides(self.sequence),

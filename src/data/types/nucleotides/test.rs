@@ -1,11 +1,11 @@
 use super::*;
-use crate::data::{alphas::DNA_IUPAC_UNALIGNED, types::nucleotides::make_reverse_complement};
+use crate::data::{alphas::DNA_IUPAC, types::nucleotides::make_reverse_complement};
 use std::sync::LazyLock;
 
 const N: usize = 1200;
 const SEED: u64 = 42;
 
-static SEQ: LazyLock<Vec<u8>> = LazyLock::new(|| crate::generate::rand_sequence(DNA_IUPAC_UNALIGNED, N, SEED));
+static SEQ: LazyLock<Vec<u8>> = LazyLock::new(|| crate::generate::rand_sequence(DNA_IUPAC, N, SEED));
 
 #[test]
 fn test_translate() {
@@ -21,9 +21,9 @@ fn test_translate_collect() {
 }
 
 #[test]
-fn validate_nucleotides() {
+fn validate_iupac_with_gaps_uc() {
     let mut s: Nucleotides = b"U gotta get my gat back--ok?!".into();
-    s.retain_dna_uc();
+    s.retain_iupac_with_gaps_uc();
 
     assert_eq!(s.to_string(), "TGTTAGTMYGATBACK--K");
 }

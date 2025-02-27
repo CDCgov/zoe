@@ -1,9 +1,8 @@
 use crate::{
     data::{
         mappings::{
-            ANY_TO_DNA_CANONICAL_UC, IS_DNA_CANONICAL_UNALIGNED, IS_DNA_CANONICAL_UNALIGNED_UC, IS_DNA_IUPAC,
-            IS_DNA_IUPAC_UNALIGNED, IS_DNA_IUPAC_UNALIGNED_UC, IUPAC_TO_DNA_CANONICAL, IUPAC_TO_DNA_CANONICAL_UC, TO_DNA_UC,
-            TO_DNA_UNALIGNED_UC,
+            ANY_TO_DNA_ACGTN_UC, IS_DNA_ACGTN, IS_DNA_ACGTN_UC, IS_DNA_IUPAC, IS_DNA_IUPAC_UC, IS_DNA_IUPAC_WITH_GAPS,
+            IUPAC_TO_DNA_ACGTN, IUPAC_TO_DNA_ACGTN_UC, TO_DNA_IUPAC_UC, TO_DNA_IUPAC_WITH_GAPS_UC,
         },
         types::nucleotides::NucleotidesMutable,
         validation::{recode::Recode, retain::RetainSequence},
@@ -15,9 +14,10 @@ use crate::{
 use super::NucleotidesReadable;
 
 pub trait ToDNA: Into<Nucleotides> {
+    /// Filters to unaligned, IUPAC DNA.
     fn filter_to_dna(self) -> Nucleotides {
         let mut n = self.into();
-        n.retain_dna_uc();
+        n.retain_iupac_uc();
         n
     }
 }
@@ -30,24 +30,24 @@ pub trait RecodeNucleotides: NucleotidesMutable {
     /// Recodes the stored sequence to an uppercase canonical (ACTG + N) one.
     /// Any non-canonical base becomes N, including gaps.
     #[inline]
-    fn recode_any_to_actgn_uc(&mut self) {
-        self.nucleotide_mut_bytes().recode(ANY_TO_DNA_CANONICAL_UC);
+    fn recode_any_to_acgtn_uc(&mut self) {
+        self.nucleotide_mut_bytes().recode(ANY_TO_DNA_ACGTN_UC);
     }
 
     /// Recodes the stored sequence of valid IUPAC codes to a canonical (ACTG +
     /// N) sequence. Ambiguous bases become N while non-IUPAC bytes and gaps are
     /// left unchanged.
     #[inline]
-    fn recode_iupac_to_actgn(&mut self) {
-        self.nucleotide_mut_bytes().recode(IUPAC_TO_DNA_CANONICAL);
+    fn recode_iupac_to_acgtn(&mut self) {
+        self.nucleotide_mut_bytes().recode(IUPAC_TO_DNA_ACGTN);
     }
 
     /// Recodes the stored sequence of valid IUPAC codes to an uppercase
     /// canonical (ACTG + N) sequence. Ambiguous bases become N while non-IUPAC
     /// bytes and gaps are left unchanged.
     #[inline]
-    fn recode_iupac_to_actgn_uc(&mut self) {
-        self.nucleotide_mut_bytes().recode(IUPAC_TO_DNA_CANONICAL_UC);
+    fn recode_iupac_to_acgtn_uc(&mut self) {
+        self.nucleotide_mut_bytes().recode(IUPAC_TO_DNA_ACGTN_UC);
     }
 
     /// Masks the provided `range` with `N`. If the range does not exist, the
@@ -64,29 +64,29 @@ pub trait RetainNucleotides: AsMut<Vec<u8>> {
     /// Only retains valid [IUPAC bases](https://www.bioinformatics.org/sms/iupac.html).
     /// Gaps are retained.
     #[inline]
-    fn retain_iupac_bases(&mut self) {
-        self.as_mut().retain_by_validation(IS_DNA_IUPAC);
+    fn retain_iupac_with_gaps(&mut self) {
+        self.as_mut().retain_by_validation(IS_DNA_IUPAC_WITH_GAPS);
     }
 
     /// Only retains valid [IUPAC bases](https://www.bioinformatics.org/sms/iupac.html).
     /// Gaps are NOT retained.
     #[inline]
-    fn retain_unaligned_bases(&mut self) {
-        self.as_mut().retain_by_validation(IS_DNA_IUPAC_UNALIGNED);
+    fn retain_iupac(&mut self) {
+        self.as_mut().retain_by_validation(IS_DNA_IUPAC);
     }
 
     /// Only retains valid [IUPAC](https://www.bioinformatics.org/sms/iupac.html) DNA and converts to uppercase.
     /// Gaps are retained.
     #[inline]
-    fn retain_dna_uc(&mut self) {
-        self.as_mut().retain_by_recoding(TO_DNA_UC);
+    fn retain_iupac_with_gaps_uc(&mut self) {
+        self.as_mut().retain_by_recoding(TO_DNA_IUPAC_WITH_GAPS_UC);
     }
 
     /// Only retains valid, unaligned [IUPAC](https://www.bioinformatics.org/sms/iupac.html) DNA and converts to uppercase.
     /// Gaps are NOT retained.
     #[inline]
-    fn retain_unaligned_dna_uc(&mut self) {
-        self.as_mut().retain_by_recoding(TO_DNA_UNALIGNED_UC);
+    fn retain_iupac_uc(&mut self) {
+        self.as_mut().retain_by_recoding(TO_DNA_IUPAC_UC);
     }
 }
 
@@ -94,36 +94,30 @@ impl RetainNucleotides for Nucleotides {}
 impl RetainNucleotides for Vec<u8> {}
 
 pub trait CheckNucleotides: NucleotidesReadable {
-    /// Check if nucleotide sequence only contains valid IUPAC bases, without
+    /// Checks if nucleotide sequence only contains valid IUPAC bases, without
     /// gaps
     #[inline]
-    fn is_iupac_unaligned(&self) -> bool {
-        self.nucleotide_bytes().iter().all(|&b| IS_DNA_IUPAC_UNALIGNED[b as usize])
+    fn is_iupac(&self) -> bool {
+        self.nucleotide_bytes().iter().all(|&b| IS_DNA_IUPAC[b as usize])
     }
 
-    /// Check if nucleotide sequence only contains valid uppercase IUPAC bases,
+    /// Checks if nucleotide sequence only contains valid uppercase IUPAC bases,
     /// without gaps
     #[inline]
-    fn is_iupac_unaligned_uc(&self) -> bool {
-        self.nucleotide_bytes().iter().all(|&b| IS_DNA_IUPAC_UNALIGNED_UC[b as usize])
+    fn is_iupac_uc(&self) -> bool {
+        self.nucleotide_bytes().iter().all(|&b| IS_DNA_IUPAC_UC[b as usize])
     }
 
-    /// Check if nucleotide sequence only contains valid canonical bases,
-    /// without gaps
+    /// Checks if the nucleotide sequence only contains `A`, `C`, `G`, `T`, `N` (no gaps).
     #[inline]
-    fn is_canonical_unaligned(&self) -> bool {
-        self.nucleotide_bytes()
-            .iter()
-            .all(|&b| IS_DNA_CANONICAL_UNALIGNED[b as usize])
+    fn is_acgtn(&self) -> bool {
+        self.nucleotide_bytes().iter().all(|&b| IS_DNA_ACGTN[b as usize])
     }
 
-    /// Check if nucleotide sequence only contains valid uppercase canonical
-    /// bases, without gaps
+    /// Checks if the nucleotide sequence only contains uppercase `A`, `C`, `G`, `T`, `N` (no gaps).
     #[inline]
-    fn is_canonical_unaligned_uc(&self) -> bool {
-        self.nucleotide_bytes()
-            .iter()
-            .all(|&b| IS_DNA_CANONICAL_UNALIGNED_UC[b as usize])
+    fn is_acgtn_uc(&self) -> bool {
+        self.nucleotide_bytes().iter().all(|&b| IS_DNA_ACGTN_UC[b as usize])
     }
 }
 

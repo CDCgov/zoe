@@ -1,5 +1,5 @@
 use crate::data::{
-    alphas::{DNA_CANONICAL_UNALIGNED, DNA_CANONICAL_UNALIGNED_UC, DNA_IUPAC, DNA_IUPAC_UNALIGNED, DNA_IUPAC_UNALIGNED_UC},
+    alphas::{DNA_ACGTN, DNA_ACGTN_UC, DNA_IUPAC, DNA_IUPAC_UC, DNA_IUPAC_WITH_GAPS},
     array_types::{self, arr_max},
 };
 use std::ops::Index;
@@ -31,6 +31,19 @@ pub(crate) const TO_REVERSE_COMPLEMENT: [u8; 256] = {
 
 /// A boolean mapping of all valid IUPAC nucleotide codes. Useful for sequence
 /// filtering.
+pub(crate) const IS_DNA_IUPAC_WITH_GAPS: [bool; 256] = {
+    let mut v = [false; 256];
+    let mut i = 0;
+
+    while i < DNA_IUPAC_WITH_GAPS.len() {
+        v[DNA_IUPAC_WITH_GAPS[i] as usize] = true;
+        i += 1;
+    }
+    v
+};
+
+/// A boolean mapping of valid, unaligned IUPAC nucleotide codes. Useful for
+/// sequence filtering.
 pub(crate) const IS_DNA_IUPAC: [bool; 256] = {
     let mut v = [false; 256];
     let mut i = 0;
@@ -42,50 +55,37 @@ pub(crate) const IS_DNA_IUPAC: [bool; 256] = {
     v
 };
 
-/// A boolean mapping of valid, unaligned IUPAC nucleotide codes. Useful for
-/// sequence filtering.
-pub(crate) const IS_DNA_IUPAC_UNALIGNED: [bool; 256] = {
-    let mut v = [false; 256];
-    let mut i = 0;
-
-    while i < DNA_IUPAC_UNALIGNED.len() {
-        v[DNA_IUPAC_UNALIGNED[i] as usize] = true;
-        i += 1;
-    }
-    v
-};
-
 /// A boolean mapping of uppercase IUPAC nucleotide codes.
-pub(crate) const IS_DNA_IUPAC_UNALIGNED_UC: [bool; 256] = {
+pub(crate) const IS_DNA_IUPAC_UC: [bool; 256] = {
     let mut v = [false; 256];
     let mut i = 0;
 
-    while i < DNA_IUPAC_UNALIGNED_UC.len() {
-        v[DNA_IUPAC_UNALIGNED_UC[i] as usize] = true;
+    while i < DNA_IUPAC_UC.len() {
+        v[DNA_IUPAC_UC[i] as usize] = true;
         i += 1;
     }
     v
 };
 
-/// A boolean mapping of canonical nucleotide codes.
-pub(crate) const IS_DNA_CANONICAL_UNALIGNED: [bool; 256] = {
+/// A boolean mapping of canonical nucleotides + `n`/`N`.
+pub(crate) const IS_DNA_ACGTN: [bool; 256] = {
     let mut v = [false; 256];
     let mut i = 0;
 
-    while i < DNA_CANONICAL_UNALIGNED.len() {
-        v[DNA_CANONICAL_UNALIGNED[i] as usize] = true;
+    while i < DNA_ACGTN.len() {
+        v[DNA_ACGTN[i] as usize] = true;
         i += 1;
     }
     v
 };
 
-/// A boolean mapping of uppercase canonical nucleotide codes.
-pub(crate) const IS_DNA_CANONICAL_UNALIGNED_UC: [bool; 256] = {
+/// A boolean mapping of uppercase canonical nucleotides + `N`.
+pub(crate) const IS_DNA_ACGTN_UC: [bool; 256] = {
     let mut v = [false; 256];
     let mut i = 0;
 
-    while i < DNA_CANONICAL_UNALIGNED_UC.len() {
-        v[DNA_CANONICAL_UNALIGNED_UC[i] as usize] = true;
+    while i < DNA_ACGTN_UC.len() {
+        v[DNA_ACGTN_UC[i] as usize] = true;
         i += 1;
     }
     v
@@ -93,7 +93,7 @@ pub(crate) const IS_DNA_CANONICAL_UNALIGNED_UC: [bool; 256] = {
 
 /// Used to convert nucleotide sequences to unaligned, IUPAC-validated,
 /// uppercase DNA. The 0-byte is used for filtering out unwanted patterns.
-pub(crate) const TO_DNA_UNALIGNED_UC: [u8; 256] = {
+pub(crate) const TO_DNA_IUPAC_UC: [u8; 256] = {
     const FROM_BYTE: &[u8; 32] = b"acgturyswkmbdhvnACGTURYSWKMBDHVN";
     const DEST_BYTE: &[u8; 32] = b"ACGTTRYSWKMBDHVNACGTTRYSWKMBDHVN";
 
@@ -109,7 +109,7 @@ pub(crate) const TO_DNA_UNALIGNED_UC: [u8; 256] = {
 
 /// Used to convert nucleotide sequences to valid IUPAC DNA (uppercase). The
 /// 0-byte is used for filtering out unwanted patterns.
-pub(crate) const TO_DNA_UC: [u8; 256] = {
+pub(crate) const TO_DNA_IUPAC_WITH_GAPS_UC: [u8; 256] = {
     const FROM_BYTE: &[u8; 34] = b"acgturyswkmbdhvnACGTURYSWKMBDHVN.-";
     const DEST_BYTE: &[u8; 34] = b"ACGTTRYSWKMBDHVNACGTTRYSWKMBDHVN.-";
 
@@ -125,7 +125,7 @@ pub(crate) const TO_DNA_UC: [u8; 256] = {
 
 /// Used to convert any valid IUPAC DNA to uppercase ACGTN.
 #[allow(clippy::cast_possible_truncation)]
-pub(crate) const IUPAC_TO_DNA_CANONICAL_UC: [u8; 256] = {
+pub(crate) const IUPAC_TO_DNA_ACGTN_UC: [u8; 256] = {
     const FROM_BYTE: &[u8; 32] = b"acgturyswkmbdhvnACGTURYSWKMBDHVN";
     const DEST_BYTE: &[u8; 32] = b"ACGTTNNNNNNNNNNNACGTTNNNNNNNNNNN";
 
@@ -147,7 +147,7 @@ pub(crate) const IUPAC_TO_DNA_CANONICAL_UC: [u8; 256] = {
 
 /// Used to convert any valid IUPAC DNA to ACGTN.
 #[allow(clippy::cast_possible_truncation)]
-pub(crate) const IUPAC_TO_DNA_CANONICAL: [u8; 256] = {
+pub(crate) const IUPAC_TO_DNA_ACGTN: [u8; 256] = {
     const FROM_BYTE: &[u8; 32] = b"acgturyswkmbdhvnACGTURYSWKMBDHVN";
     const DEST_BYTE: &[u8; 32] = b"acgttnnnnnnnnnnnACGTTNNNNNNNNNNN";
 
@@ -168,7 +168,7 @@ pub(crate) const IUPAC_TO_DNA_CANONICAL: [u8; 256] = {
 };
 
 /// Used to convert any byte to uppercase ACGTN. N is used as a catch-all.
-pub(crate) const ANY_TO_DNA_CANONICAL_UC: [u8; 256] = {
+pub(crate) const ANY_TO_DNA_ACGTN_UC: [u8; 256] = {
     const FROM_BYTE: &[u8; 12] = b"acgtunACGTUN";
     const DEST_BYTE: &[u8; 12] = b"ACGTTNACGTTN";
 

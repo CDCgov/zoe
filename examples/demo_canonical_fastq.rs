@@ -15,7 +15,7 @@ fn main() {
         .flatten();
 
     for mut record in fastq_reader {
-        record.recode_iupac_to_actgn();
+        record.recode_iupac_to_acgtn();
         print!("{record}");
     }
 }

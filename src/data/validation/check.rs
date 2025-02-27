@@ -40,11 +40,11 @@ where
 #[cfg(test)]
 mod test {
     use super::CheckSequence;
-    use crate::data::alphas::AMINO_ACIDS;
+    use crate::data::alphas::AA_DAIS_WITH_GAPS;
 
     #[test]
     fn is_ascii() {
-        let s = crate::generate::rand_sequence(AMINO_ACIDS, 151, 42);
+        let s = crate::generate::rand_sequence(AA_DAIS_WITH_GAPS, 151, 42);
         assert_eq!(s.is_ascii(), s.is_ascii_simd::<16>());
     }
 }
@@ -52,7 +52,7 @@ mod test {
 #[cfg(test)]
 mod bench {
     use super::CheckSequence;
-    use crate::data::alphas::AMINO_ACIDS;
+    use crate::data::alphas::AA_DAIS_WITH_GAPS;
     use std::sync::LazyLock;
     use test::Bencher;
     extern crate test;
@@ -60,7 +60,7 @@ mod bench {
     const N: usize = 151;
     const SEED: u64 = 99;
 
-    static SEQ: LazyLock<Vec<u8>> = LazyLock::new(|| crate::generate::rand_sequence(AMINO_ACIDS, N, SEED));
+    static SEQ: LazyLock<Vec<u8>> = LazyLock::new(|| crate::generate::rand_sequence(AA_DAIS_WITH_GAPS, N, SEED));
 
     #[bench]
     fn is_ascii_std(b: &mut Bencher) {

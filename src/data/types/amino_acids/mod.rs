@@ -121,7 +121,7 @@ impl AminoAcids {
     #[must_use]
     pub fn generate_random_aa(length: usize, seed: u64) -> Self {
         AminoAcids(crate::generate::rand_sequence(
-            crate::data::constants::alphas::AMINO_ACIDS_UNALIGNED_UC,
+            crate::data::constants::alphas::AA_IUPAC_UC,
             length,
             seed,
         ))

@@ -1,6 +1,6 @@
 use crate::{
     data::{
-        constants::alphas::DNA_IUPAC,
+        constants::alphas::DNA_IUPAC_WITH_GAPS,
         types::nucleotides::{Nucleotides, NucleotidesReadable},
     },
     math::Uint,
@@ -110,7 +110,7 @@ where
     /// Gets the total count of the bases A, C, G, and T/U.
     #[inline]
     #[must_use]
-    pub fn total_actg(&self) -> T
+    pub fn total_acgt(&self) -> T
     where
         T: Add<Output = T>, {
         self.inner[0..4].iter().fold(T::ZERO, |acc, &v| acc + v)
@@ -119,7 +119,7 @@ where
     /// Gets the total count of the bases A, C, G, T/U, and N
     #[inline]
     #[must_use]
-    pub fn total_actgn(&self) -> T
+    pub fn total_acgtn(&self) -> T
     where
         T: Add<Output = T>, {
         self.inner[0..5].iter().fold(T::ZERO, |acc, &v| acc + v)
@@ -289,8 +289,8 @@ const fn base_to_inner_index(b: u8) -> usize {
 
         // Valid IUPAC is OTHER
         let mut i = 0;
-        while i < DNA_IUPAC.len() {
-            v[DNA_IUPAC[i] as usize] = OTHER;
+        while i < DNA_IUPAC_WITH_GAPS.len() {
+            v[DNA_IUPAC_WITH_GAPS[i] as usize] = OTHER;
             i += 1;
         }
 
