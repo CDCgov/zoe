@@ -500,9 +500,15 @@ impl StdGeneticCode {
 
 #[cfg(test)]
 mod test {
-    use crate::data::mappings::StdGeneticCode;
+    use crate::data::{
+        alphas::{DNA_ACGTN, DNA_ACGTN_UC, DNA_IUPAC, DNA_IUPAC_UC, DNA_IUPAC_WITH_GAPS},
+        mappings::{ANY_TO_DNA_ACGTN_UC, IS_DNA_IUPAC_WITH_GAPS, IUPAC_TO_DNA_ACGTN, IUPAC_TO_DNA_ACGTN_UC, StdGeneticCode},
+    };
 
-    use super::{ByteIndexMap, DNA_PROFILE_MAP};
+    use super::{
+        ByteIndexMap, DNA_PROFILE_MAP, IS_DNA_ACGTN, IS_DNA_ACGTN_UC, IS_DNA_IUPAC, IS_DNA_IUPAC_UC, TO_DNA_IUPAC_UC,
+        TO_DNA_IUPAC_WITH_GAPS_UC,
+    };
 
     #[test]
     fn gc_self_test() {
@@ -621,5 +627,94 @@ mod test {
     #[should_panic = "The catch_all must be present in the byte_keys."]
     fn test_missing_catch_all_nocase() {
         let _ = ByteIndexMap::new_ignoring_case(*b"ACGT", b'N');
+    }
+
+    const VALIDATOR_PAIRS: [(&[u8], [bool; 256]); 5] = [
+        (DNA_IUPAC_WITH_GAPS, IS_DNA_IUPAC_WITH_GAPS),
+        (DNA_IUPAC, IS_DNA_IUPAC),
+        (DNA_IUPAC_UC, IS_DNA_IUPAC_UC),
+        (DNA_ACGTN, IS_DNA_ACGTN),
+        (DNA_ACGTN_UC, IS_DNA_ACGTN_UC),
+    ];
+
+    #[test]
+    fn test_alphabet_validators() {
+        for (alphabet, validator) in VALIDATOR_PAIRS {
+            for c in u8::MIN..=u8::MAX {
+                assert_eq!(alphabet.iter().any(|&x| x == c), validator[c as usize]);
+            }
+        }
+    }
+
+    const TO_DNA_PAIRS: [(&[u8], [u8; 256]); 2] =
+        [(DNA_IUPAC, TO_DNA_IUPAC_UC), (DNA_IUPAC_WITH_GAPS, TO_DNA_IUPAC_WITH_GAPS_UC)];
+
+    #[test]
+    fn test_to_dna() {
+        for (alphabet, converter) in TO_DNA_PAIRS {
+            for c in u8::MIN..=u8::MAX {
+                let in_alphabet = alphabet.iter().any(|&x| x == c);
+                if in_alphabet {
+                    if matches!(c, b'u' | b'U') {
+                        assert_eq!(converter[c as usize], b'T');
+                    } else if c.is_ascii_lowercase() {
+                        assert_eq!(converter[c as usize], c.to_ascii_uppercase());
+                    } else {
+                        assert_eq!(converter[c as usize], c);
+                    }
+                } else {
+                    assert_eq!(converter[c as usize], 0);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_iupac_to_dna_acgtn_uc() {
+        for c in u8::MIN..=u8::MAX {
+            if matches!(c, b'u' | b'U') {
+                assert_eq!(IUPAC_TO_DNA_ACGTN_UC[c as usize], b'T');
+            } else if DNA_ACGTN.iter().any(|&x| x == c) {
+                assert_eq!(IUPAC_TO_DNA_ACGTN_UC[c as usize], c.to_ascii_uppercase());
+            } else if DNA_IUPAC.iter().any(|&x| x == c) {
+                assert_eq!(IUPAC_TO_DNA_ACGTN_UC[c as usize], b'N');
+            } else {
+                assert_eq!(IUPAC_TO_DNA_ACGTN_UC[c as usize], c);
+            }
+        }
+    }
+
+    #[test]
+    fn test_iupac_to_dna_acgtn() {
+        for c in u8::MIN..=u8::MAX {
+            if c == b'u' {
+                assert_eq!(IUPAC_TO_DNA_ACGTN[c as usize], b't');
+            } else if c == b'U' {
+                assert_eq!(IUPAC_TO_DNA_ACGTN[c as usize], b'T');
+            } else if DNA_ACGTN.iter().any(|&x| x == c) {
+                assert_eq!(IUPAC_TO_DNA_ACGTN[c as usize], c);
+            } else if DNA_IUPAC.iter().any(|&x| x == c) {
+                if c.is_ascii_lowercase() {
+                    assert_eq!(IUPAC_TO_DNA_ACGTN[c as usize], b'n');
+                } else {
+                    assert_eq!(IUPAC_TO_DNA_ACGTN[c as usize], b'N');
+                }
+            } else {
+                assert_eq!(IUPAC_TO_DNA_ACGTN[c as usize], c);
+            }
+        }
+    }
+
+    #[test]
+    fn test_any_to_dna_acgtn_uc() {
+        for c in u8::MIN..=u8::MAX {
+            if matches!(c, b'u' | b'U') {
+                assert_eq!(ANY_TO_DNA_ACGTN_UC[c as usize], b'T');
+            } else if DNA_ACGTN.iter().any(|&x| x == c) {
+                assert_eq!(ANY_TO_DNA_ACGTN_UC[c as usize], c.to_ascii_uppercase());
+            } else {
+                assert_eq!(ANY_TO_DNA_ACGTN_UC[c as usize], b'N');
+            }
+        }
     }
 }
