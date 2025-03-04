@@ -113,6 +113,34 @@ impl<'a> RangeSearch<'a> {
         T: KmerCollectionContains<MAX_LEN>, {
         kmers.find_all_in_seq_rev(self.slice).map(move |r| self.adjust_to_context(&r))
     }
+
+    /// Takes a closure and returns the index of the first byte found within
+    /// the sequence that satisfies the closure. Wraps [`Iterator::position`].
+    ///
+    /// [`Iterator::position`]: std::iter::Iterator::position
+    #[inline]
+    pub fn position<P>(&self, mut predicate: P) -> Option<usize>
+    where
+        P: FnMut(u8) -> bool, {
+        self.slice
+            .iter()
+            .position(|&item| predicate(item))
+            .map(|index| self.adjust_to_context(&index))
+    }
+
+    /// Takes a closure and returns the index of the last byte found within the
+    /// sequence that satisfies the closure. Wraps [`Iterator::rposition`].
+    ///
+    /// [`Iterator::rposition`]: std::iter::Iterator::rposition
+    #[inline]
+    pub fn rposition<P>(&self, mut predicate: P) -> Option<usize>
+    where
+        P: FnMut(u8) -> bool, {
+        self.slice
+            .iter()
+            .rposition(|&item| predicate(item))
+            .map(|index| self.adjust_to_context(&index))
+    }
 }
 
 /// Trait for performing restricted string searches on byte substrings. In
