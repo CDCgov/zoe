@@ -125,6 +125,12 @@ impl Nucleotides {
         *self = Nucleotides(self.0.drain(new_start..).collect());
     }
 
+    /// Clear the sequence so that it is empty.
+    #[inline]
+    pub fn clear(&mut self) {
+        self.0.clear()
+    }
+
     // Nucleotides-specific methods
 
     /// Creates a [`LocalProfiles`] for alignment.

@@ -99,6 +99,12 @@ impl AminoAcids {
         *self = Self(self.0.drain(new_start..).collect());
     }
 
+    /// Clear the sequence so that it is empty.
+    #[inline]
+    pub fn clear(&mut self) {
+        self.0.clear()
+    }
+
     /// If the end has a stop codon, remove it. Takes and gives ownership for
     /// chaining.
     #[inline]

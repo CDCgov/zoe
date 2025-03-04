@@ -26,6 +26,7 @@ pub trait DataOwned {
 
     /// Create an immutable view of the data.
     fn as_view(&self) -> Self::View<'_>;
+
     /// Create a mutable view of the data.
     fn as_view_mut(&mut self) -> Self::ViewMut<'_>;
 }
@@ -37,9 +38,13 @@ pub trait DataView {
 
     /// Create an owned copy of the data via cloning.
     fn to_owned_data(&self) -> Self::Owned;
-    // TODO: Bike shed on naming (inspiration from other crates)
+
     /// Re-slice the view in-place.
     fn restrict<R: SliceRange>(&mut self, range: R);
+
+    /// Clear the view so that it is empty (this does not affect the underlying
+    /// data).
+    fn clear(&mut self);
 }
 
 /// A trait for data which is a mutable view, and from which an immutable view
@@ -52,10 +57,16 @@ pub trait DataViewMut {
 
     /// Create an immutable view of the data.
     fn as_view(&self) -> Self::View<'_>;
+
     /// Create an owned copy of the data via cloning.
     fn to_owned_data(&self) -> Self::Owned;
+
     /// Re-slice the view in-place.
     fn restrict<R: SliceRange>(&mut self, range: R);
+
+    /// Clear the view so that it is empty (this does not affect the underlying
+    /// data).
+    fn clear(&mut self);
 }
 
 /// A trait alias for range types (with usize bounds, used to index into
@@ -162,7 +173,12 @@ macro_rules! impl_views_for_wrapper {
 
             #[inline]
             fn restrict<R: SliceRange>(&mut self, range: R) {
-                self.0 = &self.0[range]
+                self.0 = &self.0[range];
+            }
+
+            #[inline]
+            fn clear(&mut self) {
+                self.0 = &[];
             }
         }
 
@@ -188,6 +204,11 @@ macro_rules! impl_views_for_wrapper {
             fn restrict<R: SliceRange>(&mut self, range: R) {
                 let data = std::mem::take(&mut self.0);
                 self.0 = &mut data[range];
+            }
+
+            #[inline]
+            fn clear(&mut self) {
+                self.0 = &mut [];
             }
         }
 

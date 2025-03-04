@@ -115,6 +115,12 @@ impl QualityScores {
         *self = QualityScores(self.0.drain(new_start..).collect());
     }
 
+    /// Clear the quality scores sequence so that it is empty.
+    #[inline]
+    pub fn clear(&mut self) {
+        self.0.clear()
+    }
+
     // Quality-scores-specific methods
 
     /// Returns the sequence in reverse.

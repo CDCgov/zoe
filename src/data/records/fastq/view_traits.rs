@@ -45,6 +45,12 @@ impl DataView for FastQView<'_> {
         self.sequence.restrict(range.clone());
         self.quality.restrict(range);
     }
+
+    #[inline]
+    fn clear(&mut self) {
+        self.sequence.clear();
+        self.quality.clear();
+    }
 }
 
 impl DataViewMut for FastQViewMut<'_> {
@@ -77,6 +83,12 @@ impl DataViewMut for FastQViewMut<'_> {
     fn restrict<R: SliceRange>(&mut self, range: R) {
         self.sequence.restrict(range.clone());
         self.quality.restrict(range);
+    }
+
+    #[inline]
+    fn clear(&mut self) {
+        self.sequence.clear();
+        self.quality.clear();
     }
 }
 
