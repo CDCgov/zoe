@@ -19,7 +19,7 @@ pub(crate) const fn sqrt_baby(n: f64) -> f64 {
 
     let mut j: usize = 0;
     while j < 40 {
-        x2 = ((n / x1) + x1) / 2.0;
+        x2 = (n / x1).midpoint(x1);
         x1 = x2;
         j += 1;
     }

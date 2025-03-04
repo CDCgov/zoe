@@ -641,7 +641,7 @@ mod test {
     fn test_alphabet_validators() {
         for (alphabet, validator) in VALIDATOR_PAIRS {
             for c in u8::MIN..=u8::MAX {
-                assert_eq!(alphabet.iter().any(|&x| x == c), validator[c as usize]);
+                assert_eq!(alphabet.contains(&c), validator[c as usize]);
             }
         }
     }
@@ -653,7 +653,7 @@ mod test {
     fn test_to_dna() {
         for (alphabet, converter) in TO_DNA_PAIRS {
             for c in u8::MIN..=u8::MAX {
-                let in_alphabet = alphabet.iter().any(|&x| x == c);
+                let in_alphabet = alphabet.contains(&c);
                 if in_alphabet {
                     if matches!(c, b'u' | b'U') {
                         assert_eq!(converter[c as usize], b'T');
@@ -674,9 +674,9 @@ mod test {
         for c in u8::MIN..=u8::MAX {
             if matches!(c, b'u' | b'U') {
                 assert_eq!(IUPAC_TO_DNA_ACGTN_UC[c as usize], b'T');
-            } else if DNA_ACGTN.iter().any(|&x| x == c) {
+            } else if DNA_ACGTN.contains(&c) {
                 assert_eq!(IUPAC_TO_DNA_ACGTN_UC[c as usize], c.to_ascii_uppercase());
-            } else if DNA_IUPAC.iter().any(|&x| x == c) {
+            } else if DNA_IUPAC.contains(&c) {
                 assert_eq!(IUPAC_TO_DNA_ACGTN_UC[c as usize], b'N');
             } else {
                 assert_eq!(IUPAC_TO_DNA_ACGTN_UC[c as usize], c);
@@ -691,9 +691,9 @@ mod test {
                 assert_eq!(IUPAC_TO_DNA_ACGTN[c as usize], b't');
             } else if c == b'U' {
                 assert_eq!(IUPAC_TO_DNA_ACGTN[c as usize], b'T');
-            } else if DNA_ACGTN.iter().any(|&x| x == c) {
+            } else if DNA_ACGTN.contains(&c) {
                 assert_eq!(IUPAC_TO_DNA_ACGTN[c as usize], c);
-            } else if DNA_IUPAC.iter().any(|&x| x == c) {
+            } else if DNA_IUPAC.contains(&c) {
                 if c.is_ascii_lowercase() {
                     assert_eq!(IUPAC_TO_DNA_ACGTN[c as usize], b'n');
                 } else {
@@ -710,7 +710,7 @@ mod test {
         for c in u8::MIN..=u8::MAX {
             if matches!(c, b'u' | b'U') {
                 assert_eq!(ANY_TO_DNA_ACGTN_UC[c as usize], b'T');
-            } else if DNA_ACGTN.iter().any(|&x| x == c) {
+            } else if DNA_ACGTN.contains(&c) {
                 assert_eq!(ANY_TO_DNA_ACGTN_UC[c as usize], c.to_ascii_uppercase());
             } else {
                 assert_eq!(ANY_TO_DNA_ACGTN_UC[c as usize], b'N');

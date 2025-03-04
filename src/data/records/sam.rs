@@ -1,6 +1,6 @@
 use crate::{
     data::{
-        byte_types::{ByteAvg, IsBase},
+        byte_types::IsBase,
         types::cigar::{Cigar, Ciglet, ExpandedCigar},
     },
     prelude::*,
@@ -173,7 +173,7 @@ impl SamData {
         let m_rname = self.rname.clone();
 
         let (mapq1, mapq2) = (self.mapq, other.mapq);
-        let m_mapq = mapq1.avg(mapq2);
+        let m_mapq = mapq1.midpoint(mapq2);
         let m_pos = paired_range.start + 1;
 
         let mut merged_cigars = Vec::with_capacity(paired_range.len());
@@ -253,7 +253,7 @@ impl SamData {
                             merged_quals.push(qy);
                         } else {
                             merged_seq.push(b'N');
-                            merged_quals.push(qx.avg(qy));
+                            merged_quals.push(qx.midpoint(qy));
                         }
                     }
                 }

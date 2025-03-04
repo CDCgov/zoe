@@ -193,7 +193,7 @@ impl<R: std::io::Read> FastaReader<R> {
             };
 
             if bytes == 0 {
-                return Some(Err(IOError::new(ErrorKind::Other, "No FASTA data found.")));
+                return Some(Err(IOError::other("No FASTA data found.")));
             }
 
             if let Some(&first) = self.fasta_buffer.first()
