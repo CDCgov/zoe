@@ -118,7 +118,7 @@ impl QualityScores {
     /// Clear the quality scores sequence so that it is empty.
     #[inline]
     pub fn clear(&mut self) {
-        self.0.clear()
+        self.0.clear();
     }
 
     // Quality-scores-specific methods

@@ -101,6 +101,13 @@ impl FastQ {
         self.sequence.make_reverse_complement();
         self.quality.make_reverse();
     }
+
+    /// Clear the FASTQ record so that it is empty.
+    #[inline]
+    pub fn clear(&mut self) {
+        self.sequence.clear();
+        self.quality.clear();
+    }
 }
 
 impl FastQView<'_> {

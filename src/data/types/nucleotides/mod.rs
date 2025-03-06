@@ -128,7 +128,7 @@ impl Nucleotides {
     /// Clear the sequence so that it is empty.
     #[inline]
     pub fn clear(&mut self) {
-        self.0.clear()
+        self.0.clear();
     }
 
     // Nucleotides-specific methods
