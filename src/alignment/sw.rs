@@ -2,11 +2,7 @@
 // TODO: revisit truncation issues
 
 use super::*;
-use crate::{
-    data::types::cigar::Cigar,
-    math::AnyInt,
-    simd::{SimdAnyInt, SimdExt},
-};
+use crate::{data::types::cigar::Cigar, math::AnyInt, simd::SimdAnyInt};
 use std::simd::{LaneCount, SimdElement, SupportedLaneCount, prelude::*};
 
 /// Smith-Waterman algorithm, yielding the optimal score.
@@ -347,7 +343,7 @@ where
 
     for ref_index in reference.iter().copied().map(|r| map.to_index(r)) {
         let mut F = minimums;
-        let mut H = store[num_vecs - 1].shift_elements_right_z::<1>(min);
+        let mut H = store[num_vecs - 1].shift_elements_right::<1>(min);
 
         (load, store) = (store, load);
 
@@ -378,7 +374,7 @@ where
 
         let mut j = 0;
         H = store[j];
-        F = F.shift_elements_right_z::<1>(min);
+        F = F.shift_elements_right::<1>(min);
 
         // ¬∀x (F = (H - Go))
         //  ∃x (F > (H - Go)), given 1-sided
@@ -393,7 +389,7 @@ where
             j += 1;
             if j >= num_vecs {
                 j = 0;
-                F = F.shift_elements_right_z::<1>(min);
+                F = F.shift_elements_right::<1>(min);
             }
 
             // New J here
