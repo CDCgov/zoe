@@ -21,19 +21,32 @@ pub trait ByteSubstring {
     /// the forward direction.
     #[must_use]
     fn contains_substring(&self, needle: impl AsRef<[u8]>) -> bool;
+
     /// Returns the substring's index range if found or [`None`] if not. Searches in
     /// the forward direction.
     #[must_use]
     fn find_substring(&self, needle: impl AsRef<[u8]>) -> Option<Range<usize>>;
+
     /// Finds the `needle` in the `haystack` using inexact matching up to the
     /// `DIFFERENCES_ALLOWED`. See [`fuzzy_substring_match_simd`] for
     /// more details.
     #[must_use]
     fn find_fuzzy_substring<const DIFFERENCES_ALLOWED: usize>(&self, needle: impl AsRef<[u8]>) -> Option<Range<usize>>;
+
     /// Find contiguous, repeating byte characters in a byte slice. See [`find_k_repeating`]
     /// for more details.
     #[must_use]
     fn find_repeating_byte(&self, needle: u8, size: usize) -> Option<Range<usize>>;
+
+    /// Checks if the slice begins with a number of repeated consecutive
+    /// byte characters.
+    #[must_use]
+    fn starts_with_repeating(&self, needle: u8, reps: usize) -> bool;
+
+    /// Checks if the substring ends with a number of repeated consecutive byte
+    /// characters.
+    #[must_use]
+    fn ends_with_repeating(&self, needle: u8, reps: usize) -> bool;
 }
 
 impl<T: AsRef<[u8]> + ?Sized> ByteSubstring for T {
@@ -66,6 +79,19 @@ impl<T: AsRef<[u8]> + ?Sized> ByteSubstring for T {
 
         find_k_repeating::<32>(haystack, needle, size).map(|s| s..s + size)
     }
+
+    #[inline]
+    fn starts_with_repeating(&self, needle: u8, reps: usize) -> bool {
+        let bytes = self.as_ref();
+        bytes.len() >= reps && bytes[..reps].iter().all(|&b| b == needle)
+    }
+
+    #[inline]
+    fn ends_with_repeating(&self, needle: u8, reps: usize) -> bool {
+        let bytes = self.as_ref();
+        let len = bytes.len();
+        len >= reps && bytes[len - reps..].iter().all(|&b| b == needle)
+    }
 }
 
 impl ByteSubstring for RangeSearch<'_> {
@@ -91,6 +117,16 @@ impl ByteSubstring for RangeSearch<'_> {
         self.slice
             .find_repeating_byte(needle, size)
             .map(|r| self.adjust_to_context(&r))
+    }
+
+    #[inline]
+    fn starts_with_repeating(&self, needle: u8, reps: usize) -> bool {
+        self.slice.starts_with_repeating(needle, reps)
+    }
+
+    #[inline]
+    fn ends_with_repeating(&self, needle: u8, reps: usize) -> bool {
+        self.slice.ends_with_repeating(needle, reps)
     }
 }
 
@@ -261,5 +297,37 @@ mod test {
                 substring_match_simd::<16>(&haystack, &needle)
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod bench {
+    extern crate test;
+    use crate::search::ByteSubstring;
+
+    use test::Bencher;
+    use test::black_box;
+
+    const SEQ: &[u8] = b"GGGGGGGGGGGGAGCAAGCACAAAACAAGTTAAAGTTACTGGCCATAACAGCCAGAGGAAAATTAACTTAATTATATACAAAAACATATTCCTGTTGGCATAGGCAAATTTTAGAAGACAAATCCATGTAAGGAATAGGGGGGGGGGGGGG";
+
+    #[bench]
+    fn bench_starts_with_repeating(b: &mut Bencher) {
+        b.iter(|| {
+            for _ in 0..100 {
+                let ans = black_box(SEQ).starts_with_repeating(b'G', 10) && black_box(SEQ).ends_with_repeating(b'G', 10);
+                black_box(ans);
+            }
+        });
+    }
+
+    #[bench]
+    fn bench_check_literal(b: &mut Bencher) {
+        let needle = vec![b'G'; 10];
+        b.iter(|| {
+            for _ in 0..100 {
+                let ans = black_box(SEQ).starts_with(&needle) && black_box(SEQ).ends_with(&needle);
+                black_box(ans);
+            }
+        });
     }
 }
