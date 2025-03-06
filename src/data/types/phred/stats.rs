@@ -1,6 +1,7 @@
 use crate::composition::{get_median, get_min_med_max, tally_from_unchecked};
 
 use super::{Len, QScoreFloat, QScoreInt, QualityScores, QualityScoresView, QualityScoresViewMut};
+use std::convert::Into;
 
 pub trait QualityStats: AsRef<[u8]> + Len {
     /// Minimum phred quality score using a full counting sort
@@ -24,7 +25,7 @@ pub trait QualityStats: AsRef<[u8]> + Len {
         let mut table = [0; 256];
         // Safety: QualityScores are graphic ASCII
         let num_items = tally_from_unchecked(self, &mut table);
-        get_median::<b'!'>(&table, num_items).map(|q| q.into())
+        get_median::<b'!'>(&table, num_items).map(Into::into)
     }
 
     /// Efficiently obtain tuple of (min, median, max)
