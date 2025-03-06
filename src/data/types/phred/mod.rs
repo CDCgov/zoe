@@ -10,26 +10,26 @@ pub use stats::*;
 
 /// [`QualityScores`] is a transparent, new-type wrapper around [`Vec<u8>`] that
 /// representing Phred quality scores. It is guaranteed to contain graphic
-/// ASCII.
+/// ASCII in range `!`..=`~`.
 #[derive(Clone, Eq, PartialEq, Hash, Default)]
 #[repr(transparent)]
 pub struct QualityScores(pub(crate) Vec<EncodedQS>);
 
 /// The corresponding immutable view type for [`QualityScores`]. See
 /// [Views](crate::data#views) for more details. It is guaranteed to contain
-/// graphic ASCII.
+/// graphic ASCII in range `!`..=`~`.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Default)]
 #[repr(transparent)]
 pub struct QualityScoresView<'a>(pub(crate) &'a [u8]);
 
 /// The corresponding mutable view type for [`QualityScores`]. See
 /// [Views](crate::data#views) for more details. It is guaranteed to contain
-/// graphic ASCII.
+/// graphic ASCII in range `!`..=`~`.
 #[derive(Eq, PartialEq, Ord, PartialOrd, Hash, Default)]
 #[repr(transparent)]
 pub struct QualityScoresViewMut<'a>(pub(crate) &'a mut [u8]);
 
-/// Alias for encoded Quality Score data
+/// Alias for encoded quality score data.
 type EncodedQS = u8;
 
 impl QualityScores {
@@ -63,7 +63,7 @@ impl QualityScores {
         self.0
     }
 
-    /// Gets the ASCII encoded quality scores as a byte slice.
+    /// Gets the ASCII-encoded quality scores as a byte slice.
     #[inline]
     #[must_use]
     pub fn as_bytes(&self) -> &[u8] {
@@ -74,14 +74,14 @@ impl QualityScores {
     ///
     /// ## Safety
     /// Any modifications to the bytes must ensure that they remain graphic
-    /// ASCII.
+    /// ASCII in range `!`..=`~`.
     #[inline]
     #[must_use]
     pub unsafe fn as_mut_bytes(&mut self) -> &mut [u8] {
         &mut self.0
     }
 
-    /// Gets the ASCII encoded quality score or byte slice at the zero-based
+    /// Gets the ASCII-encoded quality score or byte slice at the zero-based
     /// index, returning an [`Option`].
     #[inline]
     #[must_use]
@@ -235,7 +235,7 @@ impl<'a> QualityScoresViewMut<'a> {
     ///
     /// ## Safety
     /// Any modifications to the bytes must ensure that they remain graphic
-    /// ASCII.
+    /// ASCII in range `!`..=`~`.
     #[inline]
     #[must_use]
     pub unsafe fn as_mut_bytes(&mut self) -> &mut [u8] {
@@ -274,23 +274,27 @@ impl<'a> QualityScoresViewMut<'a> {
     }
 }
 
-/// Type alias for the quality score when returned as `f32`
+/// Wrapper type for the quality score when returned as `f32`.
 ///
-/// Significant figures for Phred error probabilities is 6 (0.999999). The
-/// quality score, being a log of the Phred error times a constant, must retain
-/// 6 significant figures after the decimal. The maximum value is 60, so 8
-/// digits must be retained at maximum. When converting `usize`/`u64` to `f32`,
-/// 8 digits are retained. Therefore, for type conversion and averages, which
-/// propogates significant figures, `f32` should be a sufficient choice.
+/// ## Significant Figures
+/// Significant figures for Phred error probabilities is 6 (0.999999). The use
+/// of [`powf`] has an unspecified precision in Rust, but empirical tests reveal
+/// that an f32 achieve the 6 significant figures for quality scores in the
+/// range `~`..=`J`, which covers the vast majority of use-cases. For higher
+/// qualities, sometimes only 5 significant figures are preserved. For type
+/// conversion and averages, which propogate significant figures, `f32` should
+/// therefore be a sufficient choice.
+///
+/// [`powf`]: f32::powf
 #[repr(transparent)]
 #[derive(Copy, Clone, PartialEq, PartialOrd, Debug)]
 pub struct QScoreFloat(pub(crate) f32);
 
-/// Type alias for probabilities as `f32`
+/// Type alias for probabilities as `f32`.
 type Probability = f32;
 
 impl QScoreFloat {
-    /// Obtains the `f32` value for the [`QScoreFloat`]
+    /// Obtains the `f32` value for the [`QScoreFloat`].
     #[inline]
     #[must_use]
     pub fn as_f32(&self) -> f32 {
@@ -307,6 +311,8 @@ impl QScoreFloat {
 }
 
 impl From<EncodedQS> for QScoreFloat {
+    /// Converts an ASCII-encoded quality score to a [`QScoreFloat`]. This
+    /// assumes that a 33 ASCII offset is used.
     #[inline]
     fn from(encoded: EncodedQS) -> Self {
         QScoreFloat(f32::from(encoded - 33))
@@ -314,20 +320,22 @@ impl From<EncodedQS> for QScoreFloat {
 }
 
 impl std::convert::From<f32> for QScoreFloat {
+    /// Converts a `f32` representing an average/mean ASCII-encoded quality
+    /// score to a [`QScoreFloat`]. This assumes that a 33 ASCII offset is used.
     #[inline]
     fn from(encoded: f32) -> Self {
         QScoreFloat(encoded - 33.0)
     }
 }
 
-/// A single phred quality score in numeric (not ASCII encoded) range.
-/// The type is functionally a `u8`.
+/// A single phred quality score in numeric (not ASCII encoded) range. The type
+/// is functionally a `u8`.
 #[repr(transparent)]
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct QScoreInt(pub(crate) u8);
 
 impl QScoreInt {
-    /// Calculate the expected rate of machine error from the [`QScoreInt`]
+    /// Calculates the expected rate of machine error from the [`QScoreInt`].
     #[inline]
     #[must_use]
     pub fn to_error(&self) -> Probability {
@@ -335,7 +343,7 @@ impl QScoreInt {
         BASE.powf(-f32::from(self.0) / BASE)
     }
 
-    /// Obtain the `u8` value for the [`QScoreInt`]
+    /// Obtains the `u8` value for the [`QScoreInt`].
     #[inline]
     #[must_use]
     pub fn as_u8(&self) -> u8 {
@@ -344,6 +352,8 @@ impl QScoreInt {
 }
 
 impl From<EncodedQS> for QScoreInt {
+    /// Converts an ASCII-encoded quality score to a [`QScoreInt`]. This assumes
+    /// that a 33 ASCII offset is used.
     #[inline]
     fn from(encoded: EncodedQS) -> Self {
         QScoreInt(encoded - 33)

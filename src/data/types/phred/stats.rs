@@ -3,19 +3,21 @@ use crate::composition::{get_median, get_min_med_max, tally_from_unchecked};
 use super::{Len, QScoreFloat, QScoreInt, QualityScores, QualityScoresView, QualityScoresViewMut};
 use std::convert::Into;
 
+/// Methods for calculating statistics on quality scores. All methods assume
+/// that a 33 ASCII offset is used.
 pub trait QualityStats: AsRef<[u8]> + Len {
-    /// Minimum phred quality score using a full counting sort
+    /// Calculates the minimum phred quality score using a full scan.
     #[inline]
     #[must_use]
     fn min_q(&self) -> Option<QScoreInt> {
-        self.as_ref().iter().min().map(|q| QScoreInt(q - 33))
+        self.as_ref().iter().min().copied().map(QScoreInt::from)
     }
 
-    /// Maximum phred quality score using a full counting sort
+    /// Calculates the maximum phred quality score using a full scan.
     #[inline]
     #[must_use]
     fn max_q(&self) -> Option<QScoreInt> {
-        self.as_ref().iter().max().map(|q| QScoreInt(q - 33))
+        self.as_ref().iter().max().copied().map(QScoreInt::from)
     }
 
     /// Calculates the median phred quality score (not ASCII encoded).
@@ -28,7 +30,12 @@ pub trait QualityStats: AsRef<[u8]> + Len {
         get_median::<b'!'>(&table, num_items).map(Into::into)
     }
 
-    /// Efficiently obtain tuple of (min, median, max)
+    /// Efficiently calculates a tuple of minimum quality, median quality, and
+    /// max quality. See [`min_q`], [`median`], and [`max_q`] for more details.
+    ///
+    /// [`min_q`]: QualityStats::min_q
+    /// [`median`]: QualityStats::median
+    /// [`max_q`]: QualityStats::max_q
     #[inline]
     #[must_use]
     fn min_median_max(&self) -> Option<(QScoreInt, QScoreFloat, QScoreInt)> {
@@ -43,84 +50,94 @@ pub trait QualityStats: AsRef<[u8]> + Len {
     #[inline]
     #[must_use]
     fn geometric_mean(&self) -> Option<QScoreFloat> {
-        match self.len() {
-            0 => None,
-            1 => Some(self.as_ref()[0].into()),
-            n => {
-                let sum: usize = self.as_ref().iter().fold(0usize, |sum, x| sum + *x as usize);
-                Some(QScoreFloat((sum - (n * 33)) as f32 / n as f32))
-            }
+        if self.is_empty() {
+            return None;
         }
+
+        let n = self.len();
+        let sum = self.as_ref().iter().map(|x| *x as usize).sum::<usize>();
+        Some(QScoreFloat((sum - (n * 33)) as f32 / n as f32))
     }
 
-    /// Efficiently obtain tuple of min, geometric mean, and max.
+    /// Efficiently calculates a tuple of the minimum quality, the geometric
+    /// mean, and the max quality. See [`min_q`], [`geometric_mean`], and
+    /// [`max_q`] for more details.
+    ///
+    /// [`min_q`]: QualityStats::min_q
+    /// [`geometric_mean`]: QualityStats::geometric_mean
+    /// [`max_q`]: QualityStats::max_q
     #[inline]
     #[must_use]
     fn min_geomean_max(&self) -> Option<(QScoreInt, QScoreFloat, QScoreInt)> {
-        match self.len() {
-            0 => None,
-            1 => Some((self.as_ref()[0].into(), self.as_ref()[0].into(), self.as_ref()[0].into())),
-            n => {
-                let (min, mean, max) =
-                    self.as_ref()
-                        .iter()
-                        .fold((self.as_ref()[0], 0usize, self.as_ref()[0]), |(min, mean, max), x| {
-                            let new_min = if *x < min { *x } else { min };
-                            let new_max = if *x > min { *x } else { max };
-                            (new_min, mean + *x as usize, new_max)
-                        });
-                Some((
-                    QScoreInt::from(min),
-                    QScoreFloat((mean - (n * 33)) as f32 / n as f32),
-                    QScoreInt::from(max),
-                ))
-            }
+        if self.is_empty() {
+            return None;
         }
+
+        let n = self.len();
+        let (min, sum, max) =
+            self.as_ref()
+                .iter()
+                .copied()
+                .fold((self.as_ref()[0], 0usize, self.as_ref()[0]), |(min, sum, max), x| {
+                    let min = std::cmp::min(x, min);
+                    let max = std::cmp::max(x, max);
+                    let sum = sum + x as usize;
+                    (min, sum, max)
+                });
+
+        let mean = (sum - (n * 33)) as f32 / n as f32;
+        Some((QScoreInt::from(min), QScoreFloat(mean), QScoreInt::from(max)))
     }
 
-    /// The arithetic mean error represented as a phred quality score floating
-    /// point value.
+    /// Calculates the arithetic mean error represented as a phred quality score
+    /// floating point value.
     #[inline]
     #[must_use]
     fn arithmetic_mean(&self) -> Option<QScoreFloat> {
-        match self.len() {
-            0 => None,
-            1 => Some(self.as_ref()[0].into()),
-            n => {
-                let sum = self
-                    .as_ref()
-                    .iter()
-                    .fold(0f32, |sum, x| sum + QualityScores::encoded_qs_to_error(*x));
-
-                Some(QScoreFloat::error_to_q(sum / n as f32))
-            }
+        if self.is_empty() {
+            return None;
         }
+
+        let sum = self
+            .as_ref()
+            .iter()
+            .copied()
+            .map(QualityScores::encoded_qs_to_error)
+            .sum::<f32>();
+
+        Some(QScoreFloat::error_to_q(sum / self.len() as f32))
     }
 
-    /// Efficiently get a tuple of the minimum, arithmetic mean, and maximum.
+    /// Efficiently calculates a tuple of the minimum quality, arithmetic mean
+    /// quality, and maximum quality. See [`min_q`], [`arithmetic_mean`], and
+    /// [`max_q`] for more details.
+    ///
+    /// [`min_q`]: QualityStats::min_q
+    /// [`arithmetic_mean`]: QualityStats::arithmetic_mean
+    /// [`max_q`]: QualityStats::max_q
     #[inline]
     #[must_use]
     fn min_average_max(&self) -> Option<(QScoreInt, QScoreFloat, QScoreInt)> {
-        match self.len() {
-            0 => None,
-            1 => Some((self.as_ref()[0].into(), self.as_ref()[0].into(), self.as_ref()[0].into())),
-            n => {
-                let (min, sum, max) =
-                    self.as_ref()
-                        .iter()
-                        .fold((self.as_ref()[0], 0f32, self.as_ref()[0]), |(min, sum, max), x| {
-                            let new_min = if *x < min { *x } else { min };
-                            let new_max = if *x > min { *x } else { max };
-                            (new_min, sum + QualityScores::encoded_qs_to_error(*x), new_max)
-                        });
-
-                Some((
-                    QScoreInt::from(min),
-                    QScoreFloat::error_to_q(sum / n as f32),
-                    QScoreInt::from(max),
-                ))
-            }
+        if self.is_empty() {
+            return None;
         }
+
+        let (min, sum, max) =
+            self.as_ref()
+                .iter()
+                .copied()
+                .fold((self.as_ref()[0], 0f32, self.as_ref()[0]), |(min, sum, max), x| {
+                    let min = std::cmp::min(x, min);
+                    let max = std::cmp::max(x, max);
+                    let sum = sum + QualityScores::encoded_qs_to_error(x);
+                    (min, sum, max)
+                });
+
+        Some((
+            QScoreInt::from(min),
+            QScoreFloat::error_to_q(sum / self.len() as f32),
+            QScoreInt::from(max),
+        ))
     }
 }
 
