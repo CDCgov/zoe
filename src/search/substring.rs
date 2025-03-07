@@ -38,15 +38,15 @@ pub trait ByteSubstring {
     #[must_use]
     fn find_repeating_byte(&self, needle: u8, size: usize) -> Option<Range<usize>>;
 
-    /// Checks if the slice begins with a number of repeated consecutive
-    /// byte characters.
+    /// Checks if the slice begins with some minimal number of consecutive byte
+    /// repetitions and returns the largest contiguous range if so.
     #[must_use]
-    fn starts_with_repeating(&self, needle: u8, reps: usize) -> bool;
+    fn find_repeating_at_start(&self, needle: u8, min_reps: usize) -> Option<Range<usize>>;
 
-    /// Checks if the substring ends with a number of repeated consecutive byte
-    /// characters.
+    /// Checks if the slice ends with some minimal number of consecutive byte
+    /// repetitions and returns the largest contiguous range if so.
     #[must_use]
-    fn ends_with_repeating(&self, needle: u8, reps: usize) -> bool;
+    fn find_repeating_at_end(&self, needle: u8, min_reps: usize) -> Option<Range<usize>>;
 }
 
 impl<T: AsRef<[u8]> + ?Sized> ByteSubstring for T {
@@ -81,16 +81,26 @@ impl<T: AsRef<[u8]> + ?Sized> ByteSubstring for T {
     }
 
     #[inline]
-    fn starts_with_repeating(&self, needle: u8, reps: usize) -> bool {
-        let bytes = self.as_ref();
-        bytes.len() >= reps && bytes[..reps].iter().all(|&b| b == needle)
+    fn find_repeating_at_start(&self, needle: u8, min_reps: usize) -> Option<Range<usize>> {
+        let (head, tail) = self.as_ref().split_at_checked(min_reps)?;
+        if head.iter().all(|b| *b == needle) {
+            let offset = tail.iter().take_while(|b| **b == needle).count();
+            Some(0..min_reps + offset)
+        } else {
+            None
+        }
     }
 
     #[inline]
-    fn ends_with_repeating(&self, needle: u8, reps: usize) -> bool {
+    fn find_repeating_at_end(&self, needle: u8, min_reps: usize) -> Option<Range<usize>> {
         let bytes = self.as_ref();
-        let len = bytes.len();
-        len >= reps && bytes[len - reps..].iter().all(|&b| b == needle)
+        let (head, tail) = bytes.split_at_checked(bytes.len() - min_reps)?;
+        if tail.iter().all(|b| *b == needle) {
+            let offset = head.iter().rev().take_while(|b| **b == needle).count();
+            Some(head.len() - offset..bytes.len())
+        } else {
+            None
+        }
     }
 }
 
@@ -120,13 +130,13 @@ impl ByteSubstring for RangeSearch<'_> {
     }
 
     #[inline]
-    fn starts_with_repeating(&self, needle: u8, reps: usize) -> bool {
-        self.slice.starts_with_repeating(needle, reps)
+    fn find_repeating_at_start(&self, needle: u8, min_reps: usize) -> Option<Range<usize>> {
+        self.slice.find_repeating_at_start(needle, min_reps)
     }
 
     #[inline]
-    fn ends_with_repeating(&self, needle: u8, reps: usize) -> bool {
-        self.slice.ends_with_repeating(needle, reps)
+    fn find_repeating_at_end(&self, needle: u8, min_reps: usize) -> Option<Range<usize>> {
+        self.slice.find_repeating_at_end(needle, min_reps)
     }
 }
 
@@ -298,6 +308,29 @@ mod test {
             );
         }
     }
+
+    #[test]
+    fn starts_ends_with_repeating() {
+        let b = b"GGGGGGGGGGGGAGCAAGCACAAAACAAAAATCCATGTAAGGAATAGGGGGGGGGGGGGG";
+        assert_eq!(b.find_repeating_at_start(b'G', 10), Some(0..12));
+        assert_eq!(b.find_repeating_at_end(b'G', 10), Some(46..60));
+
+        let b = b"GGGCAAGGGGGAATAGGGGG";
+        assert_eq!(b.find_repeating_at_start(b'G', 3), Some(0..3));
+        assert_eq!(b.find_repeating_at_end(b'G', 5), Some(15..20));
+        assert_eq!(b.find_repeating_at_start(b'G', 2), Some(0..3));
+        assert_eq!(b.find_repeating_at_end(b'G', 4), Some(15..20));
+        assert_eq!(b.find_repeating_at_start(b'G', 4), None);
+        assert_eq!(b.find_repeating_at_end(b'G', 6), None);
+
+        let b = b"GGGGGGGGGGGGGGG";
+        assert_eq!(b.find_repeating_at_start(b'G', 3), Some(0..15));
+        assert_eq!(b.find_repeating_at_end(b'G', 5), Some(0..15));
+
+        let b = b"AGGGGGGGGGGGGGA";
+        assert_eq!(b.find_repeating_at_start(b'G', 3), None);
+        assert_eq!(b.find_repeating_at_end(b'G', 5), None);
+    }
 }
 
 #[cfg(test)]
@@ -308,13 +341,14 @@ mod bench {
     use test::Bencher;
     use test::black_box;
 
-    const SEQ: &[u8] = b"GGGGGGGGGGGGAGCAAGCACAAAACAAGTTAAAGTTACTGGCCATAACAGCCAGAGGAAAATTAACTTAATTATATACAAAAACATATTCCTGTTGGCATAGGCAAATTTTAGAAGACAAATCCATGTAAGGAATAGGGGGGGGGGGGGG";
+    static SEQ: &[u8] = b"GGGGGGGGGGGGAGCAAGCACAAAACAAGTTAAAGTTACTGGCCATAACAGCCAGAGGAAAATTAACTTAATTATATACAAAAACATATTCCTGTTGGCATAGGCAAATTTTAGAAGACAAATCCATGTAAGGAATAGGGGGGGGGGGGGG";
 
     #[bench]
     fn bench_starts_with_repeating(b: &mut Bencher) {
         b.iter(|| {
             for _ in 0..100 {
-                let ans = black_box(SEQ).starts_with_repeating(b'G', 10) && black_box(SEQ).ends_with_repeating(b'G', 10);
+                let ans = black_box(SEQ).find_repeating_at_start(b'G', 10).is_some()
+                    && black_box(SEQ).find_repeating_at_end(b'G', 10).is_some();
                 black_box(ans);
             }
         });
@@ -325,7 +359,20 @@ mod bench {
         let needle = vec![b'G'; 10];
         b.iter(|| {
             for _ in 0..100 {
-                let ans = black_box(SEQ).starts_with(&needle) && black_box(SEQ).ends_with(&needle);
+                let ans = if black_box(SEQ).starts_with(&needle) {
+                    let offset = SEQ[10..].iter().take_while(|b| **b == b'G').count();
+                    Some(0..10 + offset)
+                } else {
+                    None
+                }
+                .is_some()
+                    && if black_box(SEQ).ends_with(&needle) {
+                        let offset = SEQ[..SEQ.len() - 10].iter().rev().take_while(|b| **b == b'G').count();
+                        Some(10 - offset..SEQ.len())
+                    } else {
+                        None
+                    }
+                    .is_some();
                 black_box(ans);
             }
         });
