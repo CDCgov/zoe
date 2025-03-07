@@ -20,12 +20,16 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+mod amino_acids;
 mod cigar;
+mod kmer;
 mod nucleotides;
 mod string;
 mod vec;
 
+pub use amino_acids::*;
 pub use cigar::*;
+pub use kmer::*;
 pub use nucleotides::*;
 pub use string::*;
 pub use vec::*;
@@ -46,6 +50,23 @@ macro_rules! impl_deref {
             }
         }
     };
+}
+
+/// A wrapper around u8 such that the byte is graphic ASCII in the range
+/// `!`..=`~`.
+pub struct GraphicAsciiByte(u8);
+
+impl_deref! {GraphicAsciiByte, u8}
+
+impl<'a> Arbitrary<'a> for GraphicAsciiByte {
+    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
+        Ok(GraphicAsciiByte(u.int_in_range(b'!'..=b'~')?))
+    }
+
+    fn size_hint(depth: usize) -> (usize, Option<usize>) {
+        let _ = depth;
+        (1, Some(1))
+    }
 }
 
 impl<'a> Arbitrary<'a> for QualityScores {
