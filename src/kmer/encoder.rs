@@ -133,9 +133,15 @@ where
     /// An iterator over the encoded overlapping k-mers in a sequence, from left
     /// to right.
     type SeqIter<'a>: Iterator<Item = Self::EncodedKmer>;
+    /// A consuming iterator over the encoded overlapping k-mers in a sequence,
+    /// from left to right.
+    type SeqIntoIter: Iterator<Item = Self::EncodedKmer>;
     /// An iterator over the encoded overlapping k-mers in a sequence, from
     /// right to left.
     type SeqIterRev<'a>: Iterator<Item = Self::EncodedKmer>;
+    /// A consumuing iterator over the encoded overlapping k-mers in a sequence,
+    /// from right to left.
+    type SeqIntoIterRev: Iterator<Item = Self::EncodedKmer>;
     /// An iterator over all encoded k-mers that are at most a Hamming distance
     /// of one away from a provided k-mer. The original k-mer is included in the
     /// iterator.
@@ -148,54 +154,54 @@ where
     /// length for the encoding.
     fn new(kmer_length: usize) -> Result<Self, KmerError>;
 
-    /// Retrieve the k-mer length associated with this [`KmerEncoder`].
+    /// Retrieves the k-mer length associated with this [`KmerEncoder`].
     fn kmer_length(&self) -> usize;
 
-    /// Encode a single base. The base is assumed to be valid for the given
+    /// Encodes a single base. The base is assumed to be valid for the given
     /// [`KmerEncoder`]. Consider [`encode_base_checked`] when it is not known
     /// whether the base will be valid.
     ///
     /// [`encode_base_checked`]: KmerEncoder::encode_base_checked
     fn encode_base(base: u8) -> Self::EncodedBase;
 
-    /// Encode a single base. If the base is not valid for the given
+    /// Encodes a single base. If the base is not valid for the given
     /// [`KmerEncoder`], then `None` is returned.
     fn encode_base_checked(base: u8) -> Option<Self::EncodedBase>;
 
-    /// Decode a single base. The base is assumed to be valid for the given
+    /// Decodes a single base. The base is assumed to be valid for the given
     /// [`KmerEncoder`]. Consider [`decode_base_checked`] when it is not known
     /// whether the base will be valid.
     ///
     /// [`decode_base_checked`]: KmerEncoder::decode_base_checked
     fn decode_base(encoded_base: Self::EncodedBase) -> u8;
 
-    /// Decode a single base. If the base is not valid for the given
+    /// Decodes a single base. If the base is not valid for the given
     /// [`KmerEncoder`], then `None` is returned.
     fn decode_base_checked(encoded_base: Self::EncodedBase) -> Option<u8>;
 
-    /// Encode a k-mer. The bases and k-mer length are assumed to be valid for
+    /// Encodes a k-mer. The bases and k-mer length are assumed to be valid for
     /// the given [`KmerEncoder`]. Consider [`encode_kmer_checked`] when it is
     /// not known whether the bases and k-mer length will be valid.
     ///
     /// [`encode_kmer_checked`]: KmerEncoder::encode_kmer_checked
     fn encode_kmer<S: AsRef<[u8]>>(&self, kmer: S) -> Self::EncodedKmer;
 
-    /// Encode a k-mer. If the bases and k-mer length are not valid for the
+    /// Encodes a k-mer. If the bases and k-mer length are not valid for the
     /// given [`KmerEncoder`], then `None` is returned.
     fn encode_kmer_checked<S: AsRef<[u8]>>(&self, kmer: S) -> Option<Self::EncodedKmer>;
 
-    /// Decode a k-mer. The bases and k-mer length are assumed to be valid for
+    /// Decodes a k-mer. The bases and k-mer length are assumed to be valid for
     /// the given [`KmerEncoder`]. Consider [`decode_kmer_checked`] when it is
     /// not known whether the bases and k-mer length will be valid.
     ///
     /// [`decode_kmer_checked`]: KmerEncoder::decode_kmer_checked
     fn decode_kmer(&self, encoded_kmer: Self::EncodedKmer) -> Kmer<MAX_LEN>;
 
-    /// Decode a k-mer. If the bases and k-mer length are not valid for the
+    /// Decodes a k-mer. If the bases and k-mer length are not valid for the
     /// given [`KmerEncoder`], then `None` is returned.
     fn decode_kmer_checked(&self, encoded_kmer: Self::EncodedKmer) -> Option<Kmer<MAX_LEN>>;
 
-    /// Get an iterator over all encoded k-mers that are at most a Hamming
+    /// Gets an iterator over all encoded k-mers that are at most a Hamming
     /// distance of `N` away from the provided k-mer. The original k-mer is
     /// included in the iterator.
     ///
@@ -207,15 +213,56 @@ where
     where
         MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, Self>;
 
-    /// Get an iterator over the encoded overlapping k-mers in a sequence, from
+    /// Gets an iterator over the encoded overlapping k-mers in a sequence, from
     /// left to right. If the sequence is shorter than the k-mer length of the
     /// [`KmerEncoder`], then the iterator will be empty. The sequence should
     /// only contain valid bases for the given [`KmerEncoder`].
     fn iter_from_sequence<'a, S: AsRef<[u8]> + ?Sized>(&self, seq: &'a S) -> Self::SeqIter<'a>;
 
-    /// Get an iterator over the encoded overlapping k-mers in a sequence, from
+    /// Gets a consuming iterator over the encoded overlapping k-mers in a
+    /// sequence, from left to right. If the sequence is shorter than the k-mer
+    /// length of the [`KmerEncoder`], then the iterator will be empty. The
+    /// sequence should only contain valid bases for the given [`KmerEncoder`].
+    ///
+    /// This is similar to [`iter_from_sequence`], but the iterator
+    /// consumes/stores the sequence. This is useful when attempting to map an
+    /// iterator of sequences to an iterator of kmers, in which case
+    /// [`iter_from_sequence`] would not work because the sequence would be
+    /// dropped too soon.
+    ///
+    /// [`iter_from_sequence`]: KmerEncoder::iter_from_sequence
+    fn iter_consuming_seq<S>(&self, seq: S) -> Self::SeqIntoIter
+    where
+        S: Into<Vec<u8>>,
+        for<'a> &'a S: AsRef<Vec<u8>>;
+    // Note: the HRTB is not necessary, but it prevents this function from
+    // accepting slices or other types which would incur an expensive
+    // conversion. In such cases, `iter_from_sequence` should be used instead.
+
+    /// Gets an iterator over the encoded overlapping k-mers in a sequence, from
     /// right to left. If the sequence is shorter than the k-mer length of the
     /// [`KmerEncoder`], then the iterator will be empty. The sequence should
     /// only contain valid bases for the given [`KmerEncoder`].
     fn iter_from_sequence_rev<'a, S: AsRef<[u8]> + ?Sized>(&self, seq: &'a S) -> Self::SeqIterRev<'a>;
+
+    /// Gets a consuming iterator over the encoded overlapping k-mers in a
+    /// sequence, from right to left. If the sequence is shorter than the k-mer
+    /// length of the [`KmerEncoder`], then the iterator will be empty. The
+    /// sequence should only contain valid bases for the given [`KmerEncoder`].
+    ///
+    /// This is similar to [`iter_from_sequence_rev`], but the iterator
+    /// consumes/stores the sequence. This is useful when attempting to map an
+    /// iterator of sequences to an iterator of kmers, in which case
+    /// [`iter_from_sequence_rev`] would not work because the sequence would be
+    /// dropped too soon.
+    ///
+    /// [`iter_from_sequence_rev`]: KmerEncoder::iter_from_sequence_rev
+    fn iter_consuming_seq_rev<S>(&self, seq: S) -> Self::SeqIntoIterRev
+    where
+        S: Into<Vec<u8>>,
+        for<'a> &'a S: AsRef<Vec<u8>>;
+    // Note: the HRTB is not necessary, but it prevents this function from
+    // accepting slices or other types which would incur an expensive
+    // conversion. In such cases, `iter_from_sequence_rev` should be used
+    // instead.
 }
