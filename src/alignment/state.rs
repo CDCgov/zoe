@@ -439,7 +439,7 @@ mod test {
     fn align_with_cigar() {
         let data: [(usize, Cigar, [AminoAcids; 4]); 1] = [(
             2,
-            "4M".into(),
+            Cigar::from_vec_unchecked(b"4M".to_vec()),
             [b"PLEASANTLY".into(), b"MEANLY".into(), b"LEAS".into(), b"MEAN".into()],
         )];
 

@@ -12,6 +12,19 @@ const USIZE_WIDTH: usize = 10;
 const USIZE_WIDTH: usize = 20;
 
 impl Cigar {
+    /// Creates a CIGAR string from a Vec of bytes without checking for validity
+    #[inline]
+    #[must_use]
+    pub fn from_vec_unchecked(v: Vec<u8>) -> Self {
+        Cigar(v)
+    }
+
+    /// Creates a new empty CIGAR string
+    #[must_use]
+    pub fn new() -> Self {
+        Cigar(Vec::new())
+    }
+
     /// Expands a CIGAR to an opcode-only byte string, e.g. "3M" → "MMM".
     #[must_use]
     pub(crate) fn expand_cigar(&self) -> ExpandedCigar {
@@ -39,6 +52,20 @@ impl Cigar {
     pub fn iter(&self) -> CigletIterator<'_> {
         CigletIterator::new(&self.0)
     }
+
+    /// Validates that a CIGAR only contains valid (inc, op) pairs
+    #[inline]
+    #[must_use]
+    pub fn is_valid(&self) -> bool {
+        Cigar::try_from(&self.0[..]).is_ok()
+    }
+}
+
+impl Default for Cigar {
+    #[inline]
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<'a> IntoIterator for &'a Cigar {
@@ -54,35 +81,22 @@ impl<'a> IntoIterator for &'a Cigar {
 impl std::fmt::Display for Cigar {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", String::from_utf8_lossy(&self.0))
+        if self.0.is_empty() || self.0 == vec![b'*'] {
+            write!(f, "{}", String::from("*"))
+        } else {
+            write!(f, "{}", String::from_utf8_lossy(&self.0))
+        }
     }
 }
 
 impl std::fmt::Debug for Cigar {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", String::from_utf8_lossy(&self.0))
-    }
-}
-
-impl From<&str> for Cigar {
-    #[inline]
-    fn from(s: &str) -> Self {
-        Cigar(s.as_bytes().to_owned())
-    }
-}
-
-impl From<&[u8]> for Cigar {
-    #[inline]
-    fn from(v: &[u8]) -> Self {
-        Cigar(v.to_vec())
-    }
-}
-
-impl<const N: usize> From<&[u8; N]> for Cigar {
-    #[inline]
-    fn from(v: &[u8; N]) -> Self {
-        Cigar(v.to_vec())
+        if self.0.is_empty() || self.0 == vec![b'*'] {
+            write!(f, "{}", String::from("*"))
+        } else {
+            write!(f, "{}", String::from_utf8_lossy(&self.0))
+        }
     }
 }
 
@@ -93,6 +107,68 @@ impl From<ExpandedCigar> for Cigar {
     }
 }
 
+impl TryFrom<Vec<u8>> for Cigar {
+    type Error = CigarError;
+
+    fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
+        let mut num: usize = 0;
+        let mut has_number = false;
+
+        for b in &bytes {
+            if b.is_ascii_digit() {
+                num = num
+                    .checked_mul(10)
+                    .and_then(|n| n.checked_add((b - b'0') as usize))
+                    .ok_or(CigarError::IncOverflow)?;
+                has_number = true;
+            } else if IS_CIGAR[*b as usize] {
+                if !has_number {
+                    return Err(CigarError::MissingInc);
+                }
+                if num == 0 {
+                    return Err(CigarError::IncZero);
+                }
+                num = 0;
+                has_number = false;
+            } else {
+                return Err(CigarError::InvalidOperation);
+            }
+        }
+
+        if has_number {
+            return Err(CigarError::MissingOp);
+        }
+
+        Ok(Cigar(bytes))
+    }
+}
+
+impl TryFrom<String> for Cigar {
+    type Error = CigarError;
+
+    #[inline]
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        Cigar::try_from(s.into_bytes())
+    }
+}
+
+impl TryFrom<&[u8]> for Cigar {
+    type Error = CigarError;
+
+    #[inline]
+    fn try_from(v: &[u8]) -> Result<Self, Self::Error> {
+        Cigar::try_from(v.to_owned())
+    }
+}
+
+impl TryFrom<&str> for Cigar {
+    type Error = CigarError;
+
+    #[inline]
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        Cigar::try_from(s.as_bytes())
+    }
+}
 /// A single increment-opcode pair.
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Ciglet {
@@ -271,14 +347,14 @@ mod tests {
 
     #[test]
     fn test_expand() {
-        let cigar: Cigar = " 4S10M2I2D3M4H4P".into();
+        let cigar = Cigar::from_vec_unchecked(b" 4S10M2I2D3M4H4P".to_vec());
         let expanded: ExpandedCigar = "SSSSMMMMMMMMMMIIDDMMMHHHHPPPP".into();
         assert_eq!(cigar.expand_cigar(), expanded);
     }
 
     #[test]
     fn test_iter() {
-        let cigar: Cigar = "  1M22I333D4444N55555S6666H777P88X9=  ".into();
+        let cigar = Cigar::from_vec_unchecked(b"  1M22I333D4444N55555S6666H777P88X9=  ".to_vec());
         let mut cigar = cigar.into_iter();
 
         assert_eq!(cigar.next(), Some(Ciglet { op: b'M', inc: 1 }));
@@ -293,24 +369,24 @@ mod tests {
         assert_eq!(cigar.next(), None);
 
         // Illegal cigar op
-        let cigar: Cigar = "8K".into();
+        let cigar = Cigar::from_vec_unchecked(b"8K".to_vec());
         assert_eq!(cigar.into_iter().next(), None);
 
         // Leading zeroes don't matter
-        let cigar: Cigar = "000000000000000000000000000000155M".into();
+        let cigar = Cigar::from_vec_unchecked(b"000000000000000000000000000000155M".to_vec());
         assert_eq!(cigar.into_iter().next(), Some(Ciglet { op: b'M', inc: 155 }));
 
         // Overflows
-        let cigar: Cigar = "100000000000000000000000000000155M".into();
+        let cigar = Cigar::from_vec_unchecked(b"100000000000000000000000000000155M".to_vec());
         assert_eq!(cigar.into_iter().next(), None);
 
         // Bad order
-        let cigar: Cigar = "M155M".into();
+        let cigar = Cigar::from_vec_unchecked(b"M155M".to_vec());
         assert_eq!(cigar.into_iter().next(), None);
 
         // usize == u64
         if USIZE_WIDTH == 20 {
-            let cigar: Cigar = "18446744073709551615M".into();
+            let cigar = Cigar::from_vec_unchecked(b"18446744073709551615M".to_vec());
             assert_eq!(
                 cigar.into_iter().next(),
                 Some(Ciglet {
@@ -319,7 +395,7 @@ mod tests {
                 })
             );
 
-            let cigar: Cigar = "001234567890123456789M".into();
+            let cigar = Cigar::from_vec_unchecked(b"001234567890123456789M".to_vec());
             assert_eq!(
                 cigar.into_iter().next(),
                 Some(Ciglet {
@@ -342,24 +418,24 @@ mod tests {
         ];
 
         for (c, l) in cigars {
-            let cigar = Cigar::from(c);
+            let cigar = Cigar::from_vec_unchecked(c.as_bytes().to_vec());
             assert_eq!(cigar.match_length(), l);
         }
     }
 
     #[test]
     fn test_condense_cigar() {
-        let cigars = ["4S10M2I2D3M4H4P", "", "3M2D1M", "255M", "3M1D4I8X9=4M"];
+        let cigars: [&[u8]; 5] = [b"4S10M2I2D3M4H4P", b"", b"3M2D1M", b"255M", b"3M1D4I8X9=4M"];
 
         for c in cigars {
-            let cigar = Cigar::from(c);
+            let cigar = Cigar::from_vec_unchecked(c.to_vec());
             assert_eq!(cigar.expand_cigar().condense_to_cigar(), cigar);
         }
     }
 
     #[test]
     fn test_add_state() {
-        let cigar: Cigar = "4S10M2I2D3M4H4P".into();
+        let cigar = Cigar::from_vec_unchecked(b"4S10M2I2D3M4H4P".to_vec());
         let mut states = AlignmentStates::new();
         for Ciglet { inc, op } in &cigar {
             for _ in 0..inc {
@@ -368,6 +444,32 @@ mod tests {
         }
 
         assert_eq!(cigar, states.to_cigar());
+    }
+
+    #[test]
+    fn test_is_valid() {
+        assert!(Cigar::from_vec_unchecked(b"10M5I20D".to_vec()).is_valid());
+        assert!(!Cigar::from_vec_unchecked(b"M10D".to_vec()).is_valid());
+        assert!(!Cigar::from_vec_unchecked(b"10M5I0D".to_vec()).is_valid());
+        assert!(!Cigar::from_vec_unchecked(b"10MM5I".to_vec()).is_valid());
+        assert!(Cigar::try_from(b"19446744073709551616M".to_vec()).is_err());
+    }
+
+    #[test]
+    fn test_try_from() {
+        assert!(Cigar::try_from("10M5I20D").is_ok());
+        assert!(Cigar::try_from("1M").is_ok());
+        assert!(Cigar::try_from("1000000M").is_ok());
+        assert_eq!(Cigar::try_from("10M5I20X@"), Err(CigarError::InvalidOperation));
+        assert_eq!(Cigar::try_from("10M#I5D"), Err(CigarError::InvalidOperation));
+        assert_eq!(Cigar::try_from("10M5I20"), Err(CigarError::MissingOp));
+        assert_eq!(Cigar::try_from("M10D"), Err(CigarError::MissingInc));
+        assert_eq!(Cigar::try_from("10MI5D"), Err(CigarError::MissingInc));
+        assert_eq!(Cigar::try_from("MI"), Err(CigarError::MissingInc));
+        assert_eq!(Cigar::try_from("10M0D"), Err(CigarError::IncZero));
+        assert_eq!(Cigar::try_from("0M"), Err(CigarError::IncZero));
+        assert_eq!(Cigar::try_from("18446744073709551616M"), Err(CigarError::IncOverflow));
+        assert_eq!(Cigar::try_from(""), Ok(Cigar::new()));
     }
 }
 
@@ -379,20 +481,26 @@ mod benches {
 
     #[bench]
     fn expand_cigar(b: &mut Bencher) {
-        let cigar: Cigar = "3S10M2I2D3M4H4P".into();
+        let cigar = Cigar::from_vec_unchecked(b"3S10M2I2D3M4H4P".to_vec());
 
         b.iter(|| cigar.expand_cigar());
     }
 
     #[bench]
     fn condense_cigar(b: &mut Bencher) {
-        let cigar = Cigar::from("4S10M2I2D3M4H4P").expand_cigar();
+        let cigar = Cigar::from_vec_unchecked(b"4S10M2I2D3M4H4P".to_vec()).expand_cigar();
         b.iter(|| cigar.clone().condense_to_cigar());
     }
 
     #[bench]
     fn match_length(b: &mut Bencher) {
-        let cigar = Cigar::from("4S10M2I2D3M4H4P");
+        let cigar = Cigar::from_vec_unchecked(b"4S10M2I2D3M4H4P".to_vec());
         b.iter(|| cigar.match_length());
     }
 }
+
+mod error;
+
+pub use error::*;
+
+use crate::data::mappings::IS_CIGAR;

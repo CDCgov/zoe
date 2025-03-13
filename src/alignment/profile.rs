@@ -118,7 +118,7 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// ## Example
     ///
     /// ```
-    /// # use zoe::{alignment::{ScalarProfile, sw::sw_scalar_score}, data::WeightMatrix};
+    /// # use zoe::{alignment::{ScalarProfile, sw::sw_scalar_score}, data::{WeightMatrix, cigar::Cigar}};
     /// let reference: &[u8] = b"GGCCACAGGATTGAG";
     /// let query: &[u8] = b"CTCAGATTG";
     ///
@@ -129,7 +129,7 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// let profile = ScalarProfile::<5>::new(query, WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
     /// let (start, cigar, score) = profile.smith_waterman_alignment(reference);
     /// assert_eq!(start, 4);
-    /// assert_eq!(cigar, b"5M1D4M".into());
+    /// assert_eq!(cigar, Cigar::from_vec_unchecked(b"5M1D4M".to_vec()));
     /// assert_eq!(score, 27);
     /// ```
     #[inline]

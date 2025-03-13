@@ -123,7 +123,7 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 /// ## Example
 ///
 ///  ```
-/// # use zoe::{alignment::{ScalarProfile, sw::sw_scalar_alignment}, data::WeightMatrix};
+/// # use zoe::{alignment::{ScalarProfile, sw::sw_scalar_alignment}, data::{WeightMatrix, cigar::Cigar}};
 /// let reference: &[u8] = b"GGCCACAGGATTGAG";
 /// let query: &[u8] = b"CTCAGATTG";
 ///
@@ -134,7 +134,7 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 /// let profile = ScalarProfile::<5>::new(query, WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
 /// let (start, cigar, score) = sw_scalar_alignment(&reference, &profile);
 /// assert_eq!(start, 4);
-/// assert_eq!(cigar, b"5M1D4M".into());
+/// assert_eq!(cigar, Cigar::from_vec_unchecked(b"5M1D4M".to_vec()));
 /// assert_eq!(score, 27);
 /// ```
 ///

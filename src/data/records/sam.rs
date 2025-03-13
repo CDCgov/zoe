@@ -671,7 +671,7 @@ impl<R: std::io::Read> Iterator for SAMReader<R> {
                     rname: r[2].to_owned(),
                     pos:   aligned_reference_position,
                     mapq:  read_mapping_quality,
-                    cigar: r[5].into(),
+                    cigar: Cigar::from_vec_unchecked(r[5].as_bytes().to_vec()),
                     rnext: '*',
                     pnext: 0,
                     tlen:  0,
