@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file. The format is roughly based on [Keep a Changelog], and this project tries to adheres to [Semantic Versioning].
 
+## [0.0.14] - 2025-03-18
+
+### Added
+
+- Implemented `Arbitrary` traits for amino acids, vecs of bounded length, and kmers
+- Added `clear()` to various structs and traits.
+- Added `starts_with_repeating` and `ends_with_repeating` to `ByteSubstring`
+- Added consuming kmer sequence iterators
+- Added `position` and `rposition` functions for range searching
+- Added `align_with_cigar_iter` function
+- Added `find_all_kmers` and `find_all_kmers_rev` with supporting methods
+
+### Changed
+
+- MSRV is now nightly 1.87; we switch to using `shift_elements_{left,right}` from upstream.
+- Restructured `FrequencyTable` to use struct instead of trait
+- Improved quality score documentation and `QualityStats` implementations
+- Improved naming consistency and testing of alphabet mapping/checking functions.
+
+### Fixed
+
+- Fixes functions that map IUPAC to ACGTN like `recode_iupac_to_acgtn_uc()`.
+
 ## [0.0.13] - 2025-02-18
 
 ### Added
@@ -100,6 +123,7 @@ All notable changes to this project will be documented in this file. The format 
 - **Added**: Initial internal release. Provides various readers and types for bioinformatics data manipulation.
 
 <!-- Versions -->
+[0.0.14]: https://github.com/CDCgov/zoe/compare/v0.0.13...v0.0.14
 [0.0.13]: https://github.com/CDCgov/zoe/compare/v0.0.12...v0.0.13
 [0.0.12]: https://github.com/CDCgov/zoe/compare/v0.0.11...v0.0.12
 [0.0.11]: https://github.com/CDCgov/zoe/compare/v0.0.10...v0.0.11

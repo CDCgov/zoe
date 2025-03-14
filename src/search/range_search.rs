@@ -10,7 +10,7 @@ use std::ops::{Bound, Index, Range};
 ///
 /// It is compatible with:
 /// * Performing string search via the [`ByteSubstring`] trait
-/// * Searching for k-mers with [`FindKmers`]
+/// * Searching for k-mers using methods similar to those in [`FindKmers`]
 ///
 /// <div class="warning note">
 ///

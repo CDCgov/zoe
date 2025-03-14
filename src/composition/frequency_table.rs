@@ -1,5 +1,5 @@
 /// Represents the frequency of u8 bytes within a sequence.
-#[derive(Clone, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct FrequencyTable<const MIN: u8 = 0, const MAX: u8 = 255> {
     table:     [usize; 256],
     num_items: usize,
