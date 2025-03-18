@@ -69,6 +69,23 @@ impl<'a> Arbitrary<'a> for GraphicAsciiByte {
     }
 }
 
+/// A wrapper around u8 such that the byte is ASCII in the range
+/// `0`..=`127`.
+pub struct AsciiByte(u8);
+
+impl_deref! {AsciiByte, u8}
+
+impl<'a> Arbitrary<'a> for AsciiByte {
+    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
+        Ok(AsciiByte(u.int_in_range(0..=127)?))
+    }
+
+    fn size_hint(depth: usize) -> (usize, Option<usize>) {
+        let _ = depth;
+        (1, Some(1))
+    }
+}
+
 impl<'a> Arbitrary<'a> for QualityScores {
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
         Ok(QualityScores(VecAsciiGraphic::arbitrary(u)?.0))

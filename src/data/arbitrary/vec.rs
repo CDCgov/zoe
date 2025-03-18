@@ -107,7 +107,7 @@ impl<const MIN_LEN: usize, const MAX_LEN: usize, T> AsRef<[T]> for VecBounded<MI
     }
 }
 
-/// A wrapper around `Vec<Vec<T>>` such that the implementation of
+/// A struct holding a vec of vecs such that the implementation of
 /// [`Arbitrary`](https://docs.rs/arbitrary/latest/arbitrary/trait.Arbitrary.html)
 /// only generates vecs of the same length, bounded between `MIN_LEN` and
 /// `MAX_LEN`.
@@ -117,12 +117,11 @@ pub struct SameSizeVecs<const MIN_LEN: usize, const MAX_LEN: usize, T> {
     pub vec_len: usize,
 }
 
-impl<'a, const MIN_LEN: usize, const MAX_LEN: usize, T> Arbitrary<'a> for SameSizeVecs<MIN_LEN, MAX_LEN, T>
-where
-    T: Arbitrary<'a>,
-{
-    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        let vec_len = usize::arbitrary(u)? % (MAX_LEN + 1 - MIN_LEN) + MIN_LEN;
+impl<const MIN_LEN: usize, const MAX_LEN: usize, T> SameSizeVecs<MIN_LEN, MAX_LEN, T> {
+    #[allow(clippy::missing_errors_doc)]
+    pub fn arbitrary_with_len<'a>(u: &mut Unstructured<'a>, vec_len: usize) -> Result<Self>
+    where
+        T: Arbitrary<'a>, {
         let num_vecs = u.arbitrary_len::<T>()? / vec_len;
 
         let mut vecs = Vec::with_capacity(num_vecs);
@@ -135,5 +134,15 @@ where
         }
 
         Ok(SameSizeVecs { vecs, vec_len })
+    }
+}
+
+impl<'a, const MIN_LEN: usize, const MAX_LEN: usize, T> Arbitrary<'a> for SameSizeVecs<MIN_LEN, MAX_LEN, T>
+where
+    T: Arbitrary<'a>,
+{
+    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
+        let vec_len = usize::arbitrary(u)? % (MAX_LEN + 1 - MIN_LEN) + MIN_LEN;
+        SameSizeVecs::arbitrary_with_len(u, vec_len)
     }
 }

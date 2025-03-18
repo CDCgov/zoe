@@ -7,10 +7,12 @@ All notable changes to this project will be documented in this file. The format 
 ### Added
 
 - Added new `From` and `TryFrom` implementations to sequence types
+- Implemented `Arbitrary` for `KmerSet` when the `arbitrary` feature is enabled
 
 ### Changed
 
 - `ToDNA` now has a blanket impl to support the trait being used on more types
+- The `Arbitrary` implementation for `Kmer` can now generate non-graphic ASCII
 
 ### Fixed
 
