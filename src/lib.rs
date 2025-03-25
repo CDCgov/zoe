@@ -9,7 +9,7 @@
     stable_features
 )]
 #![cfg_attr(test, feature(test))]
-#![feature(portable_simd, const_fn_floating_point_arithmetic, let_chains, lazy_cell)]
+#![feature(portable_simd, const_fn_floating_point_arithmetic, let_chains, lazy_cell, slice_as_chunks)]
 #![forbid(incomplete_features)]
 
 pub mod alignment;

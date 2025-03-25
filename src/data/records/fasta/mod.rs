@@ -46,8 +46,8 @@ pub struct FastaAA {
 /// Structure for buffered reading of `FASTA` files.
 #[derive(Debug)]
 pub struct FastaReader<R: std::io::Read> {
-    fasta_reader: std::io::BufReader<R>,
-    fasta_buffer: Vec<u8>,
+    reader: std::io::BufReader<R>,
+    buffer: Vec<u8>,
     first_record: bool,
 }
 
@@ -174,8 +174,8 @@ impl<R: std::io::Read> FastaReader<R> {
     /// Create a new `FastaReader` for buffered reading.
     pub fn new(inner: R) -> Self {
         FastaReader {
-            fasta_reader: std::io::BufReader::new(inner),
-            fasta_buffer: Vec::new(),
+            reader: std::io::BufReader::new(inner),
+            buffer: Vec::new(),
             first_record: true,
         }
     }
@@ -185,9 +185,9 @@ impl<R: std::io::Read> FastaReader<R> {
         self.first_record = false;
 
         loop {
-            self.fasta_buffer.clear();
+            self.buffer.clear();
 
-            let bytes = match self.fasta_reader.read_until(b'\n', &mut self.fasta_buffer) {
+            let bytes = match self.reader.read_until(b'\n', &mut self.buffer) {
                 Ok(b) => b,
                 Err(e) => return Some(Err(e)),
             };
@@ -196,12 +196,12 @@ impl<R: std::io::Read> FastaReader<R> {
                 return Some(Err(IOError::other("No FASTA data found.")));
             }
 
-            if let Some(&first) = self.fasta_buffer.first()
+            if let Some(&first) = self.buffer.first()
                 && first == b'>'
             {
-                self.fasta_buffer.chop_line_break();
+                self.buffer.chop_line_break();
 
-                let h = &self.fasta_buffer[1..];
+                let h = &self.buffer[1..];
                 if h.is_empty() {
                     return Some(Err(IOError::new(ErrorKind::InvalidData, "Missing FASTA header!")));
                 }
@@ -215,15 +215,15 @@ impl<R: std::io::Read> FastaReader<R> {
 
                 let name = String::from_utf8_lossy(h).into_owned();
 
-                self.fasta_buffer.clear();
+                self.buffer.clear();
 
-                let bytes = match self.fasta_reader.read_until(b'>', &mut self.fasta_buffer) {
+                let bytes = match self.reader.read_until(b'>', &mut self.buffer) {
                     Ok(b) => b,
                     Err(e) => return Some(Err(e)),
                 };
 
                 if bytes > 0 {
-                    let split = self.fasta_buffer.lines_ascii::<32>();
+                    let split = self.buffer.lines_ascii::<32>();
                     let mut sequence = Vec::with_capacity(split.remaining_len());
                     for s in split {
                         sequence.extend_from_slice(s);
@@ -238,7 +238,7 @@ impl<R: std::io::Read> FastaReader<R> {
                     }
                 }
                 return Some(Err(IOError::new(ErrorKind::InvalidData, "Missing FASTA sequence!")));
-            } else if self.fasta_buffer.iter().any(|c| !c.is_ascii_whitespace()) {
+            } else if self.buffer.iter().any(|c| !c.is_ascii_whitespace()) {
                 return Some(Err(IOError::new(
                     ErrorKind::InvalidData,
                     "The FASTA file must start with a '>' symbol!",
@@ -272,10 +272,10 @@ impl<R: std::io::Read> Iterator for FastaReader<R> {
             return self.read_first_record();
         }
 
-        let valid_start = self.fasta_buffer.ends_with(b"\n>");
-        self.fasta_buffer.clear();
+        let valid_start = self.buffer.ends_with(b"\n>");
+        self.buffer.clear();
 
-        let bytes = match self.fasta_reader.read_until(b'>', &mut self.fasta_buffer) {
+        let bytes = match self.reader.read_until(b'>', &mut self.buffer) {
             Ok(b) => b,
             Err(e) => return Some(Err(e)),
         };
@@ -288,7 +288,7 @@ impl<R: std::io::Read> Iterator for FastaReader<R> {
                 )));
             }
 
-            let mut split = self.fasta_buffer.lines_ascii::<32>();
+            let mut split = self.buffer.lines_ascii::<32>();
             let name = if let Some(h) = split.next()
                 && !h.is_empty()
             {
@@ -307,7 +307,7 @@ impl<R: std::io::Read> Iterator for FastaReader<R> {
             }
 
             if sequence.is_empty() {
-                if let Some(b'>') = self.fasta_buffer.last() {
+                if let Some(b'>') = self.buffer.last() {
                     Some(Err(IOError::new(
                         ErrorKind::InvalidData,
                         "FASTA records must start with the '>' symbol on a newline, and no other '>' symbols can occur in a header!",

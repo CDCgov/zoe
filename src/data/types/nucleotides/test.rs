@@ -21,6 +21,13 @@ fn test_translate_collect() {
 }
 
 #[test]
+fn test_translate_collect_with_partial_codon() {
+    use super::super::amino_acids::AminoAcids;
+    let s = Nucleotides(b"ATGTCAGATcccagagaaTGAgg".to_vec());
+    assert_eq!(s.to_aa_iter_with(b'X').collect::<AminoAcids>().0, b"MSDPRE*X".to_vec());
+}
+
+#[test]
 fn validate_iupac_with_gaps_uc() {
     let mut s: Nucleotides = b"U gotta get my gat back--ok?!".into();
     s.retain_iupac_with_gaps_uc();

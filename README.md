@@ -37,7 +37,7 @@ zoe = { git = "https://github.com/CDCgov/zoe", commit = "MAIN_COMMIT_HERE"}
 
 ### Yes, yes, but will *Zoe* ever move to stable Rust?
 
-*Zoe* has used a number of nightly features over its lifetime. Some have been stabilized (e.g., <!--`let_chains`, -->`lazy_cell`,`const_fn_floating_point_arithmetic`) while others have been removed (`iter_collect_into`), avoided (`array_chunks`, `iter_array_chunks`), or forbidden due to incompleteness (`generic_const_exprs`).
+*Zoe* has used a number of nightly features over its lifetime. Some have been stabilized (e.g., <!--`let_chains`, -->`lazy_cell`,`const_fn_floating_point_arithmetic`) while others have been removed, avoided, or forbidden due to incompleteness.
 
 In order for *Zoe* to move to stable, the portable SIMD [nightly feature](https://github.com/rust-lang/rust/issues/86656) would first need to be stabilized since it is an essential component of the library. After that, *Zoe* could march towards stable Rust by gating, working around or removing any remaining nightly features. Notwithstanding, development of *Zoe* is likely to continue on nightly, if only for convenient access to nightly bencher, the latest LLVM code generation, and convenient use of rustfmt's unstable [features](https://rust-lang.github.io/rustfmt/?version=master&search=).
 
