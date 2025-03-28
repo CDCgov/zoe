@@ -184,6 +184,35 @@ pub(crate) const ANY_TO_DNA_ACGTN_UC: [u8; 256] = {
     v
 };
 
+/// Used to convert nucleotide sequences to IUPAC nomenclature (no case change),
+/// while allowing for gaps and replacing unknown characters with N.
+pub(crate) const ANY_TO_DNA_IUPAC_WITH_GAPS: [u8; 256] = {
+    let mut v = [b'N'; 256];
+    let mut i = 0;
+
+    while i < DNA_IUPAC_WITH_GAPS.len() {
+        v[DNA_IUPAC_WITH_GAPS[i] as usize] = DNA_IUPAC_WITH_GAPS[i];
+        i += 1;
+    }
+    v
+};
+
+/// Used to convert nucleotide sequences to upprecase IUPAC nomenclature,
+/// while allowing for gaps and replacing unknown characters with N.
+pub(crate) const ANY_TO_DNA_IUPAC_WITH_GAPS_UC: [u8; 256] = {
+    const FROM_BYTE: &[u8; 34] = b"acgturyswkmbdhvnACGTURYSWKMBDHVN.-";
+    const DEST_BYTE: &[u8; 34] = b"ACGTURYSWKMBDHVNACGTURYSWKMBDHVN.-";
+
+    let mut v = [b'N'; 256];
+    let mut i = 0;
+
+    while i < FROM_BYTE.len() {
+        v[FROM_BYTE[i] as usize] = DEST_BYTE[i];
+        i += 1;
+    }
+    v
+};
+
 /// Represents a mapping between bytes and indices. For example, this could be a
 /// map from DNA bases to profile indices, such as [`DNA_PROFILE_MAP`].
 ///
@@ -502,7 +531,10 @@ impl StdGeneticCode {
 mod test {
     use crate::data::{
         alphas::{DNA_ACGTN, DNA_ACGTN_UC, DNA_IUPAC, DNA_IUPAC_UC, DNA_IUPAC_WITH_GAPS},
-        mappings::{ANY_TO_DNA_ACGTN_UC, IS_DNA_IUPAC_WITH_GAPS, IUPAC_TO_DNA_ACGTN, IUPAC_TO_DNA_ACGTN_UC, StdGeneticCode},
+        mappings::{
+            ANY_TO_DNA_ACGTN_UC, ANY_TO_DNA_IUPAC_WITH_GAPS, ANY_TO_DNA_IUPAC_WITH_GAPS_UC, IS_DNA_IUPAC_WITH_GAPS,
+            IUPAC_TO_DNA_ACGTN, IUPAC_TO_DNA_ACGTN_UC, StdGeneticCode,
+        },
     };
 
     use super::{
@@ -714,6 +746,28 @@ mod test {
                 assert_eq!(ANY_TO_DNA_ACGTN_UC[c as usize], c.to_ascii_uppercase());
             } else {
                 assert_eq!(ANY_TO_DNA_ACGTN_UC[c as usize], b'N');
+            }
+        }
+    }
+
+    #[test]
+    fn test_any_to_dna_iuac_with_gaps() {
+        for c in u8::MIN..=u8::MAX {
+            if DNA_IUPAC_WITH_GAPS.contains(&c) {
+                assert_eq!(ANY_TO_DNA_IUPAC_WITH_GAPS[c as usize], c);
+            } else {
+                assert_eq!(ANY_TO_DNA_IUPAC_WITH_GAPS[c as usize], b'N');
+            }
+        }
+    }
+
+    #[test]
+    fn test_any_to_dna_iuac_with_gaps_uc() {
+        for c in u8::MIN..=u8::MAX {
+            if DNA_IUPAC_WITH_GAPS.contains(&c) {
+                assert_eq!(ANY_TO_DNA_IUPAC_WITH_GAPS_UC[c as usize], c.to_ascii_uppercase());
+            } else {
+                assert_eq!(ANY_TO_DNA_IUPAC_WITH_GAPS_UC[c as usize], b'N');
             }
         }
     }

@@ -1,8 +1,9 @@
 use crate::{
     data::{
         mappings::{
-            ANY_TO_DNA_ACGTN_UC, IS_DNA_ACGTN, IS_DNA_ACGTN_UC, IS_DNA_IUPAC, IS_DNA_IUPAC_UC, IS_DNA_IUPAC_WITH_GAPS,
-            IUPAC_TO_DNA_ACGTN, IUPAC_TO_DNA_ACGTN_UC, TO_DNA_IUPAC_UC, TO_DNA_IUPAC_WITH_GAPS_UC,
+            ANY_TO_DNA_ACGTN_UC, ANY_TO_DNA_IUPAC_WITH_GAPS, ANY_TO_DNA_IUPAC_WITH_GAPS_UC, IS_DNA_ACGTN, IS_DNA_ACGTN_UC,
+            IS_DNA_IUPAC, IS_DNA_IUPAC_UC, IS_DNA_IUPAC_WITH_GAPS, IUPAC_TO_DNA_ACGTN, IUPAC_TO_DNA_ACGTN_UC,
+            TO_DNA_IUPAC_UC, TO_DNA_IUPAC_WITH_GAPS_UC,
         },
         types::nucleotides::NucleotidesMutable,
         validation::{recode::Recode, retain::RetainSequence},
@@ -32,6 +33,21 @@ pub trait RecodeNucleotides: NucleotidesMutable {
     #[inline]
     fn recode_any_to_acgtn_uc(&mut self) {
         self.nucleotide_mut_bytes().recode(ANY_TO_DNA_ACGTN_UC);
+    }
+    /// Recodes the stored sequence to a seqeunce containing only valid IUPAC codes.
+    /// Non-IUPAC bytes are replaced with N, case is left unchanged and gaps are
+    /// left unchanged.
+    #[inline]
+    fn recode_any_to_iupac_with_gaps(&mut self) {
+        self.nucleotide_mut_bytes().recode(ANY_TO_DNA_IUPAC_WITH_GAPS);
+    }
+
+    /// Recodes the stored sequence to a seqeunce containing only valid IUPAC codes.
+    /// Non-IUPAC bytes are replaced with N, lowercase is changed to uppercase and gaps are
+    /// left unchanged.
+    #[inline]
+    fn recode_any_to_iupac_with_gaps_uc(&mut self) {
+        self.nucleotide_mut_bytes().recode(ANY_TO_DNA_IUPAC_WITH_GAPS_UC);
     }
 
     /// Recodes the stored sequence of valid IUPAC codes to a canonical (ACTG +
@@ -68,18 +84,18 @@ pub trait RetainNucleotides: AsMut<Vec<u8>> {
         self.as_mut().retain_by_validation(IS_DNA_IUPAC_WITH_GAPS);
     }
 
-    /// Only retains valid [IUPAC bases](https://www.bioinformatics.org/sms/iupac.html).
-    /// Gaps are NOT retained.
-    #[inline]
-    fn retain_iupac(&mut self) {
-        self.as_mut().retain_by_validation(IS_DNA_IUPAC);
-    }
-
     /// Only retains valid [IUPAC](https://www.bioinformatics.org/sms/iupac.html) DNA and converts to uppercase.
     /// Gaps are retained.
     #[inline]
     fn retain_iupac_with_gaps_uc(&mut self) {
         self.as_mut().retain_by_recoding(TO_DNA_IUPAC_WITH_GAPS_UC);
+    }
+
+    /// Only retains valid [IUPAC bases](https://www.bioinformatics.org/sms/iupac.html).
+    /// Gaps are NOT retained.
+    #[inline]
+    fn retain_iupac(&mut self) {
+        self.as_mut().retain_by_validation(IS_DNA_IUPAC);
     }
 
     /// Only retains valid, unaligned [IUPAC](https://www.bioinformatics.org/sms/iupac.html) DNA and converts to uppercase.
