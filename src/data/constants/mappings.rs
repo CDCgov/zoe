@@ -187,11 +187,14 @@ pub(crate) const ANY_TO_DNA_ACGTN_UC: [u8; 256] = {
 /// Used to convert nucleotide sequences to IUPAC nomenclature (no case change),
 /// while allowing for gaps and replacing unknown characters with N.
 pub(crate) const ANY_TO_DNA_IUPAC_WITH_GAPS: [u8; 256] = {
+    const FROM_BYTE: &[u8; 34] = b"acgturyswkmbdhvnACGTURYSWKMBDHVN.-";
+    const DEST_BYTE: &[u8; 34] = b"acgttryswkmbdhvnACGTTRYSWKMBDHVN.-";
+
     let mut v = [b'N'; 256];
     let mut i = 0;
 
-    while i < DNA_IUPAC_WITH_GAPS.len() {
-        v[DNA_IUPAC_WITH_GAPS[i] as usize] = DNA_IUPAC_WITH_GAPS[i];
+    while i < FROM_BYTE.len() {
+        v[FROM_BYTE[i] as usize] = DEST_BYTE[i];
         i += 1;
     }
     v
@@ -201,7 +204,7 @@ pub(crate) const ANY_TO_DNA_IUPAC_WITH_GAPS: [u8; 256] = {
 /// while allowing for gaps and replacing unknown characters with N.
 pub(crate) const ANY_TO_DNA_IUPAC_WITH_GAPS_UC: [u8; 256] = {
     const FROM_BYTE: &[u8; 34] = b"acgturyswkmbdhvnACGTURYSWKMBDHVN.-";
-    const DEST_BYTE: &[u8; 34] = b"ACGTURYSWKMBDHVNACGTURYSWKMBDHVN.-";
+    const DEST_BYTE: &[u8; 34] = b"ACGTTRYSWKMBDHVNACGTTRYSWKMBDHVN.-";
 
     let mut v = [b'N'; 256];
     let mut i = 0;
@@ -563,7 +566,7 @@ mod test {
             (b"ACV", b'T'), (b"ACW", b'T'), (b"ACY", b'T'), (b"GTA", b'V'), (b"GTB", b'V'), (b"GTC", b'V'), (b"GTD", b'V'), (b"GTG", b'V'), (b"GTH", b'V'), (b"GTK", b'V'), (b"GTM", b'V'),
             (b"GTN", b'V'), (b"GTR", b'V'), (b"GTS", b'V'), (b"GTT", b'V'), (b"GTV", b'V'), (b"GTW", b'V'), (b"GTY", b'V'), (b"TGG", b'W'), (b"TAC", b'Y'), (b"TAT", b'Y'), (b"TAY", b'Y'),
             (b"...", b'.'), (b"---", b'-'), (b"NNN", b'X'),
-    
+
             (b"UAA", b'*'), (b"UAG", b'*'), (b"UAR", b'*'), (b"UGA", b'*'), (b"URA", b'*'), (b"GCU", b'A'), (b"UGC", b'C'), (b"UGU", b'C'), (b"UGY", b'C'), (b"GAU", b'D'), (b"UUC", b'F'),
             (b"UUU", b'F'), (b"UUY", b'F'), (b"GGU", b'G'), (b"CAU", b'H'), (b"AUA", b'I'), (b"AUC", b'I'), (b"AUH", b'I'), (b"AUM", b'I'), (b"AUU", b'I'), (b"AUW", b'I'), (b"AUY", b'I'),
             (b"CUA", b'L'), (b"CUB", b'L'), (b"CUC", b'L'), (b"CUD", b'L'), (b"CUG", b'L'), (b"CUH", b'L'), (b"CUK", b'L'), (b"CUM", b'L'), (b"CUN", b'L'), (b"CUR", b'L'), (b"CUS", b'L'),
@@ -751,9 +754,13 @@ mod test {
     }
 
     #[test]
-    fn test_any_to_dna_iuac_with_gaps() {
+    fn test_any_to_dna_iupac_with_gaps() {
         for c in u8::MIN..=u8::MAX {
-            if DNA_IUPAC_WITH_GAPS.contains(&c) {
+            if c == b'u' {
+                assert_eq!(ANY_TO_DNA_IUPAC_WITH_GAPS[c as usize], b't');
+            } else if c == b'U' {
+                assert_eq!(ANY_TO_DNA_IUPAC_WITH_GAPS[c as usize], b'T');
+            } else if DNA_IUPAC_WITH_GAPS.contains(&c) {
                 assert_eq!(ANY_TO_DNA_IUPAC_WITH_GAPS[c as usize], c);
             } else {
                 assert_eq!(ANY_TO_DNA_IUPAC_WITH_GAPS[c as usize], b'N');
@@ -762,9 +769,11 @@ mod test {
     }
 
     #[test]
-    fn test_any_to_dna_iuac_with_gaps_uc() {
+    fn test_any_to_dna_iupac_with_gaps_uc() {
         for c in u8::MIN..=u8::MAX {
-            if DNA_IUPAC_WITH_GAPS.contains(&c) {
+            if matches!(c, b'u' | b'U') {
+                assert_eq!(ANY_TO_DNA_IUPAC_WITH_GAPS_UC[c as usize], b'T');
+            } else if DNA_IUPAC_WITH_GAPS.contains(&c) {
                 assert_eq!(ANY_TO_DNA_IUPAC_WITH_GAPS_UC[c as usize], c.to_ascii_uppercase());
             } else {
                 assert_eq!(ANY_TO_DNA_IUPAC_WITH_GAPS_UC[c as usize], b'N');

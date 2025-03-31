@@ -34,19 +34,19 @@ pub trait RecodeNucleotides: NucleotidesMutable {
     fn recode_any_to_acgtn_uc(&mut self) {
         self.nucleotide_mut_bytes().recode(ANY_TO_DNA_ACGTN_UC);
     }
-    /// Recodes the stored sequence to a seqeunce containing only valid IUPAC codes.
-    /// Non-IUPAC bytes are replaced with N, case is left unchanged and gaps are
-    /// left unchanged.
+    /// Recodes the stored sequence to a seqeunce containing only valid **DNA**
+    /// IUPAC codes. Non-IUPAC bytes are replaced with N, case is left unchanged
+    /// and gaps are left unchanged.
     #[inline]
-    fn recode_any_to_iupac_with_gaps(&mut self) {
+    fn recode_any_to_dna_iupac_with_gaps(&mut self) {
         self.nucleotide_mut_bytes().recode(ANY_TO_DNA_IUPAC_WITH_GAPS);
     }
 
-    /// Recodes the stored sequence to a seqeunce containing only valid IUPAC codes.
-    /// Non-IUPAC bytes are replaced with N, lowercase is changed to uppercase and gaps are
-    /// left unchanged.
+    /// Recodes the stored sequence to a seqeunce containing only valid **DNA**
+    /// IUPAC codes. Non-IUPAC bytes are replaced with N, lowercase is changed
+    /// to uppercase and gaps are left unchanged.
     #[inline]
-    fn recode_any_to_iupac_with_gaps_uc(&mut self) {
+    fn recode_any_to_dna_iupac_with_gaps_uc(&mut self) {
         self.nucleotide_mut_bytes().recode(ANY_TO_DNA_IUPAC_WITH_GAPS_UC);
     }
 
