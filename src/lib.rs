@@ -42,7 +42,8 @@ pub mod prelude {
         types::{
             amino_acids::{AminoAcids, AminoAcidsView, AminoAcidsViewMut},
             nucleotides::{
-                Nucleotides, NucleotidesView, NucleotidesViewMut, RecodeNucleotides, RetainNucleotides, Translate,
+                IsValidDNA, Nucleotides, NucleotidesView, NucleotidesViewMut, RecodeDNAStrat, RecodeNucleotides,
+                RefineDNAStrat, RetainNucleotides, Translate,
             },
             phred::{QualityScores, QualityScoresView, QualityScoresViewMut, QualityStats},
         },

@@ -1,10 +1,6 @@
 use crate::{
     data::{
-        mappings::{
-            ANY_TO_DNA_ACGTN_UC, ANY_TO_DNA_IUPAC_WITH_GAPS, ANY_TO_DNA_IUPAC_WITH_GAPS_UC, IS_DNA_ACGTN, IS_DNA_ACGTN_UC,
-            IS_DNA_IUPAC, IS_DNA_IUPAC_UC, IS_DNA_IUPAC_WITH_GAPS, IUPAC_TO_DNA_ACGTN, IUPAC_TO_DNA_ACGTN_UC,
-            TO_DNA_IUPAC_UC, TO_DNA_IUPAC_WITH_GAPS_UC,
-        },
+        mappings::dna::*,
         types::nucleotides::NucleotidesMutable,
         validation::{recode::Recode, retain::RetainSequence},
         view_traits::SliceRange,
@@ -15,10 +11,25 @@ use crate::{
 use super::NucleotidesReadable;
 
 pub trait ToDNA: Into<Nucleotides> {
-    /// Filters to unaligned, IUPAC DNA.
+    /// Filters and recodes to uppercase IUPAC with corrected gaps.
     fn filter_to_dna(self) -> Nucleotides {
         let mut n = self.into();
-        n.retain_iupac_uc();
+        n.retain_and_recode_dna(RefineDNAStrat::IupacCorrectGapsUc);
+        n
+    }
+
+    /// Filters and recodes to uppercase IUPAC without gaps.
+    fn filter_to_dna_uanligned(self) -> Nucleotides {
+        let mut n = self.into();
+        n.retain_and_recode_dna(RefineDNAStrat::IupacNoGapsUc);
+        n
+    }
+
+    /// Recodes to uppercase IUPAC with corrected gaps in-place. Data that cannot
+    /// be recoded becomes `N`.
+    fn recode_to_dna(self) -> Nucleotides {
+        let mut n = self.into();
+        n.recode_dna_aligned();
         n
     }
 }
@@ -26,44 +37,139 @@ impl ToDNA for String {}
 impl ToDNA for Vec<u8> {}
 impl ToDNA for &[u8] {}
 
-/// Provides DNA-specific methods for recoding a sequence.
+/// Enumeration for DNA recoding strategies.
+pub enum RecodeDNAStrat {
+    /// Converts any valid IUPAC DNA to ACGTN (preserving case), allowing gaps
+    IupacToAcgtnWithGaps,
+    /// Converts any valid IUPAC DNA to uppercase ACGTN, allowing gaps
+    IupacToAcgtnWithGapsUpper,
+
+    /// Converts any byte to uppercase ACGTN with N as catch-all, even gaps
+    AnyToAcgtnNoGapsUpper,
+    /// Converts any byte to uppercase ACGTN with N as catch-all, allowing gaps
+    AnyToAcgtnWithGapsUpper,
+
+    /// Converts to IUPAC nomenclature without case changes, allowing gaps
+    AnyToIupacWithGaps,
+    /// Converts to uppercase IUPAC nomenclature, allowing gaps
+    AnyToIupacWithGapsUpper,
+    /// Converts to uppercase IUPAC nomenclature, correcting non-standard gaps
+    AnyToIupacCorrectGapsUpper,
+}
+
+impl RecodeDNAStrat {
+    /// Returns the corresponding mapping array for the selected recoding strategy
+    #[inline]
+    const fn mapping(&self) -> &'static [u8; 256] {
+        match self {
+            RecodeDNAStrat::IupacToAcgtnWithGaps => &IUPAC_TO_DNA_ACGTN_WITH_GAPS,
+            RecodeDNAStrat::IupacToAcgtnWithGapsUpper => &IUPAC_TO_DNA_ACGTN_WITH_GAPS_UC,
+
+            RecodeDNAStrat::AnyToAcgtnNoGapsUpper => &ANY_TO_DNA_ACGTN_NO_GAPS_UC,
+            RecodeDNAStrat::AnyToAcgtnWithGapsUpper => &ANY_TO_DNA_ACGTN_WITH_GAPS_UC,
+
+            RecodeDNAStrat::AnyToIupacWithGaps => &ANY_TO_DNA_IUPAC_WITH_GAPS,
+            RecodeDNAStrat::AnyToIupacWithGapsUpper => &ANY_TO_DNA_IUPAC_WITH_GAPS_UC,
+            RecodeDNAStrat::AnyToIupacCorrectGapsUpper => &ANY_TO_DNA_IUPAC_CORRECT_GAPS_UC,
+        }
+    }
+}
+
+/// Enumeration for DNA validation and retention strategies.
+pub enum IsValidDNA {
+    /// For valid IUPAC bases without gaps
+    IupacNoGaps,
+    /// For uppercase IUPAC bases without gaps
+    IupacNoGapsUc,
+    /// For valid IUPAC bases with gaps
+    IupacWithGaps,
+    /// For uppercase IUPAC bases with gaps
+    IupacWithGapsUc,
+
+    /// For ACGTN bases without gaps
+    AcgtnNoGaps,
+    /// For uppercase ACGTN bases without gaps
+    AcgtnNoGapsUc,
+    /// For uppercase ACGTN bases with standard gaps
+    AcgtnStdGapsUc,
+}
+
+impl IsValidDNA {
+    #[inline]
+    const fn validation_mapping(&self) -> &'static [bool; 256] {
+        match self {
+            IsValidDNA::IupacNoGaps => &IS_DNA_IUPAC_NO_GAPS,
+            IsValidDNA::IupacNoGapsUc => &IS_DNA_IUPAC_NO_GAPS_UC,
+            IsValidDNA::IupacWithGaps => &IS_DNA_IUPAC_WITH_GAPS,
+            IsValidDNA::IupacWithGapsUc => &IS_DNA_IUPAC_WITH_GAPS_UC,
+
+            IsValidDNA::AcgtnNoGaps => &IS_DNA_ACGTN_NO_GAPS,
+            IsValidDNA::AcgtnNoGapsUc => &IS_DNA_ACGTN_NO_GAPS_UC,
+            IsValidDNA::AcgtnStdGapsUc => &IS_DNA_ACGTN_STD_GAPS_UC,
+        }
+    }
+}
+
+/// DNA retention strategies. Data that cannot be recoded is not retained.
+pub enum RefineDNAStrat {
+    /// Retains and recodes to uppercase IUPAC bases without gaps
+    IupacNoGapsUc,
+    /// Retains and recodes to uppercase IUPAC bases with gaps
+    IupacWithGapsUc,
+    /// Retains and recodes to uppercase IUPAC bases with corrected gaps
+    IupacCorrectGapsUc,
+
+    /// Retains and recodes to uppercase ACGTN bases without gaps
+    AcgtnNoGapsUc,
+    /// Retains and recodes to uppercase ACGTN bases with gaps
+    AcgtnWithGapsUc,
+    /// Retains and recodes to uppercase ACGTN bases with standard gaps
+    AcgtnStdGapsUc,
+}
+
+impl RefineDNAStrat {
+    /// Returns the corresponding recoding array for the selected retention and recoding strategy
+    #[inline]
+    const fn recoding_mapping(&self) -> &'static [u8; 256] {
+        match self {
+            RefineDNAStrat::IupacNoGapsUc => &TO_DNA_IUPAC_NO_GAPS_UC,
+            RefineDNAStrat::IupacWithGapsUc => &TO_DNA_IUPAC_WITH_GAPS_UC,
+            RefineDNAStrat::IupacCorrectGapsUc => &TO_DNA_IUPAC_CORRECT_GAPS_UC,
+
+            RefineDNAStrat::AcgtnNoGapsUc => &TO_DNA_ACGTN_NO_GAPS_UC,
+            RefineDNAStrat::AcgtnWithGapsUc => &TO_DNA_ACGTN_WITH_GAPS_UC,
+            RefineDNAStrat::AcgtnStdGapsUc => &TO_DNA_ACGTN_STD_GAPS_UC,
+        }
+    }
+}
+
+/// Provides DNA-specific methods for recoding a sequence. Data that cannot be
+/// recoded becomes `N`. See [`RecodeDNAStrategy`] for recoding strategies.
 pub trait RecodeNucleotides: NucleotidesMutable {
-    /// Recodes the stored sequence to an uppercase canonical (ACTG + N) one.
-    /// Any non-canonical base becomes N, including gaps.
+    /// Recodes the stored sequences according to the strategy in
+    /// [`RecodeDNAStrategy`]. Data that cannot be recoded becomes `N`.
     #[inline]
-    fn recode_any_to_acgtn_uc(&mut self) {
-        self.nucleotide_mut_bytes().recode(ANY_TO_DNA_ACGTN_UC);
-    }
-    /// Recodes the stored sequence to a seqeunce containing only valid **DNA**
-    /// IUPAC codes. Non-IUPAC bytes are replaced with N, case is left unchanged
-    /// and gaps are left unchanged.
-    #[inline]
-    fn recode_any_to_dna_iupac_with_gaps(&mut self) {
-        self.nucleotide_mut_bytes().recode(ANY_TO_DNA_IUPAC_WITH_GAPS);
+    fn recode_dna(&mut self, strategy: RecodeDNAStrat) {
+        self.nucleotide_mut_bytes().recode(strategy.mapping());
     }
 
-    /// Recodes the stored sequence to a seqeunce containing only valid **DNA**
-    /// IUPAC codes. Non-IUPAC bytes are replaced with N, lowercase is changed
-    /// to uppercase and gaps are left unchanged.
+    /// Recodes the stored sequence using
+    /// [`RecodeDNAStrategy::AnyToAcgtnNoGapsUpper`], which is the preferred
+    /// strategy for read data. Data that cannot be recoded becomes `N`.
     #[inline]
-    fn recode_any_to_dna_iupac_with_gaps_uc(&mut self) {
-        self.nucleotide_mut_bytes().recode(ANY_TO_DNA_IUPAC_WITH_GAPS_UC);
+    fn recode_dna_reads(&mut self) {
+        self.nucleotide_mut_bytes()
+            .recode(RecodeDNAStrat::AnyToAcgtnNoGapsUpper.mapping());
     }
 
-    /// Recodes the stored sequence of valid IUPAC codes to a canonical (ACTG +
-    /// N) sequence. Ambiguous bases become N while non-IUPAC bytes and gaps are
-    /// left unchanged.
+    /// Recodes the stored sequence using
+    /// [`RecodeDNAStrategy::AnyToIupacCorrectGapsUpper`], which is the
+    /// preferred strategy for aligned, multiple sequence alignment data. Data
+    /// that cannot be recoded becomes `N`.
     #[inline]
-    fn recode_iupac_to_acgtn(&mut self) {
-        self.nucleotide_mut_bytes().recode(IUPAC_TO_DNA_ACGTN);
-    }
-
-    /// Recodes the stored sequence of valid IUPAC codes to an uppercase
-    /// canonical (ACTG + N) sequence. Ambiguous bases become N while non-IUPAC
-    /// bytes and gaps are left unchanged.
-    #[inline]
-    fn recode_iupac_to_acgtn_uc(&mut self) {
-        self.nucleotide_mut_bytes().recode(IUPAC_TO_DNA_ACGTN_UC);
+    fn recode_dna_aligned(&mut self) {
+        self.nucleotide_mut_bytes()
+            .recode(RecodeDNAStrat::AnyToIupacCorrectGapsUpper.mapping());
     }
 
     /// Masks the provided `range` with `N`. If the range does not exist, the
@@ -77,32 +183,17 @@ pub trait RecodeNucleotides: NucleotidesMutable {
 impl<T: NucleotidesMutable> RecodeNucleotides for T {}
 
 pub trait RetainNucleotides: AsMut<Vec<u8>> {
-    /// Only retains valid [IUPAC bases](https://www.bioinformatics.org/sms/iupac.html).
-    /// Gaps are retained.
+    /// Retains nucleotides according if they are valid according to the
+    /// retention strategy.
     #[inline]
-    fn retain_iupac_with_gaps(&mut self) {
-        self.as_mut().retain_by_validation(IS_DNA_IUPAC_WITH_GAPS);
+    fn retain_dna(&mut self, strategy: IsValidDNA) {
+        self.as_mut().retain_by_validation(strategy.validation_mapping());
     }
 
-    /// Only retains valid [IUPAC](https://www.bioinformatics.org/sms/iupac.html) DNA and converts to uppercase.
-    /// Gaps are retained.
+    /// Retains and recodes nucleotides according to the specified retention strategy.
     #[inline]
-    fn retain_iupac_with_gaps_uc(&mut self) {
-        self.as_mut().retain_by_recoding(TO_DNA_IUPAC_WITH_GAPS_UC);
-    }
-
-    /// Only retains valid [IUPAC bases](https://www.bioinformatics.org/sms/iupac.html).
-    /// Gaps are NOT retained.
-    #[inline]
-    fn retain_iupac(&mut self) {
-        self.as_mut().retain_by_validation(IS_DNA_IUPAC);
-    }
-
-    /// Only retains valid, unaligned [IUPAC](https://www.bioinformatics.org/sms/iupac.html) DNA and converts to uppercase.
-    /// Gaps are NOT retained.
-    #[inline]
-    fn retain_iupac_uc(&mut self) {
-        self.as_mut().retain_by_recoding(TO_DNA_IUPAC_UC);
+    fn retain_and_recode_dna(&mut self, strategy: RefineDNAStrat) {
+        self.as_mut().retain_by_recoding(strategy.recoding_mapping());
     }
 }
 
@@ -113,27 +204,27 @@ pub trait CheckNucleotides: NucleotidesReadable {
     /// Checks if nucleotide sequence only contains valid IUPAC bases, without
     /// gaps
     #[inline]
-    fn is_iupac(&self) -> bool {
-        self.nucleotide_bytes().iter().all(|&b| IS_DNA_IUPAC[b as usize])
+    fn is_iupac_no_gaps(&self) -> bool {
+        self.nucleotide_bytes().iter().all(|&b| IS_DNA_IUPAC_NO_GAPS[b as usize])
     }
 
     /// Checks if nucleotide sequence only contains valid uppercase IUPAC bases,
     /// without gaps
     #[inline]
-    fn is_iupac_uc(&self) -> bool {
-        self.nucleotide_bytes().iter().all(|&b| IS_DNA_IUPAC_UC[b as usize])
+    fn is_iupac_no_gaps_uc(&self) -> bool {
+        self.nucleotide_bytes().iter().all(|&b| IS_DNA_IUPAC_NO_GAPS_UC[b as usize])
     }
 
     /// Checks if the nucleotide sequence only contains `A`, `C`, `G`, `T`, `N` (no gaps).
     #[inline]
     fn is_acgtn(&self) -> bool {
-        self.nucleotide_bytes().iter().all(|&b| IS_DNA_ACGTN[b as usize])
+        self.nucleotide_bytes().iter().all(|&b| IS_DNA_ACGTN_NO_GAPS[b as usize])
     }
 
     /// Checks if the nucleotide sequence only contains uppercase `A`, `C`, `G`, `T`, `N` (no gaps).
     #[inline]
     fn is_acgtn_uc(&self) -> bool {
-        self.nucleotide_bytes().iter().all(|&b| IS_DNA_ACGTN_UC[b as usize])
+        self.nucleotide_bytes().iter().all(|&b| IS_DNA_ACGTN_NO_GAPS_UC[b as usize])
     }
 }
 

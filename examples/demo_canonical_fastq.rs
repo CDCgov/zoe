@@ -15,7 +15,7 @@ fn main() {
         .flatten();
 
     for mut record in fastq_reader {
-        record.recode_iupac_to_acgtn();
+        record.recode_dna_reads();
         print!("{record}");
     }
 }

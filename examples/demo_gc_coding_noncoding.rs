@@ -47,7 +47,7 @@ fn main() {
         // Create a view, whose bounds we will change to reflect the portion of
         // the sequence we are considering (this avoids needing to have an
         // indexing variable)
-        fastq_record.sequence.recode_iupac_to_acgtn_uc();
+        fastq_record.recode_dna_reads();
         let mut sequence = fastq_record.sequence.as_view();
 
         // Each execution of the loop represents one coding region

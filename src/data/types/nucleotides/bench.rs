@@ -1,7 +1,7 @@
 use test::Bencher;
 extern crate test;
 use super::*;
-use crate::data::{alphas::ENGLISH, mappings::TO_DNA_IUPAC_UC};
+use crate::data::{alphas::ENGLISH, mappings::TO_DNA_IUPAC_NO_GAPS_UC};
 use std::sync::LazyLock;
 
 const N: usize = 1200;
@@ -18,7 +18,7 @@ fn translate_sequence_long(b: &mut Bencher) {
 fn validate_retain_iupac_uc(b: &mut Bencher) {
     b.iter(|| {
         SEQ.clone().retain_mut(|b| {
-            *b = TO_DNA_IUPAC_UC[*b as usize];
+            *b = TO_DNA_IUPAC_NO_GAPS_UC[*b as usize];
             *b > 0
         });
     });
@@ -31,7 +31,7 @@ fn validate_filtermap_iupac_uc(b: &mut Bencher) {
             .clone()
             .iter_mut()
             .filter_map(|b| {
-                *b = TO_DNA_IUPAC_UC[*b as usize];
+                *b = TO_DNA_IUPAC_NO_GAPS_UC[*b as usize];
                 if *b > 0 { Some(*b) } else { None }
             })
             .collect();

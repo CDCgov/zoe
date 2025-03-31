@@ -3,7 +3,7 @@ use crate::{
         id_types::FastaIDs,
         types::{
             amino_acids::AminoAcids,
-            nucleotides::{self, Nucleotides, RetainNucleotides, ToDNA, Translate},
+            nucleotides::{self, Nucleotides, ToDNA, Translate},
         },
         validation::CheckSequence,
         vec_types::ChopLineBreak,
@@ -46,35 +46,48 @@ pub struct FastaAA {
 /// Structure for buffered reading of `FASTA` files.
 #[derive(Debug)]
 pub struct FastaReader<R: std::io::Read> {
-    reader: std::io::BufReader<R>,
-    buffer: Vec<u8>,
+    reader:       std::io::BufReader<R>,
+    buffer:       Vec<u8>,
     first_record: bool,
 }
 
 impl FastaSeq {
-    /// Reverse complements the sequence stored in the struct using a new buffer.
+    /// Reverse complements the sequence stored in the struct using a new
+    /// buffer.
     pub fn reverse_complement(&mut self) {
         self.sequence = nucleotides::reverse_complement(&self.sequence);
     }
 
-    /// Retains only valid DNA characters, removing alignment characters as well.
+    /// Recodes to uppercase IUPAC DNA with corrected gaps, otherwise
+    /// mapping to `N`. Returns [`FastaNT`].
+    #[inline]
     #[must_use]
-    pub fn to_dna_unaligned(mut self) -> FastaNT {
-        self.sequence.retain_iupac_uc();
+    pub fn recode_to_dna(self) -> FastaNT {
         FastaNT {
             name:     self.name,
-            sequence: Nucleotides(self.sequence),
+            sequence: self.sequence.recode_to_dna(),
         }
     }
 
-    /// Trims all invalid state from the sequence and validates name as UTF-8.
-    /// Returns `FastaNT`.
+    /// Filters and recodes to uppercase IUPAC DNA with corrected gaps. Returns
+    /// [`FastaNT`].
     #[inline]
     #[must_use]
     pub fn filter_to_dna(self) -> FastaNT {
         FastaNT {
             name:     self.name,
             sequence: self.sequence.filter_to_dna(),
+        }
+    }
+
+    /// Filters and recodes to uppercase IUPAC DNA without gaps. Returns
+    /// [`FastaNT`].
+    #[inline]
+    #[must_use]
+    pub fn filter_to_dna_unaligned(self) -> FastaNT {
+        FastaNT {
+            name:     self.name,
+            sequence: self.sequence.filter_to_dna_uanligned(),
         }
     }
 
@@ -174,8 +187,8 @@ impl<R: std::io::Read> FastaReader<R> {
     /// Create a new `FastaReader` for buffered reading.
     pub fn new(inner: R) -> Self {
         FastaReader {
-            reader: std::io::BufReader::new(inner),
-            buffer: Vec::new(),
+            reader:       std::io::BufReader::new(inner),
+            buffer:       Vec::new(),
             first_record: true,
         }
     }

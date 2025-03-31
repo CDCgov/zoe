@@ -4,7 +4,7 @@ use crate::data::view_traits::SliceRange;
 pub trait Recode: AsMut<[u8]> {
     /// Recode the sequence data using a given byte mapping.
     #[inline]
-    fn recode(&mut self, transformation_mapping: [u8; 256]) {
+    fn recode(&mut self, transformation_mapping: &'static [u8; 256]) {
         for b in self.as_mut() {
             *b = transformation_mapping[*b as usize];
         }

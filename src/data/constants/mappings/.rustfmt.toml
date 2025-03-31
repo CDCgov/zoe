@@ -1,0 +1,9 @@
+# Same as global format
+fn_params_layout = "Compressed"
+comment_width = 100
+max_width = 125
+struct_field_align_threshold = 20
+enum_discrim_align_threshold = 20
+brace_style = "PreferSameLine"
+# Make mappings easier to read.
+fn_call_width = 55
