@@ -53,7 +53,7 @@ impl DataView for FastQView<'_> {
     }
 }
 
-impl DataViewMut for FastQViewMut<'_> {
+impl<'b> DataViewMut<'b> for FastQViewMut<'b> {
     type View<'a>
         = FastQView<'a>
     where
@@ -67,6 +67,15 @@ impl DataViewMut for FastQViewMut<'_> {
             header:   self.header,
             sequence: self.sequence.as_view(),
             quality:  self.quality.as_view(),
+        }
+    }
+
+    #[inline]
+    fn to_view(self) -> FastQView<'b> {
+        FastQView {
+            header:   self.header,
+            sequence: self.sequence.to_view(),
+            quality:  self.quality.to_view(),
         }
     }
 

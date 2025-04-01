@@ -49,7 +49,7 @@ pub trait DataView {
 
 /// A trait for data which is a mutable view, and from which an immutable view
 /// or owned data can be created (the latter requiring cloning).
-pub trait DataViewMut {
+pub trait DataViewMut<'b> {
     type View<'a>
     where
         Self: 'a;
@@ -57,6 +57,9 @@ pub trait DataViewMut {
 
     /// Create an immutable view of the data.
     fn as_view(&self) -> Self::View<'_>;
+
+    /// Creates an immutable view by consuming the mutable one.
+    fn to_view(self) -> Self::View<'b>;
 
     /// Create an owned copy of the data via cloning.
     fn to_owned_data(&self) -> Self::Owned;
@@ -182,7 +185,7 @@ macro_rules! impl_views_for_wrapper {
             }
         }
 
-        impl DataViewMut for $viewmut<'_> {
+        impl<'b> DataViewMut<'b> for $viewmut<'b> {
             type View<'a>
                 = $view<'a>
             where
@@ -193,6 +196,11 @@ macro_rules! impl_views_for_wrapper {
             #[inline]
             fn as_view(&self) -> $view<'_> {
                 $view(&self.0)
+            }
+
+            #[inline]
+            fn to_view(self) -> $view<'b> {
+                $view(self.0)
             }
 
             #[inline]

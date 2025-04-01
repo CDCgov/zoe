@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file. The format 
 - Implemented `Arbitrary` for `KmerSet` when the `arbitrary` feature is enabled
 - Added functions for retrieving the codons from `Nucleotides`
 - Add `make_uppercase` to `RecodeNucleotides`
+- Add `to_view` for downgrading mutable views to immutable views
 
 ### Changed
 
