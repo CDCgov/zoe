@@ -101,18 +101,12 @@ impl Iterator for TranslatedNucleotidesIter<'_> {
 impl ExactSizeIterator for TranslatedNucleotidesIter<'_> {}
 impl std::iter::FusedIterator for TranslatedNucleotidesIter<'_> {}
 
-/// A codon is considered *partial* if it has fewer than 3 IUPAC bases.
+/// A codon is considered *partial* if it has fewer than 3 IUPAC bases (non-gap).
 #[inline]
 #[must_use]
 fn is_partial_codon(codon: [u8; 3]) -> bool {
-    if codon.is_empty() {
-        false
-    } else if codon.len() < 3 {
-        true
-    } else {
-        let count: u8 = codon.iter().map(|b| u8::from(*b == b'-' || *b == b'~' || *b == b'.')).sum();
-        count == 1 || count == 2
-    }
+    let count: u8 = codon.iter().map(|b| u8::from(*b == b'-' || *b == b'~' || *b == b'.')).sum();
+    count == 1 || count == 2
 }
 
 /// Translates a byte slice into an amino acid byte vector.
