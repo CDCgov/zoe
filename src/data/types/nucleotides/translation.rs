@@ -1,4 +1,6 @@
-use super::{AminoAcids, getter_traits::NucleotidesReadable};
+use super::{
+    AminoAcids, Nucleotides, NucleotidesMutable, NucleotidesView, NucleotidesViewMut, getter_traits::NucleotidesReadable,
+};
 use crate::data::mappings::StdGeneticCode;
 
 /// Provides methods for translating nucleotides into amino acids.
@@ -116,3 +118,140 @@ pub fn translate_sequence(s: &[u8]) -> Vec<u8> {
     // This was shown to be just as efficient as a manual implementation
     TranslatedNucleotidesIter::new(s).collect::<Vec<_>>()
 }
+
+pub trait GetCodons: NucleotidesReadable {
+    /// Gets the bases grouped into codons as a slice of arrays, starting with
+    /// the first base. Any trailing bases are included in the second tuple
+    /// entry. To use a different reading frame, consider creating a view of the
+    /// sequence with [`slice`].
+    ///
+    /// [`slice`]: crate::data::view_traits::Slice
+    #[inline]
+    #[must_use]
+    fn as_codons(&self) -> (&[[u8; 3]], &[u8]) {
+        self.nucleotide_bytes().as_chunks::<3>()
+    }
+
+    /// Gets the nth codon in the sequence with the reading frame starting with
+    /// [`Self`]. To obtain a mutable reference, see [`nth_codon_mut`]. To avoid
+    /// panicking when the index is out of bounds, see [`get_nth_codon`].
+    ///
+    /// ## Panics
+    ///
+    /// The function panics if the codon is out of bounds. Specifically, `3 *
+    /// index + 3` must be at most `self.len()`.
+    ///
+    /// <div class="warning note">
+    ///
+    /// **Note**
+    ///
+    /// The indexing is *0-based*.
+    ///
+    /// </div>
+    ///
+    /// [`nth_codon_mut`]: Nucleotides::nth_codon_mut
+    /// [`get_nth_codon`]: Nucleotides::get_nth_codon
+    #[inline]
+    #[must_use]
+    fn nth_codon(&self, index: usize) -> [u8; 3] {
+        self.nucleotide_bytes()
+            .get(3 * index..3 * index + 3)
+            .unwrap()
+            .try_into()
+            .unwrap()
+    }
+
+    /// Gets the nth non-overlapping codon in the sequence, returning `None` if
+    /// it is out of bounds. To obtain a mutable reference, see
+    /// [`get_nth_codon_mut`]. If it is known that the index is in bounds, see
+    /// [`nth_codon`].
+    ///
+    /// <div class="warning note">
+    ///
+    /// **Note**
+    ///
+    /// The indexing is *0-based*.
+    ///
+    /// </div>
+    ///
+    /// [`get_nth_codon_mut`]: Nucleotides::get_nth_codon_mut
+    /// [`nth_codon`]: Nucleotides::nth_codon
+    #[inline]
+    #[must_use]
+    fn get_nth_codon(&self, index: usize) -> Option<[u8; 3]> {
+        // try_into will never fail
+        self.nucleotide_bytes().get(3 * index..3 * index + 3)?.try_into().ok()
+    }
+}
+
+impl GetCodons for Nucleotides {}
+impl GetCodons for NucleotidesView<'_> {}
+impl GetCodons for NucleotidesViewMut<'_> {}
+
+pub trait GetCodonsMut: NucleotidesMutable {
+    /// Gets the bases grouped into codons as a mutable slice of arrays,
+    /// starting with the first base. Any trailing bases are included in the
+    /// second tuple entry. To use a different reading frame, consider creating
+    /// a view of the sequence with [`slice_mut`].
+    ///
+    /// [`slice_mut`]: crate::data::view_traits::SliceMut
+    #[inline]
+    #[must_use]
+    fn as_codons_mut(&mut self) -> (&mut [[u8; 3]], &mut [u8]) {
+        self.nucleotide_mut_bytes().as_chunks_mut::<3>()
+    }
+
+    /// Gets a mutable reference to the nth codon in the sequence with the
+    /// reading frame starting with [`Self`]. When mutability is not needed, use
+    /// [`nth_codon`]. To avoid panicking when the index is out of bounds, see
+    /// [`get_nth_codon_mut`].
+    ///
+    /// ## Panics
+    ///
+    /// The function panics if the codon is out of bounds. Specifically, `3 *
+    /// index + 3` must be at most `self.len()`.
+    ///
+    /// <div class="warning note">
+    ///
+    /// **Note**
+    ///
+    /// The indexing is *0-based*.
+    ///
+    /// </div>
+    ///
+    /// [`nth_codon`]: Nucleotides::nth_codon
+    /// [`get_nth_codon_mut`]: Nucleotides::get_nth_codon_mut
+    #[inline]
+    #[must_use]
+    fn nth_codon_mut(&mut self, index: usize) -> &mut [u8; 3] {
+        self.nucleotide_mut_bytes()
+            .get_mut(3 * index..3 * index + 3)
+            .unwrap()
+            .try_into()
+            .unwrap()
+    }
+
+    /// Gets a mutable reference to the nth codon in the sequence, returning
+    /// `None` if it is out of bounds. When mutability is not needed, use
+    /// [`get_nth_codon`]. If it is known that the index is in bounds, see
+    /// [`nth_codon_mut`].
+    ///
+    /// <div class="warning note">
+    ///
+    /// **Note**
+    ///
+    /// The indexing is *0-based*.
+    ///
+    /// </div>
+    ///
+    /// [`get_nth_codon`]: Nucleotides::get_nth_codon
+    /// [`nth_codon_mut`]: Nucleotides::nth_codon_mut
+    #[inline]
+    #[must_use]
+    fn get_nth_codon_mut(&mut self, index: usize) -> Option<&mut [u8; 3]> {
+        self.nucleotide_mut_bytes().get_mut(3 * index..3 * index + 3)?.try_into().ok()
+    }
+}
+
+impl GetCodonsMut for Nucleotides {}
+impl GetCodonsMut for NucleotidesViewMut<'_> {}

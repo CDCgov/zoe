@@ -28,6 +28,47 @@ fn test_translate_collect_with_partial_codon() {
 }
 
 #[test]
+fn test_codons() {
+    let s = Nucleotides(b"ATGTCAGAT".to_vec());
+    assert_eq!(
+        s.as_codons(),
+        (
+            [[b'A', b'T', b'G'], [b'T', b'C', b'A'], [b'G', b'A', b'T']].as_slice(),
+            [].as_slice()
+        )
+    );
+    assert_eq!(&s.nth_codon(0), b"ATG");
+    assert_eq!(&s.nth_codon(1), b"TCA");
+    assert_eq!(&s.nth_codon(2), b"GAT");
+    assert_eq!(s.get_nth_codon(0).as_ref(), Some(b"ATG"));
+    assert_eq!(s.get_nth_codon(1).as_ref(), Some(b"TCA"));
+    assert_eq!(s.get_nth_codon(2).as_ref(), Some(b"GAT"));
+    assert_eq!(s.get_nth_codon(3).as_ref(), None);
+
+    let s = NucleotidesView(b"ATGTCAGAT");
+    assert_eq!(&s.nth_codon(0), b"ATG");
+
+    let mut s = Nucleotides(b"ATGTCAGATAC".to_vec());
+    assert_eq!(
+        s.as_codons(),
+        (
+            [[b'A', b'T', b'G'], [b'T', b'C', b'A'], [b'G', b'A', b'T']].as_slice(),
+            b"AC".as_slice()
+        )
+    );
+    assert_eq!(&s.nth_codon(0), b"ATG");
+    assert_eq!(&s.nth_codon(1), b"TCA");
+    assert_eq!(&s.nth_codon(2), b"GAT");
+    assert_eq!(s.get_nth_codon(0).as_ref(), Some(b"ATG"));
+    assert_eq!(s.get_nth_codon(1).as_ref(), Some(b"TCA"));
+    assert_eq!(s.get_nth_codon(2).as_ref(), Some(b"GAT"));
+    assert_eq!(s.get_nth_codon(3).as_ref(), None);
+
+    s.as_codons_mut().0[1][1] = b'G';
+    assert_eq!(s, Nucleotides(b"ATGTGAGATAC".to_vec()));
+}
+
+#[test]
 fn retain_and_recode_iupac_with_gaps_uc() {
     let mut s: Nucleotides = b"U gotta get my gat back--ok?!".into();
     s.retain_and_recode_dna(RefineDNAStrat::IupacWithGapsUc);

@@ -97,6 +97,16 @@ impl Nucleotides {
         self.0.get(index)
     }
 
+    /// Gets a mutable reference to the base or byte slice at the zero-based
+    /// index, returning an [`Option`].
+    #[inline]
+    #[must_use]
+    pub fn get_mut<I>(&mut self, index: I) -> Option<&mut I::Output>
+    where
+        I: std::slice::SliceIndex<[u8]>, {
+        self.0.get_mut(index)
+    }
+
     /// Creates an iterator over the nucleotides as `&u8`.
     #[inline]
     pub fn iter(&self) -> std::slice::Iter<'_, u8> {
