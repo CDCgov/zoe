@@ -1,6 +1,7 @@
 #![allow(clippy::doc_markdown)]
 use crate::{
-    data::types::nucleotides::NucleotidesReadable, distance::hamming_simd, math::MapFloat, simd::SimdByteFunctions,
+    DEFAULT_SIMD_LANES, data::types::nucleotides::NucleotidesReadable, distance::hamming_simd, math::MapFloat,
+    simd::SimdByteFunctions,
 };
 use std::simd::{LaneCount, SupportedLaneCount, prelude::*};
 
@@ -249,7 +250,7 @@ pub fn jukes_cantor_69(seq1: &[u8], seq2: &[u8]) -> Option<f64> {
     }
 
     // Specialize the JC
-    if let Some(p) = p_distance_acgt::<32>(seq1, seq2) {
+    if let Some(p) = p_distance_acgt::<{ DEFAULT_SIMD_LANES }>(seq1, seq2) {
         (-0.75 * (1.0 - p * 4.0 / 3.0).ln()).into_option()
     } else {
         None

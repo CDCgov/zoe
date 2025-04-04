@@ -1,13 +1,17 @@
 use test::Bencher;
 extern crate test;
 use super::*;
-use crate::data::{alphas::ENGLISH, mappings::TO_DNA_IUPAC_NO_GAPS_UC};
+use crate::data::{
+    alphas::{DNA_ACGTN_NO_GAPS_UC, ENGLISH},
+    mappings::TO_DNA_IUPAC_NO_GAPS_UC,
+};
 use std::sync::LazyLock;
 
 const N: usize = 1200;
 const SEED: u64 = 42;
 
 static SEQ: LazyLock<Vec<u8>> = LazyLock::new(|| crate::generate::rand_sequence(ENGLISH, N, SEED));
+static READ: LazyLock<Vec<u8>> = LazyLock::new(|| crate::generate::rand_sequence(DNA_ACGTN_NO_GAPS_UC, 150, SEED));
 
 #[bench]
 fn translate_sequence_long(b: &mut Bencher) {
@@ -46,4 +50,16 @@ fn revcomp_scalar(b: &mut Bencher) {
 #[bench]
 fn revcomp_simd32(b: &mut Bencher) {
     b.iter(|| reverse_complement_simd::<32>(&SEQ));
+}
+
+#[bench]
+fn is_acgtn_uc_read_scalar(b: &mut Bencher) {
+    let s = READ.as_slice();
+    b.iter(|| s.is_valid_dna(IsValidDNA::AcgtnNoGapsUc));
+}
+
+#[bench]
+fn is_acgtn_uc_read_simd(b: &mut Bencher) {
+    let s = READ.as_slice();
+    b.iter(|| s.is_acgtn_uc());
 }

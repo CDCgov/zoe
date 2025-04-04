@@ -2,7 +2,8 @@ use super::*;
 use crate::data::alphas::*;
 
 //
-// For if: u8 -> bool
+// Typically used by:   RetainSequence::retain_by_validation, std::slice::Iter::all
+// Mapping:             u8 -> bool
 //
 
 /// A boolean mapping of valid IUPAC nucleotide codes without gaps.
@@ -14,40 +15,41 @@ pub(crate) const IS_DNA_IUPAC_NO_GAPS_UC: [bool; 256] = make_is_alpha_mapping(DN
 /// A boolean mapping of all valid IUPAC nucleotide codes inluding gaps.
 pub(crate) const IS_DNA_IUPAC_WITH_GAPS: [bool; 256] = make_is_alpha_mapping(DNA_IUPAC_WITH_GAPS);
 
-/// A boolean mapping of uppercase IUPAC nucleotide codes including.
+/// A boolean mapping of uppercase IUPAC nucleotide codes including gaps.
 pub(crate) const IS_DNA_IUPAC_WITH_GAPS_UC: [bool; 256] = make_is_alpha_mapping(DNA_IUPAC_WITH_GAPS_UC);
 
-/// A boolean mapping of strictly canonical nucleotides + `n`/`N`.
+/// A boolean mapping of strictly canonical nucleotides + `n`/`N` without gaps.
 pub(crate) const IS_DNA_ACGTN_NO_GAPS: [bool; 256] = make_is_alpha_mapping(DNA_ACGTN_NO_GAPS);
 
-/// A boolean mapping of uppercase `ACGTN` bytes.
+/// A boolean mapping of uppercase `ACGTN` bytes without gaps.
 pub(crate) const IS_DNA_ACGTN_NO_GAPS_UC: [bool; 256] = make_is_alpha_mapping(DNA_ACGTN_NO_GAPS_UC);
 
 /// A boolean mapping of uppercase `ACGTN-` bytes.
 pub(crate) const IS_DNA_ACGTN_STD_GAPS_UC: [bool; 256] = make_is_alpha_mapping(DNA_ACGTN_STD_GAPS_UC);
 
 //
-// For retain: u8 -> u8 else 0
+// Typically used by:   RetainSequence::retain_by_recoding
+// Mapping:             u8 -> u8 else 0
 //
 
-/// Used to convert nucleotide sequences to unaligned, IUPAC-validated,
-/// uppercase DNA. The 0-byte is used for filtering out unwanted patterns.
+/// Used to convert nucleotide sequences to valid, uppercase IUPAC DNA without
+/// gaps. The 0-byte is used for filtering out unwanted patterns.
 pub(crate) const TO_DNA_IUPAC_NO_GAPS_UC: [u8; 256] = make_mapping_with_default(
     b"acgturyswkmbdhvnACGTURYSWKMBDHVN",
     b"ACGTTRYSWKMBDHVNACGTTRYSWKMBDHVN",
     0,
 );
 
-/// Used to convert nucleotide sequences to valid IUPAC DNA (uppercase). The
-/// 0-byte is used for filtering out unwanted patterns.
+/// Used to convert nucleotide sequences to valid, uppercase IUPAC DNA, allowing
+/// gaps. The 0-byte is used for filtering out unwanted patterns.
 pub(crate) const TO_DNA_IUPAC_WITH_GAPS_UC: [u8; 256] = make_mapping_with_default(
     b"acgturyswkmbdhvnACGTURYSWKMBDHVN.-",
     b"ACGTTRYSWKMBDHVNACGTTRYSWKMBDHVN.-",
     0,
 );
 
-/// Used to convert nucleotide sequences to valid IUPAC DNA (uppercase), also
-/// correct non-standard gaps. The 0-byte is used for filtering out unwanted
+/// Used to convert nucleotide sequences to valid, uppercase IUPAC DNA, also
+/// correcting non-standard gaps. The 0-byte is used for filtering out unwanted
 /// patterns.
 pub(crate) const TO_DNA_IUPAC_CORRECT_GAPS_UC: [u8; 256] = make_mapping_with_default(
     b"acgturyswkmbdhvnACGTURYSWKMBDHVN.-:~",
@@ -55,8 +57,8 @@ pub(crate) const TO_DNA_IUPAC_CORRECT_GAPS_UC: [u8; 256] = make_mapping_with_def
     0,
 );
 
-/// Used to convert nucleotide sequences to only ACGTN (uppercase) without gaps.
-/// The 0-byte is used for filtering out unwanted patterns.
+/// Used to convert nucleotide sequences to uppercase ACGTN without gaps. The
+/// 0-byte is used for filtering out unwanted patterns.
 #[rustfmt::skip]
 pub(crate) const TO_DNA_ACGTN_NO_GAPS_UC: [u8; 256] = make_mapping_with_default(
     b"acgtnACGTN",
@@ -64,8 +66,8 @@ pub(crate) const TO_DNA_ACGTN_NO_GAPS_UC: [u8; 256] = make_mapping_with_default(
     0,
 );
 
-/// Used to convert nucleotide sequences to only uppercase ACGTN without gaps.
-/// The 0-byte is used for filtering out unwanted patterns.
+/// Used to convert nucleotide sequences to uppercase ACGTN with gaps. The
+/// 0-byte is used for filtering out unwanted patterns.
 #[rustfmt::skip]
 pub(crate) const TO_DNA_ACGTN_WITH_GAPS_UC: [u8; 256] = make_mapping_with_default(
     b"acgtnACGTN",
@@ -73,8 +75,8 @@ pub(crate) const TO_DNA_ACGTN_WITH_GAPS_UC: [u8; 256] = make_mapping_with_defaul
     0,
 );
 
-/// Used to convert nucleotide sequences to only uppercase ACGTN without gaps.
-/// The 0-byte is used for filtering out unwanted patterns.
+/// Used to convert nucleotide sequences to uppercase ACGTN and standardizing
+/// gaps to `-`. The 0-byte is used for filtering out unwanted patterns.
 #[rustfmt::skip]
 pub(crate) const TO_DNA_ACGTN_STD_GAPS_UC: [u8; 256] = make_mapping_with_default(
     b"acgtnACGTN-",
@@ -83,7 +85,8 @@ pub(crate) const TO_DNA_ACGTN_STD_GAPS_UC: [u8; 256] = make_mapping_with_default
 );
 
 //
-// For recode: u8 -> u8 else self
+// Typically used by:   Recode::recode
+// Mapping:             u8 -> u8 else self
 //
 
 /// Used to convert any valid IUPAC DNA to uppercase ACGTN.
@@ -106,7 +109,8 @@ pub(crate) const TO_REVERSE_COMPLEMENT: [u8; 256] = make_mapping_otherwise_self(
 );
 
 //
-// For recode: u8 -> u8 else default
+// Typically used by:   Recode::recode
+// Mapping:             u8 -> u8 else default
 //
 
 /// Used to convert any byte to uppercase ACGTN. N is used as a catch-all.
@@ -152,7 +156,8 @@ pub(crate) const ANY_TO_DNA_IUPAC_CORRECT_GAPS_UC: [u8; 256] = make_mapping_with
 );
 
 //
-// For ByteIndexMap: u8 -> usize
+// Typically used by:   ByteIndexMap
+// Mapping:             u8 -> usize
 //
 
 /// Used to convert any byte to `u8` indices where {0: A, 1: C, 2: G, 3: T, 4: N}.

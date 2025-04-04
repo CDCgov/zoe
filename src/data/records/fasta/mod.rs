@@ -1,4 +1,5 @@
 use crate::{
+    DEFAULT_SIMD_LANES,
     data::{
         id_types::FastaIDs,
         types::{
@@ -236,7 +237,7 @@ impl<R: std::io::Read> FastaReader<R> {
                 };
 
                 if bytes > 0 {
-                    let split = self.buffer.lines_ascii::<32>();
+                    let split = self.buffer.lines_ascii::<{ DEFAULT_SIMD_LANES }>();
                     let mut sequence = Vec::with_capacity(split.remaining_len());
                     for s in split {
                         sequence.extend_from_slice(s);
@@ -301,7 +302,7 @@ impl<R: std::io::Read> Iterator for FastaReader<R> {
                 )));
             }
 
-            let mut split = self.buffer.lines_ascii::<32>();
+            let mut split = self.buffer.lines_ascii::<{ DEFAULT_SIMD_LANES }>();
             let name = if let Some(h) = split.next()
                 && !h.is_empty()
             {

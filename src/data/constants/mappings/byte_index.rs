@@ -7,6 +7,8 @@ use std::ops::Index;
 /// ## Type Parameters
 /// * `KEYS` - The number of bytes being mapped (such as 5 for DNA including
 ///   *N*)
+///
+/// [`DNA_PROFILE_MAP`]: super::DNA_PROFILE_MAP
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct ByteIndexMap<const KEYS: usize> {
     pub(crate) index_map: [u8; 256],

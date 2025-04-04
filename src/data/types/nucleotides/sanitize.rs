@@ -1,14 +1,14 @@
 use crate::{
+    DEFAULT_SIMD_LANES,
     data::{
         mappings::dna::*,
-        types::nucleotides::NucleotidesMutable,
+        types::nucleotides::{NucleotidesMutable, NucleotidesReadable},
         validation::{recode::Recode, retain::RetainSequence},
         view_traits::SliceRange,
     },
     prelude::*,
 };
-
-use super::NucleotidesReadable;
+use std::simd::prelude::*;
 
 pub trait ToDNA: Into<Nucleotides> {
     /// Filters and recodes to uppercase IUPAC with corrected gaps.
@@ -38,6 +38,7 @@ impl ToDNA for Vec<u8> {}
 impl ToDNA for &[u8] {}
 
 /// Enumeration for DNA recoding strategies.
+#[non_exhaustive]
 pub enum RecodeDNAStrat {
     /// Converts any valid IUPAC DNA to ACGTN (preserving case), allowing gaps
     IupacToAcgtnWithGaps,
@@ -76,6 +77,7 @@ impl RecodeDNAStrat {
 }
 
 /// Enumeration for DNA validation and retention strategies.
+#[non_exhaustive]
 pub enum IsValidDNA {
     /// For valid IUPAC bases without gaps
     IupacNoGaps,
@@ -96,7 +98,7 @@ pub enum IsValidDNA {
 
 impl IsValidDNA {
     #[inline]
-    const fn validation_mapping(&self) -> &'static [bool; 256] {
+    const fn mapping(&self) -> &'static [bool; 256] {
         match self {
             IsValidDNA::IupacNoGaps => &IS_DNA_IUPAC_NO_GAPS,
             IsValidDNA::IupacNoGapsUc => &IS_DNA_IUPAC_NO_GAPS_UC,
@@ -108,9 +110,15 @@ impl IsValidDNA {
             IsValidDNA::AcgtnStdGapsUc => &IS_DNA_ACGTN_STD_GAPS_UC,
         }
     }
+
+    #[inline]
+    const fn is_valid(&self, index: u8) -> bool {
+        self.mapping()[index as usize]
+    }
 }
 
 /// DNA retention strategies. Data that cannot be recoded is not retained.
+#[non_exhaustive]
 pub enum RefineDNAStrat {
     /// Retains and recodes to uppercase IUPAC bases without gaps
     IupacNoGapsUc,
@@ -130,7 +138,7 @@ pub enum RefineDNAStrat {
 impl RefineDNAStrat {
     /// Returns the corresponding recoding array for the selected retention and recoding strategy
     #[inline]
-    const fn recoding_mapping(&self) -> &'static [u8; 256] {
+    const fn mapping(&self) -> &'static [u8; 256] {
         match self {
             RefineDNAStrat::IupacNoGapsUc => &TO_DNA_IUPAC_NO_GAPS_UC,
             RefineDNAStrat::IupacWithGapsUc => &TO_DNA_IUPAC_WITH_GAPS_UC,
@@ -144,17 +152,17 @@ impl RefineDNAStrat {
 }
 
 /// Provides DNA-specific methods for recoding a sequence. Data that cannot be
-/// recoded becomes `N`. See [`RecodeDNAStrategy`] for recoding strategies.
+/// recoded becomes `N`. See [`RecodeDNAStrat`] for recoding strategies.
 pub trait RecodeNucleotides: NucleotidesMutable {
     /// Recodes the stored sequences according to the strategy in
-    /// [`RecodeDNAStrategy`]. Data that cannot be recoded becomes `N`.
+    /// [`RecodeDNAStrat`]. Data that cannot be recoded becomes `N`.
     #[inline]
     fn recode_dna(&mut self, strategy: RecodeDNAStrat) {
         self.nucleotide_mut_bytes().recode(strategy.mapping());
     }
 
     /// Recodes the stored sequence using
-    /// [`RecodeDNAStrategy::AnyToAcgtnNoGapsUpper`], which is the preferred
+    /// [`RecodeDNAStrat::AnyToAcgtnNoGapsUpper`], which is the preferred
     /// strategy for read data. Data that cannot be recoded becomes `N`.
     #[inline]
     fn recode_dna_reads(&mut self) {
@@ -163,9 +171,9 @@ pub trait RecodeNucleotides: NucleotidesMutable {
     }
 
     /// Recodes the stored sequence using
-    /// [`RecodeDNAStrategy::AnyToIupacCorrectGapsUpper`], which is the
-    /// preferred strategy for aligned, multiple sequence alignment data. Data
-    /// that cannot be recoded becomes `N`.
+    /// [`RecodeDNAStrat::AnyToIupacCorrectGapsUpper`], which is the preferred
+    /// strategy for aligned, multiple sequence alignment data. Data that cannot
+    /// be recoded becomes `N`.
     #[inline]
     fn recode_dna_aligned(&mut self) {
         self.nucleotide_mut_bytes()
@@ -187,45 +195,84 @@ pub trait RetainNucleotides: AsMut<Vec<u8>> {
     /// retention strategy.
     #[inline]
     fn retain_dna(&mut self, strategy: IsValidDNA) {
-        self.as_mut().retain_by_validation(strategy.validation_mapping());
+        self.as_mut().retain_by_validation(strategy.mapping());
     }
 
     /// Retains and recodes nucleotides according to the specified retention strategy.
     #[inline]
     fn retain_and_recode_dna(&mut self, strategy: RefineDNAStrat) {
-        self.as_mut().retain_by_recoding(strategy.recoding_mapping());
+        self.as_mut().retain_by_recoding(strategy.mapping());
     }
 }
 
 impl RetainNucleotides for Nucleotides {}
 impl RetainNucleotides for Vec<u8> {}
 
-pub trait CheckNucleotides: NucleotidesReadable {
-    /// Checks if nucleotide sequence only contains valid IUPAC bases, without
-    /// gaps
+pub trait CheckNucleotides {
+    /// Checks if nucleotide sequence is valid according to the specified validation strategy.
+    fn is_valid_dna(&self, strategy: IsValidDNA) -> bool;
+
+    /// Checks if the nucleotide sequence only contains uppercase `A`, `C`, `G`,
+    /// `T`, `N` (no gaps). This version is SIMD accelerated.
+    fn is_acgtn_uc(&self) -> bool;
+}
+
+impl<T: NucleotidesReadable> CheckNucleotides for T {
     #[inline]
-    fn is_iupac_no_gaps(&self) -> bool {
-        self.nucleotide_bytes().iter().all(|&b| IS_DNA_IUPAC_NO_GAPS[b as usize])
+    fn is_valid_dna(&self, strategy: IsValidDNA) -> bool {
+        self.nucleotide_bytes().iter().all(|&b| strategy.is_valid(b))
     }
 
-    /// Checks if nucleotide sequence only contains valid uppercase IUPAC bases,
-    /// without gaps
-    #[inline]
-    fn is_iupac_no_gaps_uc(&self) -> bool {
-        self.nucleotide_bytes().iter().all(|&b| IS_DNA_IUPAC_NO_GAPS_UC[b as usize])
-    }
-
-    /// Checks if the nucleotide sequence only contains `A`, `C`, `G`, `T`, `N` (no gaps).
-    #[inline]
-    fn is_acgtn(&self) -> bool {
-        self.nucleotide_bytes().iter().all(|&b| IS_DNA_ACGTN_NO_GAPS[b as usize])
-    }
-
-    /// Checks if the nucleotide sequence only contains uppercase `A`, `C`, `G`, `T`, `N` (no gaps).
     #[inline]
     fn is_acgtn_uc(&self) -> bool {
-        self.nucleotide_bytes().iter().all(|&b| IS_DNA_ACGTN_NO_GAPS_UC[b as usize])
+        is_acgtn_uc_simd(self.nucleotide_bytes())
     }
 }
 
-impl<T: NucleotidesReadable> CheckNucleotides for T {}
+impl CheckNucleotides for &[u8] {
+    #[inline]
+    fn is_valid_dna(&self, strategy: IsValidDNA) -> bool {
+        self.iter().all(|&b| strategy.is_valid(b))
+    }
+
+    #[inline]
+    fn is_acgtn_uc(&self) -> bool {
+        is_acgtn_uc_simd(self)
+    }
+}
+
+impl CheckNucleotides for Vec<u8> {
+    #[inline]
+    fn is_valid_dna(&self, strategy: IsValidDNA) -> bool {
+        self.iter().all(|&b| strategy.is_valid(b))
+    }
+
+    #[inline]
+    fn is_acgtn_uc(&self) -> bool {
+        is_acgtn_uc_simd(self)
+    }
+}
+
+#[inline]
+#[allow(non_snake_case)]
+#[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
+fn is_acgtn_uc_simd(s: &[u8]) -> bool {
+    let (chunks, remainder) = s.as_chunks::<{ DEFAULT_SIMD_LANES }>();
+
+    let (A, G, C, T, N) = (
+        Simd::splat(b'A'),
+        Simd::splat(b'G'),
+        Simd::splat(b'C'),
+        Simd::splat(b'T'),
+        Simd::splat(b'N'),
+    );
+
+    for v in chunks.iter().map(|c| Simd::from_array(*c)) {
+        let valid = v.simd_eq(A) | v.simd_eq(G) | v.simd_eq(C) | v.simd_eq(T) | v.simd_eq(N);
+        if !valid.all() {
+            return false;
+        }
+    }
+
+    remainder.iter().all(|&b| IsValidDNA::AcgtnNoGapsUc.is_valid(b))
+}

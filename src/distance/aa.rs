@@ -1,4 +1,5 @@
 use crate::{
+    DEFAULT_SIMD_LANES,
     data::{err::DistanceError, types::amino_acids::AminoAcidsReadable},
     distance::{
         aa::DistanceError::{NoData, NotComparable},
@@ -30,7 +31,7 @@ pub trait AminoAcidsDistance: AminoAcidsReadable {
     #[inline]
     #[must_use]
     fn distance_hamming<T: AminoAcidsReadable>(&self, other_sequence: &T) -> usize {
-        hamming_simd::<16>(self.amino_acids_bytes(), other_sequence.amino_acids_bytes())
+        hamming_simd::<{ DEFAULT_SIMD_LANES }>(self.amino_acids_bytes(), other_sequence.amino_acids_bytes())
     }
 
     /// Calculates physiochemical distance between `self`and another protein
