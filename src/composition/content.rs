@@ -7,7 +7,7 @@ pub trait GcContent: NucleotidesReadable {
     #[inline]
     #[must_use]
     fn gc_content(&self) -> usize {
-        gc_content_simd::<32>(self.nucleotide_bytes())
+        gc_content_simd::<{ crate::DEFAULT_SIMD_LANES }>(self.nucleotide_bytes())
     }
 }
 
@@ -16,6 +16,7 @@ impl<T: NucleotidesReadable> GcContent for T {}
 /// Calculates GC content using SIMD operations for better performance. Returns
 /// count of G and C nucleotides in the sequence.
 #[must_use]
+#[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
 pub fn gc_content_simd<const N: usize>(s: &[u8]) -> usize
 where
     LaneCount<N>: SupportedLaneCount, {

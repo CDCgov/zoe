@@ -56,3 +56,6 @@ pub mod prelude {
 }
 
 pub(crate) use crate::data::extension::simd;
+
+/// The default SIMD lanes for Zoe.
+const DEFAULT_SIMD_LANES: usize = 32;

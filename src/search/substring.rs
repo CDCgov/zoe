@@ -1,6 +1,7 @@
-use crate::search::RangeSearch;
-
-use super::{inexact::fuzzy_substring_match_simd, k_repeating::find_k_repeating};
+use crate::{
+    DEFAULT_SIMD_LANES,
+    search::{RangeSearch, inexact::fuzzy_substring_match_simd, k_repeating::find_k_repeating},
+};
 use std::{
     ops::Range,
     simd::{LaneCount, SupportedLaneCount, prelude::*},
@@ -55,14 +56,14 @@ impl<T: AsRef<[u8]> + ?Sized> ByteSubstring for T {
         let haystack = self.as_ref();
         let needle = needle.as_ref();
 
-        substring_match_simd::<32>(haystack, needle).is_some()
+        substring_match_simd::<{ DEFAULT_SIMD_LANES }>(haystack, needle).is_some()
     }
 
     #[inline]
     fn find_substring(&self, needle: impl AsRef<[u8]>) -> Option<Range<usize>> {
         let haystack = self.as_ref();
         let needle = needle.as_ref();
-        substring_match_simd::<32>(haystack, needle).map(|s| s..s + needle.len())
+        substring_match_simd::<{ DEFAULT_SIMD_LANES }>(haystack, needle).map(|s| s..s + needle.len())
     }
 
     #[inline]
@@ -70,14 +71,15 @@ impl<T: AsRef<[u8]> + ?Sized> ByteSubstring for T {
         let haystack = self.as_ref();
         let needle = needle.as_ref();
 
-        fuzzy_substring_match_simd::<32, DIFFERENCES_ALLOWED>(haystack, needle).map(|s| s..s + needle.len())
+        fuzzy_substring_match_simd::<{ DEFAULT_SIMD_LANES }, DIFFERENCES_ALLOWED>(haystack, needle)
+            .map(|s| s..s + needle.len())
     }
 
     #[inline]
     fn find_repeating_byte(&self, needle: u8, size: usize) -> Option<Range<usize>> {
         let haystack = self.as_ref();
 
-        find_k_repeating::<32>(haystack, needle, size).map(|s| s..s + size)
+        find_k_repeating::<{ DEFAULT_SIMD_LANES }>(haystack, needle, size).map(|s| s..s + size)
     }
 
     #[inline]
