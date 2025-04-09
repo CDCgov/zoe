@@ -70,8 +70,8 @@ pub(crate) const TO_DNA_ACGTN_NO_GAPS_UC: [u8; 256] = make_mapping_with_default(
 /// 0-byte is used for filtering out unwanted patterns.
 #[rustfmt::skip]
 pub(crate) const TO_DNA_ACGTN_WITH_GAPS_UC: [u8; 256] = make_mapping_with_default(
-    b"acgtnACGTN",
-    b"ACGTNACGTN",
+    b"acgtnACGTN-.",
+    b"ACGTNACGTN-.",
     0,
 );
 
@@ -79,8 +79,8 @@ pub(crate) const TO_DNA_ACGTN_WITH_GAPS_UC: [u8; 256] = make_mapping_with_defaul
 /// gaps to `-`. The 0-byte is used for filtering out unwanted patterns.
 #[rustfmt::skip]
 pub(crate) const TO_DNA_ACGTN_STD_GAPS_UC: [u8; 256] = make_mapping_with_default(
-    b"acgtnACGTN-",
-    b"ACGTNACGTN-",
+    b"acgtnACGTN-.~:",
+    b"ACGTNACGTN----",
     0,
 );
 

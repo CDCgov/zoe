@@ -1,5 +1,11 @@
 //! ## Data import, export, and manipulation functions.
 //!
+//! ## IUPAC Standards
+//!
+//! For nucleotides and proteins, *Zoe* implements [IUPAC
+//! definitions](https://www.bioinformatics.org/sms/iupac.html) that include
+//! ambiguous base calls.
+//!
 //! ## Views
 //!
 //! Many of the data type provided by *Zoe* have versions holding owned data as
