@@ -116,6 +116,7 @@ fn test_try_from() {
     assert!(Cigar::try_from("10M5I20D").is_ok());
     assert!(Cigar::try_from("1M").is_ok());
     assert!(Cigar::try_from("1000000M").is_ok());
+    assert!(Cigar::try_from("*").is_ok());
     assert_eq!(Cigar::try_from("10M5I20X@"), Err(CigarError::InvalidOperation));
     assert_eq!(Cigar::try_from("10M#I5D"), Err(CigarError::InvalidOperation));
     assert_eq!(Cigar::try_from("10M5I20"), Err(CigarError::MissingOp));
@@ -126,4 +127,5 @@ fn test_try_from() {
     assert_eq!(Cigar::try_from("0M"), Err(CigarError::IncZero));
     assert_eq!(Cigar::try_from("18446744073709551616M"), Err(CigarError::IncOverflow));
     assert_eq!(Cigar::try_from(""), Ok(Cigar::new()));
+    assert_eq!(Cigar::try_from("10M5I20*5D"), Err(CigarError::InvalidOperation));
 }

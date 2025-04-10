@@ -664,6 +664,11 @@ impl<R: std::io::Read> Iterator for SAMReader<R> {
                 };
 
                 let quality_scores: QualityScores = unwrap_or_return_some_err!(r[10].as_bytes().try_into());
+                let cigar = if r[5].starts_with('*') {
+                    Cigar::new()
+                } else {
+                    Cigar::from_slice_unchecked(r[5])
+                };
 
                 let row = SamData {
                     qname: r[0].to_owned(),
@@ -671,7 +676,7 @@ impl<R: std::io::Read> Iterator for SAMReader<R> {
                     rname: r[2].to_owned(),
                     pos:   aligned_reference_position,
                     mapq:  read_mapping_quality,
-                    cigar: Cigar::from_slice_unchecked(r[5]),
+                    cigar,
                     rnext: '*',
                     pnext: 0,
                     tlen:  0,

@@ -133,6 +133,10 @@ impl TryFrom<Vec<u8>> for Cigar {
         let mut num: usize = 0;
         let mut has_number = false;
 
+        if bytes == b"*" || bytes.is_empty() {
+            return Ok(Cigar::new());
+        }
+
         for b in &bytes {
             if b.is_ascii_digit() {
                 num = num
