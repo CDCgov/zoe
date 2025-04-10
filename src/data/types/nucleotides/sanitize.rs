@@ -194,6 +194,12 @@ pub trait RecodeNucleotides: NucleotidesMutable {
             .recode(RecodeDNAStrat::AnyToIupacCorrectGapsUpper.mapping());
     }
 
+    /// Recodes the stored sequence to uppercase in-place.
+    #[inline]
+    fn make_uppercase(&mut self) {
+        self.nucleotide_mut_bytes().make_ascii_uppercase();
+    }
+
     /// Masks the provided `range` with `N`. If the range does not exist, the
     /// function does nothing.
     #[inline]

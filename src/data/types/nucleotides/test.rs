@@ -69,6 +69,13 @@ fn test_codons() {
 }
 
 #[test]
+fn make_uppercase() {
+    let mut s: Nucleotides = b"abcABC..--abcABC".into();
+    s.make_uppercase();
+    assert_eq!(s.to_string(), "ABCABC..--ABCABC");
+}
+
+#[test]
 fn retain_and_recode_iupac_with_gaps_uc() {
     let mut s: Nucleotides = b"U gotta get my gat back--ok?!".into();
     s.retain_and_recode_dna(RefineDNAStrat::IupacWithGapsUc);

@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file. The format 
 - Added new `From` and `TryFrom` implementations to sequence types
 - Implemented `Arbitrary` for `KmerSet` when the `arbitrary` feature is enabled
 - Added functions for retrieving the codons from `Nucleotides`
+- Add `make_uppercase` to `RecodeNucleotides`
 
 ### Changed
 
