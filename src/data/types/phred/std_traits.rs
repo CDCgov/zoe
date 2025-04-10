@@ -57,10 +57,18 @@ impl AsMut<Vec<u8>> for QualityScores {
     }
 }
 
-// TODO: Implement TryFrom<String>???
+impl TryFrom<String> for QualityScores {
+    type Error = IOError;
+    #[inline]
+    fn try_from(encoded_scores: String) -> Result<Self, Self::Error> {
+        QualityScores::try_from(encoded_scores.into_bytes())
+    }
+}
 
 impl TryFrom<Vec<EncodedQS>> for QualityScores {
     type Error = IOError;
+
+    #[inline]
     fn try_from(encoded_scores: Vec<EncodedQS>) -> Result<Self, Self::Error> {
         if encoded_scores.is_graphic_simd::<16>() {
             Ok(QualityScores(encoded_scores))
@@ -70,19 +78,28 @@ impl TryFrom<Vec<EncodedQS>> for QualityScores {
     }
 }
 
+impl<const N: usize> TryFrom<[EncodedQS; N]> for QualityScores {
+    type Error = IOError;
+
+    #[inline]
+    fn try_from(encoded_scores: [EncodedQS; N]) -> Result<Self, Self::Error> {
+        QualityScores::try_from(encoded_scores.to_vec())
+    }
+}
+
 impl TryFrom<&[EncodedQS]> for QualityScores {
     type Error = IOError;
+
+    #[inline]
     fn try_from(encoded_scores: &[EncodedQS]) -> Result<Self, Self::Error> {
-        if encoded_scores.is_graphic_simd::<16>() {
-            Ok(QualityScores(encoded_scores.to_vec()))
-        } else {
-            Err(IOError::new(ErrorKind::InvalidData, "Quality scores contain invalid state!"))
-        }
+        QualityScores::try_from(encoded_scores.to_vec())
     }
 }
 
 impl<'a> TryFrom<&'a [EncodedQS]> for QualityScoresView<'a> {
     type Error = IOError;
+
+    #[inline]
     fn try_from(encoded_scores: &'a [EncodedQS]) -> Result<Self, Self::Error> {
         if encoded_scores.is_graphic_simd::<16>() {
             Ok(QualityScoresView(encoded_scores))
@@ -92,25 +109,79 @@ impl<'a> TryFrom<&'a [EncodedQS]> for QualityScoresView<'a> {
     }
 }
 
-impl<const N: usize> TryFrom<&[EncodedQS; N]> for QualityScores {
+impl TryFrom<&mut [EncodedQS]> for QualityScores {
     type Error = IOError;
-    fn try_from(encoded_scores: &[EncodedQS; N]) -> Result<Self, Self::Error> {
+
+    #[inline]
+    fn try_from(encoded_scores: &mut [EncodedQS]) -> Result<Self, Self::Error> {
+        QualityScores::try_from(encoded_scores.to_vec())
+    }
+}
+
+impl<'a> TryFrom<&'a mut [EncodedQS]> for QualityScoresView<'a> {
+    type Error = IOError;
+
+    #[inline]
+    fn try_from(encoded_scores: &'a mut [EncodedQS]) -> Result<Self, Self::Error> {
+        QualityScoresView::try_from(&*encoded_scores)
+    }
+}
+
+impl<'a> TryFrom<&'a mut [EncodedQS]> for QualityScoresViewMut<'a> {
+    type Error = IOError;
+
+    #[inline]
+    fn try_from(encoded_scores: &'a mut [EncodedQS]) -> Result<Self, Self::Error> {
         if encoded_scores.is_graphic_simd::<16>() {
-            Ok(QualityScores(encoded_scores.to_vec()))
+            Ok(QualityScoresViewMut(encoded_scores))
         } else {
             Err(IOError::new(ErrorKind::InvalidData, "Quality scores contain invalid state!"))
         }
     }
 }
 
+impl<const N: usize> TryFrom<&[EncodedQS; N]> for QualityScores {
+    type Error = IOError;
+
+    #[inline]
+    fn try_from(encoded_scores: &[EncodedQS; N]) -> Result<Self, Self::Error> {
+        QualityScores::try_from(encoded_scores.to_vec())
+    }
+}
+
 impl<'a, const N: usize> TryFrom<&'a [EncodedQS; N]> for QualityScoresView<'a> {
     type Error = IOError;
+
+    #[inline]
     fn try_from(encoded_scores: &'a [EncodedQS; N]) -> Result<Self, Self::Error> {
-        if encoded_scores.is_graphic_simd::<16>() {
-            Ok(QualityScoresView(encoded_scores))
-        } else {
-            Err(IOError::new(ErrorKind::InvalidData, "Quality scores contain invalid state!"))
-        }
+        QualityScoresView::try_from(encoded_scores.as_slice())
+    }
+}
+
+impl<const N: usize> TryFrom<&mut [EncodedQS; N]> for QualityScores {
+    type Error = IOError;
+
+    #[inline]
+    fn try_from(encoded_scores: &mut [EncodedQS; N]) -> Result<Self, Self::Error> {
+        QualityScores::try_from(encoded_scores.to_vec())
+    }
+}
+
+impl<'a, const N: usize> TryFrom<&'a mut [EncodedQS; N]> for QualityScoresView<'a> {
+    type Error = IOError;
+
+    #[inline]
+    fn try_from(encoded_scores: &'a mut [EncodedQS; N]) -> Result<Self, Self::Error> {
+        QualityScoresView::try_from(encoded_scores.as_slice())
+    }
+}
+
+impl<'a, const N: usize> TryFrom<&'a mut [EncodedQS; N]> for QualityScoresViewMut<'a> {
+    type Error = IOError;
+
+    #[inline]
+    fn try_from(encoded_scores: &'a mut [EncodedQS; N]) -> Result<Self, Self::Error> {
+        QualityScoresViewMut::try_from(encoded_scores.as_mut_slice())
     }
 }
 

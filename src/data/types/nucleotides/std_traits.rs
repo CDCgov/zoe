@@ -56,7 +56,7 @@ impl AsMut<Vec<u8>> for Nucleotides {
 impl From<String> for Nucleotides {
     #[inline]
     fn from(s: String) -> Self {
-        Nucleotides(s.as_bytes().to_vec())
+        Nucleotides(s.into_bytes())
     }
 }
 
@@ -64,6 +64,13 @@ impl From<Vec<u8>> for Nucleotides {
     #[inline]
     fn from(vec: Vec<u8>) -> Self {
         Nucleotides(vec)
+    }
+}
+
+impl<const N: usize> From<[u8; N]> for Nucleotides {
+    #[inline]
+    fn from(bytes: [u8; N]) -> Self {
+        Nucleotides(bytes.to_vec())
     }
 }
 
@@ -81,7 +88,26 @@ impl<'a> From<&'a [u8]> for NucleotidesView<'a> {
     }
 }
 
-// TODO: Implement From &mut [u8] for NucleotidesViewMut?? (and other seq-like types)
+impl From<&mut [u8]> for Nucleotides {
+    #[inline]
+    fn from(bytes: &mut [u8]) -> Self {
+        Nucleotides(bytes.to_vec())
+    }
+}
+
+impl<'a> From<&'a mut [u8]> for NucleotidesView<'a> {
+    #[inline]
+    fn from(bytes: &'a mut [u8]) -> Self {
+        NucleotidesView(bytes)
+    }
+}
+
+impl<'a> From<&'a mut [u8]> for NucleotidesViewMut<'a> {
+    #[inline]
+    fn from(bytes: &'a mut [u8]) -> Self {
+        NucleotidesViewMut(bytes)
+    }
+}
 
 impl<const N: usize> From<&[u8; N]> for Nucleotides {
     #[inline]
@@ -94,6 +120,27 @@ impl<'a, const N: usize> From<&'a [u8; N]> for NucleotidesView<'a> {
     #[inline]
     fn from(bytes: &'a [u8; N]) -> Self {
         NucleotidesView(bytes)
+    }
+}
+
+impl<const N: usize> From<&mut [u8; N]> for Nucleotides {
+    #[inline]
+    fn from(bytes: &mut [u8; N]) -> Self {
+        Nucleotides(bytes.to_vec())
+    }
+}
+
+impl<'a, const N: usize> From<&'a mut [u8; N]> for NucleotidesView<'a> {
+    #[inline]
+    fn from(bytes: &'a mut [u8; N]) -> Self {
+        NucleotidesView(bytes)
+    }
+}
+
+impl<'a, const N: usize> From<&'a mut [u8; N]> for NucleotidesViewMut<'a> {
+    #[inline]
+    fn from(bytes: &'a mut [u8; N]) -> Self {
+        NucleotidesViewMut(bytes)
     }
 }
 

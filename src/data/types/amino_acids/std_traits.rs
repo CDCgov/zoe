@@ -56,7 +56,7 @@ impl AsMut<Vec<u8>> for AminoAcids {
 impl From<String> for AminoAcids {
     #[inline]
     fn from(s: String) -> Self {
-        AminoAcids(s.as_bytes().to_vec())
+        AminoAcids(s.into_bytes())
     }
 }
 
@@ -64,6 +64,13 @@ impl From<Vec<u8>> for AminoAcids {
     #[inline]
     fn from(vec: Vec<u8>) -> Self {
         AminoAcids(vec)
+    }
+}
+
+impl<const N: usize> From<[u8; N]> for AminoAcids {
+    #[inline]
+    fn from(bytes: [u8; N]) -> Self {
+        AminoAcids(bytes.to_vec())
     }
 }
 
@@ -81,7 +88,26 @@ impl<'a> From<&'a [u8]> for AminoAcidsView<'a> {
     }
 }
 
-// TODO: Implement From &mut [u8] for AminoAcidsViewMut?? (and other seq-like types)
+impl From<&mut [u8]> for AminoAcids {
+    #[inline]
+    fn from(bytes: &mut [u8]) -> Self {
+        AminoAcids(bytes.to_vec())
+    }
+}
+
+impl<'a> From<&'a mut [u8]> for AminoAcidsView<'a> {
+    #[inline]
+    fn from(bytes: &'a mut [u8]) -> Self {
+        AminoAcidsView(bytes)
+    }
+}
+
+impl<'a> From<&'a mut [u8]> for AminoAcidsViewMut<'a> {
+    #[inline]
+    fn from(bytes: &'a mut [u8]) -> Self {
+        AminoAcidsViewMut(bytes)
+    }
+}
 
 impl<const N: usize> From<&[u8; N]> for AminoAcids {
     #[inline]
@@ -94,6 +120,27 @@ impl<'a, const N: usize> From<&'a [u8; N]> for AminoAcidsView<'a> {
     #[inline]
     fn from(bytes: &'a [u8; N]) -> Self {
         AminoAcidsView(bytes)
+    }
+}
+
+impl<const N: usize> From<&mut [u8; N]> for AminoAcids {
+    #[inline]
+    fn from(bytes: &mut [u8; N]) -> Self {
+        AminoAcids(bytes.to_vec())
+    }
+}
+
+impl<'a, const N: usize> From<&'a mut [u8; N]> for AminoAcidsView<'a> {
+    #[inline]
+    fn from(bytes: &'a mut [u8; N]) -> Self {
+        AminoAcidsView(bytes)
+    }
+}
+
+impl<'a, const N: usize> From<&'a mut [u8; N]> for AminoAcidsViewMut<'a> {
+    #[inline]
+    fn from(bytes: &'a mut [u8; N]) -> Self {
+        AminoAcidsViewMut(bytes)
     }
 }
 

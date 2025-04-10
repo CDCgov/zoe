@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. The format is roughly based on [Keep a Changelog], and this project tries to adheres to [Semantic Versioning].
 
+## [0.0.16] - TBD
+
+### Added
+
+- Added new `From` and `TryFrom` implementations to sequence types
+
+### Changed
+
+- `ToDNA` now has a blanket impl to support the trait being used on more types
+
+### Fixed
+
 ## [0.0.15] - 2025-04-11
 
 ### Added

@@ -25,17 +25,16 @@ pub trait ToDNA: Into<Nucleotides> {
         n
     }
 
-    /// Recodes to uppercase IUPAC with corrected gaps in-place. Data that cannot
-    /// be recoded becomes `N`.
+    /// Recodes to uppercase IUPAC with corrected gaps in-place. Data that
+    /// cannot be recoded becomes `N`.
     fn recode_to_dna(self) -> Nucleotides {
         let mut n = self.into();
         n.recode_dna_aligned();
         n
     }
 }
-impl ToDNA for String {}
-impl ToDNA for Vec<u8> {}
-impl ToDNA for &[u8] {}
+
+impl<T: Into<Nucleotides>> ToDNA for T {}
 
 /// Enumeration for DNA recoding strategies. In all strategies, U is recoded to
 /// T.
@@ -66,7 +65,8 @@ pub enum RecodeDNAStrat {
 }
 
 impl RecodeDNAStrat {
-    /// Returns the corresponding mapping array for the selected recoding strategy
+    /// Returns the corresponding mapping array for the selected recoding
+    /// strategy
     #[inline]
     const fn mapping(self) -> &'static [u8; 256] {
         match self {
@@ -105,6 +105,8 @@ pub enum IsValidDNA {
 }
 
 impl IsValidDNA {
+    /// Returns the corresponding mapping array for the selected validation
+    /// strategy
     #[inline]
     pub(crate) const fn mapping(self) -> &'static [bool; 256] {
         match self {
@@ -119,6 +121,8 @@ impl IsValidDNA {
         }
     }
 
+    /// Checks whether a single byte is valid under the given validation
+    /// strategy
     #[inline]
     pub(crate) const fn is_valid(self, index: u8) -> bool {
         self.mapping()[index as usize]
@@ -145,7 +149,8 @@ pub enum RefineDNAStrat {
 }
 
 impl RefineDNAStrat {
-    /// Returns the corresponding recoding array for the selected retention and recoding strategy
+    /// Returns the corresponding recoding array for the selected retention and
+    /// recoding strategy
     #[inline]
     const fn mapping(self) -> &'static [u8; 256] {
         match self {
@@ -207,7 +212,8 @@ pub trait RetainNucleotides: AsMut<Vec<u8>> {
         self.as_mut().retain_by_validation(strategy.mapping());
     }
 
-    /// Retains and recodes nucleotides according to the specified retention strategy.
+    /// Retains and recodes nucleotides according to the specified retention
+    /// strategy.
     #[inline]
     fn retain_and_recode_dna(&mut self, strategy: RefineDNAStrat) {
         self.as_mut().retain_by_recoding(strategy.mapping());

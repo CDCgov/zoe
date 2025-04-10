@@ -105,3 +105,106 @@ pub use validation::{CheckSequence, Recode, RetainSequence, StdForSequences};
 
 pub(crate) use constants::{alphas, mappings, matrices};
 pub(crate) use extension::{array_types, byte_types, id_types, vec_types};
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        data::cigar::Cigar,
+        prelude::{
+            AminoAcids, AminoAcidsView, AminoAcidsViewMut, Nucleotides, NucleotidesView, NucleotidesViewMut, QualityScores,
+            QualityScoresView, QualityScoresViewMut,
+        },
+    };
+
+    #[test]
+    fn test_from() {
+        const SEQ: &[u8; 14] = b"10M3X5D10M3X5D";
+        let mut mut_arr1 = *SEQ;
+        let mut mut_arr2 = *SEQ;
+
+        macro_rules! test_from_impls_view_mut {
+            ($t:ty) => {
+                let mut_byte_slice = mut_arr1.as_mut_slice();
+                let arr_mut_ref = &mut mut_arr2;
+                let mut owned = *SEQ;
+                let expected = <$t>::from(&mut owned);
+                assert_eq!(<$t>::from(mut_byte_slice), expected);
+                assert_eq!(<$t>::from(arr_mut_ref), expected);
+            };
+        }
+
+        macro_rules! test_from_impls_view {
+            ($t:ty) => {
+                let byte_slice = SEQ.as_slice();
+                let arr_ref = SEQ;
+                let mut owned = *SEQ;
+                let expected = <$t>::from(&mut owned);
+                assert_eq!(<$t>::from(byte_slice), expected);
+                assert_eq!(<$t>::from(arr_ref), expected);
+                test_from_impls_view_mut!($t);
+            };
+        }
+
+        macro_rules! test_from_impls_owned {
+            ($t:ty) => {
+                let string = String::from_utf8_lossy(SEQ.as_slice()).to_string();
+                let vec = SEQ.to_vec();
+                let arr = *SEQ;
+                let mut owned = *SEQ;
+                let expected = <$t>::from(&mut owned);
+                assert_eq!(<$t>::from(string), expected);
+                assert_eq!(<$t>::from(vec), expected);
+                assert_eq!(<$t>::from(arr), expected);
+                test_from_impls_view!($t);
+            };
+        }
+
+        macro_rules! test_try_from_impls_view_mut {
+            ($t:ty) => {
+                let mut_byte_slice = mut_arr1.as_mut_slice();
+                let arr_mut_ref = &mut mut_arr2;
+                let mut owned = *SEQ;
+                let expected = <$t>::try_from(&mut owned).unwrap();
+                assert_eq!(<$t>::try_from(mut_byte_slice).unwrap(), expected);
+                assert_eq!(<$t>::try_from(arr_mut_ref).unwrap(), expected);
+            };
+        }
+
+        macro_rules! test_try_from_impls_view {
+            ($t:ty) => {
+                let byte_slice = SEQ.as_slice();
+                let arr_ref = SEQ;
+                let mut owned = *SEQ;
+                let expected = <$t>::try_from(&mut owned).unwrap();
+                assert_eq!(<$t>::try_from(byte_slice).unwrap(), expected);
+                assert_eq!(<$t>::try_from(arr_ref).unwrap(), expected);
+                test_try_from_impls_view_mut!($t);
+            };
+        }
+
+        macro_rules! test_try_from_impls_owned {
+            ($t:ty) => {
+                let string = String::from_utf8_lossy(SEQ.as_slice()).to_string();
+                let vec = SEQ.to_vec();
+                let arr = *SEQ;
+                let mut owned = *SEQ;
+                let expected = <$t>::try_from(&mut owned).unwrap();
+                assert_eq!(<$t>::try_from(string).unwrap(), expected);
+                assert_eq!(<$t>::try_from(vec).unwrap(), expected);
+                assert_eq!(<$t>::try_from(arr).unwrap(), expected);
+                test_try_from_impls_view!($t);
+            };
+        }
+
+        test_from_impls_owned!(Nucleotides);
+        test_from_impls_view!(NucleotidesView);
+        test_from_impls_view_mut!(NucleotidesViewMut);
+        test_from_impls_owned!(AminoAcids);
+        test_from_impls_view!(AminoAcidsView);
+        test_from_impls_view_mut!(AminoAcidsViewMut);
+        test_try_from_impls_owned!(QualityScores);
+        test_try_from_impls_view!(QualityScoresView);
+        test_try_from_impls_view_mut!(QualityScoresViewMut);
+        test_try_from_impls_owned!(Cigar);
+    }
+}

@@ -126,6 +126,15 @@ impl From<ExpandedCigar> for Cigar {
     }
 }
 
+impl TryFrom<String> for Cigar {
+    type Error = CigarError;
+
+    #[inline]
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        Cigar::try_from(s.into_bytes())
+    }
+}
+
 impl TryFrom<Vec<u8>> for Cigar {
     type Error = CigarError;
 
@@ -166,12 +175,12 @@ impl TryFrom<Vec<u8>> for Cigar {
     }
 }
 
-impl TryFrom<String> for Cigar {
+impl<const N: usize> TryFrom<[u8; N]> for Cigar {
     type Error = CigarError;
 
     #[inline]
-    fn try_from(s: String) -> Result<Self, Self::Error> {
-        Cigar::try_from(s.into_bytes())
+    fn try_from(v: [u8; N]) -> Result<Self, Self::Error> {
+        Cigar::try_from(v.to_vec())
     }
 }
 
@@ -184,6 +193,33 @@ impl TryFrom<&[u8]> for Cigar {
     }
 }
 
+impl TryFrom<&mut [u8]> for Cigar {
+    type Error = CigarError;
+
+    #[inline]
+    fn try_from(v: &mut [u8]) -> Result<Self, Self::Error> {
+        Cigar::try_from(v.to_vec())
+    }
+}
+
+impl<const N: usize> TryFrom<&[u8; N]> for Cigar {
+    type Error = CigarError;
+
+    #[inline]
+    fn try_from(v: &[u8; N]) -> Result<Self, Self::Error> {
+        Cigar::try_from(v.to_vec())
+    }
+}
+
+impl<const N: usize> TryFrom<&mut [u8; N]> for Cigar {
+    type Error = CigarError;
+
+    #[inline]
+    fn try_from(v: &mut [u8; N]) -> Result<Self, Self::Error> {
+        Cigar::try_from(v.to_vec())
+    }
+}
+
 impl TryFrom<&str> for Cigar {
     type Error = CigarError;
 
@@ -192,6 +228,7 @@ impl TryFrom<&str> for Cigar {
         Cigar::try_from(s.as_bytes())
     }
 }
+
 /// A single increment-opcode pair.
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Ciglet {
