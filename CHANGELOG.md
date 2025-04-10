@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file. The format is roughly based on [Keep a Changelog], and this project tries to adheres to [Semantic Versioning].
 
+## [0.0.15] - 2025-04-11
+
+### Added
+
+- Added new DNA validation / recoding functions, including a SIMD-accelerated `is_acgtn_uc` function
+- Added constant `DEFAULT_SIMD_LANES` to standardize SIMD lane count
+- Added more comprehensive documentation and tests for DNA mapping and sanitzation functions
+- Added impl for `TryFrom`, method `is_valid`, and enum `CigarError` for the CIGAR module.
+
+### Changed
+
+- Restructured DNA nucleotide validation and recoding using strategy enums:
+  - `IsValidDNA` for validation strategies
+  - `RefineDNAStrat` for filtering and/or recoding strategies
+  - `RecodeDNAStrat` for recoding strategies
+- Improved mapping functions for handling gaps and non-standard characters
+- Improved translation code to handle user specified partial codons
+
+### Fixed
+
+- Fixed documentation inconsistencies in alphabet and mapping modules
+- Apply U to T recoding where possible for DNA mappings
+
 ## [0.0.14] - 2025-03-18
 
 ### Added
@@ -123,6 +146,7 @@ All notable changes to this project will be documented in this file. The format 
 - **Added**: Initial internal release. Provides various readers and types for bioinformatics data manipulation.
 
 <!-- Versions -->
+[0.0.15]: https://github.com/CDCgov/zoe/compare/v0.0.14...v0.0.15
 [0.0.14]: https://github.com/CDCgov/zoe/compare/v0.0.13...v0.0.14
 [0.0.13]: https://github.com/CDCgov/zoe/compare/v0.0.12...v0.0.13
 [0.0.12]: https://github.com/CDCgov/zoe/compare/v0.0.11...v0.0.12

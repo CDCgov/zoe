@@ -1,7 +1,7 @@
 [package]
 edition = "2024"
 name = "zoe"
-version = "0.0.14"
+version = "0.0.15"
 rust-version = "1.87"
 description = "A nightly library for viral genomics"
 license = "Apache-2.0"

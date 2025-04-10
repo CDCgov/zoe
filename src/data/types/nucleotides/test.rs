@@ -114,64 +114,65 @@ fn check_refine_dna() {
         seq.into_vec()
     }
 
-    for char in u8::MIN..=u8::MAX {
+    for base in u8::MIN..=u8::MAX {
         for (refine_strat, valid_strat) in [
             (RefineDNAStrat::IupacNoGapsUc, IsValidDNA::IupacNoGaps),
             (RefineDNAStrat::IupacWithGapsUc, IsValidDNA::IupacWithGaps),
             (RefineDNAStrat::AcgtnNoGapsUc, IsValidDNA::AcgtnNoGaps),
         ] {
-            let seq = get_refined(char, refine_strat);
-            if Nucleotides::from(&[char]).is_valid_dna(valid_strat) {
-                let char = char.to_ascii_uppercase();
-                if char == b'U' {
-                    assert_eq!(seq, b"T");
-                } else {
-                    assert_eq!(seq, &[char]);
+            let seq = get_refined(base, refine_strat);
+            if valid_strat.is_valid(base) {
+                match base.to_ascii_uppercase() {
+                    b'U' => assert_eq!(seq, b"T"),
+                    b => assert_eq!(seq, &[b], "{} vs {} in {valid_strat:?}", seq[0] as char, b as char),
                 }
+            } else if base.eq_ignore_ascii_case(&b'U') {
+                assert_eq!(seq, b"T", "{} vs T in {valid_strat:?}", seq[0] as char);
             } else {
-                assert!(seq.is_empty(), "{char}");
+                assert!(seq.is_empty(), "ø vs {} in {valid_strat:?}", base as char,);
             }
         }
 
-        let seq = get_refined(char, RefineDNAStrat::IupacCorrectGapsUc);
-        if Nucleotides::from(&[char]).is_valid_dna(IsValidDNA::IupacNoGaps) {
-            let char = char.to_ascii_uppercase();
-            if char == b'U' {
-                assert_eq!(seq, b"T");
-            } else {
-                assert_eq!(seq, &[char]);
+        let (valid_strat, refine_strat) = (IsValidDNA::IupacNoGaps, RefineDNAStrat::IupacCorrectGapsUc);
+        let seq = get_refined(base, refine_strat);
+        if valid_strat.is_valid(base) {
+            match base.to_ascii_uppercase() {
+                b'U' => assert_eq!(seq, b"T"),
+                b => assert_eq!(seq, &[b]),
             }
-        } else if char == b':' || char == b'~' || char == b'-' {
+        } else if base == b':' || base == b'~' || base == b'-' {
             assert_eq!(seq, b"-");
-        } else if char == b'.' {
+        } else if base == b'.' {
             assert_eq!(seq, b".");
         } else {
             assert!(seq.is_empty());
         }
 
-        let seq = get_refined(char, RefineDNAStrat::AcgtnWithGapsUc);
-        if Nucleotides::from(&[char]).is_valid_dna(IsValidDNA::AcgtnNoGaps) {
-            let char = char.to_ascii_uppercase();
-            if char == b'U' {
-                assert_eq!(seq, b"T");
-            } else {
-                assert_eq!(seq, &[char]);
+        let (valid_strat, refine_strat) = (IsValidDNA::AcgtnNoGaps, RefineDNAStrat::AcgtnWithGapsUc);
+        let seq = get_refined(base, refine_strat);
+        if valid_strat.is_valid(base) {
+            match base.to_ascii_uppercase() {
+                b'U' => assert_eq!(seq, b"T"),
+                b => assert_eq!(seq, &[b]),
             }
-        } else if char == b'-' || char == b'.' {
-            assert_eq!(seq, &[char]);
+        } else if base.eq_ignore_ascii_case(&b'U') {
+            assert_eq!(seq, b"T", "{} vs T in {valid_strat:?}", seq[0] as char);
+        } else if base == b'-' || base == b'.' {
+            assert_eq!(seq, &[base]);
         } else {
             assert!(seq.is_empty());
         }
 
-        let seq = get_refined(char, RefineDNAStrat::AcgtnStdGapsUc);
-        if Nucleotides::from(&[char]).is_valid_dna(IsValidDNA::AcgtnNoGaps) {
-            let char = char.to_ascii_uppercase();
-            if char == b'U' {
-                assert_eq!(seq, b"T");
-            } else {
-                assert_eq!(seq, &[char]);
+        let (valid_strat, refine_strat) = (IsValidDNA::AcgtnNoGaps, RefineDNAStrat::AcgtnStdGapsUc);
+        let seq = get_refined(base, refine_strat);
+        if valid_strat.is_valid(base) {
+            match base.to_ascii_uppercase() {
+                b'U' => assert_eq!(seq, b"T"),
+                b => assert_eq!(seq, &[b]),
             }
-        } else if char == b'-' || char == b'.' || char == b':' || char == b'~' {
+        } else if base.eq_ignore_ascii_case(&b'U') {
+            assert_eq!(seq, b"T", "{} vs T in {valid_strat:?}", seq[0] as char);
+        } else if base == b'-' || base == b'.' || base == b':' || base == b'~' {
             assert_eq!(seq, b"-");
         } else {
             assert!(seq.is_empty());

@@ -106,7 +106,7 @@ pub enum IsValidDNA {
 
 impl IsValidDNA {
     #[inline]
-    const fn mapping(self) -> &'static [bool; 256] {
+    pub(crate) const fn mapping(self) -> &'static [bool; 256] {
         match self {
             IsValidDNA::IupacNoGaps => &IS_DNA_IUPAC_NO_GAPS,
             IsValidDNA::IupacNoGapsUc => &IS_DNA_IUPAC_NO_GAPS_UC,
@@ -120,7 +120,7 @@ impl IsValidDNA {
     }
 
     #[inline]
-    const fn is_valid(self, index: u8) -> bool {
+    pub(crate) const fn is_valid(self, index: u8) -> bool {
         self.mapping()[index as usize]
     }
 }
