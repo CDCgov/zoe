@@ -671,11 +671,11 @@ impl<R: std::io::Read> Iterator for SAMReader<R> {
                     rname: r[2].to_owned(),
                     pos:   aligned_reference_position,
                     mapq:  read_mapping_quality,
-                    cigar: Cigar::from_vec_unchecked(r[5].as_bytes().to_vec()),
+                    cigar: Cigar::from_slice_unchecked(r[5]),
                     rnext: '*',
                     pnext: 0,
                     tlen:  0,
-                    // TO-DO: Where should casing be handled?
+                    // TODO: Where should casing be handled?
                     seq:   r[9].as_bytes().to_ascii_uppercase().into(),
                     qual:  quality_scores,
                 };

@@ -5,10 +5,15 @@ use std::{error::Error, fmt};
 #[derive(Clone, Eq, PartialEq, Copy, Hash)]
 /// Custom error type for constructing CIGAR strings.
 pub enum CigarError {
+    /// CIGAR operator must be one of: M, I, D, N, S, H, P, X, =
     InvalidOperation,
+    /// CIGAR increment must be a non-zero positive integer
     IncZero,
+    /// CIGAR increment must be smaller than the maximum usize value
     IncOverflow,
+    /// CIGAR operator must have preceding increment
     MissingInc,
+    /// CIGAR increment must be followed by operator
     MissingOp,
 }
 

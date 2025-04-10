@@ -26,16 +26,13 @@ pub(crate) const AA_IUPAC_WITH_GAPS: &[u8; 42] = b"ACDEFGHIKLMNPQRSTVWYacdefghik
 /// DAIS-Ribosome style amino acid codes: IUPAC + gaps + X + partial codons `~`.
 pub(crate) const AA_DAIS_WITH_GAPS: &[u8; 45] = b"ACDEFGHIKLMNPQRSTVWYacdefghiklmnpqrstvwy-.~Xx";
 
-/// Valid Cigar characters
-pub(crate) const CIGAR_CHARS: &[u8; 19] = b"MDNX=ISHP0123456789";
-
 #[cfg(test)]
 mod test {
     use std::collections::HashSet;
 
     use super::*;
 
-    const ALPHABETS: [&[u8]; 12] = [
+    const ALPHABETS: [&[u8]; 11] = [
         DNA_IUPAC_NO_GAPS,
         DNA_IUPAC_NO_GAPS_UC,
         DNA_IUPAC_WITH_GAPS,
@@ -47,7 +44,6 @@ mod test {
         AA_IUPAC_NO_GAPS_UC,
         AA_IUPAC_WITH_GAPS,
         AA_DAIS_WITH_GAPS,
-        CIGAR_CHARS,
     ];
 
     const CAP_PAIRS: [(&[u8], &[u8]); 3] = [
