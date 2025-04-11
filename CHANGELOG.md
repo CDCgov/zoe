@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file. The format 
 - Add `to_view` for downgrading mutable views to immutable views
 - Add preliminary struct for representing profile hidden Markov models and
   parsing them from SAM model files.
+- Added functions such as `find_next_aa` for locating aa translations within nucleotide sequences
 
 ### Changed
 

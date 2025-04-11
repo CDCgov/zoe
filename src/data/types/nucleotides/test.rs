@@ -28,6 +28,35 @@ fn test_translate_collect_with_partial_codon() {
 }
 
 #[test]
+fn test_find_next_aa() {
+    let s = Nucleotides(b"TGGACCGTAACCGATGCACTACCTACGTGAAAGGCGGGCTCCGTCAGTATGAAAA".to_vec());
+    let start = s.find_next_aa(b'M').unwrap();
+    assert_eq!(start, 13);
+    assert_eq!(s.find_next_aa(b'H'), Some(16));
+    assert_eq!(s.find_next_aa(b'Y'), Some(19));
+    assert_eq!(s.find_next_aa(b'*'), Some(7));
+
+    let frame = s.slice(start..);
+    assert_eq!(frame.find_next_aa_in_frame(b'M'), Some(0));
+    assert_eq!(frame.find_next_aa_in_frame(b'H'), Some(3));
+    assert_eq!(frame.find_next_aa_in_frame(b'Y'), Some(6));
+    assert_eq!(frame.find_next_aa_in_frame(b'L'), Some(9));
+    assert_eq!(frame.find_next_aa_in_frame(b'R'), Some(12));
+    assert_eq!(frame.find_next_aa_in_frame(b'E'), Some(15));
+    assert_eq!(frame.find_next_aa_in_frame(b'A'), Some(24));
+    assert_eq!(frame.find_next_aa_in_frame(b'P'), Some(27));
+    assert_eq!(frame.find_next_aa_in_frame(b'S'), Some(30));
+    assert_eq!(frame.find_next_aa_in_frame(b'V'), Some(33));
+    assert_eq!(frame.find_next_aa_in_frame(b'*'), Some(36));
+}
+
+#[test]
+fn test_overlapping_codon_iter() {
+    let aa = Nucleotides::from(b"ACGTAATG").to_overlapping_aa_iter().collect::<Vec<_>>();
+    assert_eq!(aa, b"TRV*NM");
+}
+
+#[test]
 fn test_codons() {
     let s = Nucleotides(b"ATGTCAGAT".to_vec());
     assert_eq!(
