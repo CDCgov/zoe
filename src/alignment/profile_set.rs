@@ -16,6 +16,7 @@ use std::{
 /// [`SharedProfiles`].
 ///
 /// ## Type Parameters
+///
 /// * `N` - The number of SIMD lanes (usually 16, 32 or 64)
 /// * `S` - The size of the alphabet (usually 5 for DNA including *N*)
 #[derive(Debug, Clone)]
@@ -254,6 +255,7 @@ where
 /// instead.
 ///
 /// ## Type Parameters
+///
 /// * `N` - The number of SIMD lanes (usually 16, 32 or 64)
 /// * `S` - The size of the alphabet (usually 5 for DNA including *N*)
 #[derive(Debug, Clone)]

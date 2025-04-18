@@ -147,17 +147,16 @@ impl<const S: usize> WeightMatrix<i8, S> {
     pub const fn new(mapping: &'static ByteIndexMap<S>, matching: i8, mismatch: i8, ignoring: Option<u8>) -> Self {
         let mut weights = [[0i8; S]; S];
 
-        let mut k = 0;
-        let mut skip_index = None;
-
-        if let Some(letter) = ignoring {
-            while k < mapping.byte_keys.len() {
-                if mapping.byte_keys[k] == letter {
-                    skip_index = Some(k);
+        let skip_index = match ignoring {
+            Some(ignoring) => {
+                if mapping.in_byte_keys(ignoring) {
+                    Some(mapping.to_index(ignoring))
+                } else {
+                    panic!("An invalid byte was specified for the ignoring field.")
                 }
-                k += 1;
             }
-        }
+            None => None,
+        };
 
         let mut i = 0;
         while i < S {
@@ -280,6 +279,12 @@ mod test {
 
         assert_eq!(result1, result2);
         assert_eq!(result1, result3);
+    }
+
+    #[test]
+    #[should_panic(expected = "An invalid byte was specified for the ignoring field.")]
+    fn test_invalid_char() {
+        let _ = WeightMatrix::new_dna_matrix(1, 0, Some(b'U'));
     }
 
     #[allow(non_snake_case)]

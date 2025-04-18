@@ -46,6 +46,7 @@ impl QualityScores {
     /// values being in the proper range (see [`is_graphic_simd`]).
     ///
     /// ## Safety
+    ///
     /// The [`Vec<u8>`] must be in range `!`..=`~`.
     ///
     /// [`is_graphic_simd`]:
@@ -73,6 +74,7 @@ impl QualityScores {
     /// Gets the ASCII encoded quality scores as a mutable byte slice.
     ///
     /// ## Safety
+    ///
     /// Any modifications to the bytes must ensure that they remain graphic
     /// ASCII in range `!`..=`~`.
     #[inline]
@@ -162,6 +164,7 @@ impl<'a> QualityScoresView<'a> {
     /// checking for values being in the proper range (see [`is_graphic_simd`]).
     ///
     /// ## Safety
+    ///
     /// Bytes in `v` must be in range `!`..=`~`.
     ///
     /// [`is_graphic_simd`]:
@@ -219,6 +222,7 @@ impl<'a> QualityScoresViewMut<'a> {
     /// checking for values being in the proper range (see [`is_graphic_simd`]).
     ///
     /// ## Safety
+    ///
     /// Bytes in `v` must be in range `!`..=`~`.
     ///
     /// [`is_graphic_simd`]:
@@ -240,6 +244,7 @@ impl<'a> QualityScoresViewMut<'a> {
     /// quality scores).
     ///
     /// ## Safety
+    ///
     /// Any modifications to the bytes must ensure that they remain graphic
     /// ASCII in range `!`..=`~`.
     #[inline]
@@ -283,6 +288,7 @@ impl<'a> QualityScoresViewMut<'a> {
 /// Wrapper type for the quality score when returned as `f32`.
 ///
 /// ## Significant Figures
+///
 /// Significant figures for Phred error probabilities is 6 (0.999999). The use
 /// of [`powf`] has an unspecified precision in Rust, but empirical tests reveal
 /// that an f32 achieve the 6 significant figures for quality scores in the

@@ -1,6 +1,7 @@
 use crate::data::byte_types::ByteMappings;
 
-/// ## Generates a 4x4 substitution matrix from two aligned sequences of the type `&[u8]`.
+/// Generates a 4x4 substitution matrix from two aligned sequences of the type
+/// `&[u8]`.
 ///
 /// Each column refers to nucleotide bases in the first sequence (A, C, G, T,
 /// respectively), and each row refers to nucleotide bases in the second
@@ -11,6 +12,7 @@ use crate::data::byte_types::ByteMappings;
 /// distances.
 ///
 /// ## Example
+///
 /// ```
 /// # use zoe::distance::dna::dna_substitution_matrix;
 /// let seq1: &[u8] = b"GATCAGATTTGCATTGGTT";
@@ -34,7 +36,7 @@ pub fn dna_substitution_matrix(seq1: &[u8], seq2: &[u8]) -> [[u32; 4]; 4] {
     sub_matrix
 }
 
-/// ## Calculates the Hamming distance from a nucleotide [substitution matrix](dna_substitution_matrix).
+/// Calculates the Hamming distance from a nucleotide [substitution matrix](dna_substitution_matrix).
 ///
 /// The Hamming distance is the number of substitutions between aligned
 /// sequences, or sum of non-diagonal values in the substitution matrix.
@@ -54,7 +56,7 @@ pub(crate) fn hamming_dist_from_sub_matrix(sub_matrix: &[[u32; 4]; 4]) -> u32 {
     hamming
 }
 
-/// ## Finds total number of bases and nucleotide base frequencies from a
+/// Finds total number of bases and nucleotide base frequencies from a
 /// nucleotide [substitution matrix](dna_substitution_matrix).
 ///
 /// Returns a tuple of the total number of nucleotides in the two sequences, and

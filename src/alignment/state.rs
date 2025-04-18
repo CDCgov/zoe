@@ -258,6 +258,7 @@ impl<'a> AlignWithCigarIter<'a> {
     /// Remove a base from the beginning of the reference buffer.
     ///
     /// ## Panics
+    ///
     /// The reference must contain at least one base.
     #[inline]
     #[must_use]
@@ -270,6 +271,7 @@ impl<'a> AlignWithCigarIter<'a> {
     /// Remove a base from the beginning of the query buffer.
     ///
     /// ## Panics
+    ///
     /// The query must contain at least one base.
     #[inline]
     #[must_use]

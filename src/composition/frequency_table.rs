@@ -24,6 +24,7 @@ impl<const MIN: u8, const MAX: u8> FrequencyTable<MIN, MAX> {
 
     /// Generate a frequency table, but assume all values are in range.
     #[inline]
+    #[must_use]
     pub fn new_from_unchecked<Q: AsRef<[u8]> + ?Sized>(seq: &Q) -> Self {
         let mut out = Self::new();
         out.tally_from_unchecked(seq);
@@ -51,13 +52,20 @@ impl<const MIN: u8, const MAX: u8> FrequencyTable<MIN, MAX> {
         get_median::<MIN>(&self.table, self.num_items)
     }
 
-    // Calculate the minimum, median, and maximum values from the frequency
-    // table. This version is more performant than running min, max, and median
-    // independently.
+    /// Calculate the minimum, median, and maximum values from the frequency
+    /// table. This version is more performant than running min, max, and median
+    /// independently.
     #[inline]
     #[must_use]
     pub fn get_min_med_max(&self) -> Option<(u8, f32, u8)> {
         get_min_med_max::<MIN, MAX>(&self.table, self.num_items)
+    }
+
+    /// Returns the array of counts stored within the frequency table.
+    #[inline]
+    #[must_use]
+    pub fn into_inner(self) -> [usize; 256] {
+        self.table
     }
 }
 

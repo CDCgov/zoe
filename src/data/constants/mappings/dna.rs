@@ -174,6 +174,20 @@ pub const DNA_UNAMBIG_PROFILE_MAP: ByteIndexMap<4> =
 /// {3: N, 4: A, 5: C, 6: G, 7: T}. N is used as a catch-all. U is treated as T.
 ///
 /// [`ThreeBitKmerEncoder`]: crate::kmer::ThreeBitKmerEncoder
-pub(crate) const THREE_BIT_MAPPING: ByteIndexMap<5> = ByteIndexMap::new_ignoring_case(*b"NACGT", b'N')
-    .add_synonym_ignoring_case(b'U', b'T')
-    .update_starting_index(3);
+pub(crate) const THREE_BIT_MAPPING: ByteMap = byte_map! {
+    @ignoring_case
+    _ => 3,
+    b"ACG" => (4..=6),
+    b"TU" => 7,
+};
+
+/// Used to convert any byte to `u8` indices where {0: A, 1: C, 2: G, 3: T, 4:
+/// N, 5: Gap, 6: Other IUPAC, 7: Invalid}. U is treated as T.
+pub(crate) const DNA_COUNT_PROFILE_MAP: ByteMap = byte_map! {
+    @ignoring_case
+    b"ACG" => (0..=2),
+    b"TU" => 3,
+    b"N-" => (4..=5),
+    b".RYSWKMBDHV" => 6,
+    _ => 7
+};

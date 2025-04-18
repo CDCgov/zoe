@@ -154,6 +154,7 @@ pub trait NucleotidesDistance: NucleotidesReadable + Sealed {
     /// Calculates hamming distance between [`self`] and another sequence.
     ///
     /// ## Example
+    ///
     /// ```
     /// # use zoe::{
     /// #     data::types::nucleotides::{Nucleotides, NucleotidesView},

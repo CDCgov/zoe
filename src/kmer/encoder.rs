@@ -155,6 +155,7 @@ where
     /// Creates a new [`KmerEncoder`] with the specified k-mer length.
     ///
     /// ## Errors
+    ///
     /// Returns [`KmerError::InvalidLength`] if `kmer_length` is not a valid
     /// length for the encoding.
     fn new(kmer_length: usize) -> Result<Self, KmerError>;

@@ -39,6 +39,7 @@ pub(crate) const fn is_unique<const N: usize>(a: &[u8; N]) -> bool {
 
 // TODO: Update to std if it becomes available
 // See: https://github.com/rust-lang/rust/issues/78504
+#[allow(dead_code)]
 pub(crate) const fn arr_max<const N: usize>(a: &[u8; N]) -> Option<u8> {
     let mut out = None;
     let mut i = 0;

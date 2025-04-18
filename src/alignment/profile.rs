@@ -48,6 +48,7 @@ pub(crate) fn validate_profile_args<Q: AsRef<[u8]>>(
 /// does not use SIMD or create a striped layout.
 ///
 /// ## Type Parameters
+///
 /// * `S` - The size of the alphabet (usually 5 for DNA including *N*)
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScalarProfile<'a, const S: usize> {
@@ -146,6 +147,7 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
 /// during alignment.
 ///
 /// ## Type Parameters
+///
 /// * `T` - The numeric type used for scores. i8, i16, i32, and i64 use the
 ///   signed algorithm, which is the most common. u8, u16, u32, and u64 use the
 ///   unsigned algorithm.

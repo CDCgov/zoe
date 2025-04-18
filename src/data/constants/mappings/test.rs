@@ -1,14 +1,17 @@
-use crate::data::{
-    alphas::{DNA_ACGTN_NO_GAPS, DNA_ACGTN_NO_GAPS_UC, DNA_IUPAC_NO_GAPS, DNA_IUPAC_NO_GAPS_UC, DNA_IUPAC_WITH_GAPS},
-    mappings::{
-        ANY_TO_DNA_ACGTN_NO_GAPS_UC, ANY_TO_DNA_IUPAC_WITH_GAPS, ANY_TO_DNA_IUPAC_WITH_GAPS_UC, IS_DNA_IUPAC_WITH_GAPS,
-        IUPAC_TO_DNA_ACGTN_WITH_GAPS, IUPAC_TO_DNA_ACGTN_WITH_GAPS_UC, StdGeneticCode,
-    },
-};
-
 use super::{
     ByteIndexMap, DNA_PROFILE_MAP, IS_DNA_ACGTN_NO_GAPS, IS_DNA_ACGTN_NO_GAPS_UC, IS_DNA_IUPAC_NO_GAPS,
     IS_DNA_IUPAC_NO_GAPS_UC, TO_DNA_IUPAC_NO_GAPS_UC, TO_DNA_IUPAC_WITH_GAPS_UC,
+};
+use crate::{
+    composition::ByteIndexCounts,
+    data::{
+        alphas::{DNA_ACGTN_NO_GAPS, DNA_ACGTN_NO_GAPS_UC, DNA_IUPAC_NO_GAPS, DNA_IUPAC_NO_GAPS_UC, DNA_IUPAC_WITH_GAPS},
+        mappings::{
+            ANY_TO_DNA_ACGTN_NO_GAPS_UC, ANY_TO_DNA_IUPAC_WITH_GAPS, ANY_TO_DNA_IUPAC_WITH_GAPS_UC, DNA_UNAMBIG_PROFILE_MAP,
+            IS_DNA_IUPAC_WITH_GAPS, IUPAC_TO_DNA_ACGTN_WITH_GAPS, IUPAC_TO_DNA_ACGTN_WITH_GAPS_UC, StdGeneticCode,
+        },
+    },
+    prelude::Nucleotides,
 };
 
 #[test]
@@ -67,6 +70,7 @@ fn test_dna_map() {
 fn test_dna_map_ignores_case() {
     const MAP1: ByteIndexMap<5> = ByteIndexMap::new_ignoring_case(*b"acgtn", b'N').add_synonym_ignoring_case(b'u', b'T');
     const MAP2: ByteIndexMap<5> = ByteIndexMap::new_ignoring_case(*b"AcGtN", b'n').add_synonym_ignoring_case(b'U', b't');
+
     assert_eq!(DNA_PROFILE_MAP, MAP1);
     assert_eq!(DNA_PROFILE_MAP, MAP2);
 }
@@ -89,6 +93,7 @@ fn test_case_sensitive() {
     const DNA_MAP: ByteIndexMap<10> = ByteIndexMap::new(*b"ACGTNacgtn", b'N')
         .add_synonym(b'U', b'T')
         .add_synonym(b'u', b't');
+
     for i in 0..=255 {
         match i {
             b'A' => assert!(DNA_MAP.to_index(i) == 0),
@@ -255,4 +260,50 @@ fn test_any_to_dna_iupac_with_gaps_uc() {
             assert_eq!(ANY_TO_DNA_IUPAC_WITH_GAPS_UC[c as usize], b'N');
         }
     }
+}
+
+#[test]
+fn test_dna_profile_byte_index_counts() {
+    let seq = Nucleotides::from(b"TGCTCCACGNGCAGGCGCCTGN");
+    let mut counts = ByteIndexCounts::<usize, 5>::new(&DNA_PROFILE_MAP);
+    counts.tally_from_seq(seq);
+
+    assert_eq!(counts.into_inner(), [2, 8, 7, 3, 2]);
+    assert_eq!(counts.get_count(b'A'), 2);
+    assert_eq!(counts.get_count(b'C'), 8);
+    assert_eq!(counts.get_count(b'G'), 7);
+    assert_eq!(counts.get_count(b'T'), 3);
+    assert_eq!(counts.get_count(b'N'), 2);
+
+    counts += b'A';
+    counts += b'C';
+
+    assert_eq!(counts.into_inner(), [3, 9, 7, 3, 2]);
+    assert_eq!(counts.get_count(b'A'), 3);
+    assert_eq!(counts.get_count(b'C'), 9);
+    assert_eq!(counts.get_count(b'G'), 7);
+    assert_eq!(counts.get_count(b'T'), 3);
+    assert_eq!(counts.get_count(b'N'), 2);
+}
+
+#[test]
+fn test_unambig_dna_profile_byte_index_counts() {
+    let seq = Nucleotides::from(b"TGCTCCACGNGCAGGCGCCTGN");
+    let mut counts = ByteIndexCounts::<usize, 4>::new(&DNA_UNAMBIG_PROFILE_MAP);
+    counts.tally_from_seq(seq);
+
+    assert_eq!(counts.into_inner(), [4, 8, 7, 3]);
+    assert_eq!(counts.get_count(b'A'), 4);
+    assert_eq!(counts.get_count(b'C'), 8);
+    assert_eq!(counts.get_count(b'G'), 7);
+    assert_eq!(counts.get_count(b'T'), 3);
+
+    counts += b'A';
+    counts += b'C';
+
+    assert_eq!(counts.into_inner(), [5, 9, 7, 3]);
+    assert_eq!(counts.get_count(b'A'), 5);
+    assert_eq!(counts.get_count(b'C'), 9);
+    assert_eq!(counts.get_count(b'G'), 7);
+    assert_eq!(counts.get_count(b'T'), 3);
 }

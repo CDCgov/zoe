@@ -1,13 +1,13 @@
 use crate::{
     data::{
-        constants::alphas::DNA_IUPAC_WITH_GAPS,
+        mappings::DNA_COUNT_PROFILE_MAP,
         types::nucleotides::{Nucleotides, NucleotidesReadable},
     },
     math::Uint,
     private::Sealed,
 };
 use std::ops::{Add, AddAssign};
-use std::simd::{SimdElement, prelude::*};
+use std::simd::{SimdElement, num::SimdUint, prelude::*};
 
 /// Nucleotide count statistics for A, C, G, T/U, N, - (or gaps), other valid
 /// IUPAC codes, and invalid codes.
@@ -161,33 +161,25 @@ where
     }
 }
 
-impl<T> Default for NucleotideCounts<T>
-where
-    T: Uint,
-    T: Add<Output = T>,
-    T: Iterator<Item = T>,
-{
+impl<T: Uint> Default for NucleotideCounts<T> {
     #[inline]
     fn default() -> Self {
         Self::new()
     }
 }
 
-macro_rules! impl_reduce {
-    {  $($ty:ty),* } => {
-        $(
-            impl NucleotideCounts<$ty> {
-                /// Gets the total count of all characters processed.
-                #[inline]
-                #[must_use]
-                pub fn total_any(&self) -> $ty {
-                    Simd::from_array(self.inner).reduce_sum()
-                }
-            }
-        )*
+impl<T> NucleotideCounts<T>
+where
+    T: Uint + SimdElement,
+    Simd<T, 8>: SimdUint<Scalar = T>,
+{
+    /// Gets the total count of all characters processed.
+    #[inline]
+    #[must_use]
+    pub fn total_any(&self) -> T {
+        Simd::from_array(self.inner).reduce_sum()
     }
 }
-impl_reduce!(u8, u16, u32, u64, usize);
 
 impl<T> From<u8> for NucleotideCounts<T>
 where
@@ -196,7 +188,7 @@ where
     #[inline]
     fn from(b: u8) -> Self {
         let mut nc = NucleotideCounts { inner: [T::ZERO; 8] };
-        nc.inner[base_to_inner_index(b)] = T::ONE;
+        nc.inner[DNA_COUNT_PROFILE_MAP.to_index(b)] = T::ONE;
         nc
     }
 }
@@ -235,7 +227,7 @@ where
 
     #[inline]
     fn add(mut self, other: u8) -> Self {
-        self.inner[base_to_inner_index(other)] += T::ONE;
+        self.inner[DNA_COUNT_PROFILE_MAP.to_index(other)] += T::ONE;
         self
     }
 }
@@ -246,7 +238,7 @@ where
 {
     #[inline]
     fn add_assign(&mut self, other: u8) {
-        self.inner[base_to_inner_index(other)] += T::ONE;
+        self.inner[DNA_COUNT_PROFILE_MAP.to_index(other)] += T::ONE;
     }
 }
 
@@ -278,37 +270,6 @@ pub trait AlignmentComposition: Sealed {
     }
 }
 impl<I: Iterator + Sealed> AlignmentComposition for I {}
-
-/// Converts a base into an index for [`NucleotideCounts`].
-const fn base_to_inner_index(b: u8) -> usize {
-    const TO_INNER: [u8; 256] = {
-        const OTHER: u8 = 6;
-        const INVALID: u8 = 7;
-
-        // Default to invalid states
-        let mut v = [INVALID; 256];
-
-        // Valid IUPAC is OTHER
-        let mut i = 0;
-        while i < DNA_IUPAC_WITH_GAPS.len() {
-            v[DNA_IUPAC_WITH_GAPS[i] as usize] = OTHER;
-            i += 1;
-        }
-
-        // Map specifically to our array
-        let from = b"acgtunACGTUN-";
-        let dest = b"0123340123345";
-        i = 0;
-        while i < from.len() {
-            v[from[i] as usize] = dest[i] - b'0';
-            i += 1;
-        }
-
-        v
-    };
-
-    TO_INNER[b as usize] as usize
-}
 
 /// Extension trait for creating a [`NucleotideCounts`] object from a sequence.
 pub trait ToBaseCounts: NucleotidesReadable + Sealed {

@@ -15,6 +15,7 @@ pub trait AminoAcidsDistance: AminoAcidsReadable + Sealed {
     /// Calculates hamming distance between `self` and another sequence.
     ///
     /// ## Example
+    ///
     /// ```
     /// # use zoe::{
     /// #     data::types::amino_acids::{AminoAcids, AminoAcidsView},
@@ -39,6 +40,7 @@ pub trait AminoAcidsDistance: AminoAcidsReadable + Sealed {
     /// sequence. See: [`crate::distance::aa::physiochemical`]
     ///
     /// ## Citation
+    ///
     /// For factor analysis used by the function:
     ///
     /// > Atchley et al. 2008. "Solving the protein sequence metric problem."
@@ -47,10 +49,12 @@ pub trait AminoAcidsDistance: AminoAcidsReadable + Sealed {
     ///
     ///
     /// ## Errors
+    ///
     /// If either argument is empty or the sequence characters are invalid, an
     /// error is thrown. See [`DistanceError`].
     ///
     /// ## Example
+    ///
     /// ```
     /// # use zoe::{
     /// #     data::types::amino_acids::{AminoAcids, AminoAcidsView},
@@ -80,6 +84,7 @@ impl AminoAcidsDistance for AminoAcidsViewMut<'_> {}
 /// denominator.
 ///
 /// ## Example
+///
 /// ```
 /// # use zoe::distance::aa::physiochemical;
 ///
@@ -90,6 +95,7 @@ impl AminoAcidsDistance for AminoAcidsViewMut<'_> {}
 /// ```
 ///
 /// ## Citation
+///
 /// For factor analysis used by the function:
 ///
 /// 1. Atchley et al. 2008. "Solving the protein sequence metric problem." Proc
