@@ -11,6 +11,8 @@ All notable changes to this project will be documented in this file. The format 
 - Added functions for retrieving the codons from `Nucleotides`
 - Add `make_uppercase` to `RecodeNucleotides`
 - Add `to_view` for downgrading mutable views to immutable views
+- Add preliminary struct for representing profile hidden Markov models and
+  parsing them from SAM model files
 
 ### Changed
 

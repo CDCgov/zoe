@@ -149,6 +149,7 @@
 //! [`SharedProfiles::smith_waterman_score_from_i8`]:
 //!     SharedProfiles::smith_waterman_score_from_i8
 
+pub mod phmm;
 pub mod sw;
 
 mod profile;

@@ -2,8 +2,9 @@
 
 use std::{
     fmt::Debug,
-    ops::{Add, Div, Mul, Sub},
+    ops::{Add, AddAssign, Div, DivAssign, Mul, Neg, Sub},
     simd::SimdElement,
+    str::FromStr,
 };
 
 /// Takes square root using the Babylonian Method using 40 iterations.
@@ -27,29 +28,48 @@ pub(crate) const fn sqrt_baby(n: f64) -> f64 {
 }
 
 /// Trait for providing generic functionality over floating point numbers.
-pub(crate) trait Float:
+pub trait Float:
     Sub<Output = Self>
     + Add<Output = Self>
     + Mul<Output = Self>
     + Div<Output = Self>
+    + Neg<Output = Self>
+    + AddAssign
+    + DivAssign
     + Sized
+    + Default
     + PartialEq
     + PartialOrd
     + Copy
     + Debug
-    + SimdElement {
+    + SimdElement
+    + Sized
+    + FromStr
+    + std::iter::Sum<Self>
+    + for<'a> std::iter::Sum<&'a Self> {
     const MIN: Self;
     const MAX: Self;
     const ZERO: Self;
+    const ONE: Self;
+    const INFINITY: Self;
 
     /// Generic absolute value for [`Float`]
     fn abs(self) -> Self;
     /// Generic minimum of 2 values for [`Float`]
     fn min(self, other: Self) -> Self;
+    /// Generic log2 for [`Float`]
+    fn log2(self) -> Self;
     /// Generic `is_nan` calculation for [`Float`]
     fn is_nan(self) -> bool;
     /// Generic `is_infinite` for [`Float`]
     fn is_infinite(self) -> bool;
+    /// Generic natural logarithm for [`Float`]
+    fn ln(self) -> Self;
+    /// Generic exponential for [`Float`]
+    fn exp(self) -> Self;
+
+    /// Use a primitive cast to convert a usize to the [`Float`]
+    fn usize_as_self(a: usize) -> Self;
 }
 
 macro_rules! impl_float {
@@ -59,21 +79,48 @@ macro_rules! impl_float {
             const MIN: Self = <$ty>::MIN;
             const MAX: Self = <$ty>::MAX;
             const ZERO: Self = 0.0;
+            const ONE: Self = 1.0;
+            const INFINITY: Self = <$ty>::INFINITY;
 
+            #[inline]
             fn abs(self) -> Self {
                 self.abs()
             }
 
+            #[inline]
             fn min(self, other: Self) -> Self {
                 self.min(other)
             }
 
+            #[inline]
+            fn log2(self) -> Self {
+                self.log2()
+            }
+
+            #[inline]
             fn is_nan(self) -> bool {
                 self.is_nan()
             }
 
+            #[inline]
             fn is_infinite(self) -> bool {
                 self.is_infinite()
+            }
+
+            #[inline]
+            fn ln(self) -> Self {
+                self.ln()
+            }
+
+            #[inline]
+            fn exp(self) -> Self {
+                self.exp()
+            }
+
+            #[inline]
+            #[allow(clippy::cast_precision_loss)]
+            fn usize_as_self(a: usize) -> $ty {
+                a as $ty
             }
         } )*
 

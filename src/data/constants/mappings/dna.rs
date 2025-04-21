@@ -165,6 +165,11 @@ pub(crate) const ANY_TO_DNA_IUPAC_CORRECT_GAPS_UC: [u8; 256] = make_mapping_with
 pub const DNA_PROFILE_MAP: ByteIndexMap<5> =
     ByteIndexMap::new_ignoring_case(*b"ACGTN", b'N').add_synonym_ignoring_case(b'U', b'T');
 
+/// Used to convert any byte to `u8` indices where {0: A, 1: C, 2: G, 3: T}.
+/// A is used as a catch-all. U is treated as T.
+pub const UNAMBIG_DNA_PROFILE_MAP: ByteIndexMap<4> =
+    ByteIndexMap::new_ignoring_case(*b"ACGT", b'A').add_synonym_ignoring_case(b'U', b'T');
+
 /// Used by [`ThreeBitKmerEncoder`] to convert any byte to `u8` indices where
 /// {3: N, 4: A, 5: C, 6: G, 7: T}. N is used as a catch-all. U is treated as T.
 ///
