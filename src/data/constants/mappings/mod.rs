@@ -1,3 +1,4 @@
+pub(crate) mod aa;
 pub(crate) mod byte_index;
 pub(crate) mod dna;
 pub(crate) mod gc;
@@ -5,6 +6,7 @@ pub(crate) mod gc;
 #[cfg(test)]
 mod test;
 
+pub use aa::*;
 pub use byte_index::*;
 pub use dna::*;
 pub use gc::*;

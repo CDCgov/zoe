@@ -167,7 +167,7 @@ pub const DNA_PROFILE_MAP: ByteIndexMap<5> =
 
 /// Used to convert any byte to `u8` indices where {0: A, 1: C, 2: G, 3: T}.
 /// A is used as a catch-all. U is treated as T.
-pub const UNAMBIG_DNA_PROFILE_MAP: ByteIndexMap<4> =
+pub const DNA_UNAMBIG_PROFILE_MAP: ByteIndexMap<4> =
     ByteIndexMap::new_ignoring_case(*b"ACGT", b'A').add_synonym_ignoring_case(b'U', b'T');
 
 /// Used by [`ThreeBitKmerEncoder`] to convert any byte to `u8` indices where

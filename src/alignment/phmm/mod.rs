@@ -6,6 +6,8 @@ use std::ops::{Index, IndexMut};
 
 mod sam_parser;
 
+pub use sam_parser::*;
+
 /// An enum representing the three states within each layer of a pHMM. This is
 /// used for readability when indexing.
 #[derive(Clone, Copy, Debug)]

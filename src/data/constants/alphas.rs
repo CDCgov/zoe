@@ -21,10 +21,10 @@ pub(crate) const ENGLISH: &[u8; 52] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMN
 
 /// IUPAC Amino Acids in upper case.
 pub(crate) const AA_IUPAC_NO_GAPS_UC: &[u8; 20] = b"ACDEFGHIKLMNPQRSTVWY";
-/// IUPAC Amino Acids.
-pub(crate) const AA_IUPAC_WITH_GAPS: &[u8; 42] = b"ACDEFGHIKLMNPQRSTVWYacdefghiklmnpqrstvwy-.";
+/// IUPAC Amino Acids + gaps and `X` for ambiguous codons.
+pub(crate) const AA_IUPAC_WITH_GAPS_X: &[u8; 42] = b"ACDEFGHIKLMNPQRSTVWYacdefghiklmnpqrstvwy-.";
 /// DAIS-Ribosome style amino acid codes: IUPAC + gaps + X + partial codons `~`.
-pub(crate) const AA_DAIS_WITH_GAPS: &[u8; 45] = b"ACDEFGHIKLMNPQRSTVWYacdefghiklmnpqrstvwy-.~Xx";
+pub(crate) const AA_DAIS_WITH_GAPS_X: &[u8; 45] = b"ACDEFGHIKLMNPQRSTVWYacdefghiklmnpqrstvwy-.~Xx";
 
 #[cfg(test)]
 mod test {
@@ -42,8 +42,8 @@ mod test {
         DNA_ACGTN_STD_GAPS_UC,
         ENGLISH,
         AA_IUPAC_NO_GAPS_UC,
-        AA_IUPAC_WITH_GAPS,
-        AA_DAIS_WITH_GAPS,
+        AA_IUPAC_WITH_GAPS_X,
+        AA_DAIS_WITH_GAPS_X,
     ];
 
     const CAP_PAIRS: [(&[u8], &[u8]); 3] = [
@@ -59,8 +59,8 @@ mod test {
         (DNA_IUPAC_NO_GAPS_UC, DNA_IUPAC_WITH_GAPS_UC),
         (DNA_ACGTN_NO_GAPS, DNA_IUPAC_NO_GAPS),
         (DNA_IUPAC_NO_GAPS, DNA_IUPAC_WITH_GAPS),
-        (AA_IUPAC_NO_GAPS_UC, AA_IUPAC_WITH_GAPS),
-        (AA_IUPAC_WITH_GAPS, AA_DAIS_WITH_GAPS),
+        (AA_IUPAC_NO_GAPS_UC, AA_IUPAC_WITH_GAPS_X),
+        (AA_IUPAC_WITH_GAPS_X, AA_DAIS_WITH_GAPS_X),
     ];
 
     #[test]

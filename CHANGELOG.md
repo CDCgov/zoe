@@ -12,7 +12,7 @@ All notable changes to this project will be documented in this file. The format 
 - Add `make_uppercase` to `RecodeNucleotides`
 - Add `to_view` for downgrading mutable views to immutable views
 - Add preliminary struct for representing profile hidden Markov models and
-  parsing them from SAM model files
+  parsing them from SAM model files.
 
 ### Changed
 
@@ -20,9 +20,7 @@ All notable changes to this project will be documented in this file. The format 
 - The `Arbitrary` implementation for `Kmer` can now generate non-graphic ASCII
 - Many traits have been sealed to prevent SemVer breakage. They will be unsealed
   as the API stabilizes.
-- To allow users to implement `KmerEncoder` and use it, `SupportedKmerLen` trait
-  bounds have been removed from k-mer containers, and `MismatchNumer` has been
-  converted to an associated type 
+- Reduces restrictions for implementing `KmerEncoder`.
 
 ### Fixed
 
