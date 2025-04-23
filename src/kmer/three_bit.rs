@@ -1,3 +1,4 @@
+use super::SupportedMismatchNumber;
 use crate::{
     data::mappings::THREE_BIT_MAPPING,
     kmer::{Kmer, KmerEncoder, KmerError, KmerLen, KmerSet, MaxLenToType, SupportedKmerLen},
@@ -5,8 +6,6 @@ use crate::{
     prelude::KmerCounter,
 };
 use std::hash::{Hash, Hasher, RandomState};
-
-use super::{MismatchNumber, SupportedMismatchNumber};
 
 /// A type alias for a [`KmerLen`] struct with the [`ThreeBitKmerEncoder`] as
 /// its encoder.
@@ -141,6 +140,8 @@ where
     }
 }
 
+pub struct ThreeBitMismatchNumber<const N: usize>;
+
 impl<const MAX_LEN: usize, T: Uint> KmerEncoder<MAX_LEN> for ThreeBitKmerEncoder<MAX_LEN>
 where
     ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen<T = T>,
@@ -152,6 +153,7 @@ where
     type SeqIterRev<'a> = ThreeBitKmerIteratorRev<'a, MAX_LEN>;
     type SeqIntoIterRev = ThreeBitKmerIntoIteratorRev<MAX_LEN>;
     type OneMismatchIter = ThreeBitOneMismatchIter<MAX_LEN>;
+    type MismatchNumber<const N: usize> = ThreeBitMismatchNumber<N>;
 
     /// Creates a new [`ThreeBitKmerEncoder`] with the specified k-mer length.
     ///
@@ -308,10 +310,10 @@ where
     #[inline]
     fn get_variants<const N: usize>(
         &self, encoded_kmer: Self::EncodedKmer,
-    ) -> <MismatchNumber<N> as SupportedMismatchNumber<MAX_LEN, Self>>::MismatchIter
+    ) -> <ThreeBitMismatchNumber<N> as SupportedMismatchNumber<MAX_LEN, Self>>::MismatchIter
     where
-        MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, Self>, {
-        MismatchNumber::get_iterator(encoded_kmer, self)
+        ThreeBitMismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, Self>, {
+        ThreeBitMismatchNumber::<N>::get_iterator(encoded_kmer, self)
     }
 
     /// Gets an iterator over the encoded overlapping k-mers in a sequence, from

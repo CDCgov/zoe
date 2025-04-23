@@ -1,10 +1,9 @@
+use super::{ThreeBitMismatchIter, ThreeBitOneMismatchIter};
 use crate::{
-    kmer::{KmerEncoder, ThreeBitKmerEncoder},
+    kmer::{KmerEncoder, ThreeBitKmerEncoder, ThreeBitMismatchNumber},
     math::Uint,
 };
 use std::marker::PhantomData;
-
-use super::{ThreeBitMismatchIter, ThreeBitOneMismatchIter};
 
 /// A zero-size struct used to hold both a `MAX_LEN` argument and a
 /// [`KmerEncoder`]. For valid values of `MAX_LEN`, [`SupportedKmerLen`] will be
@@ -91,12 +90,6 @@ impl_supported_kmer_len! {
 /// `MAX_LEN` and the [`KmerEncoder`].
 pub(crate) type MaxLenToType<const MAX_LEN: usize, E> = <KmerLen<MAX_LEN, E> as SupportedKmerLen>::T;
 
-/// A zero-size struct used to hold a number of mismatches. For valid values of
-/// `N`, [`SupportedMismatchNumber`] will be implemented, and will provide the
-/// appropriate iterator to use for generating variants. See
-/// [`SupportedMismatchNumber`] for more details.
-pub struct MismatchNumber<const N: usize>;
-
 /// Statically guarantees that a number of mismatches is supported for
 /// [`KmerEncoder::get_variants`], as well as provides the appropriate iterator
 /// type.
@@ -112,18 +105,18 @@ pub trait SupportedMismatchNumber<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>>
 }
 
 macro_rules! impl_select_mismatch_iter {
-    ($encoder:ident, $($n:expr => $iter:ty),*) => {
+    ($encoder:ident, $mismatch:ident, $($n:expr => $iter:ty),*) => {
         $(
-            impl<const MAX_LEN: usize> SupportedMismatchNumber<MAX_LEN, $encoder<MAX_LEN>> for MismatchNumber<$n>
+            impl<const MAX_LEN: usize> SupportedMismatchNumber<MAX_LEN, $encoder<MAX_LEN>> for $mismatch<$n>
                 where
-                    KmerLen<MAX_LEN, ThreeBitKmerEncoder<MAX_LEN>>: SupportedKmerLen,
+                    KmerLen<MAX_LEN, $encoder<MAX_LEN>>: SupportedKmerLen,
                 {
                     type MismatchIter = $iter;
 
                     #[inline]
                     fn get_iterator(
-                        encoded_kmer: <ThreeBitKmerEncoder<MAX_LEN> as KmerEncoder<MAX_LEN>>::EncodedKmer,
-                        encoder: &ThreeBitKmerEncoder<MAX_LEN>,
+                        encoded_kmer: <$encoder<MAX_LEN> as KmerEncoder<MAX_LEN>>::EncodedKmer,
+                        encoder: &$encoder<MAX_LEN>,
                     ) -> Self::MismatchIter {
                         Self::MismatchIter::new(encoded_kmer, &encoder)
                     }
@@ -134,6 +127,7 @@ macro_rules! impl_select_mismatch_iter {
 
 impl_select_mismatch_iter! {
     ThreeBitKmerEncoder,
+    ThreeBitMismatchNumber,
     1 => ThreeBitOneMismatchIter<MAX_LEN>,
     2 => ThreeBitMismatchIter<MAX_LEN, 2>,
     3 => ThreeBitMismatchIter<MAX_LEN, 3>,

@@ -1,13 +1,12 @@
+use super::{EncodedKmerCollection, KmerCollectionContains, KmerEncode, SupportedMismatchNumber};
 use crate::{
-    kmer::{Kmer, KmerEncoder, KmerError, KmerLen, SupportedKmerLen},
+    kmer::{Kmer, KmerEncoder, KmerError},
     prelude::Len,
 };
 use std::{
     collections::HashSet,
     hash::{BuildHasher, RandomState},
 };
-
-use super::{EncodedKmerCollection, KmerCollectionContains, KmerEncode, MismatchNumber, SupportedMismatchNumber};
 
 /// A [`KmerSet`] holds a set of encoded k-mers and provides methods for
 /// efficiently using them. For instance, a [`KmerSet`] can be used to find the
@@ -73,10 +72,7 @@ impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> KmerSet<MAX_
     }
 }
 
-impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> KmerSet<MAX_LEN, E, S>
-where
-    KmerLen<MAX_LEN, E>: SupportedKmerLen,
-{
+impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> KmerSet<MAX_LEN, E, S> {
     /// Insert an already encoded k-mer into the set. The encoded k-mer must
     /// have been generated using the [`KmerEncoder`] associated with this
     /// [`KmerSet`].
@@ -219,7 +215,7 @@ where
     #[inline]
     pub fn insert_encoded_kmer_with_variants<const N: usize>(&mut self, encoded_kmer: E::EncodedKmer)
     where
-        MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, E>, {
+        E::MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, E>, {
         for variant in self.encoder.get_variants::<N>(encoded_kmer) {
             self.insert_encoded_kmer(variant);
         }
@@ -236,7 +232,7 @@ where
     #[inline]
     pub fn insert_kmer_with_variants<const N: usize>(&mut self, kmer: impl AsRef<[u8]>)
     where
-        MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, E>, {
+        E::MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, E>, {
         self.insert_encoded_kmer_with_variants::<N>(self.encoder.encode_kmer(kmer));
     }
 
@@ -247,7 +243,7 @@ where
     #[inline]
     pub fn insert_kmer_with_variants_checked<const N: usize>(&mut self, kmer: impl AsRef<[u8]>) -> bool
     where
-        MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, E>, {
+        E::MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, E>, {
         let Some(encoded_kmer) = self.encoder.encode_kmer_checked(kmer) else {
             return false;
         };
@@ -279,7 +275,7 @@ where
     #[inline]
     pub fn insert_from_sequence_with_variants<const N: usize>(&mut self, seq: impl AsRef<[u8]>)
     where
-        MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, E>, {
+        E::MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, E>, {
         for encoded_kmer in self.encoder.iter_from_sequence(&seq) {
             self.insert_encoded_kmer_with_variants::<N>(encoded_kmer);
         }
@@ -307,10 +303,7 @@ impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> KmerCollecti
     }
 }
 
-impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> IntoIterator for KmerSet<MAX_LEN, E, S>
-where
-    KmerLen<MAX_LEN, E>: SupportedKmerLen,
-{
+impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> IntoIterator for KmerSet<MAX_LEN, E, S> {
     type Item = Kmer<MAX_LEN>;
     type IntoIter = KmerSetDecodedIntoIter<MAX_LEN, E, S>;
 
@@ -325,17 +318,12 @@ where
 
 /// An iterator over a [`KmerSet`] yielding decoded k-mers. The iterator
 /// consumes the original set.
-pub struct KmerSetDecodedIntoIter<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S>
-where
-    KmerLen<MAX_LEN, E>: SupportedKmerLen, {
+pub struct KmerSetDecodedIntoIter<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S> {
     pub(crate) set_into_iter: <HashSet<E::EncodedKmer, S> as IntoIterator>::IntoIter,
     pub(crate) encoder:       E,
 }
 
-impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S> Iterator for KmerSetDecodedIntoIter<MAX_LEN, E, S>
-where
-    KmerLen<MAX_LEN, E>: SupportedKmerLen,
-{
+impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S> Iterator for KmerSetDecodedIntoIter<MAX_LEN, E, S> {
     type Item = Kmer<MAX_LEN>;
 
     #[inline]

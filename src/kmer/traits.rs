@@ -9,6 +9,7 @@ use std::{iter::Enumerate, ops::Range};
 /// k-mer. Hence, it is implemented on [`Kmer`], as well as each potential type
 /// used as an encoded k-mer.
 pub trait KmerEncode<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>> {
+    #[must_use]
     fn encode_kmer(&self, encoder: &E) -> E::EncodedKmer;
 }
 
@@ -17,6 +18,7 @@ where
     ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen,
     E: KmerEncoder<MAX_LEN, EncodedKmer = Self>,
 {
+    #[inline]
     fn encode_kmer(&self, _encoder: &E) -> E::EncodedKmer {
         *self
     }
@@ -27,12 +29,14 @@ where
     ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen,
     E: KmerEncoder<MAX_LEN, EncodedKmer = ThreeBitEncodedKmer<MAX_LEN>>,
 {
+    #[inline]
     fn encode_kmer(&self, _encoder: &E) -> E::EncodedKmer {
         **self
     }
 }
 
 impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>> KmerEncode<MAX_LEN, E> for Kmer<MAX_LEN> {
+    #[inline]
     fn encode_kmer(&self, encoder: &E) -> E::EncodedKmer {
         encoder.encode_kmer(self)
     }

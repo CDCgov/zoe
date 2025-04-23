@@ -1,7 +1,4 @@
-use super::{
-    EncodedKmerCollection, Kmer, KmerCollectionContains, KmerEncode, KmerError, KmerLen, MismatchNumber, SupportedKmerLen,
-    SupportedMismatchNumber,
-};
+use super::{EncodedKmerCollection, Kmer, KmerCollectionContains, KmerEncode, KmerError, SupportedMismatchNumber};
 use crate::{kmer::encoder::KmerEncoder, prelude::Len};
 use std::{
     collections::HashMap,
@@ -66,10 +63,7 @@ impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> KmerCounter<
     }
 }
 
-impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> Index<E::EncodedKmer> for KmerCounter<MAX_LEN, E, S>
-where
-    KmerLen<MAX_LEN, E>: SupportedKmerLen,
-{
+impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> Index<E::EncodedKmer> for KmerCounter<MAX_LEN, E, S> {
     type Output = usize;
 
     #[inline]
@@ -78,10 +72,7 @@ where
     }
 }
 
-impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> KmerCounter<MAX_LEN, E, S>
-where
-    KmerLen<MAX_LEN, E>: SupportedKmerLen,
-{
+impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> KmerCounter<MAX_LEN, E, S> {
     /// If the already encoded k-mer is present in this counter, then increment
     /// its count. Otherwise, add it to the counter with a count of 1. The
     /// encoded k-mer must have been generated using the [`KmerEncoder`]
@@ -203,7 +194,7 @@ where
     #[inline]
     pub fn insert_encoded_kmer_with_variants<const N: usize>(&mut self, encoded_kmer: E::EncodedKmer)
     where
-        MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, E>, {
+        E::MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, E>, {
         for variant in self.encoder.get_variants::<N>(encoded_kmer) {
             self.insert_encoded_kmer(variant);
         }
@@ -221,7 +212,7 @@ where
     #[inline]
     pub fn insert_kmer_with_variants<const N: usize>(&mut self, kmer: impl AsRef<[u8]>)
     where
-        MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, E>, {
+        E::MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, E>, {
         self.insert_encoded_kmer_with_variants::<N>(self.encoder.encode_kmer(kmer));
     }
 
@@ -232,7 +223,7 @@ where
     #[inline]
     pub fn insert_kmer_with_variants_checked<const N: usize>(&mut self, kmer: impl AsRef<[u8]>) -> bool
     where
-        MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, E>, {
+        E::MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, E>, {
         let Some(encoded_kmer) = self.encoder.encode_kmer_checked(kmer) else {
             return false;
         };
@@ -264,7 +255,7 @@ where
     #[inline]
     pub fn insert_from_sequence_with_variants<const N: usize>(&mut self, seq: impl AsRef<[u8]>)
     where
-        MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, E>, {
+        E::MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, E>, {
         for encoded_kmer in self.encoder.iter_from_sequence(&seq) {
             self.insert_encoded_kmer_with_variants::<N>(encoded_kmer);
         }
@@ -292,10 +283,7 @@ impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> KmerCollecti
     }
 }
 
-impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> IntoIterator for KmerCounter<MAX_LEN, E, S>
-where
-    KmerLen<MAX_LEN, E>: SupportedKmerLen,
-{
+impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> IntoIterator for KmerCounter<MAX_LEN, E, S> {
     type Item = (Kmer<MAX_LEN>, usize);
     type IntoIter = KmerCounterDecodedIntoIter<MAX_LEN, E, S>;
 
@@ -310,17 +298,12 @@ where
 
 /// An iterator over a [`KmerCounter`] yielding decoded k-mers and their counts.
 /// The iterator consumes the original counter.
-pub struct KmerCounterDecodedIntoIter<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S>
-where
-    KmerLen<MAX_LEN, E>: SupportedKmerLen, {
+pub struct KmerCounterDecodedIntoIter<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S> {
     pub(crate) map_into_iter: <HashMap<E::EncodedKmer, usize, S> as IntoIterator>::IntoIter,
     pub(crate) encoder:       E,
 }
 
-impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S> Iterator for KmerCounterDecodedIntoIter<MAX_LEN, E, S>
-where
-    KmerLen<MAX_LEN, E>: SupportedKmerLen,
-{
+impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S> Iterator for KmerCounterDecodedIntoIter<MAX_LEN, E, S> {
     type Item = (Kmer<MAX_LEN>, usize);
 
     #[inline]

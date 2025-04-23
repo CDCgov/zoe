@@ -2,7 +2,7 @@ use std::hash::Hash;
 
 use crate::{data::CheckSequence, kmer::errors::KmerError, prelude::Nucleotides};
 
-use super::{KmerEncode, MismatchNumber, SupportedMismatchNumber};
+use super::{KmerEncode, SupportedMismatchNumber};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Kmer<const MAX_LEN: usize> {
@@ -146,6 +146,11 @@ where
     /// of one away from a provided k-mer. The original k-mer is included in the
     /// iterator.
     type OneMismatchIter: Iterator<Item = Self::EncodedKmer>;
+    /// A zero-size struct used to hold a number of mismatches. For valid values
+    /// of `N`, [`SupportedMismatchNumber`] will be implemented, and will
+    /// provide the appropriate iterator to use for generating variants. See
+    /// [`SupportedMismatchNumber`] for more details.
+    type MismatchNumber<const N: usize>;
 
     /// Creates a new [`KmerEncoder`] with the specified k-mer length.
     ///
@@ -209,9 +214,9 @@ where
     /// [`SupportedMismatchNumber`] for more details.
     fn get_variants<const N: usize>(
         &self, encoded_kmer: Self::EncodedKmer,
-    ) -> <MismatchNumber<N> as SupportedMismatchNumber<MAX_LEN, Self>>::MismatchIter
+    ) -> <Self::MismatchNumber<N> as SupportedMismatchNumber<MAX_LEN, Self>>::MismatchIter
     where
-        MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, Self>;
+        Self::MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, Self>;
 
     /// Gets an iterator over the encoded overlapping k-mers in a sequence, from
     /// left to right. If the sequence is shorter than the k-mer length of the
