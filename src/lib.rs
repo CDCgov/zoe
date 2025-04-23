@@ -57,5 +57,45 @@ pub mod prelude {
 
 pub(crate) use crate::data::extension::simd;
 
+mod private {
+    use std::{
+        hash::BuildHasher,
+        simd::{LaneCount, Simd, SimdElement, SupportedLaneCount},
+    };
+
+    use crate::prelude::*;
+
+    macro_rules! sealed {
+        ($($t:ty),* $(,)?) => { $( impl Sealed for $t {} )* };
+    }
+
+    pub trait Sealed {}
+    sealed!(String, &String, &str, str);
+    impl<T> Sealed for Vec<T> {}
+    impl<T> Sealed for &[T] {}
+    impl<T> Sealed for [T] {}
+    impl<T, const N: usize> Sealed for &[T; N] {}
+    impl<T, const N: usize> Sealed for [T; N] {}
+    impl Sealed for crate::search::RangeSearch<'_> {}
+    impl<T: SimdElement, const N: usize> Sealed for Simd<T, N> where LaneCount<N>: SupportedLaneCount {}
+    impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> Sealed for KmerCounter<MAX_LEN, E, S> {}
+    impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> Sealed for KmerSet<MAX_LEN, E, S> {}
+    sealed!(
+        AminoAcids,
+        AminoAcidsView<'_>,
+        AminoAcidsViewMut<'_>,
+        Nucleotides,
+        NucleotidesView<'_>,
+        NucleotidesViewMut<'_>,
+        FastQ,
+        FastQView<'_>,
+        FastQViewMut<'_>,
+        QualityScores,
+        QualityScoresView<'_>,
+        QualityScoresViewMut<'_>,
+    );
+    sealed!(f32, f64, u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
+}
+
 /// The default SIMD lanes for Zoe.
 const DEFAULT_SIMD_LANES: usize = 32;

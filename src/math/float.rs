@@ -7,6 +7,8 @@ use std::{
     str::FromStr,
 };
 
+use crate::private::Sealed;
+
 /// Takes square root using the Babylonian Method using 40 iterations.
 // Relevant discussion: <https://www.codeproject.com/Articles/69941/Best-Square-Root-Method-Algorithm-Function-Precisi>
 pub(crate) const fn sqrt_baby(n: f64) -> f64 {
@@ -46,7 +48,8 @@ pub trait Float:
     + Sized
     + FromStr
     + std::iter::Sum<Self>
-    + for<'a> std::iter::Sum<&'a Self> {
+    + for<'a> std::iter::Sum<&'a Self>
+    + Sealed {
     const MIN: Self;
     const MAX: Self;
     const ZERO: Self;

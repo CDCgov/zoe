@@ -24,9 +24,6 @@ include = [
     "assets/docs-header.html",
     ".cargo/config.toml",
 ]
-autotests = false
-autoexamples = false
-autobenches = false
 
 [lib]
 name = "zoe"

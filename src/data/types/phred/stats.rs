@@ -1,11 +1,14 @@
-use crate::composition::{get_median, get_min_med_max, tally_from_unchecked};
+use crate::{
+    composition::{get_median, get_min_med_max, tally_from_unchecked},
+    private::Sealed,
+};
 
 use super::{Len, QScoreFloat, QScoreInt, QualityScores, QualityScoresView, QualityScoresViewMut};
 use std::convert::Into;
 
 /// Methods for calculating statistics on quality scores. All methods assume
 /// that a 33 ASCII offset is used.
-pub trait QualityStats: AsRef<[u8]> + Len {
+pub trait QualityStats: AsRef<[u8]> + Len + Sealed {
     /// Calculates the minimum phred quality score using a full scan.
     #[inline]
     #[must_use]

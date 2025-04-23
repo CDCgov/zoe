@@ -1,6 +1,7 @@
 use crate::{
     data::view_traits::{IndexAdjustable, SliceRange},
     kmer::{FindKmers, KmerCollectionContains},
+    private::Sealed,
 };
 use std::ops::{Bound, Index, Range};
 
@@ -147,7 +148,7 @@ impl<'a> RangeSearch<'a> {
 /// particular, it provides methods for generating a [`RangeSearch`] struct from
 /// a byte string. See [Restricting the search
 /// range](crate::search#restricting-the-search-range) for more details.
-pub trait ToRangeSearch: AsRef<[u8]> {
+pub trait ToRangeSearch: AsRef<[u8]> + Sealed {
     /// Restrict the search to be in `range`.
     ///
     /// <div class="warning note">
@@ -198,4 +199,4 @@ pub trait ToRangeSearch: AsRef<[u8]> {
     }
 }
 
-impl<T: AsRef<[u8]>> ToRangeSearch for T {}
+impl<T: AsRef<[u8]> + Sealed> ToRangeSearch for T {}

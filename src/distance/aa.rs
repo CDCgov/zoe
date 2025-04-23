@@ -6,9 +6,10 @@ use crate::{
         hamming_simd,
     },
     prelude::{AminoAcids, AminoAcidsView, AminoAcidsViewMut},
+    private::Sealed,
 };
 
-pub trait AminoAcidsDistance: AminoAcidsReadable {
+pub trait AminoAcidsDistance: AminoAcidsReadable + Sealed {
     /// ## Distance
     ///
     /// Calculates hamming distance between `self` and another sequence.

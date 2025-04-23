@@ -1,10 +1,13 @@
-use crate::data::{
-    cigar::CigletIterator,
-    types::{
-        amino_acids::AminoAcids,
-        cigar::{Cigar, Ciglet},
-        nucleotides::Nucleotides,
+use crate::{
+    data::{
+        cigar::CigletIterator,
+        types::{
+            amino_acids::AminoAcids,
+            cigar::{Cigar, Ciglet},
+            nucleotides::Nucleotides,
+        },
     },
+    private::Sealed,
 };
 
 #[derive(Clone, Debug)]
@@ -135,7 +138,7 @@ pub fn pairwise_align_with_cigar(reference: &[u8], query: &[u8], cigar: &Cigar, 
 }
 
 /// Enables sequence expansion based on alignment information.
-pub trait PairwiseSequence: AsRef<[u8]> {
+pub trait PairwiseSequence: AsRef<[u8]> + Sealed {
     type Output: From<Vec<u8>>;
 
     /// Aligns two sequences using a CIGAR string starting at the given

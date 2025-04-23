@@ -1,10 +1,10 @@
 use super::{
     AminoAcids, Nucleotides, NucleotidesMutable, NucleotidesView, NucleotidesViewMut, getter_traits::NucleotidesReadable,
 };
-use crate::data::mappings::StdGeneticCode;
+use crate::{data::mappings::StdGeneticCode, private::Sealed};
 
 /// Provides methods for translating nucleotides into amino acids.
-pub trait Translate: NucleotidesReadable {
+pub trait Translate: NucleotidesReadable + Sealed {
     /// Translate the DNA sequence to [`AminoAcids`].
     #[inline]
     #[must_use]
@@ -42,7 +42,7 @@ pub trait Translate: NucleotidesReadable {
     }
 }
 
-impl<T: NucleotidesReadable> Translate for T {}
+impl<T: NucleotidesReadable + Sealed> Translate for T {}
 
 /// Iterator for translating [`Nucleotides`] into [`AminoAcids`].
 ///
@@ -119,7 +119,7 @@ pub fn translate_sequence(s: &[u8]) -> Vec<u8> {
     TranslatedNucleotidesIter::new(s).collect::<Vec<_>>()
 }
 
-pub trait GetCodons: NucleotidesReadable {
+pub trait GetCodons: NucleotidesReadable + Sealed {
     /// Gets the bases grouped into codons as a slice of arrays, starting with
     /// the first base. Any trailing bases are included in the second tuple
     /// entry. To use a different reading frame, consider creating a view of the
@@ -188,7 +188,7 @@ impl GetCodons for Nucleotides {}
 impl GetCodons for NucleotidesView<'_> {}
 impl GetCodons for NucleotidesViewMut<'_> {}
 
-pub trait GetCodonsMut: NucleotidesMutable {
+pub trait GetCodonsMut: NucleotidesMutable + Sealed {
     /// Gets the bases grouped into codons as a mutable slice of arrays,
     /// starting with the first base. Any trailing bases are included in the
     /// second tuple entry. To use a different reading frame, consider creating

@@ -7,10 +7,11 @@ use crate::{
         view_traits::SliceRange,
     },
     prelude::*,
+    private::Sealed,
 };
 use std::simd::prelude::*;
 
-pub trait ToDNA: Into<Nucleotides> {
+pub trait ToDNA: Into<Nucleotides> + Sealed {
     /// Filters and recodes to uppercase IUPAC with corrected gaps.
     fn filter_to_dna(self) -> Nucleotides {
         let mut n = self.into();
@@ -34,7 +35,7 @@ pub trait ToDNA: Into<Nucleotides> {
     }
 }
 
-impl<T: Into<Nucleotides>> ToDNA for T {}
+impl<T: Into<Nucleotides> + Sealed> ToDNA for T {}
 
 /// Enumeration for DNA recoding strategies. In all strategies, U is recoded to
 /// T.
@@ -167,7 +168,7 @@ impl RefineDNAStrat {
 
 /// Provides DNA-specific methods for recoding a sequence. Data that cannot be
 /// recoded becomes `N`. See [`RecodeDNAStrat`] for recoding strategies.
-pub trait RecodeNucleotides: NucleotidesMutable {
+pub trait RecodeNucleotides: NucleotidesMutable + Sealed {
     /// Recodes the stored sequences according to the strategy in
     /// [`RecodeDNAStrat`]. Data that cannot be recoded becomes `N`.
     #[inline]
@@ -208,9 +209,9 @@ pub trait RecodeNucleotides: NucleotidesMutable {
     }
 }
 
-impl<T: NucleotidesMutable> RecodeNucleotides for T {}
+impl<T: NucleotidesMutable + Sealed> RecodeNucleotides for T {}
 
-pub trait RetainNucleotides: AsMut<Vec<u8>> {
+pub trait RetainNucleotides: AsMut<Vec<u8>> + Sealed {
     /// Retains nucleotides according if they are valid according to the
     /// retention strategy.
     #[inline]
@@ -229,7 +230,7 @@ pub trait RetainNucleotides: AsMut<Vec<u8>> {
 impl RetainNucleotides for Nucleotides {}
 impl RetainNucleotides for Vec<u8> {}
 
-pub trait CheckNucleotides {
+pub trait CheckNucleotides: Sealed {
     /// Checks if nucleotide sequence is valid according to the specified
     /// validation strategy.
     ///
@@ -251,7 +252,7 @@ pub trait CheckNucleotides {
     fn is_acgtn_uc(&self) -> bool;
 }
 
-impl<T: NucleotidesReadable> CheckNucleotides for T {
+impl<T: NucleotidesReadable + Sealed> CheckNucleotides for T {
     #[inline]
     fn is_valid_dna(&self, strategy: IsValidDNA) -> bool {
         self.nucleotide_bytes().iter().all(|&b| strategy.is_valid(b))

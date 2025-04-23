@@ -4,6 +4,8 @@ use std::{
     ops::{Add, AddAssign, BitAnd, BitOr, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign},
 };
 
+use crate::private::Sealed;
+
 pub trait AnyInt:
     Sized
     + Copy
@@ -23,7 +25,8 @@ pub trait AnyInt:
     + Shl<usize, Output = Self>
     + ShrAssign<usize>
     + ShlAssign<usize>
-    + TryInto<usize> {
+    + TryInto<usize>
+    + Sealed {
     const ZERO: Self;
     const ONE: Self;
 
@@ -137,7 +140,7 @@ impl_int!(i8, i16, i32, i64, isize, i128, u8, u16, u32, u64, usize, u128);
 impl_xint!(Uint; u8, u16, u32, u64, usize, u128);
 impl_xint!(Int; i8, i16, i32, i64, isize, i128);
 
-pub trait FromSameSignedness<T>: From<T> {}
+pub trait FromSameSignedness<T>: From<T> + Sealed {}
 
 macro_rules! impl_from_same_sign {
     ($smaller:ty => $($bigger:ty),*) => {

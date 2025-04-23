@@ -18,6 +18,7 @@ All notable changes to this project will be documented in this file. The format 
 
 - `ToDNA` now has a blanket impl to support the trait being used on more types
 - The `Arbitrary` implementation for `Kmer` can now generate non-graphic ASCII
+- Many traits have been sealed to prevent SemVer breakage. They will be unsealed as the API stabilizes.
 
 ### Fixed
 

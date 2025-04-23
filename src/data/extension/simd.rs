@@ -3,6 +3,8 @@ use std::{
     simd::{LaneCount, SimdElement, SupportedLaneCount, prelude::*},
 };
 
+use crate::private::Sealed;
+
 // Do not use in a prelude to avoid conflicts with `std::simd::SimdInt` and `std::simd::SimdUint`.
 pub trait SimdAnyInt<T, const N: usize>:
     SimdOrd
@@ -11,6 +13,7 @@ pub trait SimdAnyInt<T, const N: usize>:
     + SubAssign<Simd<T, N>>
     + Shl<T, Output = Simd<T, N>>
     + Shr<T, Output = Simd<T, N>>
+    + Sealed
 where
     LaneCount<N>: SupportedLaneCount,
     T: SimdElement, {

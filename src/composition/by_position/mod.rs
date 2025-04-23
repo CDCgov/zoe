@@ -4,6 +4,7 @@ use crate::{
         types::nucleotides::{Nucleotides, NucleotidesReadable},
     },
     math::Uint,
+    private::Sealed,
 };
 use std::ops::{Add, AddAssign};
 use std::simd::{SimdElement, prelude::*};
@@ -252,7 +253,7 @@ where
 /// Extension trait to allow a per-site vector of [`NucleotideCounts`] to be
 /// generated from an iterator of sequences, where the sequences are assumed to
 /// be from the same multiple sequence alignment.
-pub trait AlignmentComposition {
+pub trait AlignmentComposition: Sealed {
     /// Gets a per-site vector of [`NucleotideCounts`] from an iterator of
     /// sequences, where the sequences are assumed to be from the same multiple
     /// sequence alignment.
@@ -276,7 +277,7 @@ pub trait AlignmentComposition {
         }
     }
 }
-impl<I: Iterator> AlignmentComposition for I {}
+impl<I: Iterator + Sealed> AlignmentComposition for I {}
 
 /// Converts a base into an index for [`NucleotideCounts`].
 const fn base_to_inner_index(b: u8) -> usize {
@@ -310,7 +311,7 @@ const fn base_to_inner_index(b: u8) -> usize {
 }
 
 /// Extension trait for creating a [`NucleotideCounts`] object from a sequence.
-pub trait ToBaseCounts: NucleotidesReadable {
+pub trait ToBaseCounts: NucleotidesReadable + Sealed {
     /// Creates a [`NucleotideCounts`] object from a sequence using the
     /// specified [`Uint`].
     #[inline]
@@ -322,13 +323,13 @@ pub trait ToBaseCounts: NucleotidesReadable {
     }
 }
 
-impl<T: NucleotidesReadable> ToBaseCounts for T {}
+impl<T: NucleotidesReadable + Sealed> ToBaseCounts for T {}
 
 /// Extension trait to allow for a consensus sequence to be generated from a
 /// vector of [`NucleotideCounts`]. See [`plurality_acgtn`] for more details.
 ///
 /// [`plurality_acgtn`]: CreateConsensus::plurality_acgtn
-pub trait CreateConsensus {
+pub trait CreateConsensus: Sealed {
     /// Given a vector of [`NucleotideCounts`] representing the counts in each
     /// position of a multiple sequence alignment, generate a consensus
     /// sequence. See [`NucleotideCounts::plurality_acgtn`] for more details.
@@ -336,7 +337,7 @@ pub trait CreateConsensus {
     fn plurality_acgtn(&self) -> Nucleotides;
 }
 
-impl<T> CreateConsensus for Vec<NucleotideCounts<T>>
+impl<T: Sealed> CreateConsensus for Vec<NucleotideCounts<T>>
 where
     T: Uint + Ord + Add<Output = T>,
 {

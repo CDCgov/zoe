@@ -15,7 +15,7 @@ pub trait Len {
 
 /// A trait for data which is owned, and from which views and mutable views can
 /// be created.
-pub trait DataOwned {
+pub trait DataOwned: Sealed {
     type View<'a>
     where
         Self: 'a;
@@ -33,7 +33,7 @@ pub trait DataOwned {
 
 /// A trait for data which is an immutable view, and from which owned data can
 /// be created (via cloning).
-pub trait DataView {
+pub trait DataView: Sealed {
     type Owned;
 
     /// Create an owned copy of the data via cloning.
@@ -49,7 +49,7 @@ pub trait DataView {
 
 /// A trait for data which is a mutable view, and from which an immutable view
 /// or owned data can be created (the latter requiring cloning).
-pub trait DataViewMut<'b> {
+pub trait DataViewMut<'b>: Sealed {
     type View<'a>
     where
         Self: 'a;
@@ -78,7 +78,7 @@ pub trait SliceRange: SliceIndex<[u8], Output = [u8]> + Clone + RangeBounds<usiz
 impl<T: SliceIndex<[u8], Output = [u8]> + Clone + RangeBounds<usize>> SliceRange for T {}
 
 /// Provides the ability to obtain an immutable view of a range of the data.
-pub trait Slice: Len {
+pub trait Slice: Len + Sealed {
     type View<'a>
     where
         Self: 'a;
@@ -352,3 +352,5 @@ impl IndexAdjustable for RangeToInclusive<usize> {
 
 pub(crate) use impl_len;
 pub(crate) use impl_views_for_wrapper;
+
+use crate::private::Sealed;

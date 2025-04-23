@@ -1,7 +1,7 @@
 #![allow(clippy::doc_markdown)]
 use crate::{
     DEFAULT_SIMD_LANES, data::types::nucleotides::NucleotidesReadable, distance::hamming_simd, math::MapFloat,
-    simd::SimdByteFunctions,
+    private::Sealed, simd::SimdByteFunctions,
 };
 use std::simd::{LaneCount, SupportedLaneCount, prelude::*};
 
@@ -150,7 +150,7 @@ where
 /// An extension trait to add DNA distance methods to data that looks like [`Nucleotides`].
 ///
 /// [`Nucleotides`]: crate::data::types::nucleotides::Nucleotides
-pub trait NucleotidesDistance: NucleotidesReadable {
+pub trait NucleotidesDistance: NucleotidesReadable + Sealed {
     /// Calculates hamming distance between [`self`] and another sequence.
     ///
     /// ## Example
@@ -221,7 +221,7 @@ pub trait NucleotidesDistance: NucleotidesReadable {
     }
 }
 
-impl<T: NucleotidesReadable> NucleotidesDistance for T {}
+impl<T: NucleotidesReadable + Sealed> NucleotidesDistance for T {}
 
 /// ## Jukes-Cantor (JC-69) nucleotide substitution model.
 ///
@@ -405,7 +405,7 @@ pub fn tamura_nei_93(seq1: &[u8], seq2: &[u8]) -> Option<f64> {
 ///
 /// Substitution matrices are built from two `&[u8]` slices using
 /// [`dna_substitution_matrix`]
-pub trait DistanceFromMatrix {
+pub trait DistanceFromMatrix: Sealed {
     /// Computes the JC69 distance from the given matrix. See
     /// [`jukes_cantor_69`] for more details.
     #[must_use]

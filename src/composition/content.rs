@@ -1,8 +1,8 @@
-use crate::{data::types::nucleotides::NucleotidesReadable, simd::SimdByteFunctions};
+use crate::{data::types::nucleotides::NucleotidesReadable, private::Sealed, simd::SimdByteFunctions};
 use std::simd::{LaneCount, SupportedLaneCount, prelude::*};
 
 /// Provides method for obtaining the GC content
-pub trait GcContent: NucleotidesReadable {
+pub trait GcContent: NucleotidesReadable + Sealed {
     /// Provides the count of G and C bases.
     #[inline]
     #[must_use]
@@ -11,7 +11,7 @@ pub trait GcContent: NucleotidesReadable {
     }
 }
 
-impl<T: NucleotidesReadable> GcContent for T {}
+impl<T: NucleotidesReadable + Sealed> GcContent for T {}
 
 /// Calculates GC content using SIMD operations for better performance. Returns
 /// count of G and C nucleotides in the sequence.

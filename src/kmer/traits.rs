@@ -1,3 +1,5 @@
+use crate::private::Sealed;
+
 use super::{Kmer, KmerEncoder, SupportedKmerLen, ThreeBitEncodedKmer, ThreeBitKmerLen};
 use std::{iter::Enumerate, ops::Range};
 
@@ -37,7 +39,7 @@ impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>> KmerEncode<MAX_LEN, E> for K
 }
 
 /// Trait for encoded k-mer collections.
-pub trait EncodedKmerCollection<const MAX_LEN: usize> {
+pub trait EncodedKmerCollection<const MAX_LEN: usize>: Sealed {
     type Encoder: KmerEncoder<MAX_LEN, EncodedKmer = Self::EncodedKmer>;
     type EncodedKmer;
 
@@ -55,7 +57,7 @@ pub trait EncodedKmerCollection<const MAX_LEN: usize> {
 
 /// Trait for k-mer collections with a `contains` method (i.e., that can act as
 /// a set).
-pub trait KmerCollectionContains<const MAX_LEN: usize>: EncodedKmerCollection<MAX_LEN> {
+pub trait KmerCollectionContains<const MAX_LEN: usize>: EncodedKmerCollection<MAX_LEN> + Sealed {
     /// Return whether an already encoded k-mer is present in the collection.
     /// The encoded k-mer must have been generated using the [`KmerEncoder`]
     /// associated with this collection.

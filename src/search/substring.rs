@@ -1,5 +1,6 @@
 use crate::{
     DEFAULT_SIMD_LANES,
+    private::Sealed,
     search::{RangeSearch, inexact::fuzzy_substring_match_simd, k_repeating::find_k_repeating},
 };
 use std::{
@@ -17,7 +18,7 @@ use std::{
 ///
 /// This trait is also compatible with [`RangeSearch`]. See [Restricting the
 /// search range](crate::search#restricting-the-search-range) for more details.
-pub trait ByteSubstring {
+pub trait ByteSubstring: Sealed {
     /// Returns `true` is the substring is found and `false` if not. Searches in
     /// the forward direction.
     #[must_use]
@@ -50,7 +51,7 @@ pub trait ByteSubstring {
     fn find_repeating_at_end(&self, needle: u8, min_reps: usize) -> Option<Range<usize>>;
 }
 
-impl<T: AsRef<[u8]> + ?Sized> ByteSubstring for T {
+impl<T: AsRef<[u8]> + ?Sized + Sealed> ByteSubstring for T {
     #[inline]
     fn contains_substring(&self, needle: impl AsRef<[u8]>) -> bool {
         let haystack = self.as_ref();
@@ -151,7 +152,7 @@ impl ByteSubstring for RangeSearch<'_> {
 
 /// Similar to [`ByteSubstring`] but requires the input byte string to be
 /// mutable.
-pub trait ByteSubstringMut {
+pub trait ByteSubstringMut: Sealed {
     /// If the substring is found, the first instance is removed and index range
     /// of the removed substring is returned, otherwise [`None`]. Searches in
     /// the forward direction.
@@ -164,7 +165,7 @@ pub trait ByteSubstringMut {
     fn replace_all_bytes(&mut self, needle: u8, replacement: u8);
 }
 
-impl<T: AsMut<Vec<u8>> + AsRef<[u8]>> ByteSubstringMut for T {
+impl<T: AsMut<Vec<u8>> + AsRef<[u8]> + Sealed> ByteSubstringMut for T {
     #[inline]
     fn remove_first_substring(&mut self, needle: impl AsRef<[u8]>) -> Option<Range<usize>> {
         if let Some(r) = self.find_substring(needle) {
