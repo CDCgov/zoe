@@ -9,6 +9,7 @@ use crate::{
         mappings::{AA_UNAMBIG_PROFILE_MAP, DNA_UNAMBIG_PROFILE_MAP},
     },
     math::Float,
+    unwrap_or_return_some_err,
 };
 use std::{
     fs::File,
@@ -27,9 +28,10 @@ impl SamParser {
     ///
     /// ## Errors
     ///
-    /// The file must meet the specifications for a SAM model file.
-    /// Additionally, it must be a model file (not a regularizer or null model)
-    /// and the specified alphabet must be dna.
+    /// * The file must meet the specifications for a SAM model file
+    /// * The file must be a model file (not a regularizer or null model)
+    /// * The specified alphabet must be dna
+    /// * No negative indices are allowed in layer names
     pub fn parse_dna_model(filename: impl AsRef<Path>) -> Result<Phmm<f32, 4>, std::io::Error> {
         SupportedConfig::parse_sam_file(filename)
     }
@@ -38,9 +40,10 @@ impl SamParser {
     ///
     /// ## Errors
     ///
-    /// The file must meet the specifications for a SAM model file.
-    /// Additionally, it must be a model file (not a regularizer or null model)
-    /// and the specified alphabet must be protein.
+    /// * The file must meet the specifications for a SAM model file
+    /// * The file must be a model file (not a regularizer or null model)
+    /// * The specified alphabet must be protein
+    /// * No negative indices are allowed in layer names
     pub fn parse_protein_model(filename: impl AsRef<Path>) -> Result<Phmm<f32, 20>, std::io::Error> {
         SupportedConfig::parse_sam_file(filename)
     }
@@ -56,9 +59,10 @@ impl<T: Float> GenericSamParser<T> {
     ///
     /// ## Errors
     ///
-    /// The file must meet the specifications for a SAM model file.
-    /// Additionally, it must be a model file (not a regularizer or null model)
-    /// and the specified alphabet must be dna.
+    /// * The file must meet the specifications for a SAM model file
+    /// * The file must be a model file (not a regularizer or null model)
+    /// * The specified alphabet must be dna
+    /// * No negative indices are allowed in layer names
     fn parse_dna_model(filename: impl AsRef<Path>) -> Result<Phmm<T, 4>, std::io::Error> {
         SupportedConfig::parse_sam_file(filename)
     }
@@ -67,9 +71,10 @@ impl<T: Float> GenericSamParser<T> {
     ///
     /// ## Errors
     ///
-    /// The file must meet the specifications for a SAM model file.
-    /// Additionally, it must be a model file (not a regularizer or null model)
-    /// and the specified alphabet must be protein.
+    /// * The file must meet the specifications for a SAM model file
+    /// * The file must be a model file (not a regularizer or null model)
+    /// * The specified alphabet must be protein
+    /// * No negative indices are allowed in layer names
     fn parse_protein_model(filename: impl AsRef<Path>) -> Result<Phmm<T, 20>, std::io::Error> {
         SupportedConfig::parse_sam_file(filename)
     }
@@ -95,7 +100,7 @@ trait ParserConfig<const S: usize, const L: usize> {
     /// Retrieves the appropriate [`ByteIndexMap`]. The input is the content in
     /// the alphabet line of the model file, converted to uppercase with the
     /// "alphabet" prefix and any leading/trailing whitespace removed.
-    fn get_mapping(mapping: &str) -> Result<&'static ByteIndexMap<S>, std::io::Error>;
+    fn get_mapping(mapping: &str) -> Result<&'static ByteIndexMap<S>, IOError>;
 
     /// Given a flat array of `L=2*S+9` parameters, converts them into
     /// [`LayerParams`].
@@ -105,100 +110,61 @@ trait ParserConfig<const S: usize, const L: usize> {
     ///
     /// ## Errors
     ///
-    /// The file must meet the specifications for a SAM model file.
-    /// Additionally, it must be a model file (not a regularizer or null model)
-    /// and the specified alphabet must be compatible with the selected `S` and
-    /// `L`.
-    fn parse_sam_file<T: Float, P>(filename: P) -> Result<Phmm<T, S>, std::io::Error>
+    /// * The file must meet the specifications for a SAM model file
+    /// * The file must be a model file (not a regularizer or null model)
+    /// * The specified alphabet must be compatible with the selected `S` and
+    ///   `L`
+    /// * No negative indices are allowed in layer names
+    fn parse_sam_file<T: Float, P>(filename: P) -> Result<Phmm<T, S>, IOError>
     where
         P: AsRef<Path>,
         SupportedConfig: ParserConfig<S, L>, {
-        let mut lines = BufReader::new(File::open(filename)?).lines();
+        let mut lines = LineIterator::new(filename)?;
 
-        let mut line = get_next_line(&mut lines, "Could not locate initial line in file")?;
-        // The unwrap will always be successful, since `get_next_line` returns a
-        // non-empty trimmed string
-        match line.split_whitespace().next().unwrap_or("") {
-            "MODEL" => {}
-            "REGULARIZER" => {
-                return Err(IOError::new(
-                    ErrorKind::InvalidData,
-                    "REGULARIZER is not supported by this parser",
-                ));
-            }
-            "NULLMODEL" => {
-                return Err(IOError::new(
-                    ErrorKind::InvalidData,
-                    "NULLMODEL is not supported by this parser",
-                ));
-            }
-            _ => {
-                return Err(IOError::new(ErrorKind::InvalidData, "Could not locate initial line in file"));
-            }
-        }
+        // Read initial line
+        validate_model_line(&mut lines)?;
 
-        line = get_next_line(&mut lines, "Could not locate alphabet line in file")?;
-        line.make_ascii_uppercase();
+        // Extract and read alphabet line
+        let mapping = Self::parse_alphabet_line(&mut lines)?;
 
-        let Some(mut alphabet) = line.strip_prefix("ALPHABET") else {
-            return Err(IOError::new(ErrorKind::InvalidData, "Expected alphabet line"));
-        };
-        alphabet = alphabet.trim();
-        let mapping = SupportedConfig::get_mapping(alphabet)?;
+        // Read all model layers
+        let mut layers = LayerIter::<T, S, L>::new(&mut lines)?.collect::<Result<Vec<_>, IOError>>()?;
 
-        let mut layers = Vec::new();
-        let mut current_layer = 0;
-        let mut layers_left = None;
-        let Some(mut last_layer) = SupportedConfig::get_next_layer::<T>(&mut lines, &mut current_layer, &mut layers_left)?
-        else {
-            return Err(IOError::new(
-                ErrorKind::InvalidData,
-                "At least one layer must be present in the model",
-            ));
+        let [first_layer, .., last_layer] = layers.as_mut_slice() else {
+            return Err(IOError::new(ErrorKind::InvalidData, "At least two layers must be specified"));
         };
 
-        while let Some(mut layer) = SupportedConfig::get_next_layer::<T>(&mut lines, &mut current_layer, &mut layers_left)? {
-            for param in PARAMS_TO_COPY {
-                last_layer.transition[param] = layer.transition[param];
-            }
-            last_layer.emission_match = std::mem::replace(&mut layer.emission_match, EmissionParams([T::ZERO; S]));
-            layers.push(last_layer);
-            last_layer = layer;
-        }
+        first_layer.transition[(Delete, Delete)] = T::INFINITY;
+        first_layer.transition[(Delete, Match)] = T::INFINITY;
+        first_layer.transition[(Delete, Insert)] = T::INFINITY;
+
+        last_layer.transition[(Delete, Delete)] = T::INFINITY;
+        last_layer.transition[(Insert, Delete)] = T::INFINITY;
+        last_layer.transition[(Match, Delete)] = T::INFINITY;
 
         Ok(Phmm { mapping, params: layers })
     }
 
-    /// Retrieve the parameters for the next layer, ensuring that the layer is
-    /// properly named and skipping `FREQAVE`. Once `ENDMODEL` is reached, this
-    /// function returns `None`.
-    fn get_next_layer<T: Float>(
-        lines: &mut Lines<BufReader<File>>, current_layer: &mut usize, layers_left: &mut Option<usize>,
-    ) -> Result<Option<LayerParams<T, S>>, std::io::Error> {
-        let line = get_next_line(lines, "File ended before ENDMODEL")?;
+    /// Parse the alphabet line of the model. This consumes one line of the file
+    fn parse_alphabet_line(lines: &mut LineIterator) -> Result<&'static ByteIndexMap<S>, IOError> {
+        let line = lines
+            .next()
+            .ok_or(IOError::new(ErrorKind::InvalidData, "Could not locate alphabet line in file"))??
+            .to_ascii_uppercase();
+
         let mut tokens = line.split_whitespace();
-        let Some(token) = tokens.next() else {
-            return Self::get_next_layer::<T>(lines, current_layer, layers_left);
+
+        let field = tokens.next().unwrap_or("");
+        if !field.eq_ignore_ascii_case("ALPHABET") {
+            return Err(IOError::new(ErrorKind::InvalidData, "Expected alphabet line"));
+        }
+
+        let Some(mut alphabet) = tokens.next() else {
+            return Err(IOError::new(ErrorKind::InvalidData, "Alphabet was missing"));
         };
-        if token == "ENDMODEL" {
-            if let Some(layers_left) = layers_left
-                && *layers_left > 0
-            {
-                return Err(IOError::new(
-                    ErrorKind::InvalidData,
-                    "Some layers were missing from the end of the file",
-                ));
-            }
-            return Ok(None);
-        }
+        alphabet = alphabet.trim();
 
-        if token == "FREQAVE" {
-            Self::parse_layer_params::<T>(tokens, lines)?;
-            return Self::get_next_layer(lines, current_layer, layers_left);
-        }
-
-        check_layer_name(token, current_layer, layers_left)?;
-        Self::parse_layer_params(tokens, lines).map(Some)
+        Self::get_mapping(alphabet)
     }
 
     /// Parses the parameters for a pHMM layer from a set of tokens
@@ -214,8 +180,8 @@ trait ParserConfig<const S: usize, const L: usize> {
     /// * All parameters must parse successfully, and there should be no extra
     ///   parameters on any line (see [`fill_params_from_iter`])
     fn parse_layer_params<'a, T: Float>(
-        mut rest_of_line: impl Iterator<Item = &'a str>, lines: &mut Lines<BufReader<File>>,
-    ) -> Result<LayerParams<T, S>, std::io::Error> {
+        mut rest_of_line: impl Iterator<Item = &'a str>, lines: &mut LineIterator,
+    ) -> Result<LayerParams<T, S>, IOError> {
         let mut params = [T::ZERO; L];
 
         let mut i = Self::fill_params_from_iter::<T>(rest_of_line.by_ref(), &mut params, 0)?;
@@ -266,7 +232,7 @@ trait ParserConfig<const S: usize, const L: usize> {
 }
 
 impl ParserConfig<4, 17> for SupportedConfig {
-    fn get_mapping(mapping: &str) -> Result<&'static ByteIndexMap<4>, std::io::Error> {
+    fn get_mapping(mapping: &str) -> Result<&'static ByteIndexMap<4>, IOError> {
         match mapping {
             "DNA" => Ok(&DNA_UNAMBIG_PROFILE_MAP),
             "PROTEIN" => Err(IOError::new(
@@ -296,7 +262,7 @@ impl ParserConfig<4, 17> for SupportedConfig {
 }
 
 impl ParserConfig<20, 49> for SupportedConfig {
-    fn get_mapping(mapping: &str) -> Result<&'static ByteIndexMap<20>, std::io::Error> {
+    fn get_mapping(mapping: &str) -> Result<&'static ByteIndexMap<20>, IOError> {
         match mapping {
             "DNA" => Err(IOError::new(
                 ErrorKind::InvalidData,
@@ -328,70 +294,50 @@ impl ParserConfig<20, 49> for SupportedConfig {
     }
 }
 
-/// Retrieve the next line from `lines`, giving a specified error message if
-/// there are no more lines present. Leading and trailing whitespace is removed
-/// from lines, and any empty lines or comment lines are skipped.
-fn get_next_line(lines: &mut Lines<BufReader<File>>, message: &str) -> Result<String, std::io::Error> {
-    loop {
-        let line = lines
-            .next()
-            .transpose()?
-            .ok_or(IOError::new(ErrorKind::InvalidData, message))?
-            .trim()
-            .to_string();
-
-        if !line.is_empty() && !line.starts_with('%') {
-            return Ok(line);
-        }
+/// Parse a layer name. BEGIN returns 0, END returns None, otherwise it is
+/// parsed as a usize and returned.
+///
+/// ## Errors
+///
+/// * Negatively-numbered nodes are not supported
+/// * Any layer name other than BEGIN or END must successfully parse to a usize
+fn parse_layer_name(token: &str) -> Result<Option<usize>, IOError> {
+    if token.eq_ignore_ascii_case("BEGIN") {
+        Ok(Some(0))
+    } else if token.eq_ignore_ascii_case("END") {
+        Ok(None)
+    } else if token.starts_with('-') {
+        Err(IOError::new(
+            ErrorKind::InvalidData,
+            "Negatively-numbered nodes in models are not supported. Consider using a prior version of SAM's hmmconvert to convert the model",
+        ))
+    } else if let Ok(layer) = token.parse::<usize>() {
+        Ok(Some(layer))
+    } else {
+        Err(IOError::new(ErrorKind::InvalidData, "Could not parse the layer name"))
     }
 }
 
-/// Check that the layer name is valid, given the expectation of the layer about
-/// to be parsed (`current_layer`) and the expectation for the number of layers
-/// left including the current one (`layers_left`). The function returns the
-/// updated values for `layers_left`.
-fn check_layer_name(token: &str, current_layer: &mut usize, layers_left: &mut Option<usize>) -> Result<(), IOError> {
-    if token == "Begin" {
-        if *current_layer == 0 {
-            *current_layer += 1;
-            return Ok(());
-        }
-    } else if token == "End" {
-        if layers_left.is_none() || *layers_left == Some(1) {
-            *current_layer += 1;
-            *layers_left = Some(0);
-            return Ok(());
-        }
-    } else if let Some(pos_token) = token.strip_prefix('-')
-        && let Ok(layer) = pos_token.parse::<usize>()
-    {
-        if let Some(layers_left) = layers_left {
-            if layer == *layers_left && *layers_left > 0 {
-                *current_layer += 1;
-                *layers_left -= 1;
-                return Ok(());
-            }
-        } else {
-            *current_layer += 1;
-            *layers_left = Some(layer - 1);
-            return Ok(());
-        }
-    } else if let Ok(layer) = token.parse::<usize>() {
-        if let Some(layers_left) = layers_left {
-            if *layers_left > 0 && *current_layer == layer {
-                *current_layer += 1;
-                *layers_left -= 1;
-                return Ok(());
-            }
-        } else if *current_layer == layer {
-            *current_layer += 1;
-            return Ok(());
-        }
-    } else {
-        return Err(IOError::new(ErrorKind::InvalidData, "Could not parse the layer name"));
-    }
+// Extract and validate the "MODEL" line of the file
+fn validate_model_line(lines: &mut LineIterator) -> Result<(), IOError> {
+    let line = lines
+        .next()
+        .ok_or(IOError::new(ErrorKind::InvalidData, "Could not locate initial line in file"))??;
 
-    Err(IOError::new(ErrorKind::InvalidData, "The layers were specified out of order"))
+    let token = line.split_whitespace().next().unwrap_or("");
+
+    match token {
+        "MODEL" => Ok(()),
+        "REGULARIZER" => Err(IOError::new(
+            ErrorKind::InvalidData,
+            "REGULARIZER is not supported by this parser",
+        )),
+        "NULLMODEL" => Err(IOError::new(
+            ErrorKind::InvalidData,
+            "NULLMODEL is not supported by this parser",
+        )),
+        _ => Err(IOError::new(ErrorKind::InvalidData, "Could not locate initial line in file")),
+    }
 }
 
 /// Parse a parameter from a string, and convert it to its negative natural
@@ -401,7 +347,7 @@ fn check_layer_name(token: &str, current_layer: &mut usize, layers_left: &mut Op
 ///
 /// * Negative parameters are not allowed
 /// * The parameter must succeed when parsing to type `T`
-fn parse_param<T: Float>(param: &str) -> Result<T, std::io::Error> {
+fn parse_param<T: Float>(param: &str) -> Result<T, IOError> {
     if param.starts_with('-') {
         return Err(IOError::new(
             ErrorKind::InvalidData,
@@ -419,4 +365,171 @@ fn parse_param<T: Float>(param: &str) -> Result<T, std::io::Error> {
         param = T::INFINITY;
     }
     Ok(param)
+}
+
+struct LayerIter<'a, T, const S: usize, const L: usize> {
+    raw_layers: RawLayerIter<'a, T, S, L>,
+    last_layer: LayerParams<T, S>,
+}
+
+impl<'a, T: Float, const S: usize, const L: usize> LayerIter<'a, T, S, L>
+where
+    SupportedConfig: ParserConfig<S, L>,
+{
+    fn new(lines: &'a mut LineIterator) -> Result<Self, IOError> {
+        let mut raw_layers = RawLayerIter::new(lines);
+        let last_layer = raw_layers
+            .next()
+            .ok_or(IOError::new(ErrorKind::InvalidData, "No model layers found!"))??;
+        Ok(Self { raw_layers, last_layer })
+    }
+}
+
+impl<T: Float, const S: usize, const L: usize> Iterator for LayerIter<'_, T, S, L>
+where
+    SupportedConfig: ParserConfig<S, L>,
+{
+    type Item = Result<LayerParams<T, S>, IOError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut next_layer = unwrap_or_return_some_err!(self.raw_layers.next()?);
+
+        for param in PARAMS_TO_COPY {
+            self.last_layer.transition[param] = next_layer.transition[param];
+        }
+        self.last_layer.emission_match = std::mem::replace(&mut next_layer.emission_match, EmissionParams([T::ZERO; S]));
+
+        Some(Ok(std::mem::replace(&mut self.last_layer, next_layer)))
+    }
+}
+
+struct RawLayerIter<'a, T, const S: usize, const L: usize> {
+    lines:          &'a mut LineIterator,
+    finished:       bool,
+    expected_layer: Option<usize>,
+    phantom:        PhantomData<T>,
+}
+
+impl<'a, T, const S: usize, const L: usize> RawLayerIter<'a, T, S, L> {
+    fn new(lines: &'a mut LineIterator) -> Self {
+        Self {
+            lines,
+            finished: false,
+            expected_layer: Some(0),
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<T: Float, const S: usize, const L: usize> Iterator for RawLayerIter<'_, T, S, L>
+where
+    SupportedConfig: ParserConfig<S, L>,
+{
+    type Item = Result<LayerParams<T, S>, IOError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.finished {
+            return None;
+        }
+
+        let line = unwrap_or_return_some_err!(self.lines.next().transpose());
+
+        let Some(line) = line else {
+            return Some(Err(IOError::new(ErrorKind::InvalidData, "File ended before ENDMODEL")));
+        };
+
+        let mut tokens = line.split_whitespace();
+        let token = tokens.next().unwrap_or("");
+
+        if token.eq_ignore_ascii_case("ENDMODEL") {
+            self.finished = true;
+            return None;
+        }
+
+        let Some(expected_layer) = self.expected_layer else {
+            return Some(Err(IOError::new(
+                ErrorKind::InvalidData,
+                format!("Unexpected token {token} found between END layer and ENDMODEL"),
+            )));
+        };
+
+        if token.eq_ignore_ascii_case("FREQAVE") {
+            unwrap_or_return_some_err!(SupportedConfig::parse_layer_params::<T>(tokens, self.lines));
+            return self.next();
+        }
+
+        let layer_number = unwrap_or_return_some_err!(parse_layer_name(token));
+
+        if let Some(layer_number) = layer_number {
+            if layer_number != expected_layer {
+                return Some(Err(IOError::new(
+                    ErrorKind::InvalidData,
+                    format!("Found model node {layer_number}, expected model node {expected_layer}"),
+                )));
+            }
+
+            self.expected_layer = Some(expected_layer + 1);
+        } else {
+            self.expected_layer = None;
+        }
+
+        let layer = match SupportedConfig::parse_layer_params(tokens, self.lines) {
+            Ok(layer) => layer,
+            Err(e) => return Some(Err(e)),
+        };
+
+        if self.expected_layer.is_none() {
+            if let Some(line) = self.lines.next()
+                && let Some(token) = unwrap_or_return_some_err!(line).split_whitespace().next()
+            {
+                if !token.eq_ignore_ascii_case("ENDMODEL") {
+                    return Some(Err(IOError::new(
+                        ErrorKind::InvalidData,
+                        format!("Unexpected token {token} found between END layer and ENDMODEL"),
+                    )));
+                }
+                self.finished = true;
+            } else {
+                return Some(Err(IOError::new(ErrorKind::InvalidData, "Failed to find ENDMODEL")));
+            }
+        }
+
+        Some(Ok(layer))
+    }
+}
+
+/// An iterator over the lines in a SAM file, skipping empty lines, lines
+/// containing only whitespace, and comment lines.
+struct LineIterator {
+    lines: Lines<BufReader<File>>,
+}
+
+impl LineIterator {
+    /// Create a new [`LineIterator`] object from a file. A `BufReader` is
+    /// automatically used.
+    #[inline]
+    fn new<P: AsRef<Path>>(filename: P) -> Result<Self, IOError> {
+        Ok(Self {
+            lines: BufReader::new(File::open(filename)?).lines(),
+        })
+    }
+}
+
+impl Iterator for LineIterator {
+    type Item = Result<String, IOError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            let line = match self.lines.next()? {
+                Ok(line) => line,
+                Err(e) => return Some(Err(e)),
+            };
+
+            let line = line.trim().to_string();
+
+            if !line.is_empty() && !line.starts_with('%') {
+                return Some(Ok(line));
+            }
+        }
+    }
 }
