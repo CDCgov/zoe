@@ -16,6 +16,17 @@ categories = [
 keywords = ["alignment", "simd", "kmer", "search", "distance"]
 repository = "https://github.com/CDCgov/zoe"
 readme = "README.md"
+include = [
+    "src/**/*",
+    "CHANGELOG.md",
+    "README.md",
+    "LICENSE",
+    "assets/docs-header.html",
+    ".cargo/config.toml",
+]
+autotests = false
+autoexamples = false
+autobenches = false
 
 [lib]
 name = "zoe"
@@ -45,7 +56,5 @@ strip = true
 lto = "thin"
 
 [package.metadata.docs.rs]
-
-# needed for rand docs
 features = ["rand", "arbitrary"]
 rustdoc-args = ["--html-in-header", "./assets/docs-header.html"]
