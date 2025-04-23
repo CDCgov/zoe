@@ -83,8 +83,8 @@ impl Default for AlignmentStates {
 }
 
 /// Aligns two sequences using a CIGAR string, inserting gaps as needed. Takes a
-/// reference sequence, query sequence, CIGAR string, and a reference position,
-/// and returns two aligned sequences with gaps inserted according to the CIGAR
+/// reference sequence, query sequence, CIGAR string, and a reference index, and
+/// returns two aligned sequences with gaps inserted according to the CIGAR
 /// operations. The first output is the reference, and the second is the query.
 ///
 /// Only the portion of the sequences corresponding to the cigar string are
@@ -97,8 +97,7 @@ impl Default for AlignmentStates {
 ///   in the CIGAR string.
 #[inline]
 #[must_use]
-pub fn pairwise_align_with_cigar(reference: &[u8], query: &[u8], cigar: &Cigar, ref_position: usize) -> (Vec<u8>, Vec<u8>) {
-    let mut ref_index = ref_position - 1;
+pub fn pairwise_align_with_cigar(reference: &[u8], query: &[u8], cigar: &Cigar, mut ref_index: usize) -> (Vec<u8>, Vec<u8>) {
     let mut query_index = 0;
 
     let mut ref_aln = Vec::with_capacity(reference.len() + (query.len() / 2));
@@ -151,7 +150,7 @@ pub trait PairwiseSequence: AsRef<[u8]> + Sealed {
     ///   specified in the CIGAR string.
     #[inline]
     fn align_with_cigar(&self, query: &Self, cigar: &Cigar, position: usize) -> (Self::Output, Self::Output) {
-        let (r, q) = pairwise_align_with_cigar(self.as_ref(), query.as_ref(), cigar, position);
+        let (r, q) = pairwise_align_with_cigar(self.as_ref(), query.as_ref(), cigar, position - 1);
         (r.into(), q.into())
     }
 
@@ -175,7 +174,7 @@ pub trait PairwiseSequence: AsRef<[u8]> + Sealed {
     /// [`align_with_cigar_iter`]: PairwiseSequence::align_with_cigar_iter
     #[inline]
     fn align_with_cigar_iter<'a>(&'a self, query: &'a Self, cigar: &'a Cigar, position: usize) -> AlignWithCigarIter<'a> {
-        AlignWithCigarIter::new(self.as_ref(), query.as_ref(), cigar, position)
+        AlignWithCigarIter::new(self.as_ref(), query.as_ref(), cigar, position - 1)
     }
 }
 
@@ -211,8 +210,7 @@ impl<'a> AlignWithCigarIter<'a> {
     /// string, and reference position.
     #[inline]
     #[must_use]
-    fn new(reference: &'a [u8], query: &'a [u8], cigar: &'a Cigar, ref_position: usize) -> Self {
-        let ref_index = ref_position - 1;
+    pub(crate) fn new(reference: &'a [u8], query: &'a [u8], cigar: &'a Cigar, ref_index: usize) -> Self {
         let reference_buffer = &reference[ref_index..];
         let query_buffer = query;
         let mut ciglets = cigar.into_iter();

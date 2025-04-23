@@ -1,6 +1,6 @@
 use crate::{
     alignment::sw::{sw_scalar_score, sw_simd_score},
-    data::{WeightMatrix, err::QueryProfileError, mappings::ByteIndexMap, types::cigar::Cigar},
+    data::{WeightMatrix, err::QueryProfileError, mappings::ByteIndexMap},
     math::{AnyInt, FromSameSignedness},
     simd::SimdAnyInt,
 };
@@ -10,7 +10,7 @@ use std::{
     vec,
 };
 
-use super::sw::sw_scalar_alignment;
+use super::{Alignment, sw::sw_scalar_alignment};
 
 /// Validate the arguments for [`ScalarProfile`] or [`StripedProfile`].
 ///
@@ -119,7 +119,7 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// ## Example
     ///
     /// ```
-    /// # use zoe::{alignment::{ScalarProfile, sw::sw_scalar_score}, data::{WeightMatrix, cigar::Cigar}};
+    /// # use zoe::{alignment::{Alignment, ScalarProfile, sw::sw_scalar_score}, data::{WeightMatrix, cigar::Cigar}};
     /// let reference: &[u8] = b"GGCCACAGGATTGAG";
     /// let query: &[u8] = b"CTCAGATTG";
     ///
@@ -128,14 +128,14 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// const GAP_EXTEND: i8 = -1;
     ///
     /// let profile = ScalarProfile::<5>::new(query, WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-    /// let (start, cigar, score) = profile.smith_waterman_alignment(reference);
-    /// assert_eq!(start, 4);
-    /// assert_eq!(cigar, Cigar::from_slice_unchecked("5M1D4M"));
-    /// assert_eq!(score, 27);
+    /// let alignment = profile.smith_waterman_alignment(reference);
+    /// assert_eq!(alignment.ref_range.start, 3);
+    /// assert_eq!(alignment.cigar, Cigar::from_slice_unchecked("5M1D4M"));
+    /// assert_eq!(alignment.score, 27);
     /// ```
     #[inline]
     #[must_use]
-    pub fn smith_waterman_alignment(&self, seq: &[u8]) -> (usize, Cigar, i32) {
+    pub fn smith_waterman_alignment(&self, seq: &[u8]) -> Alignment<i32> {
         sw_scalar_alignment(seq, self)
     }
 }

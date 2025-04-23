@@ -2,7 +2,7 @@
 // TODO: revisit truncation issues
 
 use super::*;
-use crate::{data::types::cigar::Cigar, math::AnyInt, simd::SimdAnyInt};
+use crate::{math::AnyInt, simd::SimdAnyInt};
 use std::simd::{LaneCount, SimdElement, SupportedLaneCount, prelude::*};
 
 /// Smith-Waterman algorithm, yielding the optimal score.
@@ -107,8 +107,7 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
     best_score.as_u64()
 }
 
-/// Smith-Waterman alignment, yielding the reference starting position (indexed
-/// from 1), cigar, and optimal score.
+/// Perform a local Smith-Waterman alignment.
 ///
 /// Provides the locally optimal sequence alignment (1) using affine gap
 /// penalties (2) with improvements and corrections by (3-4). Our implementation
@@ -123,7 +122,7 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 /// ## Example
 ///
 ///  ```
-/// # use zoe::{alignment::{ScalarProfile, sw::sw_scalar_alignment}, data::{WeightMatrix, cigar::Cigar}};
+/// # use zoe::{alignment::{Alignment, ScalarProfile, sw::sw_scalar_alignment}, data::{WeightMatrix, cigar::Cigar}};
 /// let reference: &[u8] = b"GGCCACAGGATTGAG";
 /// let query: &[u8] = b"CTCAGATTG";
 ///
@@ -132,10 +131,10 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 /// const GAP_EXTEND: i8 = -1;
 ///
 /// let profile = ScalarProfile::<5>::new(query, WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-/// let (start, cigar, score) = sw_scalar_alignment(&reference, &profile);
-/// assert_eq!(start, 4);
-/// assert_eq!(cigar, Cigar::from_slice_unchecked("5M1D4M"));
-/// assert_eq!(score, 27);
+/// let alignment = sw_scalar_alignment(&reference, &profile);
+/// assert_eq!(alignment.ref_range.start, 3);
+/// assert_eq!(alignment.cigar, Cigar::from_slice_unchecked("5M1D4M"));
+/// assert_eq!(alignment.score, 27);
 /// ```
 ///
 /// ## Complexity
@@ -163,7 +162,7 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 ///    <https://doi.org/10.1101/031500>
 ///
 #[must_use]
-pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfile<S>) -> (usize, Cigar, i32) {
+pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfile<S>) -> Alignment<i32> {
     let mut current = vec![ScoreCell::default(); query.query.len() + 1];
     let mut backtrack = BacktrackMatrix::new(reference.len() + 1, query.query.len() + 1);
     let mut best_score = BestScore::new();
@@ -198,6 +197,7 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
                 backtrack.left();
             }
 
+            // Clipping is preferred to insertion/deletion
             if score < 1 {
                 score = 0;
                 backtrack.stop();
@@ -228,7 +228,10 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
 
     let mut states = AlignmentStates::new();
     let mut op = 0;
-    let (mut r, mut c, best_score) = best_score.get_best_score();
+    let (best_r, best_c, best_score) = best_score.get_best_score();
+
+    let mut r = best_r;
+    let mut c = best_c;
     // soft clip 3'
     backtrack.move_to(r, c);
     states.soft_clip(query.query.len() - c);
@@ -260,7 +263,18 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
     states.soft_clip(c);
     let cigar = states.reverse().to_cigar();
 
-    (r + 1, cigar, best_score)
+    // r and c are 1-based in this function. However, since clipping is prefered
+    // to insertion/deletion, the non-clipped portion of the alignment will
+    // always start with M, and hence r and c will be decremented by 1 in the
+    // last iteration of the traceback loop, making them 0-based. best_r and
+    // best_c are also 1-based, but are inclusive in this function, so using
+    // them in an exclusive range makes them 0-based.
+    Alignment {
+        score: best_score,
+        ref_range: r..best_r,
+        query_range: c..best_c,
+        cigar,
+    }
 }
 
 /// Smith-Waterman algorithm (vectorized), yielding the optimal score.
@@ -442,8 +456,13 @@ mod test {
     fn sw() {
         let weights = WeightMatrix::new_dna_matrix(2, -5, Some(b'N'));
         let profile = ScalarProfile::new(QUERY, weights, GAP_OPEN, GAP_EXTEND).unwrap();
-        let (r, _, score) = sw_scalar_alignment(REFERENCE, &profile);
-        assert_eq!((337, 37), (r, score));
+        let Alignment {
+            score,
+            ref_range,
+            query_range: _,
+            cigar: _,
+        } = sw_scalar_alignment(REFERENCE, &profile);
+        assert_eq!((336, 37), (ref_range.start, score));
 
         let score = sw_scalar_score(REFERENCE, &profile);
         assert_eq!(37, score);

@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file. The format 
 ### Added
 
 - Introduce `ByteIndexCounts`, a generalization of `NucleotideCounts`
+- Added an `Alignment` struct to improve the ergonomics of *Zoe*'s alignment algorithms
 
 ### Changed
 

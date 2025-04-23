@@ -157,6 +157,58 @@ mod profile_set;
 mod state;
 mod std_traits;
 
+use crate::data::cigar::Cigar;
+use std::ops::Range;
+
 pub use profile::*;
 pub use profile_set::*;
 pub use state::*;
+
+// For the `Alignment` struct below, both ranges are 0-based and end-exclusive.
+// For a global alignment, the ranges will each be encompass the full length of
+// the sequences. For local alignment, `query_range` does NOT include hard or
+// soft clipped bases, even though `cigar` does contain this information.
+
+/// The output of an alignment algorithm
+#[non_exhaustive]
+#[derive(Debug)]
+pub struct Alignment<T> {
+    /// The score of the alignment
+    pub score:       T,
+    /// A range for the indices of the reference that are included in the
+    /// alignment
+    pub ref_range:   Range<usize>,
+    /// A range for the indices of the query that are included in the alignment,
+    /// already **excludes** clipped bases
+    pub query_range: Range<usize>,
+    /// The CIGAR string for aligning the query to the reference, including
+    /// clipping information
+    pub cigar:       Cigar,
+}
+
+impl<T> Alignment<T> {
+    /// Given the output of an alignment algorithm, generate the aligned
+    /// sequences, using `-` as a gap character. The first output is the
+    /// reference, and the second is the query.
+    #[inline]
+    #[must_use]
+    pub fn get_aligned_seqs(&self, reference: &[u8], query: &[u8]) -> (Vec<u8>, Vec<u8>) {
+        pairwise_align_with_cigar(reference, query, &self.cigar, self.ref_range.start)
+    }
+
+    /// Returns an iterator over the pairs of aligned bases in `reference` and
+    /// `query`. `None` is used to represent gaps.
+    ///
+    /// This has equivalent behavior as [`get_aligned_seqs`] but as an iterator.
+    /// [`get_aligned_seqs`] may offer faster performance, but
+    /// [`get_aligned_iter`] avoids allocations and may offer a more convenient
+    /// syntax for handling gaps.
+    ///
+    /// [`get_aligned_seqs`]: Alignment::get_aligned_seqs
+    /// [`get_aligned_iter`]: Alignment::get_aligned_iter
+    #[inline]
+    #[must_use]
+    pub fn get_aligned_iter<'a>(&'a self, reference: &'a [u8], query: &'a [u8]) -> AlignWithCigarIter<'a> {
+        AlignWithCigarIter::new(reference, query, &self.cigar, self.ref_range.start)
+    }
+}
