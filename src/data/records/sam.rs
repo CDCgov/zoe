@@ -624,7 +624,7 @@ impl<R: std::io::Read> Iterator for SAMReader<R> {
             Ok(s) if s.starts_with('@') => Some(Ok(SamRow::Header(s))),
             Ok(s) => {
                 let r: Vec<&str> = s.split('\t').collect();
-                // TO-DO: account for optional fields
+                // TODO: account for optional fields
                 if r.len() < 11 {
                     return Some(Err(IOError::new(
                         ErrorKind::InvalidData,
@@ -664,25 +664,29 @@ impl<R: std::io::Read> Iterator for SAMReader<R> {
                 };
 
                 let quality_scores: QualityScores = unwrap_or_return_some_err!(r[10].as_bytes().try_into());
-                let cigar = if r[5].starts_with('*') {
-                    Cigar::new()
-                } else {
-                    Cigar::from_slice_unchecked(r[5])
+
+                let cigar = {
+                    let out = r[5].trim_ascii().as_bytes();
+                    if out == b"*" {
+                        Cigar::new()
+                    } else {
+                        Cigar::from_slice_unchecked(out)
+                    }
                 };
 
                 let row = SamData {
                     qname: r[0].to_owned(),
-                    flag:  read_bit_flags,
+                    flag: read_bit_flags,
                     rname: r[2].to_owned(),
-                    pos:   aligned_reference_position,
-                    mapq:  read_mapping_quality,
+                    pos: aligned_reference_position,
+                    mapq: read_mapping_quality,
                     cigar,
                     rnext: '*',
                     pnext: 0,
-                    tlen:  0,
+                    tlen: 0,
                     // TODO: Where should casing be handled?
-                    seq:   r[9].as_bytes().to_ascii_uppercase().into(),
-                    qual:  quality_scores,
+                    seq: r[9].as_bytes().to_ascii_uppercase().into(),
+                    qual: quality_scores,
                 };
                 Some(Ok(SamRow::Data(Box::new(row))))
             }

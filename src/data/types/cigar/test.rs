@@ -3,14 +3,14 @@ use crate::alignment::AlignmentStates;
 
 #[test]
 fn test_expand() {
-    let cigar = Cigar::from_slice_unchecked(" 4S10M2I2D3M4H4P");
+    let cigar = Cigar::from_slice_unchecked("4S10M2I2D3M4H4P");
     let expanded: ExpandedCigar = "SSSSMMMMMMMMMMIIDDMMMHHHHPPPP".into();
     assert_eq!(cigar.expand_cigar(), expanded);
 }
 
 #[test]
 fn test_iter() {
-    let cigar = Cigar::from_slice_unchecked("  1M22I333D4444N55555S6666H777P88X9=  ");
+    let cigar = Cigar::from_slice_unchecked("1M22I333D4444N55555S6666H777P88X9=");
     let mut cigar = cigar.into_iter();
 
     assert_eq!(cigar.next(), Some(Ciglet { op: b'M', inc: 1 }));

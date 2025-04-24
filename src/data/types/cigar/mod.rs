@@ -248,9 +248,7 @@ impl<'a> CigletIterator<'a> {
     /// Constructs an iterator from a CIGAR byte buffer.
     #[inline]
     fn new(buffer: &'a [u8]) -> Self {
-        CigletIterator {
-            buffer: buffer.trim_ascii_start(),
-        }
+        CigletIterator { buffer }
     }
 }
 
