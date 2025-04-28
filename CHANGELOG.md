@@ -167,6 +167,7 @@ All notable changes to this project will be documented in this file. The format 
 - **Added**: Initial internal release. Provides various readers and types for bioinformatics data manipulation.
 
 <!-- Versions -->
+[0.0.16]: https://github.com/CDCgov/zoe/compare/v0.0.15...v0.0.16
 [0.0.15]: https://github.com/CDCgov/zoe/compare/v0.0.14...v0.0.15
 [0.0.14]: https://github.com/CDCgov/zoe/compare/v0.0.13...v0.0.14
 [0.0.13]: https://github.com/CDCgov/zoe/compare/v0.0.12...v0.0.13
