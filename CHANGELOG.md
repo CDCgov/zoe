@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file. The format is roughly based on [Keep a Changelog], and this project tries to adheres to [Semantic Versioning].
 
-## [0.0.16] - TBD
+## [0.0.16] - 2025-04-28
 
 ### Added
 
@@ -11,16 +11,14 @@ All notable changes to this project will be documented in this file. The format 
 - Added functions for retrieving the codons from `Nucleotides`
 - Add `make_uppercase` to `RecodeNucleotides`
 - Add `to_view` for downgrading mutable views to immutable views
-- Add preliminary struct for representing profile hidden Markov models and
-  parsing them from SAM model files.
+- Add preliminary struct for representing profile hidden Markov models and parsing them from SAM model files.
 - Added functions such as `find_next_aa` for locating aa translations within nucleotide sequences
 
 ### Changed
 
 - `ToDNA` now has a blanket impl to support the trait being used on more types
 - The `Arbitrary` implementation for `Kmer` can now generate non-graphic ASCII
-- Many traits have been sealed to prevent SemVer breakage. They will be unsealed
-  as the API stabilizes.
+- Many traits have been sealed to prevent SemVer breakage. They will be unsealed as the API stabilizes.
 - Reduces restrictions for implementing `KmerEncoder`.
 
 ### Fixed
