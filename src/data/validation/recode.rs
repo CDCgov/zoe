@@ -1,12 +1,12 @@
-use crate::data::views::SliceRange;
+use crate::data::{mappings::ByteMap, views::SliceRange};
 
 /// Provides method for recoding a sequence based on a byte mapping.
 pub trait Recode: AsMut<[u8]> {
     /// Recode the sequence data using a given byte mapping.
     #[inline]
-    fn recode(&mut self, transformation_mapping: &'static [u8; 256]) {
+    fn recode(&mut self, transformation_mapping: &ByteMap) {
         for b in self.as_mut() {
-            *b = transformation_mapping[*b as usize];
+            *b = transformation_mapping[*b];
         }
     }
 

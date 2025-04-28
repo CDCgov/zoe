@@ -1,4 +1,7 @@
-use crate::data::types::{amino_acids::AminoAcids, nucleotides::Nucleotides};
+use crate::data::{
+    mappings::ByteMap,
+    types::{amino_acids::AminoAcids, nucleotides::Nucleotides},
+};
 
 /// Provides methods for validating and transforming sequence data using byte
 /// mappings
@@ -7,7 +10,7 @@ pub trait RetainSequence {
     fn retain_by_validation(&mut self, validation_mapping: &'static [bool; 256]);
     /// Retains and transforms bytes using the transformation mapping, removing
     /// any that map to 0
-    fn retain_by_recoding(&mut self, transformation_mapping: &'static [u8; 256]);
+    fn retain_by_recoding(&mut self, transformation_mapping: &ByteMap);
 }
 
 impl RetainSequence for Vec<u8> {
@@ -20,9 +23,9 @@ impl RetainSequence for Vec<u8> {
     /// Allows for filtering of biological sequences using byte re-encoding. The
     /// 0-byte is assumed to be an invalid pattern.
     #[inline]
-    fn retain_by_recoding(&mut self, transformation_mapping: &'static [u8; 256]) {
+    fn retain_by_recoding(&mut self, transformation_mapping: &ByteMap) {
         self.retain_mut(|b| {
-            *b = transformation_mapping[*b as usize];
+            *b = transformation_mapping[*b];
             *b > 0
         });
     }

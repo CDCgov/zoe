@@ -73,12 +73,12 @@ impl SanitizeBase for u8 {
 
     #[inline]
     fn recode_base(self, strategy: RecodeDNAStrat) -> u8 {
-        strategy.mapping()[self as usize]
+        strategy.mapping()[self]
     }
 
     #[inline]
     fn refine_base(self, strategy: RefineDNAStrat) -> Option<u8> {
-        let recoded = strategy.mapping()[self as usize];
+        let recoded = strategy.mapping()[self];
         if recoded > 0 { Some(recoded) } else { None }
     }
 }

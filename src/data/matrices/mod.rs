@@ -259,7 +259,7 @@ impl<T: AnyInt, const S: usize> WeightMatrix<'_, T, S> {
     /// bytes in `subset`, without updating or recomputing the bias.
     const fn get_subset_unadjusted<'a, const L: usize>(&self, subset: &'a ByteIndexMap<L>) -> WeightMatrix<'a, T, L> {
         assert!(
-            is_subset(&self.mapping.byte_keys, &subset.byte_keys),
+            is_subset(self.mapping.byte_keys(), subset.byte_keys()),
             "The provided keys are not a subset of the original weight matrix!"
         );
         let mut weights = WeightMatrix {
@@ -269,10 +269,10 @@ impl<T: AnyInt, const S: usize> WeightMatrix<'_, T, S> {
         };
         let mut i = 0;
         while i < L {
-            let reference_residue = subset.byte_keys[i];
+            let reference_residue = subset.byte_keys()[i];
             let mut j = 0;
             while j < L {
-                let query_residue = subset.byte_keys[j];
+                let query_residue = subset.byte_keys()[j];
                 *weights.get_weight_mut(reference_residue, query_residue) =
                     self.get_weight(reference_residue, query_residue);
                 j += 1;
@@ -441,10 +441,10 @@ impl<'a, const S: usize> WeightMatrix<'a, i8, S> {
     where
         F: Fn(u8, u8) -> i8, {
         let mut out = WeightMatrix::new(mapping, 0, 0, None);
-        for ref_residue in mapping.byte_keys {
-            for query_residue in mapping.byte_keys {
-                let score = weight_fn(ref_residue, query_residue);
-                *out.get_weight_mut(ref_residue, query_residue) = score;
+        for ref_residue in mapping.byte_keys() {
+            for query_residue in mapping.byte_keys() {
+                let score = weight_fn(*ref_residue, *query_residue);
+                *out.get_weight_mut(*ref_residue, *query_residue) = score;
             }
         }
         out

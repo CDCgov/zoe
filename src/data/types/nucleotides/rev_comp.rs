@@ -8,12 +8,7 @@ use crate::{
 #[inline]
 #[must_use]
 pub fn reverse_complement(bases: &[u8]) -> Vec<u8> {
-    bases
-        .iter()
-        .rev()
-        .copied()
-        .map(|x| TO_REVERSE_COMPLEMENT[x as usize])
-        .collect()
+    bases.iter().rev().copied().map(|x| TO_REVERSE_COMPLEMENT[x]).collect()
 }
 
 /// Reverse complement of a nucleotide sequences using explicit SIMD
@@ -31,7 +26,7 @@ pub fn reverse_complement_simd<const N: usize>(bases: &[u8]) -> Vec<u8> {
     let (pre, mid, sfx) = bases.as_simd::<N>();
     let mut reverse_complement = Vec::with_capacity(bases.len());
 
-    reverse_complement.extend(sfx.iter().rev().copied().map(|x| TO_REVERSE_COMPLEMENT[x as usize]));
+    reverse_complement.extend(sfx.iter().rev().copied().map(|x| TO_REVERSE_COMPLEMENT[x]));
 
     reverse_complement.extend(
         mid.iter()
@@ -55,7 +50,7 @@ pub fn reverse_complement_simd<const N: usize>(bases: &[u8]) -> Vec<u8> {
             .flatten(),
     );
 
-    reverse_complement.extend(pre.iter().rev().copied().map(|x| TO_REVERSE_COMPLEMENT[x as usize]));
+    reverse_complement.extend(pre.iter().rev().copied().map(|x| TO_REVERSE_COMPLEMENT[x]));
 
     reverse_complement
 }
@@ -66,7 +61,7 @@ pub fn reverse_complement_simd<const N: usize>(bases: &[u8]) -> Vec<u8> {
 pub fn make_reverse_complement(bases: &mut [u8]) {
     bases.reverse();
     for x in bases {
-        *x = TO_REVERSE_COMPLEMENT[*x as usize];
+        *x = TO_REVERSE_COMPLEMENT[*x];
     }
 }
 
@@ -78,10 +73,10 @@ pub fn make_reverse_complement_simd<const N: usize>(bases: &mut [u8]) {
     let (pre, mid, sfx) = bases.as_simd_mut::<N>();
 
     for x in pre {
-        *x = TO_REVERSE_COMPLEMENT[*x as usize];
+        *x = TO_REVERSE_COMPLEMENT[*x];
     }
     for x in sfx {
-        *x = TO_REVERSE_COMPLEMENT[*x as usize];
+        *x = TO_REVERSE_COMPLEMENT[*x];
     }
 
     for v in mid {

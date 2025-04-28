@@ -1,8 +1,8 @@
 use crate::{
     DEFAULT_SIMD_LANES,
     data::{
-        byte_types::SanitizeBase,
-        mappings::dna::*,
+        SanitizeBase,
+        mappings::{ByteMap, dna::*},
         types::nucleotides::{NucleotidesMutable, NucleotidesReadable},
         validation::{recode::Recode, retain::RetainSequence},
         views::SliceRange,
@@ -76,7 +76,7 @@ impl RecodeDNAStrat {
     /// Returns the corresponding mapping array for the selected recoding
     /// strategy
     #[inline]
-    pub(crate) const fn mapping(self) -> &'static [u8; 256] {
+    pub(crate) const fn mapping(self) -> &'static ByteMap {
         match self {
             RecodeDNAStrat::IupacToAcgtnWithGaps => &IUPAC_TO_DNA_ACGTN_WITH_GAPS,
             RecodeDNAStrat::IupacToAcgtnWithGapsUpper => &IUPAC_TO_DNA_ACGTN_WITH_GAPS_UC,
@@ -167,7 +167,7 @@ impl RefineDNAStrat {
     /// Returns the corresponding recoding array for the selected retention and
     /// recoding strategy
     #[inline]
-    pub(crate) const fn mapping(self) -> &'static [u8; 256] {
+    pub(crate) const fn mapping(self) -> &'static ByteMap {
         match self {
             RefineDNAStrat::IupacNoGapsUc => &TO_DNA_IUPAC_NO_GAPS_UC,
             RefineDNAStrat::IupacWithGapsUc => &TO_DNA_IUPAC_WITH_GAPS_UC,

@@ -138,7 +138,7 @@ pub mod matrices;
 pub mod records;
 /// A module for storing more fundamental types, like
 /// [`Nucleotides`](self::types::nucleotides::Nucleotides) and
-/// [`AminoAcids`][self::types::amino_acids::AminoAcids].
+/// [`AminoAcids`](self::types::amino_acids::AminoAcids).
 pub mod types;
 /// A module containing functionality needed for working with views.
 pub mod views;
@@ -158,8 +158,8 @@ mod validation;
 mod whichever;
 
 pub use constants::mappings::{
-    AA_ALL_AMBIG_PROFILE_MAP_WITH_STOP, AA_PROFILE_MAP, AA_UNAMBIG_PROFILE_MAP, ByteIndexMap, DNA_PROFILE_MAP,
-    DNA_UNAMBIG_PROFILE_MAP, StdGeneticCode,
+    AA_ALL_AMBIG_PROFILE_MAP_WITH_STOP, AA_PROFILE_MAP, AA_UNAMBIG_PROFILE_MAP, ByteIndexMap, ByteMap, ByteMapBuilder,
+    DNA_PROFILE_MAP, DNA_UNAMBIG_PROFILE_MAP, FromCase, StdGeneticCode, ToCase,
 };
 pub use extension::byte_types::SanitizeBase;
 pub use matrices::WeightMatrix;
