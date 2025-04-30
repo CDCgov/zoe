@@ -32,6 +32,7 @@ use std::{
 /// [`insert_from_sequence_with_variants`]:
 ///     KmerSet::insert_from_sequence_with_variants
 /// [`ThreeBitKmerSet`]: super::ThreeBitKmerSet
+/// [`SupportedKmerLen`]: super::SupportedKmerLen
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct KmerSet<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S = RandomState>
 where

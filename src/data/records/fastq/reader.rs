@@ -14,24 +14,57 @@ pub struct FastQReader<R: std::io::Read> {
 }
 
 impl<R: std::io::Read> FastQReader<R> {
+    /// Creates an iterator over FASTQ data, wrapping the input in a buffered
+    /// reader.
+    ///
+    /// Unlike [`from_readable`], this does not allocate or read any data
+    /// initially. It also allows for empty input, in which case the resulting
+    /// iterator is empty.
+    ///
+    /// [`from_readable`]: FastQReader::from_readable
     pub fn new(inner: R) -> Self {
         FastQReader {
             fastq_reader: std::io::BufReader::new(inner),
             fastq_buffer: Vec::new(),
         }
     }
-}
 
-impl FastQReader<std::fs::File> {
-    /// Reads a fastq file into an iterator backed by a buffered reader.
+    /// Creates an iterator over FASTQ data from a type implementing [`Read`],
+    /// wrapping the input in a buffered reader.
     ///
     /// ## Errors
     ///
-    /// Will return `Err` if file or permissions do not exist.
+    /// Will return `Err` if the input data is empty or an IO error occurs.
+    ///
+    /// [`Read`]: std::io::Read
+    pub fn from_readable(read: R) -> std::io::Result<Self> {
+        let mut fastq_reader = std::io::BufReader::new(read);
+        if fastq_reader.fill_buf()?.is_empty() {
+            return Err(IOError::new(ErrorKind::InvalidData, "No FASTQ data was found!"));
+        }
+
+        Ok(FastQReader {
+            fastq_reader,
+            fastq_buffer: Vec::new(),
+        })
+    }
+}
+
+impl FastQReader<std::fs::File> {
+    /// Creates an iterator over FASTQ data from a FASTQ file, using a buffered
+    /// reader.
+    ///
+    /// ## Errors
+    ///
+    /// Will return `Err` if file or permissions do not exist, or if the file is
+    /// empty.
     pub fn from_filename<P>(filename: P) -> Result<FastQReader<File>, std::io::Error>
     where
         P: AsRef<Path>, {
         let file = File::open(filename)?;
+        if file.metadata()?.len() == 0 {
+            return Err(IOError::new(ErrorKind::InvalidData, "FASTQ file was empty!"));
+        }
         Ok(FastQReader::new(file))
     }
 }
@@ -63,7 +96,7 @@ impl<R: std::io::Read> Iterator for FastQReader<R> {
 
         // Since '@' is in the header, header must be > 1 in length
         if self.fastq_buffer.len() <= 1 {
-            return Some(Err(IOError::new(ErrorKind::InvalidData, "Missing FastQ header!")));
+            return Some(Err(IOError::new(ErrorKind::InvalidData, "Missing FASTQ header!")));
         }
 
         let header = match String::from_utf8(self.fastq_buffer.clone()) {
@@ -81,7 +114,7 @@ impl<R: std::io::Read> Iterator for FastQReader<R> {
         self.fastq_buffer.chop_line_break();
 
         if self.fastq_buffer.is_empty() {
-            return Some(Err(IOError::new(ErrorKind::InvalidData, "Missing FastQ sequence!")));
+            return Some(Err(IOError::new(ErrorKind::InvalidData, "Missing FASTQ sequence!")));
         }
 
         let sequence = Nucleotides(self.fastq_buffer.clone());
@@ -108,7 +141,7 @@ impl<R: std::io::Read> Iterator for FastQReader<R> {
 
         if self.fastq_buffer.len() != sequence.len() {
             if self.fastq_buffer.is_empty() {
-                return Some(Err(IOError::new(ErrorKind::InvalidData, "Missing FastQ quality scores!")));
+                return Some(Err(IOError::new(ErrorKind::InvalidData, "Missing FASTQ quality scores!")));
             }
 
             return Some(Err(IOError::new(

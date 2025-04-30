@@ -35,7 +35,7 @@ fn empty_header_first_record() {
     let Some(Err(e)) = reader.next() else {
         panic!("Should throw error")
     };
-    assert_eq!(e.to_string(), "Missing FastQ header!");
+    assert_eq!(e.to_string(), "Missing FASTQ header!");
     // Ensure iterator terminates
     assert!(reader.count() < 100);
 }
@@ -46,7 +46,7 @@ fn empty_sequence_first_record() {
     let Some(Err(e)) = reader.next() else {
         panic!("Should throw error")
     };
-    assert_eq!(e.to_string(), "Missing FastQ sequence!");
+    assert_eq!(e.to_string(), "Missing FASTQ sequence!");
     // Ensure iterator terminates
     assert!(reader.count() < 100);
 }
@@ -76,7 +76,7 @@ fn empty_quality_first_record() {
     let Some(Err(e)) = reader.next() else {
         panic!("Should throw error")
     };
-    assert_eq!(e.to_string(), "Missing FastQ quality scores!");
+    assert_eq!(e.to_string(), "Missing FASTQ quality scores!");
     // Ensure iterator terminates
     assert!(reader.count() < 100);
 
@@ -84,7 +84,7 @@ fn empty_quality_first_record() {
     let Some(Err(e)) = reader.next() else {
         panic!("Should throw error")
     };
-    assert_eq!(e.to_string(), "Missing FastQ quality scores!");
+    assert_eq!(e.to_string(), "Missing FASTQ quality scores!");
     // Ensure iterator terminates
     assert!(reader.count() < 100);
 }
@@ -141,7 +141,7 @@ fn empty_header_second_record() {
     let Some(Err(e)) = reader.next() else {
         panic!("Should throw error")
     };
-    assert_eq!(e.to_string(), "Missing FastQ header!");
+    assert_eq!(e.to_string(), "Missing FASTQ header!");
     // Ensure iterator terminates
     assert!(reader.count() < 100);
 }
@@ -164,7 +164,7 @@ fn empty_sequence_second_record() {
     let Some(Err(e)) = reader.next() else {
         panic!("Should throw error")
     };
-    assert_eq!(e.to_string(), "Missing FastQ sequence!");
+    assert_eq!(e.to_string(), "Missing FASTQ sequence!");
     // Ensure iterator terminates
     assert!(reader.count() < 100);
 }
@@ -230,7 +230,7 @@ fn empty_quality_second_record() {
     let Some(Err(e)) = reader.next() else {
         panic!("Should throw error")
     };
-    assert_eq!(e.to_string(), "Missing FastQ quality scores!");
+    assert_eq!(e.to_string(), "Missing FASTQ quality scores!");
     // Ensure iterator terminates
     assert!(reader.count() < 100);
 
@@ -250,7 +250,7 @@ fn empty_quality_second_record() {
     let Some(Err(e)) = reader.next() else {
         panic!("Should throw error")
     };
-    assert_eq!(e.to_string(), "Missing FastQ quality scores!");
+    assert_eq!(e.to_string(), "Missing FASTQ quality scores!");
     // Ensure iterator terminates
     assert!(reader.count() < 100);
 }

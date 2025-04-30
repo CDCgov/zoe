@@ -22,6 +22,7 @@ use std::{
 ///
 /// [`KmerSet`]: super::KmerSet
 /// [`ThreeBitKmerCounter`]: super::ThreeBitKmerCounter
+/// [`SupportedKmerLen`]: super::SupportedKmerLen
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct KmerCounter<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S = RandomState>
 where

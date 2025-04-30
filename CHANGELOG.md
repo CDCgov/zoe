@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. The format is roughly based on [Keep a Changelog], and this project tries to adheres to [Semantic Versioning].
 
+## [0.0.17] - TBD
+
+### Changed
+
+- `from_filename` on the different readers now throw an error for empty files, and `from_readable` is introduced to enable the same check for any input type
+
 ## [0.0.16] - 2025-04-28
 
 ### Added

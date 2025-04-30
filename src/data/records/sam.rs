@@ -607,10 +607,37 @@ pub struct SAMReader<R: std::io::Read> {
 }
 
 impl<R: std::io::Read> SAMReader<R> {
+    /// Creates an iterator over SAM data, wrapping the input in a buffered
+    /// reader.
+    ///
+    /// Unlike [`from_readable`], this does not allocate or read any data
+    /// initially. It also allows for empty input, in which case the resulting
+    /// iterator is empty.
+    ///
+    /// [`from_readable`]: SAMReader::from_readable
     pub fn new(inner: R) -> Self {
         SAMReader {
             sam_reader: std::io::BufReader::new(inner).lines(),
         }
+    }
+
+    /// Creates an iterator over SAM data from a type implementing [`Read`],
+    /// wrapping the input in a buffered reader.
+    ///
+    /// ## Errors
+    ///
+    /// Will return `Err` if the input data is empty or an IO error occurs.
+    ///
+    /// [`Read`]: std::io::Read
+    pub fn from_readable(read: R) -> std::io::Result<Self> {
+        let mut sam_reader = std::io::BufReader::new(read);
+        if sam_reader.fill_buf()?.is_empty() {
+            return Err(IOError::new(ErrorKind::InvalidData, "No SAM data was found!"));
+        }
+
+        Ok(SAMReader {
+            sam_reader: sam_reader.lines(),
+        })
     }
 }
 
@@ -701,11 +728,15 @@ impl SAMReader<std::fs::File> {
     ///
     /// ## Errors
     ///
-    /// Will return `Err` if file or permissions or the like do not exist.
+    /// Will return `Err` if file or permissions do not exist, or if the file is
+    /// empty.
     pub fn from_filename<P>(filename: P) -> Result<SAMReader<File>, std::io::Error>
     where
         P: AsRef<Path>, {
         let file = File::open(filename)?;
+        if file.metadata()?.len() == 0 {
+            return Err(IOError::new(ErrorKind::InvalidData, "SAM file was empty!"));
+        }
         Ok(SAMReader::new(file))
     }
 }
