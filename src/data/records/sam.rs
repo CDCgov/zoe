@@ -1,4 +1,5 @@
 use crate::{
+    alignment::Alignment,
     data::{
         byte_types::IsBase,
         types::cigar::{Cigar, Ciglet, ExpandedCigar},
@@ -36,7 +37,8 @@ pub struct SamData {
     pub flag:  u16,
     /// Reference name.
     pub rname: String,
-    /// Query's 1-based reference position after alignment.
+    /// The 1-based position in the reference to which the start of the query
+    /// aligns. This excludes clipped bases.
     pub pos:   usize,
     /// Mystical map quality value.
     pub mapq:  u8,
@@ -59,11 +61,37 @@ pub struct SamData {
 }
 
 impl SamData {
+    /// Constructs a new [`SamData`] record from the corresponding fields.
     #[allow(clippy::too_many_arguments)]
     #[must_use]
     pub fn new(
         qname: String, flag: u16, rname: String, pos: usize, mapq: u8, cigar: Cigar, seq: Nucleotides, qual: QualityScores,
     ) -> Self {
+        SamData {
+            qname,
+            flag,
+            rname,
+            pos,
+            mapq,
+            cigar,
+            rnext: '*',
+            pnext: 0,
+            tlen: 0,
+            seq,
+            qual,
+        }
+    }
+
+    /// Constructs a new [`SamData`] record from an [`Alignment`] struct as well
+    /// as the other provided fields.
+    #[must_use]
+    pub fn from_alignment<T>(
+        alignment: Alignment<T>, qname: String, flag: u16, rname: String, mapq: u8, seq: Nucleotides, qual: QualityScores,
+    ) -> Self {
+        // Both SAM and Alignment exclude clipped bases when reporting
+        // positions, so we just need to adjust to 1-based
+        let pos = alignment.ref_range.start + 1;
+        let cigar = alignment.cigar;
         SamData {
             qname,
             flag,
