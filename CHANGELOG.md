@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ## [0.0.18] - 2025-05-09
 
+### Added
+
+- An iterator of `Ciglet`s can now be collected into a `Result<Cigar, CigarError>`
+
 ### Fixed
 
 - Specified dependencies.

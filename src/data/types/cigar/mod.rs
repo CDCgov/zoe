@@ -1,4 +1,5 @@
 use crate::data::mappings::IS_CIGAR;
+use std::fmt::Write;
 
 #[cfg(test)]
 mod test;
@@ -230,6 +231,9 @@ impl TryFrom<&str> for Cigar {
 }
 
 /// A single increment-opcode pair.
+///
+/// This is yielded when iterating over a [`Cigar`] string. One can also collect
+/// an iterator of [`Ciglet`]s into a `Result<Cigar, CigarError>`.
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Ciglet {
     /// Increment or repetition count.
@@ -369,6 +373,22 @@ impl std::fmt::Debug for Ciglet {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "({},{})", self.inc, self.op as char)
+    }
+}
+
+impl FromIterator<Ciglet> for Result<Cigar, CigarError> {
+    /// Converts an iterator of [`Ciglet`]s into a [`Cigar`] string, and checks
+    /// that the result is valid.
+    #[inline]
+    fn from_iter<T: IntoIterator<Item = Ciglet>>(iter: T) -> Self {
+        let bytes = iter
+            .into_iter()
+            .fold(String::new(), |mut output, ciglet| {
+                let _ = write!(output, "{ciglet}");
+                output
+            })
+            .into_bytes();
+        Cigar::try_from(bytes)
     }
 }
 
