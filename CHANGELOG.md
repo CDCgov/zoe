@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file. The format is roughly based on [Keep a Changelog], and this project tries to adheres to [Semantic Versioning].
 
-## [0.0.17] - TBD
+## [0.0.17] - 2025-05-06
 
 ### Added
 
