@@ -51,6 +51,7 @@ pub trait Float:
     + for<'a> std::iter::Sum<&'a Self>
     + Sealed {
     const MIN: Self;
+    const MIN_POSITIVE: Self;
     const MAX: Self;
     const ZERO: Self;
     const ONE: Self;
@@ -80,6 +81,7 @@ macro_rules! impl_float {
         $(
         impl Float for $ty {
             const MIN: Self = <$ty>::MIN;
+            const MIN_POSITIVE: Self = <$ty>::MIN_POSITIVE;
             const MAX: Self = <$ty>::MAX;
             const ZERO: Self = 0.0;
             const ONE: Self = 1.0;
@@ -153,10 +155,10 @@ where
         if a == b {
             // shortcut, handles infinities
             true
-        } else if a == zero || b == zero || (abs_a + abs_b < Self::MIN) {
+        } else if a == zero || b == zero || (abs_a + abs_b < Self::MIN_POSITIVE) {
             // a or b is zero or both are extremely close to it
             // relative error is less meaningful here
-            diff < eps * Self::MIN
+            diff < eps * Self::MIN_POSITIVE
         } else {
             // use relative error
             diff / (abs_a + abs_b).min(Self::MAX) < eps
