@@ -5,6 +5,7 @@ use crate::{data::ByteIndexMap, math::Float};
 use std::ops::{Index, IndexMut};
 
 mod sam_parser;
+mod traits;
 
 pub use sam_parser::*;
 

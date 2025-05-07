@@ -89,6 +89,7 @@ pub trait Float:
     fn usize_as_self(a: usize) -> Self;
 }
 
+/// Implement [`Float`] for multiple floating point primitive types
 macro_rules! impl_float {
     {$($ty:ty),* } => {
         $(
