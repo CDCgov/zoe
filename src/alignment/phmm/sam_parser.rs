@@ -115,6 +115,7 @@ trait ParserConfig<const S: usize, const L: usize> {
     /// * The specified alphabet must be compatible with the selected `S` and
     ///   `L`
     /// * No negative indices are allowed in layer names
+    /// * At least three layers must be present in the model
     fn parse_sam_file<T: Float, P>(filename: P) -> Result<Phmm<T, S>, IOError>
     where
         P: AsRef<Path>,
@@ -131,7 +132,10 @@ trait ParserConfig<const S: usize, const L: usize> {
         let mut layers = LayerIter::<T, S, L>::new(&mut lines)?.collect::<Result<Vec<_>, IOError>>()?;
 
         let [first_layer, .., last_layer] = layers.as_mut_slice() else {
-            return Err(IOError::new(ErrorKind::InvalidData, "At least two layers must be specified"));
+            return Err(IOError::new(
+                ErrorKind::InvalidData,
+                "At least three layers must be specified",
+            ));
         };
 
         first_layer.transition[(Delete, Delete)] = T::INFINITY;
@@ -185,6 +189,10 @@ trait ParserConfig<const S: usize, const L: usize> {
         let mut params = [T::ZERO; L];
 
         let mut i = Self::fill_params_from_iter::<T>(rest_of_line.by_ref(), &mut params, 0)?;
+
+        if i == L {
+            return Ok(Self::group_params(params));
+        }
 
         for line in lines {
             let line = line?;
