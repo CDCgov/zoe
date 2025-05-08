@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use std::{
-    fmt::Debug,
+    fmt::{Debug, Display},
     ops::{Add, AddAssign, Div, DivAssign, Mul, Neg, Sub},
     simd::SimdElement,
     str::FromStr,
@@ -44,6 +44,7 @@ pub trait Float:
     + PartialOrd
     + Copy
     + Debug
+    + Display
     + SimdElement
     + Sized
     + FromStr

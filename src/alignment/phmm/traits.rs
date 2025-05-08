@@ -1,7 +1,7 @@
 #[cfg(feature = "fuzzing")]
 pub mod float_compare {
     use crate::{
-        alignment::phmm::{EmissionParams, LayerParams, Phmm, TransitionParams},
+        alignment::phmm::{EmissionParams, GlobalPhmm, LayerParams, TransitionParams},
         math::{NearlyEqual, NearlyEqualMethod},
     };
 
@@ -32,7 +32,7 @@ pub mod float_compare {
         }
     }
 
-    impl<T: NearlyEqual<T> + Copy, const S: usize> NearlyEqual<T> for Phmm<T, S> {
+    impl<T: NearlyEqual<T> + Copy, const S: usize> NearlyEqual<T> for GlobalPhmm<T, S> {
         fn nearly_equal<M: NearlyEqualMethod<T>>(&self, b: &Self, strategy: &M) -> (bool, Option<(T, T)>) {
             if self.mapping == b.mapping {
                 self.params.nearly_equal(&b.params, strategy)

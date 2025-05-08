@@ -2,7 +2,7 @@ use std::{fmt::Debug, marker::PhantomData};
 
 use super::impl_deref;
 use crate::{
-    alignment::phmm::{EmissionParams, LayerParams, Phmm, PhmmState, TransitionParams},
+    alignment::phmm::{EmissionParams, GlobalPhmm, LayerParams, PhmmState, TransitionParams},
     data::mappings::DNA_UNAMBIG_PROFILE_MAP,
     math::Float,
 };
@@ -116,20 +116,20 @@ where
 /// * `R`: If true, ensure invalid transitions are set to infinity
 /// * `L`: If true, ensures at least two layers are present
 #[derive(Debug)]
-pub struct DnaPhmm<T, F, const R: bool, const L: bool>(pub Phmm<T, 4>, PhantomData<F>);
+pub struct DnaGlobalPhmm<T, F, const R: bool, const L: bool>(pub GlobalPhmm<T, 4>, PhantomData<F>);
 
-impl_deref! {DnaPhmm<T, F, R, L>, Phmm<T, 4>, <T: Float, F, const R: bool, const L: bool>}
+impl_deref! {DnaGlobalPhmm<T, F, R, L>, GlobalPhmm<T, 4>, <T: Float, F, const R: bool, const L: bool>}
 
 // Basic implementation: no correction for invalid transitions, no minimum on
 // layers
-impl<'a, T: Float + Arbitrary<'a>, F> Arbitrary<'a> for DnaPhmm<T, F, false, false>
+impl<'a, T: Float + Arbitrary<'a>, F> Arbitrary<'a> for DnaGlobalPhmm<T, F, false, false>
 where
     LayerParamsArbitrary<T, F, 4>: Arbitrary<'a>,
 {
     #[inline]
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        Ok(DnaPhmm(
-            Phmm {
+        Ok(DnaGlobalPhmm(
+            GlobalPhmm {
                 mapping: &DNA_UNAMBIG_PROFILE_MAP,
                 params:  Vec::<LayerParamsArbitrary<T, F, 4>>::arbitrary(u)?
                     .into_iter()
@@ -143,7 +143,7 @@ where
 
 // Implementation that adds minimum on number of layers (calls off to basic
 // implementation)
-impl<'a, T: Float + Arbitrary<'a>, F> Arbitrary<'a> for DnaPhmm<T, F, false, true>
+impl<'a, T: Float + Arbitrary<'a>, F> Arbitrary<'a> for DnaGlobalPhmm<T, F, false, true>
 where
     LayerParamsArbitrary<T, F, 4>: Arbitrary<'a>,
 {
@@ -151,24 +151,24 @@ where
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
         let first_layer = LayerParamsArbitrary::<T, F, 4>::arbitrary(u)?;
         let last_layer = LayerParamsArbitrary::<T, F, 4>::arbitrary(u)?;
-        let mut phmm = DnaPhmm::<T, F, false, false>::arbitrary(u)?;
+        let mut phmm = DnaGlobalPhmm::<T, F, false, false>::arbitrary(u)?;
         phmm.params.insert(0, first_layer.0);
         phmm.params.push(last_layer.0);
-        Ok(DnaPhmm(phmm.0, PhantomData))
+        Ok(DnaGlobalPhmm(phmm.0, PhantomData))
     }
 }
 
 // Implementation that corrects for invalid transitions (calls off to previous
 // implementation)
-impl<'a, T: Float + Arbitrary<'a>, F, const L: bool> Arbitrary<'a> for DnaPhmm<T, F, true, L>
+impl<'a, T: Float + Arbitrary<'a>, F, const L: bool> Arbitrary<'a> for DnaGlobalPhmm<T, F, true, L>
 where
-    DnaPhmm<T, F, false, L>: Arbitrary<'a>,
+    DnaGlobalPhmm<T, F, false, L>: Arbitrary<'a>,
 {
     #[inline]
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
         use PhmmState::*;
 
-        let mut out = DnaPhmm::<T, F, false, L>::arbitrary(u)?;
+        let mut out = DnaGlobalPhmm::<T, F, false, L>::arbitrary(u)?;
 
         if let Some(first_layer) = out.0.params.first_mut() {
             first_layer.transition[(Delete, Delete)] = T::INFINITY;
@@ -182,6 +182,6 @@ where
             last_layer.transition[(Match, Delete)] = T::INFINITY;
         }
 
-        Ok(DnaPhmm(out.0, PhantomData))
+        Ok(DnaGlobalPhmm(out.0, PhantomData))
     }
 }

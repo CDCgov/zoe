@@ -30,19 +30,21 @@ impl From<PhmmState> for usize {
 }
 
 /// Stores three values, one associated to each pHMM state (delete, match, and
-/// insert). This is used for readability, allowing indexing with `PhmmState`.
+/// insert). This is used for readability, allowing indexing with [`PhmmState`].
 #[derive(Clone, Debug)]
 pub struct InfoByPhmmState<T>([T; 3]);
 
 impl<T> Index<PhmmState> for InfoByPhmmState<T> {
     type Output = T;
 
+    #[inline]
     fn index(&self, index: PhmmState) -> &Self::Output {
         &self.0[usize::from(index)]
     }
 }
 
 impl<T> IndexMut<PhmmState> for InfoByPhmmState<T> {
+    #[inline]
     fn index_mut(&mut self, index: PhmmState) -> &mut Self::Output {
         &mut self.0[usize::from(index)]
     }
@@ -60,8 +62,18 @@ impl<T> IndexMut<PhmmState> for InfoByPhmmState<T> {
 /// All parameters reflect the probability of transitioning from the
 /// previous layer into the current layer, except for transitions into the
 /// insert state, which are transitions within the same layer.
-#[derive(Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct TransitionParams<T>(pub(crate) [[T; 3]; 3]);
+
+impl<T: Float> Default for TransitionParams<T> {
+    /// Initialize the transition parameters so that all transitions are
+    /// probability zero
+    #[inline]
+    fn default() -> Self {
+        // Zero probability is infinity in negative log space
+        Self([[T::INFINITY; 3]; 3])
+    }
+}
 
 impl<T> Index<(PhmmState, PhmmState)> for TransitionParams<T> {
     type Output = T;
@@ -79,10 +91,36 @@ impl<T> IndexMut<(PhmmState, PhmmState)> for TransitionParams<T> {
     }
 }
 
+impl<T> Index<PhmmState> for TransitionParams<T> {
+    type Output = [T; 3];
+
+    #[inline]
+    fn index(&self, index: PhmmState) -> &Self::Output {
+        &self.0[usize::from(index)]
+    }
+}
+
+impl<T> IndexMut<PhmmState> for TransitionParams<T> {
+    #[inline]
+    fn index_mut(&mut self, index: PhmmState) -> &mut Self::Output {
+        &mut self.0[usize::from(index)]
+    }
+}
+
 /// A set of emission probabilities, converted to log space with
 /// $-\operatorname{ln}(\cdot)$.
-#[derive(Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct EmissionParams<T, const S: usize>(pub(crate) [T; S]);
+
+impl<T: Float, const S: usize> Default for EmissionParams<T, S> {
+    /// Initialize the emission parameters so that all residues are probability
+    /// zero
+    #[inline]
+    fn default() -> Self {
+        // Zero probability is infinity in negative log space
+        Self([T::INFINITY; S])
+    }
+}
 
 impl<T: Float + From<u16>, const S: usize> EmissionParams<T, S> {
     #[inline]
@@ -106,16 +144,27 @@ impl<T, const S: usize> Index<usize> for EmissionParams<T, S> {
 /// The parameters for a single layer of the pHMM.
 ///
 /// See [`TransitionParams`] and [`EmissionParams`] for more details.
-#[derive(Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct LayerParams<T, const S: usize> {
     pub(crate) transition:      TransitionParams<T>,
     pub(crate) emission_match:  EmissionParams<T, S>,
     pub(crate) emission_insert: EmissionParams<T, S>,
 }
 
+impl<T: Float, const S: usize> Default for LayerParams<T, S> {
+    #[inline]
+    fn default() -> Self {
+        Self {
+            transition:      TransitionParams::default(),
+            emission_match:  EmissionParams::default(),
+            emission_insert: EmissionParams::default(),
+        }
+    }
+}
+
 /// An implementation of a profile hidden Markov model (pHMM).
-#[derive(Debug)]
-pub struct Phmm<T, const S: usize> {
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct GlobalPhmm<T, const S: usize> {
     /// The mapping used when processing the bases. This will vary depending on
     /// the alphabet used.
     pub(crate) mapping: &'static ByteIndexMap<S>,

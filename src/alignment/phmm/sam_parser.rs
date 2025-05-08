@@ -1,6 +1,6 @@
 use crate::{
     alignment::phmm::{
-        EmissionParams, LayerParams, Phmm,
+        EmissionParams, GlobalPhmm, LayerParams,
         PhmmState::{self, *},
         TransitionParams,
     },
@@ -13,17 +13,17 @@ use crate::{
 };
 use std::{
     fs::File,
-    io::{BufRead, BufReader, Error as IOError, ErrorKind, Lines},
+    io::{BufRead, BufReader, BufWriter, Error as IOError, ErrorKind, Lines, Write},
     marker::PhantomData,
     path::Path,
 };
 
-/// A struct providing methods for parsing a [`Phmm`] from a SAM (sequence
+/// A struct providing methods for parsing a [`GlobalPhmm`] from a SAM (sequence
 /// alignment and modeling system) model file, using `f32` to represent all
 /// model parameters.
-pub struct SamParser;
+pub struct SamHmmParser;
 
-impl SamParser {
+impl SamHmmParser {
     /// Parse a DNA pHMM from a SAM model file.
     ///
     /// ## Errors
@@ -32,8 +32,8 @@ impl SamParser {
     /// * The file must be a model file (not a regularizer or null model)
     /// * The specified alphabet must be dna
     /// * No negative indices are allowed in layer names
-    pub fn parse_dna_model(filename: impl AsRef<Path>) -> Result<Phmm<f32, 4>, std::io::Error> {
-        SupportedConfig::parse_sam_file(filename)
+    pub fn parse_dna_model(filename: impl AsRef<Path>) -> std::io::Result<GlobalPhmm<f32, 4>> {
+        SupportedConfig::parse_sam_model_file(filename)
     }
 
     /// Parse a protein pHMM from a SAM model file.
@@ -44,17 +44,17 @@ impl SamParser {
     /// * The file must be a model file (not a regularizer or null model)
     /// * The specified alphabet must be protein
     /// * No negative indices are allowed in layer names
-    pub fn parse_protein_model(filename: impl AsRef<Path>) -> Result<Phmm<f32, 20>, std::io::Error> {
-        SupportedConfig::parse_sam_file(filename)
+    pub fn parse_protein_model(filename: impl AsRef<Path>) -> Result<GlobalPhmm<f32, 20>, std::io::Error> {
+        SupportedConfig::parse_sam_model_file(filename)
     }
 }
 
 /// A struct providing methods for parsing a [`Phmm`] from a SAM (sequence
 /// alignment and modeling system) model file, using type `T` to represent all
 /// model parameters.
-struct GenericSamParser<T>(PhantomData<T>);
+struct GenericSamHmmParser<T>(PhantomData<T>);
 
-impl<T: Float> GenericSamParser<T> {
+impl<T: Float> GenericSamHmmParser<T> {
     /// Parse a DNA pHMM from a SAM model file.
     ///
     /// ## Errors
@@ -63,8 +63,8 @@ impl<T: Float> GenericSamParser<T> {
     /// * The file must be a model file (not a regularizer or null model)
     /// * The specified alphabet must be dna
     /// * No negative indices are allowed in layer names
-    fn parse_dna_model(filename: impl AsRef<Path>) -> Result<Phmm<T, 4>, std::io::Error> {
-        SupportedConfig::parse_sam_file(filename)
+    fn parse_dna_model(filename: impl AsRef<Path>) -> Result<GlobalPhmm<T, 4>, std::io::Error> {
+        SupportedConfig::parse_sam_model_file(filename)
     }
 
     /// Parse a protein pHMM from a SAM model file.
@@ -75,14 +75,44 @@ impl<T: Float> GenericSamParser<T> {
     /// * The file must be a model file (not a regularizer or null model)
     /// * The specified alphabet must be protein
     /// * No negative indices are allowed in layer names
-    fn parse_protein_model(filename: impl AsRef<Path>) -> Result<Phmm<T, 20>, std::io::Error> {
-        SupportedConfig::parse_sam_file(filename)
+    fn parse_protein_model(filename: impl AsRef<Path>) -> Result<GlobalPhmm<T, 20>, std::io::Error> {
+        SupportedConfig::parse_sam_model_file(filename)
+    }
+}
+
+/// A struct providing methods for writing a [`GlobalPhmm`] to a SAM (sequence
+/// alignment and modeling system) model file.
+pub struct SamHmmWriter;
+
+impl SamHmmWriter {
+    /// Write a DNA pHMM to a SAM model file.
+    ///
+    /// ## Errors
+    ///
+    /// * IO errors (when creating file or writing to it)
+    /// * The mapping of the pHMM must correspond to DNA
+    /// * The model must have at least one layer
+    #[inline]
+    pub fn write_dna_model<T: Float>(filename: impl AsRef<Path>, model: &GlobalPhmm<T, 4>) -> std::io::Result<()> {
+        SupportedConfig::write_sam_model_file(filename, model)
+    }
+
+    /// Write a protein pHMM to a SAM model file.
+    ///
+    /// ## Errors
+    ///
+    /// * IO errors (when creating file or writing to it)
+    /// * The mapping of the pHMM must correspond to DNA
+    /// * The model must have at least one layer
+    #[inline]
+    pub fn write_protein_model<T: Float>(filename: impl AsRef<Path>, model: &GlobalPhmm<T, 20>) -> std::io::Result<()> {
+        SupportedConfig::write_sam_model_file(filename, model)
     }
 }
 
 /// A list of the pHMM transition probabilities to copy to the previous layer
 /// when parsing.
-const PARAMS_TO_COPY: [(PhmmState, PhmmState); 6] = [
+const PARAMS_TO_COPY_PARSING: [(PhmmState, PhmmState); 6] = [
     (Delete, Delete),
     (Delete, Match),
     (Match, Delete),
@@ -95,16 +125,25 @@ const PARAMS_TO_COPY: [(PhmmState, PhmmState); 6] = [
 /// specified (via implementing the [`ParserConfig`] trait).
 struct SupportedConfig;
 
-/// A trait providing the ability to parse different alphabets from SAM files.
-trait ParserConfig<const S: usize, const L: usize> {
-    /// Retrieves the appropriate [`ByteIndexMap`]. The input is the content in
-    /// the alphabet line of the model file, converted to uppercase with the
-    /// "alphabet" prefix and any leading/trailing whitespace removed.
-    fn get_mapping(mapping: &str) -> Result<&'static ByteIndexMap<S>, IOError>;
+/// A trait providing the ability to handle different alphabets in SAM files.
+trait SamHmmConfig<const S: usize, const L: usize> {
+    /// Parses the alphabet line to the appropriate [`ByteIndexMap`]. The input
+    /// is the content in the alphabet line of the model file, converted to
+    /// uppercase with the "alphabet" prefix and any leading/trailing whitespace
+    /// removed.
+    fn parse_mapping(mapping: &str) -> std::io::Result<&'static ByteIndexMap<S>>;
+
+    /// Converts a [`ByteIndexMap`] to the appropriate alphabet name for the SAM
+    /// file.
+    fn unparse_mapping(mapping: &'static ByteIndexMap<S>) -> std::io::Result<&'static str>;
 
     /// Given a flat array of `L=2*S+9` parameters, converts them into
     /// [`LayerParams`].
     fn group_params<T: Float>(params: [T; L]) -> LayerParams<T, S>;
+
+    /// The inverse of [`group_params`], taking a layer and flattening it to SAM
+    /// parameters.
+    fn ungroup_params<T: Float>(params: &LayerParams<T, S>) -> [T; L];
 
     /// Parse a SAM model file representing a pHMM.
     ///
@@ -116,10 +155,10 @@ trait ParserConfig<const S: usize, const L: usize> {
     ///   `L`
     /// * No negative indices are allowed in layer names
     /// * At least three layers must be present in the model
-    fn parse_sam_file<T: Float, P>(filename: P) -> Result<Phmm<T, S>, IOError>
+    fn parse_sam_model_file<T: Float, P>(filename: P) -> Result<GlobalPhmm<T, S>, IOError>
     where
         P: AsRef<Path>,
-        SupportedConfig: ParserConfig<S, L>, {
+        SupportedConfig: SamHmmConfig<S, L>, {
         let mut lines = LineIterator::new(filename)?;
 
         // Read initial line
@@ -146,7 +185,65 @@ trait ParserConfig<const S: usize, const L: usize> {
         last_layer.transition[(Insert, Delete)] = T::INFINITY;
         last_layer.transition[(Match, Delete)] = T::INFINITY;
 
-        Ok(Phmm { mapping, params: layers })
+        Ok(GlobalPhmm { mapping, params: layers })
+    }
+
+    /// Write a global pHMM to a file, following the SAM format.
+    ///
+    /// No comment lines are included.
+    ///
+    /// ## Errors
+    ///
+    /// * IO errors (when creating file or writing to it)
+    /// * The mapping of the pHMM must correspond to DNA
+    /// * The model must have at least one layer
+    fn write_sam_model_file<T: Float, P>(filename: P, model: &GlobalPhmm<T, S>) -> std::io::Result<()>
+    where
+        P: AsRef<Path>,
+        SupportedConfig: SamHmmConfig<S, L>, {
+        use PhmmState::*;
+
+        if model.params.len() < 2 {
+            return Err(IOError::new(
+                ErrorKind::InvalidData,
+                "At least two layers must be present in the model!",
+            ));
+        }
+
+        let mut writer = BufWriter::new(File::create(filename.as_ref())?);
+
+        writeln!(writer, "MODEL")?;
+        writeln!(writer, "alphabet {}", Self::unparse_mapping(model.mapping)?)?;
+
+        let [first_layer, rest @ ..] = model.params.as_slice() else {
+            return Err(IOError::new(
+                ErrorKind::InvalidData,
+                "At least two layers must be present in the model!",
+            ));
+        };
+
+        let mut current_layer = LayerParams::<T, S>::default();
+
+        write!(writer, "0 ")?;
+        current_layer.transition[Insert] = first_layer.transition[Insert];
+        current_layer.emission_insert = first_layer.emission_insert.clone();
+        print_params(&mut writer, Self::ungroup_params(&current_layer))?;
+        current_layer = first_layer.clone();
+
+        let mut i = 1;
+        for layer in rest {
+            write!(writer, "{i} ")?;
+            current_layer.transition[Insert] = layer.transition[Insert];
+            current_layer.emission_insert = layer.emission_insert.clone();
+            print_params(&mut writer, Self::ungroup_params(&current_layer))?;
+            current_layer = layer.clone();
+            i += 1;
+        }
+
+        write!(writer, "END ")?;
+        print_params(&mut writer, Self::ungroup_params(&current_layer))?;
+        writeln!(writer)?;
+        writeln!(writer, "ENDMODEL")
     }
 
     /// Parse the alphabet line of the model. This consumes one line of the file
@@ -168,7 +265,7 @@ trait ParserConfig<const S: usize, const L: usize> {
         };
         alphabet = alphabet.trim();
 
-        Self::get_mapping(alphabet)
+        Self::parse_mapping(alphabet)
     }
 
     /// Parses the parameters for a pHMM layer from a set of tokens
@@ -239,8 +336,9 @@ trait ParserConfig<const S: usize, const L: usize> {
     }
 }
 
-impl ParserConfig<4, 17> for SupportedConfig {
-    fn get_mapping(mapping: &str) -> Result<&'static ByteIndexMap<4>, IOError> {
+impl SamHmmConfig<4, 17> for SupportedConfig {
+    #[inline]
+    fn parse_mapping(mapping: &str) -> Result<&'static ByteIndexMap<4>, IOError> {
         match mapping {
             "DNA" => Ok(&DNA_UNAMBIG_PROFILE_MAP),
             "PROTEIN" => Err(IOError::new(
@@ -251,6 +349,15 @@ impl ParserConfig<4, 17> for SupportedConfig {
         }
     }
 
+    #[inline]
+    fn unparse_mapping(mapping: &'static ByteIndexMap<4>) -> std::io::Result<&'static str> {
+        if mapping == &DNA_UNAMBIG_PROFILE_MAP {
+            return Ok("DNA");
+        }
+        Err(IOError::new(ErrorKind::InvalidData, "The mapping is unsupported by SAM!"))
+    }
+
+    #[inline]
     fn group_params<T: Float>(params: [T; 17]) -> LayerParams<T, 4> {
         let transition = TransitionParams([
             [params[0], params[1], params[2]],
@@ -267,10 +374,28 @@ impl ParserConfig<4, 17> for SupportedConfig {
             emission_insert,
         }
     }
+
+    #[inline]
+    fn ungroup_params<T: Float>(params: &LayerParams<T, 4>) -> [T; 17] {
+        let mut out = [T::ZERO; 17];
+        out[0..3].copy_from_slice(&params.transition.0[0]);
+        out[3..6].copy_from_slice(&params.transition.0[1]);
+        out[6..9].copy_from_slice(&params.transition.0[2]);
+        out[9] = params.emission_match[0];
+        out[10] = params.emission_match[2];
+        out[11] = params.emission_match[1];
+        out[12] = params.emission_match[3];
+        out[13] = params.emission_insert[0];
+        out[14] = params.emission_insert[2];
+        out[15] = params.emission_insert[1];
+        out[16] = params.emission_insert[3];
+        out
+    }
 }
 
-impl ParserConfig<20, 49> for SupportedConfig {
-    fn get_mapping(mapping: &str) -> Result<&'static ByteIndexMap<20>, IOError> {
+impl SamHmmConfig<20, 49> for SupportedConfig {
+    #[inline]
+    fn parse_mapping(mapping: &str) -> Result<&'static ByteIndexMap<20>, IOError> {
         match mapping {
             "DNA" => Err(IOError::new(
                 ErrorKind::InvalidData,
@@ -281,6 +406,15 @@ impl ParserConfig<20, 49> for SupportedConfig {
         }
     }
 
+    #[inline]
+    fn unparse_mapping(mapping: &'static ByteIndexMap<20>) -> std::io::Result<&'static str> {
+        if mapping == &AA_UNAMBIG_PROFILE_MAP {
+            return Ok("PROTEIN");
+        }
+        Err(IOError::new(ErrorKind::InvalidData, "The mapping is unsupported by SAM!"))
+    }
+
+    #[inline]
     fn group_params<T: Float>(params: [T; 49]) -> LayerParams<T, 20> {
         let (transition, rest) = params.split_at(9);
 
@@ -299,6 +433,17 @@ impl ParserConfig<20, 49> for SupportedConfig {
             emission_match,
             emission_insert,
         }
+    }
+
+    #[inline]
+    fn ungroup_params<T: Float>(params: &LayerParams<T, 20>) -> [T; 49] {
+        let mut out = [T::ZERO; 49];
+        out[0..3].copy_from_slice(&params.transition.0[0]);
+        out[3..6].copy_from_slice(&params.transition.0[1]);
+        out[6..9].copy_from_slice(&params.transition.0[2]);
+        out[9..29].copy_from_slice(&params.emission_match.0);
+        out[29..49].copy_from_slice(&params.emission_insert.0);
+        out
     }
 }
 
@@ -326,7 +471,8 @@ fn parse_layer_name(token: &str) -> Result<Option<usize>, IOError> {
     }
 }
 
-// Extract and validate the "MODEL" line of the file
+/// Extracts and validates the "MODEL" line of the file
+#[inline]
 fn validate_model_line(lines: &mut LineIterator) -> Result<(), IOError> {
     let line = lines
         .next()
@@ -355,6 +501,7 @@ fn validate_model_line(lines: &mut LineIterator) -> Result<(), IOError> {
 ///
 /// * Negative parameters are not allowed
 /// * The parameter must succeed when parsing to type `T`
+#[inline]
 fn parse_param<T: Float>(param: &str) -> Result<T, IOError> {
     if param.starts_with('-') {
         return Err(IOError::new(
@@ -375,15 +522,26 @@ fn parse_param<T: Float>(param: &str) -> Result<T, IOError> {
     Ok(param)
 }
 
+/// An iterator over the layers in a SAM pHMM file, rearranged to be compatible
+/// with Zoe.
 struct LayerIter<'a, T, const S: usize, const L: usize> {
+    /// The underlying raw layers of the SAM pHMM file
     raw_layers: RawLayerIter<'a, T, S, L>,
+    /// The last layer that was parsed, but not yet yielded
     last_layer: LayerParams<T, S>,
 }
 
 impl<'a, T: Float, const S: usize, const L: usize> LayerIter<'a, T, S, L>
 where
-    SupportedConfig: ParserConfig<S, L>,
+    SupportedConfig: SamHmmConfig<S, L>,
 {
+    /// Creates a new iterator over the layers in a SAM pHMM file, rearranged to
+    /// be compatible with Zoe.
+    ///
+    /// ## Errors
+    ///
+    /// * IO errors
+    /// * At least one model layer must be present
     fn new(lines: &'a mut LineIterator) -> Result<Self, IOError> {
         let mut raw_layers = RawLayerIter::new(lines);
         let last_layer = raw_layers
@@ -395,14 +553,14 @@ where
 
 impl<T: Float, const S: usize, const L: usize> Iterator for LayerIter<'_, T, S, L>
 where
-    SupportedConfig: ParserConfig<S, L>,
+    SupportedConfig: SamHmmConfig<S, L>,
 {
     type Item = Result<LayerParams<T, S>, IOError>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut next_layer = unwrap_or_return_some_err!(self.raw_layers.next()?);
 
-        for param in PARAMS_TO_COPY {
+        for param in PARAMS_TO_COPY_PARSING {
             self.last_layer.transition[param] = next_layer.transition[param];
         }
         self.last_layer.emission_match = std::mem::replace(&mut next_layer.emission_match, EmissionParams([T::ZERO; S]));
@@ -411,18 +569,24 @@ where
     }
 }
 
+/// An iterator over the "raw" layers in a SAM pHMM file. These are the layers
+/// as grouped in the model file, which is a different grouping than how
+/// [`GlobalPhmm`] represents them.
 struct RawLayerIter<'a, T, const S: usize, const L: usize> {
+    /// The underlying iterator of lines in the file
     lines:          &'a mut LineIterator,
-    finished:       bool,
+    /// The next layer number expected by the model. This is `None` when
+    /// ENDMODEL has been parsed
     expected_layer: Option<usize>,
     phantom:        PhantomData<T>,
 }
 
 impl<'a, T, const S: usize, const L: usize> RawLayerIter<'a, T, S, L> {
+    /// Creates a new [`RawLayerIter`] from an iterator of the lines in the
+    /// file.
     fn new(lines: &'a mut LineIterator) -> Self {
         Self {
             lines,
-            finished: false,
             expected_layer: Some(0),
             phantom: PhantomData,
         }
@@ -431,44 +595,36 @@ impl<'a, T, const S: usize, const L: usize> RawLayerIter<'a, T, S, L> {
 
 impl<T: Float, const S: usize, const L: usize> Iterator for RawLayerIter<'_, T, S, L>
 where
-    SupportedConfig: ParserConfig<S, L>,
+    SupportedConfig: SamHmmConfig<S, L>,
 {
     type Item = Result<LayerParams<T, S>, IOError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.finished {
-            return None;
-        }
+        // Get the next expected layer, which is `None` only if we have already
+        // parsed ENDMODEL
+        let expected_layer = self.expected_layer?;
 
-        let line = unwrap_or_return_some_err!(self.lines.next().transpose());
-
-        let Some(line) = line else {
+        // Get line containing layer number/name
+        let Some(line) = unwrap_or_return_some_err!(self.lines.next().transpose()) else {
             return Some(Err(IOError::new(ErrorKind::InvalidData, "File ended before ENDMODEL")));
         };
 
+        // Get token corresponding to layer name/number
         let mut tokens = line.split_whitespace();
         let token = tokens.next().unwrap_or("");
 
         if token.eq_ignore_ascii_case("ENDMODEL") {
-            self.finished = true;
+            self.expected_layer = None;
             return None;
         }
-
-        let Some(expected_layer) = self.expected_layer else {
-            return Some(Err(IOError::new(
-                ErrorKind::InvalidData,
-                format!("Unexpected token {token} found between END layer and ENDMODEL"),
-            )));
-        };
 
         if token.eq_ignore_ascii_case("FREQAVE") {
             unwrap_or_return_some_err!(SupportedConfig::parse_layer_params::<T>(tokens, self.lines));
             return self.next();
         }
 
-        let layer_number = unwrap_or_return_some_err!(parse_layer_name(token));
-
-        if let Some(layer_number) = layer_number {
+        // Parse the layer name/number
+        if let Some(layer_number) = unwrap_or_return_some_err!(parse_layer_name(token)) {
             if layer_number != expected_layer {
                 return Some(Err(IOError::new(
                     ErrorKind::InvalidData,
@@ -478,14 +634,14 @@ where
 
             self.expected_layer = Some(expected_layer + 1);
         } else {
+            // Reached END, so we expect no more layers
             self.expected_layer = None;
         }
 
-        let layer = match SupportedConfig::parse_layer_params(tokens, self.lines) {
-            Ok(layer) => layer,
-            Err(e) => return Some(Err(e)),
-        };
+        // Parse the layer
+        let layer = unwrap_or_return_some_err!(SupportedConfig::parse_layer_params(tokens, self.lines));
 
+        // If this was the END layer, ensure we also parse ENDMODEL
         if self.expected_layer.is_none() {
             if let Some(line) = self.lines.next()
                 && let Some(token) = unwrap_or_return_some_err!(line).split_whitespace().next()
@@ -496,7 +652,6 @@ where
                         format!("Unexpected token {token} found between END layer and ENDMODEL"),
                     )));
                 }
-                self.finished = true;
             } else {
                 return Some(Err(IOError::new(ErrorKind::InvalidData, "Failed to find ENDMODEL")));
             }
@@ -540,4 +695,17 @@ impl Iterator for LineIterator {
             }
         }
     }
+}
+
+/// Print the parameters for a layer to a single line, space-separated, and add
+/// a newline.
+#[inline]
+fn print_params<T: Float, const N: usize>(writer: &mut impl Write, params: [T; N]) -> std::io::Result<()> {
+    let mut params = params.into_iter().map(|param| (-param).exp());
+    let Some(param) = params.next() else { return Ok(()) };
+    write!(writer, "{param:.6}")?;
+    for param in params {
+        write!(writer, " {param:.6}")?;
+    }
+    writeln!(writer)
 }
