@@ -12,6 +12,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added macros for facilitating floating point comparisons under the `fuzzing` feature
 - Implemented `Arbitrary` for PHMM-related types under the `fuzzing feature
 - Added `SamHmmWriter` for writing pHMMs to SAM model files
+- Added `expanded_cigar_iter` for iterating over the operations in a CIGAR string
 
 ### Changed
 

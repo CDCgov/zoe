@@ -73,6 +73,13 @@ impl Cigar {
         CigletIterator::new(&self.0)
     }
 
+    /// Returns an iterator over the opcodes in the CIGAR string, with each
+    /// repeated the number of times specified in the CIGAR string.
+    #[inline]
+    pub fn expanded_cigar_iter(&self) -> impl Iterator<Item = u8> {
+        self.iter().flat_map(|Ciglet { inc, op }| std::iter::repeat_n(op, inc))
+    }
+
     /// Validates that a CIGAR only contains valid (inc, op) pairs
     #[inline]
     #[must_use]
