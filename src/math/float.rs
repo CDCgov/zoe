@@ -58,18 +58,31 @@ pub trait Float:
     const INFINITY: Self;
 
     /// Generic absolute value for [`Float`]
+    #[must_use]
     fn abs(self) -> Self;
+
     /// Generic minimum of 2 values for [`Float`]
+    #[must_use]
     fn min(self, other: Self) -> Self;
+
     /// Generic log2 for [`Float`]
+    #[must_use]
     fn log2(self) -> Self;
+
     /// Generic `is_nan` calculation for [`Float`]
+    #[must_use]
     fn is_nan(self) -> bool;
+
     /// Generic `is_infinite` for [`Float`]
+    #[must_use]
     fn is_infinite(self) -> bool;
+
     /// Generic natural logarithm for [`Float`]
+    #[must_use]
     fn ln(self) -> Self;
+
     /// Generic exponential for [`Float`]
+    #[must_use]
     fn exp(self) -> Self;
 
     /// Use a primitive cast to convert a usize to the [`Float`]
@@ -134,53 +147,7 @@ macro_rules! impl_float {
 
 impl_float!(f32, f64);
 
-pub(crate) trait NearlyEqual<T> {
-    fn nearly_equal(self, b: Self, eps: T) -> bool;
-}
-
-impl<T> NearlyEqual<T> for T
-where
-    T: Float,
-{
-    #[inline]
-    /// Tests if two floating points are approximately equal within an epsilon.
-    /// Port courtesy of <https://floating-point-gui.de/errors/comparison/>
-    fn nearly_equal(self, b: Self, eps: T) -> bool {
-        let a = self;
-        let abs_a = a.abs();
-        let abs_b = b.abs();
-        let diff = (a - b).abs();
-        let zero = Self::ZERO;
-
-        if a == b {
-            // shortcut, handles infinities
-            true
-        } else if a == zero || b == zero || (abs_a + abs_b < Self::MIN_POSITIVE) {
-            // a or b is zero or both are extremely close to it
-            // relative error is less meaningful here
-            diff < eps * Self::MIN_POSITIVE
-        } else {
-            // use relative error
-            diff / (abs_a + abs_b).min(Self::MAX) < eps
-        }
-    }
-}
-
-impl<T> NearlyEqual<T> for Option<T>
-where
-    T: Float,
-{
-    #[inline]
-    fn nearly_equal(self, b: Self, eps: T) -> bool {
-        match (self, b) {
-            (Some(x), Some(y)) => x.nearly_equal(y, eps),
-            (None, None) => true,
-            _ => false,
-        }
-    }
-}
-
-/// Utlity trait for mapping floats to [`Option`].
+/// Utility trait for mapping floats to [`Option`].
 pub(crate) trait MapFloat: Float {
     #[inline]
     fn into_option(self) -> Option<Self> {
@@ -192,22 +159,5 @@ pub(crate) trait MapFloat: Float {
     }
 }
 
-impl MapFloat for f64 {}
 impl MapFloat for f32 {}
-
-#[macro_export]
-macro_rules! assert_fp_eq {
-    ($a:expr, $b:expr) => {
-        assert_fp_eq!($a, $b, 1e-8); // Default epsilon
-    };
-    ($a:expr, $expected:expr, $epsilon:expr) => {
-        let found = $a;
-        assert!(
-            $crate::math::NearlyEqual::nearly_equal(found, $expected, $epsilon),
-            "assertion failed: `(found ≈ expected)`\n left:\t`{:?}`,\n right:\t`{:?}`,\n eps:\t`{}`",
-            found,
-            $expected,
-            $epsilon
-        );
-    };
-}
+impl MapFloat for f64 {}

@@ -1,7 +1,12 @@
 mod float;
 mod integer;
 
-pub(crate) use float::*;
-
 pub use crate::simd::SimdAnyInt;
 pub use integer::*;
+
+pub(crate) use float::*;
+
+#[cfg(any(feature = "fuzzing", test))]
+mod float_compare;
+#[cfg(any(feature = "fuzzing", test))]
+pub use float_compare::*;

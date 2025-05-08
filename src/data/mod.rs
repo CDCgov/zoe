@@ -72,7 +72,7 @@
 //! [`to_owned_data`]: crate::prelude::DataView::to_owned_data
 //! [`restrict`]: crate::prelude::DataView::restrict
 
-#[cfg(feature = "arbitrary")]
+#[cfg(feature = "fuzzing")]
 pub mod arbitrary;
 /// A module with error types and convenience traits for handling [`Result`].
 pub mod err;

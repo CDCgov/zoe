@@ -9,10 +9,12 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 ### Added
 
 - Added accessor methods to `SamRow` enum variants
+- Added macros for facilitating floating point comparisons under the `fuzzing` feature
 
 ### Changed
 
 - MSRV bumped to 1.88 (nightly)
+- Renamed `arbitrary` feature to `fuzzing`
 
 ## [0.0.18] - 2025-05-09
 

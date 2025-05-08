@@ -1,5 +1,6 @@
-use super::*;
 use crate::assert_fp_eq;
+
+use super::*;
 
 pub(crate) static LONG_READ_1: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/KJ907623.1.txt")); // H5 HA, complete CDS
 pub(crate) static LONG_READ_2: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/KJ907631.1.txt")); // H5 HA, complete CDS

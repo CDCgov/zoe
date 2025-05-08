@@ -15,14 +15,16 @@
 #![feature(const_fn_floating_point_arithmetic, let_chains, lazy_cell, slice_as_chunks)]
 #![forbid(incomplete_features)]
 
+/// Mathematical utilities.
+pub mod math;
+
 pub mod alignment;
 /// Composition and consensus functions.
 pub mod composition;
 pub mod data;
 pub mod distance;
 pub mod kmer;
-/// Mathematical utilities.
-pub mod math;
+
 pub mod search;
 
 #[cfg(feature = "rand")]

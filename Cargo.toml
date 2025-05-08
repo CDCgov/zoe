@@ -38,9 +38,9 @@ rand = ["dep:rand_xoshiro"]
 # functions
 multiversion = ["dep:multiversion"]
 
-# An optional feature adding the implementation of Arbitrary to many Zoe types,
-# for fuzz-testing
-arbitrary = ["dep:arbitrary"]
+# An optional feature adding additional functionality for fuzzing, including
+# Arbitrary implementations
+fuzzing = ["dep:arbitrary"]
 
 [dependencies]
 arbitrary = { version = "1", optional = true, features = ["derive"] }
@@ -53,5 +53,5 @@ strip = true
 lto = "thin"
 
 [package.metadata.docs.rs]
-features = ["rand", "arbitrary"]
+features = ["rand", "fuzzing"]
 rustdoc-args = ["--html-in-header", "./assets/docs-header.html"]

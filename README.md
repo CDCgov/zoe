@@ -71,7 +71,7 @@ at the user's discretion.
 ### Optional Features
 
 - **multiversion**: This optional feature adds multiversioning of select Zoe SIMD functions using the [multiversion](https://docs.rs/multiversion/latest/multiversion/) crate.
-- **arbitrary**: This optional feature adds [`Arbitrary`](https://docs.rs/arbitrary/latest/arbitrary/trait.Arbitrary.html) implementations to many of Zoe's data types to support fuzz testing. It also introduces many wrapper types with custom [`Arbitrary`](https://docs.rs/arbitrary/latest/arbitrary/trait.Arbitrary.html) implementations providing data with stronger assumptions. See TODO for more details.
+- **fuzzing**: This optional feature adds several testing features to Zoe, including [`Arbitrary`](https://docs.rs/arbitrary/latest/arbitrary/trait.Arbitrary.html) implementations for many of Zoe's data types to support fuzz testing. It also introduces many wrapper types with custom [`Arbitrary`](https://docs.rs/arbitrary/latest/arbitrary/trait.Arbitrary.html) implementations providing data with stronger assumptions.
 
 ## Notices
 
