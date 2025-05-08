@@ -60,7 +60,8 @@ impl<T> IndexMut<PhmmState> for InfoByPhmmState<T> {
 /// All parameters reflect the probability of transitioning from the
 /// previous layer into the current layer, except for transitions into the
 /// insert state, which are transitions within the same layer.
-pub struct TransitionParams<T>([[T; 3]; 3]);
+#[derive(Debug)]
+pub struct TransitionParams<T>(pub(crate) [[T; 3]; 3]);
 
 impl<T> Index<(PhmmState, PhmmState)> for TransitionParams<T> {
     type Output = T;
@@ -80,7 +81,8 @@ impl<T> IndexMut<(PhmmState, PhmmState)> for TransitionParams<T> {
 
 /// A set of emission probabilities, converted to log space with
 /// $-\operatorname{ln}(\cdot)$.
-pub struct EmissionParams<T, const S: usize>([T; S]);
+#[derive(Debug)]
+pub struct EmissionParams<T, const S: usize>(pub(crate) [T; S]);
 
 impl<T: Float + From<u16>, const S: usize> EmissionParams<T, S> {
     #[inline]
@@ -104,17 +106,19 @@ impl<T, const S: usize> Index<usize> for EmissionParams<T, S> {
 /// The parameters for a single layer of the pHMM.
 ///
 /// See [`TransitionParams`] and [`EmissionParams`] for more details.
+#[derive(Debug)]
 pub struct LayerParams<T, const S: usize> {
-    transition:      TransitionParams<T>,
-    emission_match:  EmissionParams<T, S>,
-    emission_insert: EmissionParams<T, S>,
+    pub(crate) transition:      TransitionParams<T>,
+    pub(crate) emission_match:  EmissionParams<T, S>,
+    pub(crate) emission_insert: EmissionParams<T, S>,
 }
 
 /// An implementation of a profile hidden Markov model (pHMM).
+#[derive(Debug)]
 pub struct Phmm<T, const S: usize> {
     /// The mapping used when processing the bases. This will vary depending on
     /// the alphabet used.
-    mapping: &'static ByteIndexMap<S>,
+    pub(crate) mapping: &'static ByteIndexMap<S>,
 
     /// The parameters for the pHMM.
     ///
@@ -131,5 +135,5 @@ pub struct Phmm<T, const S: usize> {
     /// Note that this is different from SAM. The first element's match state is
     /// the BEGIN state, while the last element's transition probabilities
     /// reflect the probabilities entering the END state.
-    params: Vec<LayerParams<T, S>>,
+    pub(crate) params: Vec<LayerParams<T, S>>,
 }

@@ -16,28 +16,29 @@
 use super::{fasta::FastaSeq, fastq::FastQ};
 use crate::prelude::*;
 use arbitrary::{Arbitrary, Result, Unstructured};
-use std::{
-    fmt::Display,
-    ops::{Deref, DerefMut},
-};
+use std::fmt::Display;
 
 mod amino_acids;
 mod cigar;
 mod kmer;
+mod math;
 mod nucleotides;
+mod phmm;
 mod string;
 mod vec;
 
 pub use amino_acids::*;
 pub use cigar::*;
 pub use kmer::*;
+pub use math::*;
 pub use nucleotides::*;
+pub use phmm::*;
 pub use string::*;
 pub use vec::*;
 
 macro_rules! impl_deref {
-    ($wrapper:ty, $inner:ty) => {
-        impl Deref for $wrapper {
+    ($wrapper:ty, $inner:ty $(, $($generics:tt)*)?) => {
+        impl$($($generics)*)? ::std::ops::Deref for $wrapper {
             type Target = $inner;
 
             fn deref(&self) -> &Self::Target {
@@ -45,11 +46,24 @@ macro_rules! impl_deref {
             }
         }
 
-        impl DerefMut for $wrapper {
+        impl$($($generics)*)? ::std::ops::DerefMut for $wrapper {
             fn deref_mut(&mut self) -> &mut Self::Target {
                 &mut self.0
             }
         }
+    };
+}
+
+macro_rules! impl_from {
+    ($wrapper:tt, $($ty:ty),*) => {
+        $(
+            impl ::std::convert::From<$wrapper<$ty>> for $ty {
+                #[inline]
+                fn from(val: $wrapper<$ty>) -> $ty {
+                    val.0
+                }
+            }
+        )*
     };
 }
 
@@ -153,3 +167,4 @@ impl<'a> Arbitrary<'a> for FastaSeq {
 }
 
 pub(crate) use impl_deref;
+pub(crate) use impl_from;

@@ -1,7 +1,6 @@
 use super::{VecAsciiGraphic, VecAsciiGraphicBashSafe, impl_deref};
 use crate::prelude::Nucleotides;
 use arbitrary::{Arbitrary, Result, Unstructured};
-use std::ops::{Deref, DerefMut};
 
 impl<'a> Arbitrary<'a> for Nucleotides {
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {

@@ -1,6 +1,5 @@
 use super::{VecAsciiGraphic, VecAsciiGraphicBashSafe, VecAsciiGraphicOrSpace, impl_deref};
 use arbitrary::{Arbitrary, Result, Unstructured};
-use std::ops::{Deref, DerefMut};
 
 /// A wrapper around [`String`] such that the implementation of
 /// [`Arbitrary`](https://docs.rs/arbitrary/latest/arbitrary/trait.Arbitrary.html)

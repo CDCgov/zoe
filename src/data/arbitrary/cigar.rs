@@ -1,10 +1,7 @@
 use super::impl_deref;
 use crate::data::cigar::{Cigar, Ciglet};
 use arbitrary::{Arbitrary, Result, Unstructured};
-use std::{
-    num::NonZeroUsize,
-    ops::{Deref, DerefMut},
-};
+use std::num::NonZeroUsize;
 
 impl<'a> Arbitrary<'a> for Ciglet {
     #[inline]
