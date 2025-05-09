@@ -1,5 +1,4 @@
 use crate::data::mappings::IS_CIGAR;
-use std::fmt::Write;
 
 #[cfg(test)]
 mod test;
@@ -269,7 +268,7 @@ impl Iterator for CigletIterator<'_> {
             if b.is_ascii_digit() {
                 num *= 10;
                 num += usize::from(b - b'0');
-            } else if matches!(b, b'M' | b'I' | b'D' | b'N' | b'S' | b'H' | b'P' | b'X' | b'=') && num > 0 {
+            } else if is_valid_op(b) && num > 0 {
                 self.buffer = &self.buffer[index + 1..];
                 return Some(Ciglet { inc: num, op: b });
             } else {
@@ -284,7 +283,7 @@ impl Iterator for CigletIterator<'_> {
             if b.is_ascii_digit() {
                 num = num.checked_mul(10)?;
                 num = num.checked_add(usize::from(b - b'0'))?;
-            } else if matches!(b, b'M' | b'I' | b'D' | b'N' | b'S' | b'H' | b'P' | b'X' | b'=') && num > 0 {
+            } else if is_valid_op(b) && num > 0 {
                 self.buffer = &self.buffer[index + 1..];
                 return Some(Ciglet { inc: num, op: b });
             } else {
@@ -300,7 +299,7 @@ impl Iterator for CigletIterator<'_> {
 impl DoubleEndedIterator for CigletIterator<'_> {
     fn next_back(&mut self) -> Option<Self::Item> {
         let op = match self.buffer {
-            [rest @ .., op] if matches!(op, b'M' | b'I' | b'D' | b'N' | b'S' | b'H' | b'P' | b'X' | b'=') => {
+            [rest @ .., op] if is_valid_op(*op) => {
                 self.buffer = rest;
                 *op
             }
@@ -380,15 +379,22 @@ impl FromIterator<Ciglet> for Result<Cigar, CigarError> {
     /// Converts an iterator of [`Ciglet`]s into a [`Cigar`] string, and checks
     /// that the result is valid.
     #[inline]
-    fn from_iter<T: IntoIterator<Item = Ciglet>>(iter: T) -> Self {
-        let bytes = iter
-            .into_iter()
-            .fold(String::new(), |mut output, ciglet| {
-                let _ = write!(output, "{ciglet}");
-                output
-            })
-            .into_bytes();
-        Cigar::try_from(bytes)
+    fn from_iter<T: IntoIterator<Item = Ciglet>>(data: T) -> Self {
+        let mut byte_string = Vec::new();
+        let mut format_buffer = itoa::Buffer::new();
+
+        for Ciglet { inc, op } in data {
+            if inc == 0 {
+                return Err(CigarError::IncZero);
+            } else if !is_valid_op(op) {
+                return Err(CigarError::InvalidOperation);
+            }
+
+            byte_string.extend_from_slice(format_buffer.format(inc).as_bytes());
+            byte_string.push(op);
+        }
+
+        Ok(Cigar(byte_string))
     }
 }
 
@@ -404,11 +410,7 @@ impl ExpandedCigar {
         let mut condensed: Vec<u8> = Vec::new();
         let mut format_buffer = itoa::Buffer::new();
 
-        let mut cigars = self
-            .0
-            .iter()
-            .copied()
-            .filter(|op| matches!(op, b'M' | b'I' | b'D' | b'N' | b'S' | b'H' | b'P' | b'X' | b'='));
+        let mut cigars = self.0.iter().copied().filter(|op| is_valid_op(*op));
 
         let Some(mut previous) = cigars.next() else {
             return Cigar(condensed);
@@ -481,4 +483,9 @@ impl<const N: usize> From<&[u8; N]> for ExpandedCigar {
     fn from(v: &[u8; N]) -> Self {
         ExpandedCigar(v.to_vec())
     }
+}
+
+#[inline]
+const fn is_valid_op(op: u8) -> bool {
+    matches!(op, b'M' | b'I' | b'D' | b'N' | b'S' | b'H' | b'P' | b'X' | b'=')
 }
