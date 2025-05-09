@@ -2,10 +2,11 @@
 
 All notable changes to this project will be documented in this file. The format is roughly based on [Keep a Changelog], and this project tries to adheres to [Semantic Versioning].
 
-## [0.0.18] - TBD
+## [0.0.18] - 2025-05-09
 
 ### Fixed
 
+- Specified dependencies.
 - Corrected `SamParser` to handle case when all parameters are on one line
 
 ## [0.0.17] - 2025-05-06

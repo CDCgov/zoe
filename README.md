@@ -20,7 +20,7 @@ bioinformatics. In particular, we focus on common data formats and methods relev
 
 ### How do I add this crate?
 
-<!-- Provided *Zoe* has published the latest version to [crates.io](https://crates.io/), within your project you can simply use: `cargo add zoe` -->
+Provided *Zoe* has published the latest version to [crates.io](https://crates.io/), within your project you can simply use: `cargo add zoe`
 
 If you would like to pin to a Github tag or commit, you could use the following within your `Cargo.toml` project file:
 
