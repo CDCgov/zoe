@@ -27,6 +27,34 @@ pub enum SamRow {
     Data(Box<SamData>),
 }
 
+impl SamRow {
+    /// If the row has the variant [`Header`], returns `Some` containing the
+    /// line. Otherwise return `None`.
+    ///
+    /// [`Header`]: SamRow::Header
+    #[inline]
+    #[must_use]
+    pub fn header(self) -> Option<String> {
+        match self {
+            SamRow::Header(header) => Some(header),
+            SamRow::Data(_) => None,
+        }
+    }
+
+    /// If the row has the variant [`Data`], returns `Some` containing the
+    /// [`SamData`]. Otherwise return `None`.
+    ///
+    /// [`Data`]: SamRow::Data
+    #[inline]
+    #[must_use]
+    pub fn data(self) -> Option<Box<SamData>> {
+        match self {
+            SamRow::Header(_) => None,
+            SamRow::Data(data) => Some(data),
+        }
+    }
+}
+
 /// Struct holding the data for a single
 /// [SAM](https://en.wikipedia.org/wiki/SAM_(file_format)) record.
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
