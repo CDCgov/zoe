@@ -1,12 +1,18 @@
 # Zoe Changelog
 
-All notable changes to this project will be documented in this file. The format is roughly based on [Keep a Changelog], and this project tries to adheres to [Semantic Versioning].
+All notable changes to this project will be documented in this file. The format
+is roughly based on [Keep a Changelog], and this project tries to adheres to
+[Semantic Versioning].
 
 ## [0.0.19] - TBD
 
 ### Added
 
 - Added accessor methods to `SamRow` enum variants
+
+### Changed
+
+- MSRV bumped to 1.88 (nightly)
 
 ## [0.0.18] - 2025-05-09
 
