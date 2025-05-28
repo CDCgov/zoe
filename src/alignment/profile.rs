@@ -209,8 +209,8 @@ where
         let biases = Simd::splat(bias);
         let mut profile = vec![biases; S * number_vectors];
 
-        for ref_index in 0..matrix.mapping.len() {
-            for v in 0..number_vectors {
+        for v in 0..number_vectors {
+            for ref_index in 0..matrix.mapping.len() {
                 let mut vector = biases;
                 for (i, q) in (v..total_lanes).step_by(number_vectors).enumerate() {
                     if q < query.len() {
