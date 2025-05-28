@@ -5,6 +5,7 @@ use super::*;
 use crate::{data::cigar::Ciglet, math::AnyInt, simd::SimdAnyInt};
 use std::{
     cmp::Ordering::{Equal, Greater, Less},
+    ops::Add,
     simd::{LaneCount, SimdElement, SupportedLaneCount, prelude::*},
 };
 
@@ -31,7 +32,7 @@ pub fn sw_score_from_path<const S: usize>(
                     let Some(reference_base) = ref_in_alignment.get(r).copied() else {
                         return Err(ScoringError::ReferenceEnded);
                     };
-                    let Some(query_base) = query.query.get(q).copied() else {
+                    let Some(query_base) = query.seq.get(q).copied() else {
                         return Err(ScoringError::QueryEnded);
                     };
                     score += i32::from(query.matrix.get_weight(reference_base, query_base));
@@ -54,7 +55,7 @@ pub fn sw_score_from_path<const S: usize>(
         }
     }
 
-    match q.cmp(&query.query.len()) {
+    match q.cmp(&query.seq.len()) {
         Less => return Err(ScoringError::FullQueryNotUsed),
         Greater => return Err(ScoringError::QueryEnded),
         Equal => {}
@@ -123,51 +124,28 @@ pub fn sw_score_from_path<const S: usize>(
 #[must_use]
 #[allow(clippy::cast_sign_loss)]
 pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S>) -> u64 {
-    struct SWCells {
-        matching:   i32,
-        endgap_up:  i32,
-        query_base: u8,
-    }
-
     let mut best_score = 0;
-    let mut current: Vec<_> = query
-        .query
-        .iter()
-        .copied()
-        .enumerate()
-        .map(|(c, q)|
-            // first row
-            SWCells {
-                matching:  0,
-                endgap_up: query.gap_open + (c as i32) * query.gap_extend,
-                query_base:     q
-            })
-        .collect();
+    let mut h_row = vec![0; query.seq.len()];
+    let mut e_row: Vec<i32> = vec![query.gap_open; query.seq.len()];
 
-    for (r, reference_base) in reference.iter().copied().enumerate() {
-        // first column
-        let mut endgap_left = query.gap_open + (r as i32) * query.gap_extend;
-        let mut diag = 0;
+    for reference_base in reference.iter().copied() {
+        let mut f = query.gap_open;
+        let mut h = 0;
 
-        for curr in &mut current {
-            // matching is the default direction
+        for c in 0..query.seq.len() {
+            let match_score = i32::from(query.matrix.get_weight(reference_base, query.seq[c]));
+            h += match_score;
 
-            let match_score = i32::from(query.matrix.get_weight(reference_base, curr.query_base));
-            let mut score = diag + match_score;
-            let mut endgap_up = curr.endgap_up;
+            let mut e = e_row[c];
+            h = h.max(e).max(f).max(0);
 
-            score = score.max(endgap_up).max(endgap_left).max(0);
+            best_score = best_score.max(h);
 
-            diag = curr.matching;
-            curr.matching = score;
-            best_score = best_score.max(score);
+            e = e.add(query.gap_extend).max(h + query.gap_open);
+            f = f.add(query.gap_extend).max(h + query.gap_open);
 
-            score += query.gap_open;
-            endgap_up += query.gap_extend;
-            endgap_left += query.gap_extend;
-
-            endgap_left = endgap_left.max(score);
-            curr.endgap_up = endgap_up.max(score);
+            (h, h_row[c]) = (h_row[c], h);
+            e_row[c] = e;
         }
     }
 
@@ -231,78 +209,81 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 ///
 #[must_use]
 pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfile<S>) -> Alignment<i32> {
-    let mut current = vec![ScoreCell::default(); query.query.len() + 1];
-    let mut backtrack = BacktrackMatrix::new(reference.len() + 1, query.query.len() + 1);
-    let mut best_score = BestScore::new();
+    let (mut best_score, mut r_end, mut c_end) = (0, 0, 0);
+    let mut h_row = vec![0; query.seq.len()];
+    let mut e_row = vec![query.gap_open; query.seq.len()];
 
-    for c in 1..=query.query.len() {
-        // first row
-        current[c].endgap_up = query.gap_open + (c as i32 - 1) * query.gap_extend;
-    }
+    let mut backtrack = BacktrackMatrix::new(reference.len(), query.seq.len());
 
-    backtrack.stop();
+    //backtrack.stop();
 
-    for r in 1..=reference.len() {
-        // first column
-        let mut endgap_left = query.gap_open + (r as i32 - 1) * query.gap_extend;
-        let mut diag = 0;
+    for (r, reference_base) in reference.iter().copied().enumerate() {
+        let mut f = query.gap_open;
+        let mut h = 0;
 
-        for c in 1..=query.query.len() {
+        for c in 0..query.seq.len() {
             // matching is the default direction
-
             backtrack.move_to(r, c);
-            let match_score = i32::from(query.matrix.get_weight(reference[r - 1], query.query[c - 1]));
-            let mut score = diag + match_score;
-            let mut endgap_up = current[c].endgap_up;
 
-            score = score.max(endgap_up).max(endgap_left);
+            let match_score = i32::from(query.matrix.get_weight(reference_base, query.seq[c]));
+            h += match_score;
 
-            if endgap_up == score {
+            let mut e = e_row[c];
+            h = h.max(e).max(f).max(0);
+
+            if h >= best_score {
+                best_score = h;
+                r_end = r;
+                c_end = c;
+            }
+
+            if e == h {
                 backtrack.up();
             }
 
-            if endgap_left == score {
+            if f == h {
                 backtrack.left();
             }
 
-            // Clipping is preferred to insertion/deletion
-            if score < 1 {
-                score = 0;
+            if h == 0 {
                 backtrack.stop();
             }
 
-            diag = current[c].matching;
-            current[c].matching = score;
-            best_score.add_score(r, c, score);
+            let next_diag = h_row[c];
+            h_row[c] = h;
 
-            score += query.gap_open;
-            endgap_up += query.gap_extend;
-            endgap_left += query.gap_extend;
+            h += query.gap_open;
+            e = e.add(query.gap_extend).max(h);
+            f = f.add(query.gap_extend).max(h);
 
-            if score != query.gap_open {
-                if endgap_up > score {
+            if h != query.gap_open {
+                if e > h {
                     backtrack.up_extending();
                 }
 
-                if endgap_left > score {
+                if f > h {
                     backtrack.left_extending();
                 }
             }
 
-            endgap_left = endgap_left.max(score);
-            current[c].endgap_up = endgap_up.max(score);
+            h = next_diag;
+            e_row[c] = e;
         }
     }
 
     let mut states = AlignmentStates::new();
     let mut op = 0;
-    let (best_r, best_c, best_score) = best_score.get_best_score();
 
-    let mut r = best_r;
-    let mut c = best_c;
+    backtrack.move_to(r_end, c_end); // 0-based move to max
+
+    // 1-based as though we had a padded matrix
+    r_end += 1;
+    c_end += 1;
+
+    let (mut r, mut c) = (r_end, c_end);
+
     // soft clip 3'
-    backtrack.move_to(r, c);
-    states.soft_clip(query.query.len() - c);
+    states.soft_clip(query.seq.len() - c);
 
     while !backtrack.is_stop() && r > 0 && c > 0 {
         if op == b'D' && backtrack.is_up_extending() {
@@ -313,7 +294,6 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
             c -= 1;
         } else if backtrack.is_up() {
             op = b'D';
-
             r -= 1;
         } else if backtrack.is_left() {
             op = b'I';
@@ -324,26 +304,21 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
             c -= 1;
         }
         states.add_state(op);
-        backtrack.move_to(r, c);
+        backtrack.move_to(r.saturating_sub(1), c.saturating_sub(1)); // 0-based next position
     }
 
     // soft clip 5'
     states.soft_clip(c);
     states.make_reverse();
 
-    // r and c are 1-based in this function. However, since clipping is prefered
-    // to insertion/deletion, the non-clipped portion of the alignment will
-    // always start with M, and hence r and c will be decremented by 1 in the
-    // last iteration of the traceback loop, making them 0-based. best_r and
-    // best_c are also 1-based, but are inclusive in this function, so using
-    // them in an exclusive range makes them 0-based.
+    // r and c are decremented and becomes 0-based
     Alignment {
         score: best_score,
-        ref_range: r..best_r,
-        query_range: c..best_c,
+        ref_range: r..r_end,
+        query_range: c..c_end,
         states,
         ref_len: reference.len(),
-        query_len: query.query.len(),
+        query_len: query.seq.len(),
     }
 }
 
@@ -442,9 +417,9 @@ where
                 H = H.saturating_sub(biases);
             }
 
+            H = H.simd_max(E).simd_max(F);
             max_scores = max_scores.simd_max(H);
 
-            H = H.simd_max(E).simd_max(F);
             store[j] = H;
 
             H = H.saturating_sub(gap_opens);

@@ -52,7 +52,7 @@ pub(crate) fn validate_profile_args<Q: AsRef<[u8]>>(
 /// * `S` - The size of the alphabet (usually 5 for DNA including *N*)
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScalarProfile<'a, const S: usize> {
-    pub(crate) query:      &'a [u8],
+    pub(crate) seq:        &'a [u8],
     pub(crate) matrix:     &'a WeightMatrix<i8, S>,
     pub(crate) gap_open:   i32,
     pub(crate) gap_extend: i32,
@@ -77,7 +77,7 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
         validate_profile_args(query, gap_open, gap_extend)?;
 
         Ok(ScalarProfile {
-            query: query.as_ref(),
+            seq: query.as_ref(),
             matrix,
             gap_open: i32::from(gap_open),
             gap_extend: i32::from(gap_extend),

@@ -515,49 +515,6 @@ where
     }
 }
 
-/// Experimental score cell for alignment.
-#[derive(Debug, Clone, Copy, Default)]
-pub(crate) struct ScoreCell {
-    pub endgap_up: i32,
-    pub matching:  i32,
-}
-
-/// Experimental scoring struct for alignment.
-pub(crate) struct BestScore {
-    row:   usize,
-    col:   usize,
-    score: i32,
-}
-
-impl BestScore {
-    pub fn new() -> Self {
-        Self {
-            row:   0,
-            col:   0,
-            score: 0,
-        }
-    }
-
-    #[inline]
-    pub fn add_score(&mut self, r: usize, c: usize, new_score: i32) {
-        if new_score >= self.score {
-            self.row = r;
-            self.col = c;
-            self.score = new_score;
-        }
-    }
-
-    pub fn get_best_score(&self) -> (usize, usize, i32) {
-        (self.row, self.col, self.score)
-    }
-}
-
-impl Default for BestScore {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 /// Experimental backtracking matrix for alignment with affine gap scores.
 pub(crate) struct BacktrackMatrix {
     pub data: Vec<u8>,
