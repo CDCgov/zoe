@@ -278,6 +278,72 @@ impl<'a> CigletIterator<'a> {
     fn new(buffer: &'a [u8]) -> Self {
         CigletIterator { buffer }
     }
+
+    /// Peeks at the operator for the next ciglet without consuming it.
+    #[inline]
+    #[must_use]
+    pub fn peek_op(&self) -> Option<u8> {
+        self.buffer.iter().find(|x| !x.is_ascii_digit()).copied()
+    }
+
+    /// Peeks at the operator for the last ciglet without consuming it.
+    #[inline]
+    #[must_use]
+    pub fn peek_back_op(&self) -> Option<u8> {
+        self.buffer.last().copied()
+    }
+
+    /// Gets the next ciglet if the operator meets the specified predicate,
+    /// otherwise the iterator is not modified.
+    #[inline]
+    #[must_use]
+    pub fn next_if_op(&mut self, f: impl FnOnce(u8) -> bool) -> Option<Ciglet> {
+        if f(self.peek_op()?) { self.next() } else { None }
+    }
+
+    /// Gets the last ciglet if the operator meets the specified predicate,
+    /// otherwise the iterator is not modified.
+    #[inline]
+    #[must_use]
+    pub fn next_back_if_op(&mut self, f: impl FnOnce(u8) -> bool) -> Option<Ciglet> {
+        if f(self.peek_back_op()?) { self.next_back() } else { None }
+    }
+
+    /// Removes clipping from the start of the iterator. First, a hard clipping
+    /// ciglet is removed if present. Then a soft clipping ciglet is removed if
+    /// present. The total number of bases clipping is returned.
+    #[inline]
+    pub fn remove_clipping(&mut self) -> usize {
+        if let Some(ciglet1) = self.next_if_op(|op| op == b'H' || op == b'S') {
+            if ciglet1.op == b'H'
+                && let Some(ciglet2) = self.next_if_op(|op| op == b'S')
+            {
+                ciglet1.inc + ciglet2.inc
+            } else {
+                ciglet1.inc
+            }
+        } else {
+            0
+        }
+    }
+
+    /// Removes clipping from the end of the iterator. First, a hard clipping
+    /// ciglet is removed if present. Then a soft clipping ciglet is removed if
+    /// present. The total number of bases clipping is returned.
+    #[inline]
+    pub fn remove_clipping_back(&mut self) -> usize {
+        if let Some(ciglet1) = self.next_back_if_op(|op| op == b'H' || op == b'S') {
+            if ciglet1.op == b'H'
+                && let Some(ciglet2) = self.next_back_if_op(|op| op == b'S')
+            {
+                ciglet1.inc + ciglet2.inc
+            } else {
+                ciglet1.inc
+            }
+        } else {
+            0
+        }
+    }
 }
 
 impl Iterator for CigletIterator<'_> {

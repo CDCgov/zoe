@@ -135,9 +135,9 @@ impl SamData {
         }
     }
 
-    /// Provides a struct `SamAligned`, which contains the aligned sequence and
-    /// quality scores based on the `Cigar` as well as the alignment range for
-    /// the reference.
+    /// Provides a struct [`SamAligned`], which contains the aligned sequence
+    /// and quality scores based on the [`Cigar`] as well as the alignment range
+    /// for the reference.
     ///
     /// ## Panics
     ///
@@ -152,6 +152,11 @@ impl SamData {
         let mut aln: Vec<u8> = Vec::new();
         let mut q_aln: Vec<u8> = Vec::new();
         let mut insertions = Vec::new();
+
+        let mut ciglets = self.cigar.iter();
+
+        let clip_start = ciglets.remove_clipping();
+        let clip_end = ciglets.remove_clipping_back();
 
         for Ciglet { inc, op } in &self.cigar {
             match op {
@@ -192,7 +197,7 @@ impl SamData {
                     ref_index += inc;
                 }
                 b'H' => {}
-                // TO-DO: Replace with a continue if type-state is adopted.
+                // TODO: Replace with a continue if type-state is adopted.
                 _ => panic!("Extended CIGAR {op} not yet supported.\n"),
             }
         }
@@ -200,7 +205,7 @@ impl SamData {
         // Convert start position from 1-based to 0-based, then use 0-based ref_index
         // with half-open range: (self.pos - 1)..ref_index;
 
-        SamAligned::new(aln, q_aln, self.pos - 1, ref_index, insertions)
+        SamAligned::new(aln, q_aln, self.pos - 1, ref_index, insertions, clip_start, clip_end)
     }
 
     /// Merges SAM read pairs using the reference alignment to parsimoniously
@@ -213,8 +218,11 @@ impl SamData {
     ) -> (SamData, PairedMergeStats) {
         let mut stats = PairedMergeStats::default();
 
-        let a1: SamAligned = self.get_aligned();
-        let a2: SamAligned = other.get_aligned();
+        let a1 = self.get_aligned();
+        let a2 = other.get_aligned();
+
+        let m_clip_start = a1.clip_start.max(a2.clip_start);
+        let m_clip_end = a1.clip_end.max(a2.clip_end);
 
         let paired_range = a1.merge_ref_range(&a2);
 
@@ -236,7 +244,9 @@ impl SamData {
         let mut merged_seq = Vec::with_capacity(paired_range.len());
         let mut merged_quals = Vec::with_capacity(paired_range.len());
 
-        // 0-based index relateive to reference
+        merged_cigars.extend(std::iter::repeat_n(b'H', m_clip_start));
+
+        // 0-based index relative to reference
         for ref_index in paired_range {
             let p1 = a1.get_base_and_quality(ref_index);
             let p2 = a2.get_base_and_quality(ref_index);
@@ -397,6 +407,8 @@ impl SamData {
             }
         }
 
+        merged_cigars.extend(std::iter::repeat_n(b'H', m_clip_end));
+
         let merged_cigars = ExpandedCigar::from(merged_cigars).condense_to_cigar();
 
         (
@@ -489,25 +501,20 @@ fn make_merged_qname(s: &str) -> String {
 }
 
 /// [`PairedMergeStats`] holds statistics related to read pair merging operations.
-///
-/// ## Fields
-///
-/// - `observations` -      Total number of overlapping or paired bases
-/// - `true_variations` -   Paired bases that agree with each other but disagree
-///   with consensus
-/// - `variant_errors` -    Paired bases that disagree with each other
-/// - `deletion_errors` -   Paired bases where one is a deletion and one is not
-/// - `insert_obs` -        Total number of paired insertions, in agreement or
-///   otherwise
-/// - `insert_errors` -     Total number of mismatching paired insertions,
-///   including disagreement in insertion presence
 #[derive(Copy, Clone, Debug, Default)]
 pub struct PairedMergeStats {
+    /// Total number of overlapping or paired bases
     pub observations:    u64,
+    /// Paired bases that agree with each other but disagree with consensus
     pub true_variations: u64,
+    /// Paired bases that disagree with each other
     pub variant_errors:  u64,
+    /// Paired bases where one is a deletion and one is not
     pub deletion_errors: u64,
+    /// Total number of paired insertions, in agreement or otherwise
     pub insert_obs:      u64,
+    /// Total number of mismatching paired insertions, including disagreement in
+    /// insertion presence
     pub insert_errors:   u64,
 }
 
@@ -561,12 +568,15 @@ impl SamInsertion {
     }
 }
 
-/// Struct holding the alignment information of a SAM query sequence to some reference.
+/// Struct holding the alignment information of a SAM query sequence to some
+/// reference.
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub struct SamAligned {
-    /// Query bases aligned to the reference (insertions removed, deletions added).
+    /// Query bases aligned to the reference (insertions removed, deletions
+    /// added).
     pub aligned:    Vec<u8>,
-    /// Query quality scores aligned to the reference (insertions removed, deletions added).
+    /// Query quality scores aligned to the reference (insertions removed,
+    /// deletions added).
     pub qaligned:   Vec<u8>,
     /// Start of range of reference indices. Start is inclusive.
     pub ref_start:  usize,
@@ -576,11 +586,18 @@ pub struct SamAligned {
     /// Vector of query insertion relative to reference. Ordered by reference
     /// indices.
     pub insertions: Vec<SamInsertion>,
+    /// Number of bases hard/soft clipped at the start
+    pub clip_start: usize,
+    /// Number of bases hard/soft clipped at the end
+    pub clip_end:   usize,
 }
 
 impl SamAligned {
+    /// Initializes a new [`SamAligned`] object from the fields.
+    #[inline]
     fn new(
         aligned: Vec<u8>, qaligned: Vec<u8>, ref_start: usize, ref_end: usize, insertions: Vec<SamInsertion>,
+        clip_start: usize, clip_end: usize,
     ) -> SamAligned {
         SamAligned {
             aligned,
@@ -588,11 +605,13 @@ impl SamAligned {
             ref_start,
             ref_end,
             insertions,
+            clip_start,
+            clip_end,
         }
     }
 
     /// At the given reference index, provides the reference-aligned query's
-    /// nucleotide and encoded (ASCII) quality score as a Optional tuple of
+    /// nucleotide and encoded (ASCII) quality score as an optional tuple of
     /// `(base, qs)`, otherwise, `None` is returned.
     #[must_use]
     pub fn get_base_and_quality(&self, at_index: usize) -> Option<(u8, u8)> {
