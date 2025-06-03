@@ -1,5 +1,5 @@
 use crate::{
-    data::view_traits::{IndexAdjustable, SliceRange},
+    data::views::{IndexAdjustable, SliceRange},
     kmer::{FindKmers, KmerCollectionContains},
     private::Sealed,
 };

@@ -52,7 +52,7 @@ pub mod prelude {
             },
             phred::{QualityScores, QualityScoresView, QualityScoresViewMut, QualityStats},
         },
-        view_traits::{DataOwned, DataView, DataViewMut, Len, Slice, SliceMut},
+        views::{DataOwned, DataView, DataViewMut, Len, Restrict, Slice, SliceMut},
     };
     #[cfg(feature = "rand")]
     pub use crate::generate::rand_sequence;

@@ -1,5 +1,5 @@
 use crate::{
-    data::view_traits::{SliceRange, impl_len},
+    data::views::{Restrict, SliceRange, impl_len},
     prelude::*,
 };
 
@@ -39,7 +39,9 @@ impl DataView for FastQView<'_> {
             quality:  self.quality.to_owned_data(),
         }
     }
+}
 
+impl Restrict for FastQView<'_> {
     #[inline]
     fn restrict<R: SliceRange>(&mut self, range: R) {
         self.sequence.restrict(range.clone());
@@ -87,7 +89,9 @@ impl<'b> DataViewMut<'b> for FastQViewMut<'b> {
             quality:  self.quality.to_owned_data(),
         }
     }
+}
 
+impl Restrict for FastQViewMut<'_> {
     #[inline]
     fn restrict<R: SliceRange>(&mut self, range: R) {
         self.sequence.restrict(range.clone());

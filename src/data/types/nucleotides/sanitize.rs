@@ -4,7 +4,7 @@ use crate::{
         mappings::dna::*,
         types::nucleotides::{NucleotidesMutable, NucleotidesReadable},
         validation::{recode::Recode, retain::RetainSequence},
-        view_traits::SliceRange,
+        views::SliceRange,
     },
     prelude::*,
     private::Sealed,

@@ -1,4 +1,4 @@
-use crate::data::view_traits::SliceRange;
+use crate::data::views::SliceRange;
 
 /// Provides method for recoding a sequence based on a byte mapping.
 pub trait Recode: AsMut<[u8]> {

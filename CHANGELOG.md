@@ -10,6 +10,10 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 - Added macros for easily implementing traits on enums and wrapper types (`define_whichever` and `impl_traits`)
 
+### Changed
+
+- Moved `clear` and `restrict` methods for views into a separate `Restrict` trait
+
 ## [0.0.19] - 2025-06-11
 
 ### Added

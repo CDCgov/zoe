@@ -83,8 +83,8 @@ pub mod records;
 /// [`Nucleotides`](self::types::nucleotides::Nucleotides) and
 /// [`AminoAcids`][self::types::amino_acids::AminoAcids].
 pub mod types;
-/// A module containing the traits needed for working with views.
-pub mod view_traits;
+/// A module containing functionality needed for working with views.
+pub mod views;
 
 /// A private module for helper alphabets, maps, and matrices that can be used
 /// within public methods.
