@@ -14,22 +14,32 @@ impl<'a, T: AsRef<[u8]>> ByteSplitIter<'a> for T {
     where
         LaneCount<N>: SupportedLaneCount, {
         let haystack = self.as_ref();
-        SplitByByte2 {
-            haystack,
-            done: false,
-            b1: b'\n',
-            b2: b'\r',
-        }
+        SplitByByte2::new(haystack, b'\n', b'\r')
     }
 }
 
 pub(crate) struct SplitByByte2<'a, const N: usize>
 where
     LaneCount<N>: SupportedLaneCount, {
-    pub(crate) haystack: &'a [u8],
-    pub(crate) done:     bool,
-    pub(crate) b1:       u8,
-    pub(crate) b2:       u8,
+    haystack: &'a [u8],
+    done:     bool,
+    b1:       u8,
+    b2:       u8,
+}
+
+impl<'a, const N: usize> SplitByByte2<'a, N>
+where
+    LaneCount<N>: SupportedLaneCount,
+{
+    /// Constructs a new [`SplitByByte2`] iterator.
+    fn new(haystack: &'a [u8], b1: u8, b2: u8) -> Self {
+        Self {
+            haystack,
+            done: haystack.is_empty(),
+            b1,
+            b2,
+        }
+    }
 }
 
 impl<const N: usize> SplitByByte2<'_, N>
