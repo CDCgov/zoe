@@ -88,7 +88,7 @@ impl<R: std::io::Read> Iterator for FastQReader<R> {
         if !self.fastq_buffer.starts_with(b"@") {
             return Some(Err(IOError::new(
                 ErrorKind::InvalidData,
-                "Missing '@' symbol at header line beginning.",
+                "Missing '@' symbol at header line beginning! Ensure that the FASTQ file is not multi-line.",
             )));
         }
 
@@ -114,7 +114,10 @@ impl<R: std::io::Read> Iterator for FastQReader<R> {
         self.fastq_buffer.chop_line_break();
 
         if self.fastq_buffer.is_empty() {
-            return Some(Err(IOError::new(ErrorKind::InvalidData, "Missing FASTQ sequence!")));
+            return Some(Err(IOError::new(
+                ErrorKind::InvalidData,
+                format!("Missing FASTQ sequence! See header: {header}"),
+            )));
         }
 
         let sequence = Nucleotides(self.fastq_buffer.clone());
@@ -127,7 +130,10 @@ impl<R: std::io::Read> Iterator for FastQReader<R> {
         }
 
         if !self.fastq_buffer.starts_with(b"+") {
-            return Some(Err(IOError::new(ErrorKind::InvalidData, "Missing '+' line!")));
+            return Some(Err(IOError::new(
+                ErrorKind::InvalidData,
+                format!("Missing '+' line! Ensure that the FASTQ file is not multi-line. See header: {header}"),
+            )));
         }
 
         self.fastq_buffer.clear();
@@ -141,12 +147,19 @@ impl<R: std::io::Read> Iterator for FastQReader<R> {
 
         if self.fastq_buffer.len() != sequence.len() {
             if self.fastq_buffer.is_empty() {
-                return Some(Err(IOError::new(ErrorKind::InvalidData, "Missing FASTQ quality scores!")));
+                return Some(Err(IOError::new(
+                    ErrorKind::InvalidData,
+                    format!("Missing FASTQ quality scores! See header: {header}"),
+                )));
             }
 
             return Some(Err(IOError::new(
                 ErrorKind::InvalidData,
-                "Sequence and quality score length mismatch!",
+                format!(
+                    "Sequence and quality score length mismatch ({s} ≠ {q})! See: {header}",
+                    s = sequence.len(),
+                    q = self.fastq_buffer.len(),
+                ),
             )));
         }
 

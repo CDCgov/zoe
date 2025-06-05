@@ -7,9 +7,10 @@ use crate::{
             nucleotides::{self, Nucleotides, ToDNA, Translate},
         },
         validation::CheckSequence,
-        vec_types::ChopLineBreak,
+        vec_types::{ChopLineBreak, StripLineBreak},
     },
     search::ByteSplitIter,
+    unwrap_or_return_some_err,
 };
 use std::{
     fs::File,
@@ -222,69 +223,80 @@ impl<R: std::io::Read> FastaReader<R> {
         })
     }
 
-    /// Read the first record, ensuring that the file is not slurped when no `>` is present.
-    fn read_first_record(&mut self) -> Option<<Self as Iterator>::Item> {
+    fn get_error(msg: &str, header: Option<&str>) -> std::io::Result<FastaSeq> {
+        if let Some(header) = header {
+            Err(IOError::new(ErrorKind::InvalidData, format!("{msg} See header: {header}")))
+        } else {
+            Err(IOError::new(ErrorKind::InvalidData, msg))
+        }
+    }
+
+    /// Read the first record, ensuring that the file is not slurped when no `>`
+    /// is present.
+    ///
+    /// If `Some(Ok(_))` is returned, then the leading `>` will already be
+    /// consumed for the next record if present, and the buffer will contain the
+    /// last sequence and trailing '>' if present).
+    fn read_first_record(&mut self) -> Option<std::io::Result<FastaSeq>> {
         self.first_record = false;
 
         loop {
-            self.buffer.clear();
-
-            let bytes = match self.reader.read_until(b'\n', &mut self.buffer) {
-                Ok(b) => b,
-                Err(e) => return Some(Err(e)),
-            };
-
+            let bytes = unwrap_or_return_some_err!(self.reader.read_until(b'\n', &mut self.buffer));
             if bytes == 0 {
-                return Some(Err(IOError::other("No FASTA data found.")));
+                return Some(Self::get_error("No FASTA data found!", None));
             }
 
-            if let Some(&first) = self.buffer.first()
-                && first == b'>'
-            {
-                self.buffer.chop_line_break();
+            if let Some(mut header) = self.buffer.strip_prefix(b">") {
+                header = header.strip_line_break();
 
-                let h = &self.buffer[1..];
-                if h.is_empty() {
-                    return Some(Err(IOError::new(ErrorKind::InvalidData, "Missing FASTA header!")));
+                if header.is_empty() {
+                    return Some(Self::get_error("Missing FASTA header!", None));
                 }
 
-                if h.contains(&b'>') {
-                    return Some(Err(IOError::new(
-                        ErrorKind::InvalidData,
+                let name = String::from_utf8_lossy(header).into_owned();
+
+                if header.contains(&b'>') {
+                    return Some(Self::get_error(
                         "FASTA records must start with the '>' symbol on a newline, and no other '>' symbols can occur in a header!",
-                    )));
+                        Some(&name),
+                    ));
                 }
-
-                let name = String::from_utf8_lossy(h).into_owned();
 
                 self.buffer.clear();
+                unwrap_or_return_some_err!(self.reader.read_until(b'>', &mut self.buffer));
 
-                let bytes = match self.reader.read_until(b'>', &mut self.buffer) {
-                    Ok(b) => b,
-                    Err(e) => return Some(Err(e)),
-                };
-
-                if bytes > 0 {
-                    let split = self.buffer.lines_ascii::<{ DEFAULT_SIMD_LANES }>();
-                    let mut sequence = Vec::with_capacity(split.remaining_len());
-                    for s in split {
-                        sequence.extend_from_slice(s);
-                    }
-
-                    if sequence.ends_with(b">") {
-                        sequence.pop();
-                    }
-
-                    if !sequence.is_empty() {
-                        return Some(Ok(FastaSeq { name, sequence }));
-                    }
+                let split = self.buffer.lines_ascii::<{ DEFAULT_SIMD_LANES }>();
+                let mut sequence = Vec::with_capacity(split.remaining_len());
+                for s in split {
+                    sequence.extend_from_slice(s);
                 }
-                return Some(Err(IOError::new(ErrorKind::InvalidData, "Missing FASTA sequence!")));
-            } else if self.buffer.iter().any(|c| !c.is_ascii_whitespace()) {
-                return Some(Err(IOError::new(
-                    ErrorKind::InvalidData,
-                    "The FASTA file must start with a '>' symbol!",
-                )));
+
+                if sequence.ends_with(b">") {
+                    sequence.pop();
+                }
+
+                if sequence.is_empty() {
+                    return Some(Self::get_error("Missing FASTA sequence!", Some(&name)));
+                }
+
+                // Check to make sure we read the full sequence
+                if !self.buffer.ends_with(b"\n>") {
+                    if self.buffer.ends_with(b">") {
+                        return Some(Self::get_error(
+                            "FASTA records must start with the '>' symbol on a newline, and no other '>' symbols can occur in a sequence!",
+                            Some(&name),
+                        ));
+                    }
+                    // We have finished iteration
+                    self.buffer.clear();
+                }
+
+                return Some(Ok(FastaSeq { name, sequence }));
+            } else if self.buffer.iter().all(u8::is_ascii_whitespace) {
+                // Clear the whitespace
+                self.buffer.clear();
+            } else {
+                return Some(Self::get_error("The FASTA file must start with a '>' symbol!", None));
             }
         }
     }
@@ -297,7 +309,7 @@ impl FastaReader<std::fs::File> {
     ///
     /// Will return `Err` if file or permissions do not exist, or if the file is
     /// empty.
-    pub fn from_filename<P>(filename: P) -> Result<FastaReader<File>, std::io::Error>
+    pub fn from_filename<P>(filename: P) -> std::io::Result<FastaReader<File>>
     where
         P: AsRef<Path>, {
         let file = File::open(filename)?;
@@ -314,59 +326,74 @@ impl<R: std::io::Read> Iterator for FastaReader<R> {
     type Item = std::io::Result<FastaSeq>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        // Special case logic for first record to ensure we don't slurp file.
         if self.first_record {
             return self.read_first_record();
         }
 
-        let valid_start = self.buffer.ends_with(b"\n>");
-        self.buffer.clear();
-
-        let bytes = match self.reader.read_until(b'>', &mut self.buffer) {
-            Ok(b) => b,
-            Err(e) => return Some(Err(e)),
-        };
-
-        if bytes > 0 {
-            if !valid_start {
-                return Some(Err(IOError::new(
-                    ErrorKind::InvalidData,
-                    "FASTA records must start with the '>' symbol on a newline, and no other '>' symbols can occur in a sequence!",
-                )));
-            }
-
-            let mut split = self.buffer.lines_ascii::<{ DEFAULT_SIMD_LANES }>();
-            let name = if let Some(h) = split.next()
-                && !h.is_empty()
-            {
-                String::from_utf8_lossy(h).into_owned()
-            } else {
-                return Some(Err(IOError::new(ErrorKind::InvalidData, "Missing FASTA header!")));
-            };
-
-            let mut sequence = Vec::with_capacity(split.remaining_len());
-            for s in split {
-                sequence.extend_from_slice(s);
-            }
-
-            if sequence.ends_with(b">") {
-                sequence.pop();
-            }
-
-            if sequence.is_empty() {
-                if let Some(b'>') = self.buffer.last() {
-                    Some(Err(IOError::new(
-                        ErrorKind::InvalidData,
-                        "FASTA records must start with the '>' symbol on a newline, and no other '>' symbols can occur in a header!",
-                    )))
-                } else {
-                    Some(Err(IOError::new(ErrorKind::InvalidData, "Missing FASTA sequence!")))
-                }
-            } else {
-                Some(Ok(FastaSeq { name, sequence }))
-            }
-        } else {
-            None
+        // The buffer will always contain the last sequence, except when the end
+        // of the file is reached, at which point we clear it.
+        if self.buffer.is_empty() {
+            return None;
         }
+
+        // Read full record, all the way up to (and including) next '>'
+        self.buffer.clear();
+        unwrap_or_return_some_err!(self.reader.read_until(b'>', &mut self.buffer));
+        let mut split = self.buffer.lines_ascii::<{ DEFAULT_SIMD_LANES }>();
+
+        let Some(name_line) = split.next() else {
+            return Some(Self::get_error("Missing FASTA header!", None));
+        };
+        let name = String::from_utf8_lossy(name_line).into_owned();
+        if name.is_empty() {
+            return Some(Self::get_error("Missing FASTA header!", None));
+        }
+
+        let mut sequence = Vec::with_capacity(split.remaining_len());
+        for s in split {
+            sequence.extend_from_slice(s);
+        }
+        if sequence.ends_with(b">") {
+            sequence.pop();
+        }
+
+        if sequence.is_empty() {
+            // Terminated due to reaching '>' character
+            if let Some(b'>') = self.buffer.last() {
+                // Check whether the full header line was actually read
+                if self.buffer.contains(&b'\n') {
+                    return Some(Self::get_error("Missing FASTA sequence!", Some(&name)));
+                }
+
+                // We did not finish reading the header line, so do that and
+                // issue error
+                unwrap_or_return_some_err!(self.reader.read_until(b'\n', &mut self.buffer));
+                self.buffer.chop_line_break();
+                let name = String::from_utf8_lossy(&self.buffer).into_owned();
+                return Some(Self::get_error(
+                    "FASTA records must start with the '>' symbol on a newline, and no other '>' symbols can occur in a header!",
+                    Some(&name),
+                ));
+            }
+
+            // Terminated due to reaching end of file
+            return Some(Self::get_error("Missing FASTA sequence!", Some(&name)));
+        }
+
+        // Check to make sure we read the full sequence
+        if !self.buffer.ends_with(b"\n>") {
+            if self.buffer.ends_with(b">") {
+                return Some(Self::get_error(
+                    "FASTA records must start with the '>' symbol on a newline, and no other '>' symbols can occur in a sequence!",
+                    Some(&name),
+                ));
+            }
+            // We have finished iteration
+            self.buffer.clear();
+        }
+
+        Some(Ok(FastaSeq { name, sequence }))
     }
 }
 

@@ -19,6 +19,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 - MSRV bumped to 1.88 (nightly)
 - Renamed `arbitrary` feature to `fuzzing`
+- Add additional error checks and improve error messages for `FastQReader` and `FastaReader` 
 
 ## [0.0.18] - 2025-05-09
 

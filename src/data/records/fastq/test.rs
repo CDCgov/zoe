@@ -13,7 +13,10 @@ fn whitespace_only() {
     let Some(Err(e)) = reader.next() else {
         panic!("Should throw error")
     };
-    assert_eq!(e.to_string(), "Missing '@' symbol at header line beginning.");
+    assert_eq!(
+        e.to_string(),
+        "Missing '@' symbol at header line beginning! Ensure that the FASTQ file is not multi-line."
+    );
     // Ensure iterator terminates
     assert!(reader.count() < 100);
 }
@@ -24,7 +27,10 @@ fn missing_at_sign_first_record() {
     let Some(Err(e)) = reader.next() else {
         panic!("Should throw error")
     };
-    assert_eq!(e.to_string(), "Missing '@' symbol at header line beginning.");
+    assert_eq!(
+        e.to_string(),
+        "Missing '@' symbol at header line beginning! Ensure that the FASTQ file is not multi-line."
+    );
     // Ensure iterator terminates
     assert!(reader.count() < 100);
 }
@@ -46,7 +52,7 @@ fn empty_sequence_first_record() {
     let Some(Err(e)) = reader.next() else {
         panic!("Should throw error")
     };
-    assert_eq!(e.to_string(), "Missing FASTQ sequence!");
+    assert_eq!(e.to_string(), "Missing FASTQ sequence! See header: @seq1");
     // Ensure iterator terminates
     assert!(reader.count() < 100);
 }
@@ -57,7 +63,10 @@ fn missing_plus_line_first_record() {
     let Some(Err(e)) = reader.next() else {
         panic!("Should throw error")
     };
-    assert_eq!(e.to_string(), "Missing '+' line!");
+    assert_eq!(
+        e.to_string(),
+        "Missing '+' line! Ensure that the FASTQ file is not multi-line. See header: @seq1"
+    );
     // Ensure iterator terminates
     assert!(reader.count() < 100);
 
@@ -65,7 +74,10 @@ fn missing_plus_line_first_record() {
     let Some(Err(e)) = reader.next() else {
         panic!("Should throw error")
     };
-    assert_eq!(e.to_string(), "Missing '+' line!");
+    assert_eq!(
+        e.to_string(),
+        "Missing '+' line! Ensure that the FASTQ file is not multi-line. See header: @seq1"
+    );
     // Ensure iterator terminates
     assert!(reader.count() < 100);
 }
@@ -76,7 +88,7 @@ fn empty_quality_first_record() {
     let Some(Err(e)) = reader.next() else {
         panic!("Should throw error")
     };
-    assert_eq!(e.to_string(), "Missing FASTQ quality scores!");
+    assert_eq!(e.to_string(), "Missing FASTQ quality scores! See header: @seq1");
     // Ensure iterator terminates
     assert!(reader.count() < 100);
 
@@ -84,7 +96,7 @@ fn empty_quality_first_record() {
     let Some(Err(e)) = reader.next() else {
         panic!("Should throw error")
     };
-    assert_eq!(e.to_string(), "Missing FASTQ quality scores!");
+    assert_eq!(e.to_string(), "Missing FASTQ quality scores! See header: @seq1");
     // Ensure iterator terminates
     assert!(reader.count() < 100);
 }
@@ -95,7 +107,10 @@ fn mismatch_lengths_first_record() {
     let Some(Err(e)) = reader.next() else {
         panic!("Should throw error")
     };
-    assert_eq!(e.to_string(), "Sequence and quality score length mismatch!");
+    assert_eq!(
+        e.to_string(),
+        "Sequence and quality score length mismatch (4 ≠ 3)! See: @seq1"
+    );
     // Ensure iterator terminates
     assert!(reader.count() < 100);
 }
@@ -118,7 +133,10 @@ fn missing_at_sign_second_record() {
     let Some(Err(e)) = reader.next() else {
         panic!("Should throw error")
     };
-    assert_eq!(e.to_string(), "Missing '@' symbol at header line beginning.");
+    assert_eq!(
+        e.to_string(),
+        "Missing '@' symbol at header line beginning! Ensure that the FASTQ file is not multi-line."
+    );
     // Ensure iterator terminates
     assert!(reader.count() < 100);
 }
@@ -164,14 +182,14 @@ fn empty_sequence_second_record() {
     let Some(Err(e)) = reader.next() else {
         panic!("Should throw error")
     };
-    assert_eq!(e.to_string(), "Missing FASTQ sequence!");
+    assert_eq!(e.to_string(), "Missing FASTQ sequence! See header: @seq2");
     // Ensure iterator terminates
     assert!(reader.count() < 100);
 }
 
 #[test]
 fn missing_plus_line_second_record() {
-    let mut reader = FastQReader::new(Cursor::new("@seq1\nATGC\n+\nIIII\n@seq2\nATGC\n@seq2"));
+    let mut reader = FastQReader::new(Cursor::new("@seq1\nATGC\n+\nIIII\n@seq2\nATGC\n@seq3"));
     let Some(Ok(FastQ {
         header,
         sequence,
@@ -187,7 +205,10 @@ fn missing_plus_line_second_record() {
     let Some(Err(e)) = reader.next() else {
         panic!("Should throw error")
     };
-    assert_eq!(e.to_string(), "Missing '+' line!");
+    assert_eq!(
+        e.to_string(),
+        "Missing '+' line! Ensure that the FASTQ file is not multi-line. See header: @seq2"
+    );
     // Ensure iterator terminates
     assert!(reader.count() < 100);
 
@@ -207,7 +228,10 @@ fn missing_plus_line_second_record() {
     let Some(Err(e)) = reader.next() else {
         panic!("Should throw error")
     };
-    assert_eq!(e.to_string(), "Missing '+' line!");
+    assert_eq!(
+        e.to_string(),
+        "Missing '+' line! Ensure that the FASTQ file is not multi-line. See header: @seq2"
+    );
     // Ensure iterator terminates
     assert!(reader.count() < 100);
 }
@@ -230,7 +254,7 @@ fn empty_quality_second_record() {
     let Some(Err(e)) = reader.next() else {
         panic!("Should throw error")
     };
-    assert_eq!(e.to_string(), "Missing FASTQ quality scores!");
+    assert_eq!(e.to_string(), "Missing FASTQ quality scores! See header: @seq2");
     // Ensure iterator terminates
     assert!(reader.count() < 100);
 
@@ -250,7 +274,7 @@ fn empty_quality_second_record() {
     let Some(Err(e)) = reader.next() else {
         panic!("Should throw error")
     };
-    assert_eq!(e.to_string(), "Missing FASTQ quality scores!");
+    assert_eq!(e.to_string(), "Missing FASTQ quality scores! See header: @seq2");
     // Ensure iterator terminates
     assert!(reader.count() < 100);
 }
@@ -273,7 +297,10 @@ fn mismatch_lengths_second_record() {
     let Some(Err(e)) = reader.next() else {
         panic!("Should throw error")
     };
-    assert_eq!(e.to_string(), "Sequence and quality score length mismatch!");
+    assert_eq!(
+        e.to_string(),
+        "Sequence and quality score length mismatch (4 ≠ 3)! See: @seq2"
+    );
     // Ensure iterator terminates
     assert!(reader.count() < 100);
 }

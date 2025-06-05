@@ -3,7 +3,9 @@ use std::simd::{LaneCount, SupportedLaneCount, prelude::*};
 
 /// Trait for splitting byte strings by byte(s).
 pub(crate) trait ByteSplitIter<'a> {
-    /// Lazily splits the haystack only on the `\r` and `\n` characters.
+    /// Lazily splits the haystack only on the `\r` and `\n` characters. When
+    /// consecutive `\r` and `\n` characters appear in a row, some elements of
+    /// the iterator will be empty.
     fn lines_ascii<const N: usize>(&'a self) -> SplitByByte2<'a, N>
     where
         LaneCount<N>: SupportedLaneCount;
