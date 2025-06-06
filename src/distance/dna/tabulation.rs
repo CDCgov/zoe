@@ -71,7 +71,9 @@ pub(crate) fn total_and_frequencies(sub_matrix: &[[u32; 4]; 4]) -> (u32, [f64; 4
     }
     let total_bases = sub_matrix.iter().flatten().sum::<u32>();
     // counts of nucleotides are divided by 2 to remove double counting
-    bf.iter_mut().for_each(|freq| *freq /= 2.0 * f64::from(total_bases));
+    for freq in &mut bf {
+        *freq /= 2.0 * f64::from(total_bases);
+    }
 
     (total_bases, bf)
 }

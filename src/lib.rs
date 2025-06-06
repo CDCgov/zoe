@@ -6,7 +6,8 @@
     clippy::wildcard_imports,
     clippy::enum_glob_use,
     clippy::comparison_chain,
-    stable_features
+    stable_features,
+    mismatched_lifetime_syntaxes
 )]
 #![cfg_attr(test, feature(test))]
 #![feature(portable_simd)]

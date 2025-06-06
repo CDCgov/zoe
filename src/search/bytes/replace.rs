@@ -28,7 +28,9 @@ where
     LaneCount<N>: SupportedLaneCount, {
     let (pre, mid, sfx) = haystack.as_simd_mut::<N>();
     replace_all_bytes(pre, needle, replacement);
-    mid.iter_mut().for_each(|v| v.if_value_then_replace(needle, replacement));
+    for v in mid.iter_mut() {
+        v.if_value_then_replace(needle, replacement);
+    }
     replace_all_bytes(sfx, needle, replacement);
 }
 
