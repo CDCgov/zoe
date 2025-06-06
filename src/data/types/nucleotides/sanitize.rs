@@ -103,6 +103,11 @@ pub enum IsValidDNA {
     AcgtnNoGapsUc,
     /// For uppercase ACGTN bases with standard gaps
     AcgtnStdGapsUc,
+
+    /// For ACGT bases (non-ambiguous) without gaps
+    AcgtNoGaps,
+    /// For uppercase ACGT bases (non-ambiguous) without gaps
+    AcgtNoGapsUc,
 }
 
 impl IsValidDNA {
@@ -119,6 +124,9 @@ impl IsValidDNA {
             IsValidDNA::AcgtnNoGaps => &IS_DNA_ACGTN_NO_GAPS,
             IsValidDNA::AcgtnNoGapsUc => &IS_DNA_ACGTN_NO_GAPS_UC,
             IsValidDNA::AcgtnStdGapsUc => &IS_DNA_ACGTN_STD_GAPS_UC,
+
+            IsValidDNA::AcgtNoGaps => &IS_DNA_ACGT_NO_GAPS,
+            IsValidDNA::AcgtNoGapsUc => &IS_DNA_ACGT_NO_GAPS_UC,
         }
     }
 

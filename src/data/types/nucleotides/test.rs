@@ -117,7 +117,7 @@ fn sanitize_dna() {
     #[allow(clippy::fn_params_excessive_bools)]
     fn check_is_valid_dna(
         seq: &Vec<u8>, iupac_no_gaps: bool, iupac_no_gaps_uc: bool, iupac_with_gaps: bool, iupac_with_gaps_uc: bool,
-        acgtn_no_gaps: bool, acgtn_no_gaps_uc: bool, acgtn_std_gaps_uc: bool,
+        acgtn_no_gaps: bool, acgtn_no_gaps_uc: bool, acgtn_std_gaps_uc: bool, acgt_no_gaps: bool, acgt_no_gaps_uc: bool,
     ) {
         assert_eq!(seq.is_valid_dna(IsValidDNA::IupacNoGaps), iupac_no_gaps);
         assert_eq!(seq.is_valid_dna(IsValidDNA::IupacNoGapsUc), iupac_no_gaps_uc);
@@ -126,6 +126,8 @@ fn sanitize_dna() {
         assert_eq!(seq.is_valid_dna(IsValidDNA::AcgtnNoGaps), acgtn_no_gaps);
         assert_eq!(seq.is_valid_dna(IsValidDNA::AcgtnNoGapsUc), acgtn_no_gaps_uc);
         assert_eq!(seq.is_valid_dna(IsValidDNA::AcgtnStdGapsUc), acgtn_std_gaps_uc);
+        assert_eq!(seq.is_valid_dna(IsValidDNA::AcgtNoGaps), acgt_no_gaps);
+        assert_eq!(seq.is_valid_dna(IsValidDNA::AcgtNoGapsUc), acgt_no_gaps_uc);
     }
 
     for base in u8::MIN..=u8::MAX {
@@ -134,26 +136,32 @@ fn sanitize_dna() {
         assert_eq!(seq.is_acgtn_uc(), seq.is_valid_dna(IsValidDNA::AcgtnNoGapsUc));
 
         match base {
-            b'A' | b'C' | b'G' | b'T' | b'N' => {
-                check_is_valid_dna(&seq, true, true, true, true, true, true, true);
+            b'A' | b'C' | b'G' | b'T' => {
+                check_is_valid_dna(&seq, true, true, true, true, true, true, true, true, true);
             }
-            b'a' | b'c' | b'g' | b't' | b'n' => {
-                check_is_valid_dna(&seq, true, false, true, false, true, false, false);
+            b'a' | b'c' | b'g' | b't' => {
+                check_is_valid_dna(&seq, true, false, true, false, true, false, false, true, false);
+            }
+            b'N' => {
+                check_is_valid_dna(&seq, true, true, true, true, true, true, true, false, false);
+            }
+            b'n' => {
+                check_is_valid_dna(&seq, true, false, true, false, true, false, false, false, false);
             }
             b'B' | b'D' | b'H' | b'K' | b'M' | b'R' | b'S' | b'U' | b'V' | b'W' | b'Y' => {
-                check_is_valid_dna(&seq, true, true, true, true, false, false, false);
+                check_is_valid_dna(&seq, true, true, true, true, false, false, false, false, false);
             }
             b'b' | b'd' | b'h' | b'k' | b'm' | b'r' | b's' | b'u' | b'v' | b'w' | b'y' => {
-                check_is_valid_dna(&seq, true, false, true, false, false, false, false);
+                check_is_valid_dna(&seq, true, false, true, false, false, false, false, false, false);
             }
             b'-' => {
-                check_is_valid_dna(&seq, false, false, true, true, false, false, true);
+                check_is_valid_dna(&seq, false, false, true, true, false, false, true, false, false);
             }
             b'.' => {
-                check_is_valid_dna(&seq, false, false, true, true, false, false, false);
+                check_is_valid_dna(&seq, false, false, true, true, false, false, false, false, false);
             }
             _ => {
-                check_is_valid_dna(&seq, false, false, false, false, false, false, false);
+                check_is_valid_dna(&seq, false, false, false, false, false, false, false, false, false);
             }
         }
     }
@@ -170,6 +178,8 @@ fn check_retain_dna() {
             IsValidDNA::AcgtnNoGaps,
             IsValidDNA::AcgtnNoGapsUc,
             IsValidDNA::AcgtnStdGapsUc,
+            IsValidDNA::AcgtNoGaps,
+            IsValidDNA::AcgtNoGapsUc,
         ] {
             let mut seq = Nucleotides::from(&[base]);
             if seq.is_valid_dna(strategy) {

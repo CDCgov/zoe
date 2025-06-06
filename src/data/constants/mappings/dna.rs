@@ -27,6 +27,12 @@ pub(crate) const IS_DNA_ACGTN_NO_GAPS_UC: [bool; 256] = make_is_alpha_mapping(DN
 /// A boolean mapping of uppercase `ACGTN-` bytes.
 pub(crate) const IS_DNA_ACGTN_STD_GAPS_UC: [bool; 256] = make_is_alpha_mapping(DNA_ACGTN_STD_GAPS_UC);
 
+/// A boolean mapping of `ACGT` bytes without gaps.
+pub(crate) const IS_DNA_ACGT_NO_GAPS: [bool; 256] = make_is_alpha_mapping(b"acgtACGT");
+
+/// A boolean mapping of uppercase `ACGT` bytes without gaps.
+pub(crate) const IS_DNA_ACGT_NO_GAPS_UC: [bool; 256] = make_is_alpha_mapping(b"ACGT");
+
 //
 // Typically used by:   RetainSequence::retain_by_recoding
 // Mapping:             u8 -> u8 else 0
