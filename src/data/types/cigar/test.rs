@@ -99,7 +99,7 @@ fn test_add_state() {
         }
     }
 
-    assert_eq!(cigar, states.to_cigar());
+    assert_eq!(cigar, states.to_cigar_unchecked());
 }
 
 #[test]

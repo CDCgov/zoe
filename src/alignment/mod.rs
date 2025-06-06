@@ -157,7 +157,7 @@ mod profile_set;
 mod state;
 mod std_traits;
 
-use crate::data::cigar::Cigar;
+use crate::data::cigar::{Cigar, Ciglet};
 use std::ops::Range;
 
 pub use profile::*;
@@ -171,7 +171,7 @@ pub use state::*;
 
 /// The output of an alignment algorithm
 #[non_exhaustive]
-#[derive(Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Alignment<T> {
     /// The score of the alignment
     pub score:       T,
@@ -210,5 +210,63 @@ impl<T> Alignment<T> {
     #[must_use]
     pub fn get_aligned_iter<'a>(&'a self, reference: &'a [u8], query: &'a [u8]) -> AlignWithCigarIter<'a> {
         AlignWithCigarIter::new(reference, query, &self.cigar, self.ref_range.start)
+    }
+}
+
+impl<T: Copy> Alignment<T> {
+    /// Gets the alignment for when the query and reference are swapped.
+    #[must_use]
+    pub fn invert(&self, reference: &[u8]) -> Self {
+        let mut new_alignment = AlignmentStates::new();
+        new_alignment.soft_clip(self.ref_range.start);
+        let inverted_ciglets = self.cigar.iter().filter_map(|ciglet| match ciglet.op {
+            b'S' | b'H' => None,
+            b'D' => Some(Ciglet {
+                inc: ciglet.inc,
+                op:  b'I',
+            }),
+            b'I' => Some(Ciglet {
+                inc: ciglet.inc,
+                op:  b'D',
+            }),
+            _ => Some(ciglet),
+        });
+        new_alignment.extend_from_ciglets(inverted_ciglets);
+        new_alignment.soft_clip(reference.len() - self.ref_range.end);
+
+        Self {
+            score:       self.score,
+            ref_range:   self.query_range.clone(),
+            query_range: self.ref_range.clone(),
+            cigar:       new_alignment.to_cigar_unchecked(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::{alignment::sw::sw_scalar_alignment, data::WeightMatrix};
+
+    #[test]
+    fn alignment_invert() {
+        const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
+        const GAP_OPEN: i8 = -3;
+        const GAP_EXTEND: i8 = -1;
+
+        let reference: &[u8] = b"GGCCACAGGATTGAGC";
+        let query: &[u8] = b"TCTCAGATTGCAGTTT";
+
+        let profile = ScalarProfile::<5>::new(query, WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+        let alignment = sw_scalar_alignment(reference, &profile);
+        let invert_alignment = alignment.invert(reference);
+
+        assert_eq!(alignment.ref_range, 3..15);
+        assert_eq!(alignment.query_range, 1..13);
+        assert_eq!(alignment.cigar, Cigar::from_slice_unchecked("1S5M1D4M1I2M3S"));
+
+        assert_eq!(invert_alignment.ref_range, 1..13);
+        assert_eq!(invert_alignment.query_range, 3..15);
+        assert_eq!(invert_alignment.cigar, Cigar::from_slice_unchecked("3S5M1I4M1D2M1S"));
     }
 }

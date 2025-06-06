@@ -261,7 +261,7 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
 
     // soft clip 5'
     states.soft_clip(c);
-    let cigar = states.reverse().to_cigar();
+    let cigar = states.reverse().to_cigar_unchecked();
 
     // r and c are 1-based in this function. However, since clipping is prefered
     // to insertion/deletion, the non-clipped portion of the alignment will

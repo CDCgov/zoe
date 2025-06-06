@@ -10,27 +10,49 @@ use crate::{
     private::Sealed,
 };
 
+/// A struct for storing alignment states and incrementally building a [`Cigar`]
+/// string.
 #[derive(Clone, Debug)]
-pub(crate) struct AlignmentStates(Vec<Ciglet>);
+pub struct AlignmentStates(Vec<Ciglet>);
 
 impl AlignmentStates {
-    #[must_use]
+    /// Initializes an empty alignment
     #[inline]
+    #[must_use]
     pub fn new() -> Self {
         AlignmentStates(Vec::new())
     }
 
-    pub(crate) fn add_state(&mut self, op: u8) {
+    /// Adds a state to the right end of the alignment
+    pub fn add_state(&mut self, op: u8) {
+        self.add_ciglet(Ciglet { inc: 1, op });
+    }
+
+    /// Adds a ciglet to the right end of the alignment. If the operation is the
+    /// same as the rightmost operation, the ciglet is merged with the last one.
+    pub fn add_ciglet(&mut self, ciglet: Ciglet) {
         if let Some(c) = self.0.last_mut()
-            && c.op == op
+            && c.op == ciglet.op
         {
             c.inc += 1;
         } else {
-            self.0.push(Ciglet { inc: 1, op });
+            self.0.push(ciglet);
         }
     }
 
-    pub(crate) fn soft_clip(&mut self, inc: usize) {
+    /// Adds ciglets to the alignment. It is assumed that consecutive ciglets
+    /// have different operations.
+    pub(crate) fn extend_from_ciglets<I>(&mut self, ciglets: I)
+    where
+        I: IntoIterator<Item = Ciglet>, {
+        let mut ciglets = ciglets.into_iter();
+        let Some(first_ciglet) = ciglets.next() else { return };
+        self.add_ciglet(first_ciglet);
+        self.0.extend(ciglets);
+    }
+
+    /// Adds soft clipping `S` to the end of the alignment `inc` times
+    pub fn soft_clip(&mut self, inc: usize) {
         if inc > 0 {
             if let Some(c) = self.0.last_mut()
                 && c.op == b'S'
@@ -42,35 +64,17 @@ impl AlignmentStates {
         }
     }
 
+    /// Converts the [`AlignmentStates`] struct to a [`Cigar`] string. All
+    /// operations should be valid for a CIGAR string.
     #[must_use]
-    pub(crate) fn to_cigar(&self) -> Cigar {
-        let mut condensed = Vec::new();
-        let mut format_buffer = itoa::Buffer::new();
-
-        for Ciglet { inc, op } in self.0.iter().copied() {
-            condensed.extend_from_slice(format_buffer.format(inc).as_bytes());
-            condensed.push(op);
-        }
-
-        Cigar(condensed)
+    pub fn to_cigar_unchecked(&self) -> Cigar {
+        Cigar::from_ciglets_unchecked(self.0.iter().copied())
     }
 
+    /// Reverses the order of the stored alignment states
     #[must_use]
-    pub(crate) fn reverse(mut self) -> Self {
+    pub fn reverse(mut self) -> Self {
         self.0.reverse();
-        self
-    }
-
-    #[allow(dead_code)]
-    #[must_use]
-    pub(crate) fn invert(mut self) -> Self {
-        for cig in &mut self.0 {
-            if cig.op == b'I' {
-                cig.op = b'D';
-            } else if cig.op == b'D' {
-                cig.op = b'I';
-            }
-        }
         self
     }
 }

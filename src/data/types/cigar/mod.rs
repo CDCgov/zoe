@@ -31,11 +31,29 @@ impl Cigar {
         Cigar(v)
     }
 
-    /// Creates a CIGAR string from a slice of bytes without checking for validity.
+    /// Creates a CIGAR string from a slice of bytes without checking for
+    /// validity.
     #[inline]
     #[must_use]
     pub fn from_slice_unchecked<T: AsRef<[u8]>>(v: T) -> Self {
         Cigar(v.as_ref().to_vec())
+    }
+
+    /// Creates a CIGAR string from an iterator of ciglets without checking for
+    /// validity.
+    pub fn from_ciglets_unchecked<I>(ciglets: I) -> Self
+    where
+        I: IntoIterator<Item = Ciglet>, {
+        let mut cigar = Vec::new();
+        let mut format_buffer = itoa::Buffer::new();
+
+        for ciglet in ciglets {
+            let Ciglet { inc, op } = ciglet;
+            cigar.extend_from_slice(format_buffer.format(inc).as_bytes());
+            cigar.push(op);
+        }
+
+        Cigar(cigar)
     }
 
     /// Creates a new empty CIGAR string

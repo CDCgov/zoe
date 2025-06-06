@@ -14,6 +14,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `SamHmmWriter` for writing pHMMs to SAM model files
 - Added `expanded_cigar_iter` for iterating over the operations in a CIGAR string
 - Added `IsValidDNA` strategies for non-ambiguous bases
+- Exposed `AlignmentStates`, a struct for incrementally building up CIGAR strings
+- Add `invert` method to `Alignment`
 
 ### Changed
 
