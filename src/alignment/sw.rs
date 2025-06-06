@@ -2,8 +2,71 @@
 // TODO: revisit truncation issues
 
 use super::*;
-use crate::{math::AnyInt, simd::SimdAnyInt};
-use std::simd::{LaneCount, SimdElement, SupportedLaneCount, prelude::*};
+use crate::{data::cigar::Ciglet, math::AnyInt, simd::SimdAnyInt};
+use std::{
+    cmp::Ordering::{Equal, Greater, Less},
+    simd::{LaneCount, SimdElement, SupportedLaneCount, prelude::*},
+};
+
+/// Compute the Smith-Waterman score for the alignment given by `cigar` between
+/// `query` and the reference slice corresponding to the
+/// [`Alignment::ref_range`].
+///
+/// ## Errors
+///
+/// - A `cigar` must be a valid CIGAR string
+/// - All of `query`, `ref_in_alignment`, and `cigar` must be fully consumed
+/// - The final score should be nonnegative
+pub fn sw_score_from_path<const S: usize>(
+    cigar: &Cigar, ref_in_alignment: &[u8], query: &ScalarProfile<S>,
+) -> Result<u64, ScoringError> {
+    debug_assert!(cigar.is_valid());
+
+    let mut score = 0;
+    let mut r: usize = 0;
+    let mut q = 0;
+
+    for Ciglet { inc, op } in cigar {
+        match op {
+            b'M' | b'=' | b'X' => {
+                for _ in 0..inc {
+                    score += i32::from(query.matrix.get_weight(ref_in_alignment[r], query.query[q]));
+                    q += 1;
+                    r += 1;
+                }
+            }
+            b'I' => {
+                score += query.gap_open + query.gap_extend * (inc - 1) as i32;
+                q += inc;
+            }
+            b'D' => {
+                score += query.gap_open + query.gap_extend * (inc - 1) as i32;
+                r += inc;
+            }
+            b'S' => q += inc,
+            b'N' => r += inc,
+            b'H' | b'P' => {}
+            op => return Err(ScoringError::InvalidCigarOp(op)),
+        }
+    }
+
+    match q.cmp(&query.query.len()) {
+        Less => return Err(ScoringError::FullQueryNotUsed),
+        Greater => return Err(ScoringError::QueryEnded),
+        Equal => {}
+    }
+
+    match r.cmp(&ref_in_alignment.len()) {
+        Less => return Err(ScoringError::FullReferenceNotUsed),
+        Greater => return Err(ScoringError::ReferenceEnded),
+        Equal => {}
+    }
+
+    match u64::try_from(score) {
+        Ok(score) => Ok(score),
+        Err(_) => Err(ScoringError::NegativeScore(score)),
+    }
+}
 
 /// Smith-Waterman algorithm, yielding the optimal score.
 ///
@@ -453,8 +516,28 @@ mod test {
     use crate::data::mappings::DNA_PROFILE_MAP;
 
     #[test]
+    fn sw_verify_score_from_path() {
+        let reference = b"ATTCCTTTTGCCGGG";
+        let weights: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(3, -1, Some(b'N'));
+        let profile = ScalarProfile::new(b"ATTGCGCCCGG", weights, -4, -1).unwrap();
+
+        let Alignment {
+            score,
+            ref_range,
+            query_range: _,
+            cigar,
+        } = sw_scalar_alignment(reference, &profile);
+
+        println!("{cigar:?}");
+        assert_eq!(
+            Ok(score.as_u64()),
+            sw_score_from_path(&cigar, &reference[ref_range], &profile)
+        );
+    }
+
+    #[test]
     fn sw() {
-        let weights = WeightMatrix::new_dna_matrix(2, -5, Some(b'N'));
+        let weights: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(2, -5, Some(b'N'));
         let profile = ScalarProfile::new(QUERY, weights, GAP_OPEN, GAP_EXTEND).unwrap();
         let Alignment {
             score,

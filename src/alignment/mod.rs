@@ -152,17 +152,19 @@
 pub mod phmm;
 pub mod sw;
 
+mod errors;
 mod profile;
 mod profile_set;
 mod state;
 mod std_traits;
 
-use crate::data::cigar::{Cigar, Ciglet};
-use std::ops::Range;
-
+pub use errors::*;
 pub use profile::*;
 pub use profile_set::*;
 pub use state::*;
+
+use crate::data::cigar::{Cigar, Ciglet};
+use std::ops::Range;
 
 // For the `Alignment` struct below, both ranges are 0-based and end-exclusive.
 // For a global alignment, the ranges will each be encompass the full length of
