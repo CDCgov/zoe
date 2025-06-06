@@ -50,7 +50,7 @@ pub trait Translate: NucleotidesReadable + Sealed {
     /// Creates an iterator for [`AminoAcids`] translation.
     #[inline]
     #[must_use]
-    fn to_aa_iter(&self) -> TranslatedNucleotidesIter {
+    fn to_aa_iter(&self) -> TranslatedNucleotidesIter<'_> {
         TranslatedNucleotidesIter::new(self.nucleotide_bytes())
     }
 
@@ -58,7 +58,7 @@ pub trait Translate: NucleotidesReadable + Sealed {
     /// encoding for partial codons.
     #[inline]
     #[must_use]
-    fn to_aa_iter_with(&self, partial_codon_encoding: u8) -> TranslatedNucleotidesIter {
+    fn to_aa_iter_with(&self, partial_codon_encoding: u8) -> TranslatedNucleotidesIter<'_> {
         TranslatedNucleotidesIter::new_with(self.nucleotide_bytes(), partial_codon_encoding)
     }
 
@@ -66,7 +66,7 @@ pub trait Translate: NucleotidesReadable + Sealed {
     /// reading frames.
     #[inline]
     #[must_use]
-    fn to_overlapping_aa_iter(&self) -> OverlappingCodonsIter {
+    fn to_overlapping_aa_iter(&self) -> OverlappingCodonsIter<'_> {
         OverlappingCodonsIter::new(self.nucleotide_bytes())
     }
 }

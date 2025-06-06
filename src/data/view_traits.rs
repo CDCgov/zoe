@@ -224,12 +224,12 @@ macro_rules! impl_views_for_wrapper {
             type View<'a> = $view<'a>;
 
             #[inline]
-            fn slice<R: SliceRange>(&self, range: R) -> $view {
+            fn slice<R: SliceRange>(&self, range: R) -> $view<'_> {
                 $view(&self.0[range])
             }
 
             #[inline]
-            fn get_slice<R: SliceRange>(&self, range: R) -> Option<$view> {
+            fn get_slice<R: SliceRange>(&self, range: R) -> Option<$view<'_>> {
                 Some($view(self.0.get(range)?))
             }
         }
@@ -241,12 +241,12 @@ macro_rules! impl_views_for_wrapper {
                 Self: 'a;
 
             #[inline]
-            fn slice<R: SliceRange>(&self, range: R) -> $view {
+            fn slice<R: SliceRange>(&self, range: R) -> $view<'_> {
                 $view(&self.0[range])
             }
 
             #[inline]
-            fn get_slice<R: SliceRange>(&self, range: R) -> Option<$view> {
+            fn get_slice<R: SliceRange>(&self, range: R) -> Option<$view<'_>> {
                 Some($view(self.0.get(range)?))
             }
         }
@@ -258,12 +258,12 @@ macro_rules! impl_views_for_wrapper {
                 Self: 'a;
 
             #[inline]
-            fn slice<R: SliceRange>(&self, range: R) -> $view {
+            fn slice<R: SliceRange>(&self, range: R) -> $view<'_> {
                 $view(&self.0[range])
             }
 
             #[inline]
-            fn get_slice<R: SliceRange>(&self, range: R) -> Option<$view> {
+            fn get_slice<R: SliceRange>(&self, range: R) -> Option<$view<'_>> {
                 Some($view(self.0.get(range)?))
             }
         }
@@ -272,12 +272,12 @@ macro_rules! impl_views_for_wrapper {
             type ViewMut<'a> = $viewmut<'a>;
 
             #[inline]
-            fn slice_mut<R: SliceRange>(&mut self, range: R) -> $viewmut {
+            fn slice_mut<R: SliceRange>(&mut self, range: R) -> $viewmut<'_> {
                 $viewmut(&mut self.0[range])
             }
 
             #[inline]
-            fn get_slice_mut<R: SliceRange>(&mut self, range: R) -> Option<$viewmut> {
+            fn get_slice_mut<R: SliceRange>(&mut self, range: R) -> Option<$viewmut<'_>> {
                 Some($viewmut(self.0.get_mut(range)?))
             }
         }
@@ -289,12 +289,12 @@ macro_rules! impl_views_for_wrapper {
                 Self: 'a;
 
             #[inline]
-            fn slice_mut<R: SliceRange>(&mut self, range: R) -> $viewmut {
+            fn slice_mut<R: SliceRange>(&mut self, range: R) -> $viewmut<'_> {
                 $viewmut(&mut self.0[range])
             }
 
             #[inline]
-            fn get_slice_mut<R: SliceRange>(&mut self, range: R) -> Option<$viewmut> {
+            fn get_slice_mut<R: SliceRange>(&mut self, range: R) -> Option<$viewmut<'_>> {
                 Some($viewmut(self.0.get_mut(range)?))
             }
         }

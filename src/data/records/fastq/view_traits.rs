@@ -10,7 +10,7 @@ impl DataOwned for FastQ {
     type ViewMut<'a> = FastQViewMut<'a>;
 
     #[inline]
-    fn as_view(&self) -> FastQView {
+    fn as_view(&self) -> FastQView<'_> {
         FastQView {
             header:   &self.header,
             sequence: self.sequence.as_view(),
@@ -19,7 +19,7 @@ impl DataOwned for FastQ {
     }
 
     #[inline]
-    fn as_view_mut(&mut self) -> FastQViewMut {
+    fn as_view_mut(&mut self) -> FastQViewMut<'_> {
         FastQViewMut {
             header:   &mut self.header,
             sequence: self.sequence.as_view_mut(),
@@ -62,7 +62,7 @@ impl<'b> DataViewMut<'b> for FastQViewMut<'b> {
     type Owned = FastQ;
 
     #[inline]
-    fn as_view(&self) -> FastQView {
+    fn as_view(&self) -> FastQView<'_> {
         FastQView {
             header:   self.header,
             sequence: self.sequence.as_view(),
@@ -105,7 +105,7 @@ impl Slice for FastQ {
     type View<'a> = FastQView<'a>;
 
     #[inline]
-    fn slice<R: SliceRange>(&self, range: R) -> FastQView {
+    fn slice<R: SliceRange>(&self, range: R) -> FastQView<'_> {
         FastQView {
             header:   &self.header,
             sequence: self.sequence.slice(range.clone()),
@@ -115,7 +115,7 @@ impl Slice for FastQ {
 
     // TODO: Maybe optimize to only perform one get or check
     #[inline]
-    fn get_slice<R: SliceRange>(&self, range: R) -> Option<FastQView> {
+    fn get_slice<R: SliceRange>(&self, range: R) -> Option<FastQView<'_>> {
         Some(FastQView {
             header:   &self.header,
             sequence: self.sequence.get_slice(range.clone())?,
@@ -128,7 +128,7 @@ impl SliceMut for FastQ {
     type ViewMut<'a> = FastQViewMut<'a>;
 
     #[inline]
-    fn slice_mut<R: SliceRange>(&mut self, range: R) -> FastQViewMut {
+    fn slice_mut<R: SliceRange>(&mut self, range: R) -> FastQViewMut<'_> {
         FastQViewMut {
             header:   &mut self.header,
             sequence: self.sequence.slice_mut(range.clone()),
@@ -137,7 +137,7 @@ impl SliceMut for FastQ {
     }
 
     #[inline]
-    fn get_slice_mut<R: SliceRange>(&mut self, range: R) -> Option<FastQViewMut> {
+    fn get_slice_mut<R: SliceRange>(&mut self, range: R) -> Option<FastQViewMut<'_>> {
         Some(FastQViewMut {
             header:   &mut self.header,
             sequence: self.sequence.get_slice_mut(range.clone())?,
@@ -153,7 +153,7 @@ impl Slice for FastQView<'_> {
         Self: 'a;
 
     #[inline]
-    fn slice<R: SliceRange>(&self, range: R) -> FastQView {
+    fn slice<R: SliceRange>(&self, range: R) -> FastQView<'_> {
         FastQView {
             header:   self.header,
             sequence: self.sequence.slice(range.clone()),
@@ -162,7 +162,7 @@ impl Slice for FastQView<'_> {
     }
 
     #[inline]
-    fn get_slice<R: SliceRange>(&self, range: R) -> Option<FastQView> {
+    fn get_slice<R: SliceRange>(&self, range: R) -> Option<FastQView<'_>> {
         Some(FastQView {
             header:   self.header,
             sequence: self.sequence.get_slice(range.clone())?,
@@ -178,7 +178,7 @@ impl Slice for FastQViewMut<'_> {
         Self: 'a;
 
     #[inline]
-    fn slice<R: SliceRange>(&self, range: R) -> FastQView {
+    fn slice<R: SliceRange>(&self, range: R) -> FastQView<'_> {
         FastQView {
             header:   self.header,
             sequence: self.sequence.slice(range.clone()),
@@ -187,7 +187,7 @@ impl Slice for FastQViewMut<'_> {
     }
 
     #[inline]
-    fn get_slice<R: SliceRange>(&self, range: R) -> Option<FastQView> {
+    fn get_slice<R: SliceRange>(&self, range: R) -> Option<FastQView<'_>> {
         Some(FastQView {
             header:   self.header,
             sequence: self.sequence.get_slice(range.clone())?,
@@ -203,7 +203,7 @@ impl SliceMut for FastQViewMut<'_> {
         Self: 'a;
 
     #[inline]
-    fn slice_mut<R: SliceRange>(&mut self, range: R) -> FastQViewMut {
+    fn slice_mut<R: SliceRange>(&mut self, range: R) -> FastQViewMut<'_> {
         FastQViewMut {
             header:   self.header,
             sequence: self.sequence.slice_mut(range.clone()),
@@ -212,7 +212,7 @@ impl SliceMut for FastQViewMut<'_> {
     }
 
     #[inline]
-    fn get_slice_mut<R: SliceRange>(&mut self, range: R) -> Option<FastQViewMut> {
+    fn get_slice_mut<R: SliceRange>(&mut self, range: R) -> Option<FastQViewMut<'_>> {
         Some(FastQViewMut {
             header:   self.header,
             sequence: self.sequence.get_slice_mut(range.clone())?,

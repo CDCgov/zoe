@@ -95,7 +95,7 @@ impl QualityScores {
 
     /// Creates an iterator over the ASCII encoded quality scores as `&u8`.
     #[inline]
-    pub fn iter(&self) -> std::slice::Iter<u8> {
+    pub fn iter(&self) -> std::slice::Iter<'_, u8> {
         self.0.iter()
     }
 
@@ -194,7 +194,7 @@ impl<'a> QualityScoresView<'a> {
 
     /// Creates an iterator over the ASCII encoded quality scores as `&u8`.
     #[inline]
-    pub fn iter(&self) -> std::slice::Iter<u8> {
+    pub fn iter(&self) -> std::slice::Iter<'_, u8> {
         self.0.iter()
     }
 
@@ -265,7 +265,7 @@ impl<'a> QualityScoresViewMut<'a> {
 
     /// Creates an iterator over the ASCII encoded quality scores as `&u8`.
     #[inline]
-    pub fn iter(&self) -> std::slice::Iter<u8> {
+    pub fn iter(&self) -> std::slice::Iter<'_, u8> {
         self.0.iter()
     }
 

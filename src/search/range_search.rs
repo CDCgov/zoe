@@ -160,7 +160,7 @@ pub trait ToRangeSearch: AsRef<[u8]> + Sealed {
     ///
     /// </div>
     #[inline]
-    fn search_in<R: SliceRange>(&self, range: R) -> RangeSearch {
+    fn search_in<R: SliceRange>(&self, range: R) -> RangeSearch<'_> {
         RangeSearch::new(self, range)
     }
 
@@ -176,7 +176,7 @@ pub trait ToRangeSearch: AsRef<[u8]> + Sealed {
     ///
     /// </div>
     #[inline]
-    fn search_in_first(&self, n: usize) -> RangeSearch {
+    fn search_in_first(&self, n: usize) -> RangeSearch<'_> {
         let seq = self.as_ref();
         RangeSearch::new(seq, ..n.min(seq.len()))
     }
@@ -193,7 +193,7 @@ pub trait ToRangeSearch: AsRef<[u8]> + Sealed {
     ///
     /// </div>
     #[inline]
-    fn search_in_last(&self, n: usize) -> RangeSearch {
+    fn search_in_last(&self, n: usize) -> RangeSearch<'_> {
         let seq = self.as_ref();
         RangeSearch::new(seq, seq.len().saturating_sub(n)..)
     }
