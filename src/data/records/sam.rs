@@ -851,7 +851,44 @@ impl std::fmt::Display for SamData {
 
 #[cfg(test)]
 mod test {
-    use crate::data::records::sam::make_merged_qname;
+    use crate::data::{cigar::Cigar, records::sam::make_merged_qname, sam::SamData};
+
+    #[test]
+    fn merge_with_clipping() {
+        let s1 = SamData::new(
+            "SRR42.1.1".to_string(),
+            0,
+            "ref".to_string(),
+            5,
+            30,
+            "1H10M".try_into().unwrap(),
+            b"AAAAAGGCGG".into(),
+            b"FFFFFEEEEE".try_into().unwrap(),
+        );
+
+        let s2 = SamData::new(
+            "SRR422.1.2".to_string(),
+            0,
+            "ref".to_string(),
+            10,
+            30,
+            "5H5M5S".try_into().unwrap(),
+            b"GGGGGTTTTT".into(),
+            b"EEEEE!!!!!".try_into().unwrap(),
+        );
+
+        let reference = b"TTTTAAAAAGGCGGTTTT";
+
+        let (m, _) = s1.merge_pair_using_reference(&s2, reference, false);
+        assert_eq!(m.seq, s1.seq);
+        assert_eq!(m.qual, s1.qual);
+        //   12345678901234567890
+        //r  TTTTAAAAAGGCGGTTTT..
+        //s1 ...hAAAAAGGCGG......
+        //s2 ....hhhhhGGGGGsssss.
+        //m  ...hAAAAAGGCGGhhhhh.
+        assert_eq!(Cigar::try_from(b"1H10M5H").unwrap(), m.cigar);
+    }
 
     static QNAMES: [&str; 26] = [
         "SRR26182418.1 M07901:28:000000000-KP3NB:1:1101:10138:2117 length=147",
