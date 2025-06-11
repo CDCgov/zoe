@@ -5,6 +5,11 @@ use std::io::Cursor;
 fn empty_file() {
     let mut reader = FastQReader::new(Cursor::new(""));
     assert!(reader.next().is_none());
+
+    assert_eq!(
+        FastQReader::from_readable(Cursor::new("")).err().unwrap().to_string(),
+        "No FASTQ data was found!"
+    );
 }
 
 #[test]

@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file. The format
 is roughly based on [Keep a Changelog], and this project tries to adheres to
 [Semantic Versioning].
 
+## [0.0.20] - TBD
+
+### Added
+
+- Added macros for easily implementing traits on enums and wrapper types (`define_whichever` and `impl_traits`)
+
 ## [0.0.19] - 2025-06-11
 
 ### Added
@@ -215,6 +221,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - **Added**: Initial internal release. Provides various readers and types for bioinformatics data manipulation.
 
 <!-- Versions -->
+[0.0.20]: https://github.com/CDCgov/zoe/compare/v0.0.19...v0.0.20
 [0.0.19]: https://github.com/CDCgov/zoe/compare/v0.0.18...v0.0.19
 [0.0.18]: https://github.com/CDCgov/zoe/compare/v0.0.17...v0.0.18
 [0.0.17]: https://github.com/CDCgov/zoe/compare/v0.0.16...v0.0.17

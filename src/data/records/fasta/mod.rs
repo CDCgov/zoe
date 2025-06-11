@@ -14,7 +14,7 @@ use crate::{
 };
 use std::{
     fs::File,
-    io::{BufRead, Error as IOError, ErrorKind},
+    io::{BufRead, BufReader, Error as IOError, ErrorKind},
     path::Path,
 };
 
@@ -211,7 +211,15 @@ impl<R: std::io::Read> FastaReader<R> {
     ///
     /// [`Read`]: std::io::Read
     pub fn from_readable(read: R) -> std::io::Result<Self> {
-        let mut reader = std::io::BufReader::new(read);
+        FastaReader::from_bufreader(std::io::BufReader::new(read))
+    }
+
+    /// Creates an iterator over FASTA data from a `BufReader`.
+    ///
+    /// ## Errors
+    ///
+    /// Will return `Err` if the input data is empty or an IO error occurs.
+    pub fn from_bufreader(mut reader: BufReader<R>) -> std::io::Result<Self> {
         if reader.fill_buf()?.is_empty() {
             return Err(IOError::new(ErrorKind::InvalidData, "No FASTA data was found!"));
         }

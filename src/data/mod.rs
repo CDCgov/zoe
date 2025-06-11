@@ -94,6 +94,8 @@ pub(crate) mod extension;
 
 /// Used for type validation
 mod validation;
+/// Contains the macros [`define_whichever`] and [`impl_traits`]
+mod whichever;
 
 pub use constants::{
     mappings::{ByteIndexMap, DNA_PROFILE_MAP, StdGeneticCode},

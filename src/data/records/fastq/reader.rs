@@ -1,7 +1,7 @@
 use crate::{data::vec_types::ChopLineBreak, prelude::*};
 use std::{
     fs::File,
-    io::{BufRead, Error as IOError, ErrorKind},
+    io::{BufRead, BufReader, Error as IOError, ErrorKind},
     path::Path,
 };
 
@@ -38,13 +38,21 @@ impl<R: std::io::Read> FastQReader<R> {
     ///
     /// [`Read`]: std::io::Read
     pub fn from_readable(read: R) -> std::io::Result<Self> {
-        let mut fastq_reader = std::io::BufReader::new(read);
-        if fastq_reader.fill_buf()?.is_empty() {
+        FastQReader::from_bufreader(std::io::BufReader::new(read))
+    }
+
+    /// Creates an iterator over FASTQ data from a `BufReader`.
+    ///
+    /// ## Errors
+    ///
+    /// Will return `Err` if the input data is empty or an IO error occurs.
+    pub fn from_bufreader(mut reader: BufReader<R>) -> std::io::Result<Self> {
+        if reader.fill_buf()?.is_empty() {
             return Err(IOError::new(ErrorKind::InvalidData, "No FASTQ data was found!"));
         }
 
         Ok(FastQReader {
-            fastq_reader,
+            fastq_reader: reader,
             fastq_buffer: Vec::new(),
         })
     }
