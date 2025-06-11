@@ -2,7 +2,7 @@ use std::{fmt::Debug, marker::PhantomData};
 
 use super::impl_deref;
 use crate::{
-    alignment::phmm::{EmissionParams, GlobalPhmm, LayerParams, PhmmState, TransitionParams},
+    alignment::phmm::{CorePhmm, EmissionParams, GlobalPhmm, LayerParams, PhmmState, TransitionParams},
     data::mappings::DNA_UNAMBIG_PROFILE_MAP,
     math::Float,
 };
@@ -131,10 +131,12 @@ where
         Ok(DnaGlobalPhmm(
             GlobalPhmm {
                 mapping: &DNA_UNAMBIG_PROFILE_MAP,
-                params:  Vec::<LayerParamsArbitrary<T, F, 4>>::arbitrary(u)?
-                    .into_iter()
-                    .map(|x| x.0)
-                    .collect::<Vec<_>>(),
+                core:    CorePhmm(
+                    Vec::<LayerParamsArbitrary<T, F, 4>>::arbitrary(u)?
+                        .into_iter()
+                        .map(|x| x.0)
+                        .collect::<Vec<_>>(),
+                ),
             },
             PhantomData,
         ))
@@ -152,8 +154,8 @@ where
         let first_layer = LayerParamsArbitrary::<T, F, 4>::arbitrary(u)?;
         let last_layer = LayerParamsArbitrary::<T, F, 4>::arbitrary(u)?;
         let mut phmm = DnaGlobalPhmm::<T, F, false, false>::arbitrary(u)?;
-        phmm.params.insert(0, first_layer.0);
-        phmm.params.push(last_layer.0);
+        phmm.core.0.insert(0, first_layer.0);
+        phmm.core.0.push(last_layer.0);
         Ok(DnaGlobalPhmm(phmm.0, PhantomData))
     }
 }
@@ -170,13 +172,13 @@ where
 
         let mut out = DnaGlobalPhmm::<T, F, false, L>::arbitrary(u)?;
 
-        if let Some(first_layer) = out.0.params.first_mut() {
+        if let Some(first_layer) = out.0.core.0.first_mut() {
             first_layer.transition[(Delete, Delete)] = T::INFINITY;
             first_layer.transition[(Delete, Match)] = T::INFINITY;
             first_layer.transition[(Delete, Insert)] = T::INFINITY;
         }
 
-        if let Some(last_layer) = out.0.params.last_mut() {
+        if let Some(last_layer) = out.0.core.0.last_mut() {
             last_layer.transition[(Delete, Delete)] = T::INFINITY;
             last_layer.transition[(Insert, Delete)] = T::INFINITY;
             last_layer.transition[(Match, Delete)] = T::INFINITY;

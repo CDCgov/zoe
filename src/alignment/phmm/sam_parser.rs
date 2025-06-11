@@ -1,6 +1,6 @@
 use crate::{
     alignment::phmm::{
-        EmissionParams, GlobalPhmm, LayerParams,
+        CorePhmm, EmissionParams, GlobalPhmm, LayerParams,
         PhmmState::{self, *},
         TransitionParams,
     },
@@ -185,7 +185,10 @@ trait SamHmmConfig<const S: usize, const L: usize> {
         last_layer.transition[(Insert, Delete)] = T::INFINITY;
         last_layer.transition[(Match, Delete)] = T::INFINITY;
 
-        Ok(GlobalPhmm { mapping, params: layers })
+        Ok(GlobalPhmm {
+            mapping,
+            core: CorePhmm(layers),
+        })
     }
 
     /// Write a global pHMM to a file, following the SAM format.
@@ -203,7 +206,7 @@ trait SamHmmConfig<const S: usize, const L: usize> {
         SupportedConfig: SamHmmConfig<S, L>, {
         use PhmmState::*;
 
-        if model.params.len() < 2 {
+        if model.core.0.len() < 2 {
             return Err(IOError::new(
                 ErrorKind::InvalidData,
                 "At least two layers must be present in the model!",
@@ -215,7 +218,7 @@ trait SamHmmConfig<const S: usize, const L: usize> {
         writeln!(writer, "MODEL")?;
         writeln!(writer, "alphabet {}", Self::unparse_mapping(model.mapping)?)?;
 
-        let [first_layer, rest @ ..] = model.params.as_slice() else {
+        let [first_layer, rest @ ..] = model.core.0.as_slice() else {
             return Err(IOError::new(
                 ErrorKind::InvalidData,
                 "At least two layers must be present in the model!",

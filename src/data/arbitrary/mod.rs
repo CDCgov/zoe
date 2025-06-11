@@ -27,9 +27,7 @@ mod phmm;
 mod string;
 mod vec;
 
-pub use amino_acids::*;
 pub use cigar::*;
-pub use kmer::*;
 pub use math::*;
 pub use nucleotides::*;
 pub use phmm::*;

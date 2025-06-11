@@ -83,7 +83,9 @@ impl<T: Float, const S: usize> Default for EmissionParams<T, S> {
     }
 }
 
+// `f32` and `f64` both implement From<u16>
 impl<T: Float + From<u16>, const S: usize> EmissionParams<T, S> {
+    /// Generates the emission parameters for a uniform distribution.
     #[inline]
     #[must_use]
     #[allow(clippy::cast_possible_truncation)]
@@ -123,13 +125,10 @@ impl<T: Float, const S: usize> Default for LayerParams<T, S> {
     }
 }
 
-/// An implementation of a profile hidden Markov model (pHMM).
+// TODO: Fix doc comments
+/// The core profile hidden Markov model (pHMM) used by [`GlobalPhmm`] and other PHMMs.
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct GlobalPhmm<T, const S: usize> {
-    /// The mapping used when processing the bases. This will vary depending on
-    /// the alphabet used.
-    pub(crate) mapping: &'static ByteIndexMap<S>,
-
+pub struct CorePhmm<T, const S: usize>(
     /// The parameters for the pHMM.
     ///
     /// All probabilities are converted to log space with
@@ -145,5 +144,27 @@ pub struct GlobalPhmm<T, const S: usize> {
     /// Note that this is different from SAM. The first element's match state is
     /// the BEGIN state, while the last element's transition probabilities
     /// reflect the probabilities entering the END state.
-    pub(crate) params: Vec<LayerParams<T, S>>,
+    pub(crate) Vec<LayerParams<T, S>>,
+);
+
+impl<T, const S: usize> CorePhmm<T, S> {
+    /// Returns the length of the "reference" represented by the pHMM
+    #[inline]
+    #[must_use]
+    pub fn ref_length(&self) -> usize {
+        // A pHMM of length n has n transitions between layers, which means n+1
+        // layers. One is the begin, and one is the end. So n-1 layers
+        // correspond to indices in the reference.
+        self.0.len() - 1
+    }
+}
+
+/// An implementation of a global profile hidden Markov model (pHMM).
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct GlobalPhmm<T, const S: usize> {
+    /// The mapping used when processing the bases. This will vary depending on
+    /// the alphabet used.
+    pub mapping: &'static ByteIndexMap<S>,
+    /// The model parameters
+    pub core:    CorePhmm<T, S>,
 }
