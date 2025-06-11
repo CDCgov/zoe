@@ -16,6 +16,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `PartialEq` between `Cigar` and `AlignmentStates` without allocating on the heap
 - Added `score_from_path` for `GlobalPhmm`
 - Added `ref_len` and `query_len` to the `Alignment` struct
+- Added viterbi algorithm to `GlobalPhmm`
 
 ### Changed
 

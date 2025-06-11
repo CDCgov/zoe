@@ -29,7 +29,7 @@ use std::ops::Range;
 ///
 /// [`ref_length`]: CorePhmm::ref_length
 fn score_from_path_core<T: Float, const S: usize>(
-    core: &CorePhmm<T, S>, mapping: &'static ByteIndexMap<S>, seq_in_alignment: &[u8], ref_range: Range<usize>,
+    core: &CorePhmm<T, S>, mapping: &ByteIndexMap<S>, seq_in_alignment: &[u8], ref_range: Range<usize>,
     ciglets: impl IntoIterator<Item = Ciglet>, score: T,
 ) -> Result<(T, PhmmState), PhmmError> {
     use PhmmState::*;
@@ -53,17 +53,16 @@ fn score_from_path_core<T: Float, const S: usize>(
     let mut i = 0;
 
     // Initialize current score, starting state, and starting layer index
-    let (mut score, mut state, mut j) = match op {
-        b'D' => {
-            // Cannot enter into a delete state except from BEGIN. If attempted,
-            // return infinite score.
+    let (mut score, mut state, mut j) = match PhmmState::from_op(op)? {
+        Delete => {
+            // Cannot enter into a delete state except from BEGIN.
             if ref_range.start != 0 {
-                return Ok((T::INFINITY, Match));
+                return Err(PhmmError::InvalidPath);
             }
             // After entering the delete state, we are now in layer 1
             (score, Delete, 1)
         }
-        b'M' => {
+        Match => {
             let x_idx = mapping.to_index(seq_in_alignment[i]);
             // Need to look at the previous layer to get transitions into this
             // layer
@@ -72,11 +71,10 @@ fn score_from_path_core<T: Float, const S: usize>(
             i += 1;
             (score, Match, ref_range.start + 1)
         }
-        b'I' => {
-            // Cannot enter into an insert state except from BEGIN. If
-            // attempted, return infinite score.
+        Insert => {
+            // Cannot enter into a insert state except from BEGIN.
             if ref_range.start != 0 {
-                return Ok((T::INFINITY, Match));
+                return Err(PhmmError::InvalidPath);
             }
             // Insertion before reference position n has emission parameters and
             // transition parameters stored in layer n
@@ -86,7 +84,6 @@ fn score_from_path_core<T: Float, const S: usize>(
             // After entering the delete state, we are still in begin layer
             (score, Insert, 0)
         }
-        _ => return Err(PhmmError::InvalidCigarOp),
     };
 
     // Main loop: first score transition out of current layer index j, then
@@ -94,8 +91,8 @@ fn score_from_path_core<T: Float, const S: usize>(
     for op in op_iter {
         let layer = core.get_layer(DpIndex(j));
 
-        match op {
-            b'M' | b'=' | b'X' => {
+        match PhmmState::from_op(op)? {
+            Match => {
                 let x_idx = mapping.to_index(seq_in_alignment[i]);
                 // Must perform the two additions separately, since floating
                 // point addition is not associative
@@ -105,7 +102,7 @@ fn score_from_path_core<T: Float, const S: usize>(
                 i += 1;
                 j += 1;
             }
-            b'I' => {
+            Insert => {
                 let x_idx = mapping.to_index(seq_in_alignment[i]);
                 // Must perform the two additions separately, since floating
                 // point addition is not associative
@@ -114,12 +111,11 @@ fn score_from_path_core<T: Float, const S: usize>(
                 state = Insert;
                 i += 1;
             }
-            b'D' => {
+            Delete => {
                 score += layer.transition[(state, Delete)];
                 state = Delete;
                 j += 1;
             }
-            _ => return Err(PhmmError::InvalidCigarOp),
         }
     }
 
@@ -135,10 +131,9 @@ fn score_from_path_core<T: Float, const S: usize>(
 }
 
 impl<T: Float, const S: usize> GlobalPhmm<T, S> {
-    // TODO: Link docs
     /// Get the score for a particular path.
     ///
-    /// This is designed to give the exact same score as `viterbi` when the
+    /// This is designed to give the exact same score as [`viterbi`] when the
     /// best `path` is passed, performing all arithmetic operations in the same
     /// order so as not to change the floating point error.
     ///
@@ -146,22 +141,18 @@ impl<T: Float, const S: usize> GlobalPhmm<T, S> {
     ///
     /// The CIGAR string must consume the entire model and sequence, and the
     /// only supported operations are M, =, X, I, and D.
+    ///
+    /// [`viterbi`]: GlobalPhmm::viterbi
     pub fn score_from_path<Q: AsRef<[u8]>>(&self, seq: Q, alignment: &AlignmentStates) -> Result<T, PhmmError> {
         use PhmmState::*;
 
         let seq = seq.as_ref();
 
-        // TODO: Improve ergonomics later...
-        let start_state = match alignment.iter().next().map(|x| x.op) {
-            None => return Err(PhmmError::FullModelNotUsed),
-            Some(b'D') => Delete,
-            Some(b'M' | b'=' | b'X') => Match,
-            Some(b'I') => Insert,
-            Some(_) => return Err(PhmmError::InvalidCigarOp),
-        };
+        let first_op = alignment.iter().next().ok_or(PhmmError::FullModelNotUsed)?.op;
+        let first_state = PhmmState::from_op(first_op)?;
 
         // Get transition from BEGIN state the actual first state
-        let score = self.core.get_layer(Begin).transition[(Match, start_state)];
+        let score = self.core.get_layer(Begin).transition[(Match, first_state)];
 
         // Add score from first state after START until final state before END
         let (mut score, final_state) =

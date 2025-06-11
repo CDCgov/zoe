@@ -3,6 +3,8 @@ use std::{
     ops::{Index, IndexMut},
 };
 
+use crate::alignment::phmm::PhmmError;
+
 /// An enum representing the three states within each layer of a pHMM. This is
 /// used for readability when indexing.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -62,6 +64,7 @@ impl From<PhmmState> for PhmmStateOrEnter {
 }
 
 impl PhmmState {
+    #[inline]
     pub(crate) fn get_from(value: PhmmStateOrEnter) -> Option<PhmmState> {
         match value {
             PhmmStateOrEnter::Delete => Some(PhmmState::Delete),
@@ -71,11 +74,22 @@ impl PhmmState {
         }
     }
 
+    #[inline]
     pub(crate) fn to_op(self) -> u8 {
         match self {
             PhmmState::Delete => b'D',
             PhmmState::Match => b'M',
             PhmmState::Insert => b'I',
+        }
+    }
+
+    #[inline]
+    pub(crate) fn from_op(op: u8) -> Result<Self, PhmmError> {
+        match op {
+            b'D' => Ok(PhmmState::Delete),
+            b'M' | b'=' | b'X' => Ok(PhmmState::Match),
+            b'I' => Ok(PhmmState::Insert),
+            _ => Err(PhmmError::InvalidCigarOp),
         }
     }
 }

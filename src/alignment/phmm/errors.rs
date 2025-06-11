@@ -3,11 +3,14 @@ use std::{error::Error, fmt};
 
 /// An enum representing errors that can happen when working with pHMMs.
 #[non_exhaustive]
+#[derive(Eq, PartialEq)]
 pub enum PhmmError {
     /// The model has no layers
     EmptyModel,
     /// No alignment with nonzero probability can be found with the pHMM
     NoAlignmentFound,
+    /// An invalid path through a pHMM was specified
+    InvalidPath,
     /// Failed to consume the full, provided sequence, which was expected to
     /// contain no more than what was represented by the CIGAR string
     FullSeqNotUsed,
@@ -28,6 +31,7 @@ impl fmt::Display for PhmmError {
         match self {
             PhmmError::EmptyModel => write!(f, "No layers were present in the pHMM!"),
             PhmmError::NoAlignmentFound => write!(f, "No alignment with nonzero probability found!"),
+            PhmmError::InvalidPath => write!(f, "The path specified is not valid for the given pHMM!"),
             PhmmError::FullSeqNotUsed => write!(
                 f,
                 "Failed to consume the full, provided sequence, which was expected to contain no more than what was represented by the CIGAR string"

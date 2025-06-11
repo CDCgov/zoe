@@ -14,11 +14,13 @@ mod sam_parser;
 mod score_from_path;
 mod state;
 mod traits;
+mod viterbi;
 
 pub use errors::*;
 pub(crate) use indexing::*;
 pub use sam_parser::*;
 pub(crate) use state::*;
+pub use viterbi::*;
 
 /// The transition probabilities for a layer of the pHMM.
 ///
@@ -134,7 +136,7 @@ impl<T: Float, const S: usize> Default for LayerParams<T, S> {
     }
 }
 
-// TODO: Fix doc comments
+// TODO: Fix doc comments (add local)
 /// The core profile hidden Markov model (pHMM) used by [`GlobalPhmm`] and other PHMMs.
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct CorePhmm<T, const S: usize>(
