@@ -14,6 +14,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `CorePhmm` struct storing PHMM layers (without other end modules or model information)
 - Added `IntoIterator` implementations for `AlignmentStates` as well as an `iter()` method
 - Added `PartialEq` between `Cigar` and `AlignmentStates` without allocating on the heap
+- Added `score_from_path` for `GlobalPhmm`
 
 ### Changed
 
@@ -26,6 +27,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Modified `ScalarProfile` for alignment to hold a reference to the weight matrix
 - Replace ad-hoc casting methods in `AnyInt` and `Float` with generic `cast_as` and `cast_from`
 - Implement `Ord` and `PartialOrd` for `Cigar` and `QualityScores`
+- Improved error messages for `ScoringError`
 
 ### Removed
 

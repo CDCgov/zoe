@@ -8,11 +8,15 @@ use crate::{
 };
 use std::ops::{Index, IndexMut};
 
+mod errors;
 mod indexing;
 mod sam_parser;
+mod score_from_path;
 mod state;
 mod traits;
 
+pub use errors::*;
+pub(crate) use indexing::*;
 pub use sam_parser::*;
 pub(crate) use state::*;
 

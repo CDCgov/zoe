@@ -12,9 +12,11 @@ pub enum ScoringError {
     QueryEnded,
     /// Reference ended before the entire CIGAR string was consumed
     ReferenceEnded,
-    /// Failed to consume the full query
+    /// Failed to consume the full, provided query, which was expected to
+    /// contain no more than what was represented by the CIGAR string
     FullQueryNotUsed,
-    /// Failed to consume the full reference
+    /// Failed to consume the full, provided reference, which was expected to
+    /// contain only the aligned region of the original reference
     FullReferenceNotUsed,
     /// Unsupported CIGAR opcode used in argument
     InvalidCigarOp(u8),
@@ -27,9 +29,15 @@ impl fmt::Display for ScoringError {
             ScoringError::NegativeScore(score) => write!(f, "The alignment produced a negative score: {score}"),
             ScoringError::QueryEnded => write!(f, "The query ended before the entire CIGAR string was consumed!"),
             ScoringError::ReferenceEnded => write!(f, "The reference ended before the entire CIGAR string was consumed!"),
-            ScoringError::FullQueryNotUsed => write!(f, "Failed to consume the full query!"),
+            ScoringError::FullQueryNotUsed => write!(
+                f,
+                "Failed to consume the full, provided query, which was expected to contain no more than what was represented by the CIGAR string"
+            ),
             ScoringError::FullReferenceNotUsed => {
-                write!(f, "Failed to consume the full portion of the reference specified!")
+                write!(
+                    f,
+                    "Failed to consume the full, provided reference, which was expected to contain only the aligned region of the original reference"
+                )
             }
             ScoringError::InvalidCigarOp(op) => write!(f, "An unsupported CIGAR opcode was encountered: {op}"),
         }
