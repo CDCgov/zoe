@@ -8,7 +8,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ### Added
 
-- Added accessor methods to `SamRow` enum variants
+- Added accessor methods to `SamRow` enum variants; added `is_unmapped` to `SamData`.
 - Added macros for facilitating floating point comparisons under the `fuzzing` feature
 - Implemented `Arbitrary` for PHMM-related types under the `fuzzing feature
 - Added `SamHmmWriter` for writing pHMMs to SAM model files
@@ -22,7 +22,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 - MSRV bumped to 1.88 (nightly)
 - Renamed `arbitrary` feature to `fuzzing`
-- Add additional error checks and improve error messages for `FastQReader` and `FastaReader` 
+- Add additional error checks and improve error messages for `FastQReader` and `FastaReader`.
+- `SamData` is no longer boxed in `SamRow`; `SamAligned` and `SamInsertion` are now private.
 
 ## [0.0.18] - 2025-05-09
 

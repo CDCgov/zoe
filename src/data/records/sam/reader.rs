@@ -13,7 +13,7 @@ use crate::{
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub enum SamRow {
     Header(String),
-    Data(Box<SamData>),
+    Data(SamData),
 }
 
 impl SamRow {
@@ -36,7 +36,7 @@ impl SamRow {
     /// [`Data`]: SamRow::Data
     #[inline]
     #[must_use]
-    pub fn data(self) -> Option<Box<SamData>> {
+    pub fn data(self) -> Option<SamData> {
         match self {
             SamRow::Header(_) => None,
             SamRow::Data(data) => Some(data),
@@ -169,7 +169,7 @@ impl<R: std::io::Read> Iterator for SAMReader<R> {
                     seq: r[9].as_bytes().to_ascii_uppercase().into(),
                     qual: quality_scores,
                 };
-                Some(Ok(SamRow::Data(Box::new(row))))
+                Some(Ok(SamRow::Data(row)))
             }
             Err(e) => Some(Err(e)),
         }

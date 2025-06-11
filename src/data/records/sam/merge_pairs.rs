@@ -348,6 +348,28 @@ impl SamData {
     ) -> (SamData, PairedMergeStats) {
         let mut stats = PairedMergeStats::default();
 
+        let m_qname = if bowtie_format {
+            self.qname.clone()
+        } else {
+            // IRMA merged style: set to 3
+            make_merged_qname(&self.qname)
+        };
+
+        match (self.is_unmapped(), other.is_unmapped()) {
+            (true, true) => return (SamData::unmapped(&m_qname, &self.rname), stats),
+            (_, true) => {
+                let mut new = self.clone();
+                new.qname = m_qname;
+                return (new, stats);
+            }
+            (true, _) => {
+                let mut new = other.clone();
+                new.qname = m_qname;
+                return (new, stats);
+            }
+            _ => {}
+        }
+
         let a1 = self.get_aligned();
         let a2 = other.get_aligned();
 
@@ -373,13 +395,6 @@ impl SamData {
             let a2_clipping_for_paired = a2.num_clipped_end.saturating_sub(a2_offset_from_merged);
             // Take the maximum of these (whichever has more clipped bases)
             a1_clipping_for_paired.max(a2_clipping_for_paired)
-        };
-
-        let m_qname = if bowtie_format {
-            self.qname.clone()
-        } else {
-            // IRMA merged style: set to 3
-            make_merged_qname(&self.qname)
         };
 
         let m_flag = 0;

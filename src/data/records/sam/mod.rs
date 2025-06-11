@@ -5,6 +5,7 @@ mod reader;
 #[cfg(test)]
 mod test;
 
+pub use merge_pairs::*;
 pub use reader::*;
 
 // # NOTICE
@@ -66,6 +67,14 @@ impl SamData {
         }
     }
 
+    fn unmapped(qname: &str, rname: &str) -> Self {
+        // In the context of an unmapped `SamData` record, this should not be
+        // misinterpreted
+        let seq = Nucleotides::from(b"*");
+        let qual = QualityScores::try_from(b"*").unwrap();
+        Self::new(qname.to_string(), 4, rname.to_string(), 0, 255, Cigar::new(), seq, qual)
+    }
+
     /// Constructs a new [`SamData`] record from an [`Alignment`] struct as well
     /// as the other provided fields.
     #[inline]
@@ -90,6 +99,13 @@ impl SamData {
             seq,
             qual,
         }
+    }
+
+    /// Tests if the [`SamData`] is unmapped.
+    #[inline]
+    #[must_use]
+    pub fn is_unmapped(&self) -> bool {
+        self.flag & 0x4 != 0 || self.cigar.match_length() == 0
     }
 }
 
