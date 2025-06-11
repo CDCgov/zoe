@@ -19,6 +19,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `SamDataView` and `SamDataViewMut`
 - Added `score_from_path` and `viterbi` for `LocalPhmm` (behind `dev-phmm` feature gate)
 - Added `DomainPhmm`, along with `score_from_path` for it (behind `dev-phmm` feature gate)
+- Added `SemiLocalPhmm` (behind `dev-phmm` feature gate)
 
 ### Changed
 

@@ -319,6 +319,27 @@ impl<T: Float, const S: usize> DomainPhmm<T, S> {
     }
 }
 
+/// An implementation of a profile hidden Markov model (pHMM) for semilocal
+/// alignment (aligning a full sequence to a submodel).
+///
+/// This is created from a [`GlobalPhmm`] using [`into_semilocal_phmm`]. Two
+/// [`SemiLocalModule`] modules are added to either end which can skip
+/// arbitrarily many states at the beginning or end of the pHMM.
+///
+/// [`into_semilocal_phmm`]: GlobalPhmm::into_semilocal_phmm
+#[derive(Debug)]
+pub struct SemiLocalPhmm<T, const S: usize> {
+    /// The mapping used when processing the bases. This will vary depending on
+    /// the alphabet used.
+    pub mapping: &'static ByteIndexMap<S>,
+    /// The core model containing the parameters.
+    pub core:    CorePhmm<T, S>,
+    /// The module for handling any bases before the core model
+    pub begin:   SemiLocalModule<T>,
+    /// The module for handling any bases after the core model
+    pub end:     SemiLocalModule<T>,
+}
+
 /// Options for how to construct a [`LocalPhmm`] from a [`GlobalPhmm`]
 #[non_exhaustive]
 pub enum LocalConfig<T, const S: usize> {
@@ -342,6 +363,18 @@ pub enum DomainConfig<T, const S: usize> {
     Custom {
         begin: DomainModule<T, S>,
         end:   DomainModule<T, S>,
+    },
+}
+
+/// Options for how to construct a [`SemiLocalPhmm`] from a [`GlobalPhmm`]
+#[non_exhaustive]
+pub enum SemiLocalConfig<T> {
+    /// Does not penalize any transitions in the [`SemiLocalModule`]
+    NoPenalty,
+    /// Use a custom [`SemiLocalModule`] for the begin and end.
+    Custom {
+        begin: SemiLocalModule<T>,
+        end:   SemiLocalModule<T>,
     },
 }
 
@@ -382,6 +415,26 @@ impl<T: Float, const S: usize> GlobalPhmm<T, S> {
             DomainConfig::Custom { begin, end } => (begin, end),
         };
         DomainPhmm {
+            mapping: self.mapping,
+            core: self.core,
+            begin,
+            end,
+        }
+    }
+
+    /// Converts a [`GlobalPhmm`] into a [`SemiLocalPhmm`] using the provided
+    /// `config`.
+    #[inline]
+    #[must_use]
+    pub fn into_semilocal_phmm(self, config: SemiLocalConfig<T>) -> SemiLocalPhmm<T, S> {
+        let (begin, end) = match config {
+            SemiLocalConfig::NoPenalty => (
+                SemiLocalModule::no_penalty(&self.core),
+                SemiLocalModule::no_penalty(&self.core),
+            ),
+            SemiLocalConfig::Custom { begin, end } => (begin, end),
+        };
+        SemiLocalPhmm {
             mapping: self.mapping,
             core: self.core,
             begin,
