@@ -3,8 +3,8 @@ use std::{fmt::Debug, marker::PhantomData};
 use super::impl_deref;
 use crate::{
     alignment::phmm::{
-        Begin, CorePhmm, DomainModule, EmissionParams, End, GlobalPhmm, LayerParams, LocalModule, LocalPhmm, PhmmIndexable,
-        PhmmState, SemiLocalModule, TransitionParams,
+        Begin, CorePhmm, DomainModule, DomainPhmm, EmissionParams, End, GlobalPhmm, LayerParams, LocalModule, LocalPhmm,
+        PhmmIndexable, PhmmState, SemiLocalModule, SemiLocalPhmm, TransitionParams,
     },
     data::mappings::DNA_UNAMBIG_PROFILE_MAP,
     math::Float,
@@ -428,6 +428,62 @@ where
                 core,
                 begin,
                 end,
+            },
+            PhantomData,
+        ))
+    }
+}
+
+/// Parameters:
+/// * `T`: The floating point type for the parameters
+/// * `F`: The floating point type or arbitrary wrapper for generating the
+///   parameters
+/// * `R`: If true, ensure invalid transitions are set to infinity
+#[derive(Debug)]
+pub struct DnaDomainPhmm<T, F, const R: bool>(pub DomainPhmm<T, 4>, pub PhantomData<F>);
+
+impl_deref! {DnaDomainPhmm<T, F, R>, DomainPhmm<T, 4>, <T: Float, F, const R: bool>}
+
+impl<'a, T: Float + Arbitrary<'a>, F, const R: bool> Arbitrary<'a> for DnaDomainPhmm<T, F, R>
+where
+    CorePhmmArbitrary<T, F, 4, R>: Arbitrary<'a>,
+    DomainModuleArbitrary<T, F, 4>: Arbitrary<'a>,
+{
+    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
+        Ok(Self(
+            DomainPhmm {
+                mapping: &DNA_UNAMBIG_PROFILE_MAP,
+                core:    CorePhmmArbitrary::<T, F, 4, R>::arbitrary(u)?.0,
+                begin:   DomainModuleArbitrary::<T, F, 4>::arbitrary(u)?.0,
+                end:     DomainModuleArbitrary::<T, F, 4>::arbitrary(u)?.0,
+            },
+            PhantomData,
+        ))
+    }
+}
+
+/// Parameters:
+/// * `T`: The floating point type for the parameters
+/// * `F`: The floating point type or arbitrary wrapper for generating the
+///   parameters
+/// * `R`: If true, ensure invalid transitions are set to infinity
+#[derive(Debug)]
+pub struct DnaSemiLocalPhmm<T, F, const R: bool>(pub SemiLocalPhmm<T, 4>, pub PhantomData<F>);
+
+impl_deref! {DnaSemiLocalPhmm<T, F, R>, SemiLocalPhmm<T, 4>, <T: Float, F, const R: bool>}
+
+impl<'a, T: Float + Arbitrary<'a>, F, const R: bool> Arbitrary<'a> for DnaSemiLocalPhmm<T, F, R>
+where
+    CorePhmmArbitrary<T, F, 4, R>: Arbitrary<'a>,
+    SemiLocalModuleArbitrary<T, F>: Arbitrary<'a>,
+{
+    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
+        Ok(Self(
+            SemiLocalPhmm {
+                mapping: &DNA_UNAMBIG_PROFILE_MAP,
+                core:    CorePhmmArbitrary::<T, F, 4, R>::arbitrary(u)?.0,
+                begin:   SemiLocalModuleArbitrary::<T, F>::arbitrary(u)?.0,
+                end:     SemiLocalModuleArbitrary::<T, F>::arbitrary(u)?.0,
             },
             PhantomData,
         ))
