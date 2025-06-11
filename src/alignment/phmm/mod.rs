@@ -5,50 +5,11 @@ use crate::{data::ByteIndexMap, math::Float};
 use std::ops::{Index, IndexMut};
 
 mod sam_parser;
+mod state;
 mod traits;
 
 pub use sam_parser::*;
-
-/// An enum representing the three states within each layer of a pHMM. This is
-/// used for readability when indexing.
-#[derive(Clone, Copy, Debug)]
-pub enum PhmmState {
-    Delete,
-    Match,
-    Insert,
-}
-
-impl From<PhmmState> for usize {
-    #[inline]
-    fn from(value: PhmmState) -> Self {
-        match value {
-            PhmmState::Delete => 0,
-            PhmmState::Match => 1,
-            PhmmState::Insert => 2,
-        }
-    }
-}
-
-/// Stores three values, one associated to each pHMM state (delete, match, and
-/// insert). This is used for readability, allowing indexing with [`PhmmState`].
-#[derive(Clone, Debug)]
-pub struct InfoByPhmmState<T>([T; 3]);
-
-impl<T> Index<PhmmState> for InfoByPhmmState<T> {
-    type Output = T;
-
-    #[inline]
-    fn index(&self, index: PhmmState) -> &Self::Output {
-        &self.0[usize::from(index)]
-    }
-}
-
-impl<T> IndexMut<PhmmState> for InfoByPhmmState<T> {
-    #[inline]
-    fn index_mut(&mut self, index: PhmmState) -> &mut Self::Output {
-        &mut self.0[usize::from(index)]
-    }
-}
+pub(crate) use state::*;
 
 /// The transition probabilities for a layer of the pHMM.
 ///
