@@ -150,28 +150,27 @@ impl<T: Float, const S: usize> Default for LayerParams<T, S> {
 }
 
 /// The core profile hidden Markov model (pHMM) used by [`GlobalPhmm`],
-/// [`LocalPhmm`] and other PHMMs.
+/// [`LocalPhmm`], [`DomainPhmm`], and other PHMMs.
 ///
 /// This includes the layers of the pHMM without any modules at the beginning or
 /// end.
+///
+/// All probabilities are converted to log space with
+/// $-\operatorname{ln}(\cdot)$. This struct guarantees that at least two layers
+/// are present (corresponding to a reference length of one).
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct CorePhmm<T, const S: usize>(
-    /// The parameters for the pHMM.
-    ///
-    /// All probabilities are converted to log space with
-    /// $-\operatorname{ln}(\cdot)$.
-    ///
     /// Each element stores:
     /// * The transition probabilities into the insert state within the current
     ///   layer, as well as the insert state's emission probabilities
-    /// * The transition probabilities from the current layer's states into the
-    ///   next layer's match and delete states, as well as the next layer's
-    ///   emission probabilities for the match state
+    /// * The transition probabilities from the current layer's states into the next
+    ///   layer's match and delete states, as well as the next layer's emission
+    ///   probabilities for the match state
     ///
-    /// Note that this is different from SAM. The first element's match state is
-    /// the BEGIN state, while the last element's transition probabilities
-    /// reflect the probabilities entering the END state.
-    pub(crate) Vec<LayerParams<T, S>>,
+    /// Note that this is different from SAM. The first element's match state is the
+    /// BEGIN state, while the last element's transition probabilities reflect the
+    /// probabilities entering the END state.
+    Vec<LayerParams<T, S>>,
 );
 
 impl<T, const S: usize> CorePhmm<T, S> {
@@ -308,6 +307,16 @@ pub struct DomainPhmm<T, const S: usize> {
     pub begin:   DomainModule<T, S>,
     /// The module for handling any bases after the core model
     pub end:     DomainModule<T, S>,
+}
+
+impl<T: Float, const S: usize> DomainPhmm<T, S> {
+    pub(crate) fn get_begin_score(&self, inserted: &[u8], mapping: &'static ByteIndexMap<S>) -> T {
+        self.begin.get_begin_score(inserted, mapping)
+    }
+
+    pub(crate) fn get_end_score(&self, inserted: &[u8], mapping: &'static ByteIndexMap<S>) -> T {
+        self.end.get_end_score(inserted, mapping)
+    }
 }
 
 /// Options for how to construct a [`LocalPhmm`] from a [`GlobalPhmm`]

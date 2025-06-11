@@ -2,8 +2,8 @@ use crate::{
     alignment::{
         AlignmentStates, StatesSequence,
         phmm::{
-            Begin, CorePhmm, DpIndex, End, FirstMatch, GlobalPhmm, IndexOffset, LocalPhmm, PhmmError, PhmmState, SeqIndex,
-            indexing::LastMatch,
+            Begin, CorePhmm, DomainPhmm, DpIndex, End, FirstMatch, GlobalPhmm, IndexOffset, LocalPhmm, PhmmError, PhmmState,
+            SeqIndex, indexing::LastMatch,
         },
     },
     data::{ByteIndexMap, cigar::Ciglet},
@@ -134,7 +134,7 @@ fn score_from_path_core<T: Float, const S: usize>(
 }
 
 impl<T: Float, const S: usize> GlobalPhmm<T, S> {
-    /// Get the score for a particular path.
+    /// Get the score for a particular alignment.
     ///
     /// This is designed to give the exact same score as [`viterbi`] when the
     /// best `alignment` is passed, performing all arithmetic operations in the
@@ -197,13 +197,12 @@ impl<T: Float, const S: usize> LocalPhmm<T, S> {
         best_score
     }
 
-    // TODO: Fix doc link
-    /// Get the best score for a particular path. The score may be infinite if
-    /// no paths have a nonzero probability.
+    /// Get the best score for a particular alignment.
     ///
-    /// This is designed to give the exact same score as `viterbi` when the
-    /// best `path` is passed, performing all arithmetic operations in the same
-    /// order so as not to change the floating point error.
+    /// The score may be infinite if no paths have a nonzero probability. This
+    /// is designed to give the exact same score as [`viterbi`] when the best
+    /// `path` is passed, performing all arithmetic operations in the same order
+    /// so as not to change the floating point error.
     ///
     /// ## Errors
     ///
@@ -211,6 +210,8 @@ impl<T: Float, const S: usize> LocalPhmm<T, S> {
     /// only supported operations are M, =, X, I, and D. If `path` does not
     /// correspond to a valid path through a [`LocalPhmm`], then
     /// [`PhmmError::InvalidPath`] is returned.
+    ///
+    /// [`viterbi`]: LocalPhmm::viterbi
     pub fn score_from_path<Q: AsRef<[u8]>>(
         &self, seq: Q, alignment: &AlignmentStates, ref_range: Range<usize>,
     ) -> Result<T, PhmmError> {
@@ -301,6 +302,67 @@ impl<T: Float, const S: usize> LocalPhmm<T, S> {
             // Subtract 1 since range is end-exclusive
             score + (end_score_internal + self.get_end_external_score(SeqIndex(ref_range.end - 1)))
         };
+
+        Ok(score)
+    }
+}
+
+impl<T: Float, const S: usize> DomainPhmm<T, S> {
+    // TODO: Doc link
+    /// Get the best score for a particular alignment.
+    ///
+    /// The score may be infinite if no paths have a nonzero probability. This
+    /// is designed to give the exact same score as `viterbi` when the best
+    /// `path` is passed, performing all arithmetic operations in the same order
+    /// so as not to change the floating point error.
+    ///
+    /// ## Errors
+    ///
+    /// The CIGAR string must consume the entire model and sequence, and the
+    /// only supported operations are M, =, X, I, and D. If `path` does not
+    /// correspond to a valid path through a [`DomainPhmm`], then
+    /// [`PhmmError::InvalidPath`] is returned.
+    pub fn score_path<Q: AsRef<[u8]>>(&self, seq: Q, alignment: &AlignmentStates) -> Result<T, PhmmError> {
+        use PhmmState::*;
+
+        let seq = seq.as_ref();
+        let mut ciglets = alignment.as_slice();
+        let mut score = T::ZERO;
+
+        // Split query between begin module, core pHMM, and end module
+        let (begin_seq, seq, end_seq) = {
+            let begin_inserted = ciglets.next_if_op(|op| op == b'S').map_or(0, |ciglet| ciglet.inc);
+            let end_inserted = ciglets.next_back_if_op(|op| op == b'S').map_or(0, |ciglet| ciglet.inc);
+
+            let (seq, end_seq) = seq.split_at(seq.len() - end_inserted);
+            let (begin_seq, seq) = seq.split_at(begin_inserted);
+            (begin_seq, seq, end_seq)
+        };
+
+        // Add contribution from parameters of begin module
+        score += self.get_begin_score(begin_seq, self.mapping);
+
+        // Add the transitions out of the BEGIN state
+        let first_op = ciglets.peek_op().ok_or(PhmmError::FullModelNotUsed)?;
+        let first_state = PhmmState::from_op(first_op)?;
+        score += self.core.get_layer(Begin).transition[(Match, first_state)];
+
+        // Add the contribution from the core pHMM excluding transitions into
+        // the END state, and obtain the final state before the END state
+        let (mut score, final_state) = score_from_path_core(
+            &self.core,
+            self.mapping,
+            seq,
+            0..self.core.ref_length(),
+            ciglets.iter().copied(),
+            score,
+        )?;
+
+        // Add the transition into the END state
+        score += self.core.get_layer(End).transition[(final_state, Match)];
+
+        // Add the contribution from parameters of the end module
+        score += self.get_end_score(end_seq, self.mapping);
 
         Ok(score)
     }

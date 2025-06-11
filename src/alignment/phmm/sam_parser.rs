@@ -173,7 +173,7 @@ trait SamHmmConfig<const S: usize, const L: usize> {
         let [first_layer, .., last_layer] = layers.as_mut_slice() else {
             return Err(IOError::new(
                 ErrorKind::InvalidData,
-                "At least three layers must be specified",
+                "At least three layers must be specified in the SAM model file",
             ));
         };
 
@@ -187,7 +187,8 @@ trait SamHmmConfig<const S: usize, const L: usize> {
 
         Ok(GlobalPhmm {
             mapping,
-            core: CorePhmm(layers),
+            // Validity: We already verified `layers` has at least two entries
+            core: CorePhmm::new_unchecked(layers),
         })
     }
 
@@ -204,8 +205,6 @@ trait SamHmmConfig<const S: usize, const L: usize> {
     where
         P: AsRef<Path>,
         SupportedConfig: SamHmmConfig<S, L>, {
-        use PhmmState::*;
-
         if model.core.0.len() < 2 {
             return Err(IOError::new(
                 ErrorKind::InvalidData,
