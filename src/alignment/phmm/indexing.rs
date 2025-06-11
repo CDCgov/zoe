@@ -1,4 +1,7 @@
-use crate::{alignment::phmm::CorePhmm, data::views::IndexAdjustable};
+use crate::{
+    alignment::phmm::{CorePhmm, SemiLocalModule},
+    data::views::IndexAdjustable,
+};
 use std::ops::{Bound, Range};
 
 /// A trait for structures that can be indexed via a [`PhmmIndex`], such as
@@ -213,7 +216,15 @@ pub(crate) struct LastBase;
 impl<T, const S: usize> PhmmIndexable for CorePhmm<T, S> {
     #[inline]
     fn num_pseudomatch(&self) -> usize {
+        // The END state does not have an index in the CorePhmm, so we add 1
         self.0.len() + 1
+    }
+}
+
+impl<T> PhmmIndexable for SemiLocalModule<T> {
+    #[inline]
+    fn num_pseudomatch(&self) -> usize {
+        self.0.len()
     }
 }
 

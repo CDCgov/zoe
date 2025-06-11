@@ -8,6 +8,7 @@ use crate::{
 };
 use std::ops::{Index, IndexMut};
 
+mod alignment_modes;
 mod errors;
 mod indexing;
 mod sam_parser;
@@ -16,6 +17,7 @@ mod state;
 mod traits;
 mod viterbi;
 
+pub use alignment_modes::*;
 pub use errors::*;
 pub(crate) use indexing::*;
 pub use sam_parser::*;
