@@ -13,12 +13,31 @@ pub(crate) trait IndexAdjustable {
     /// Add a constant value to the range or index
     #[must_use]
     fn add(&self, n: usize) -> Self;
+
+    /// Subtract a constant value to the range or index
+    #[must_use]
+    #[allow(dead_code)]
+    fn sub(&self, n: usize) -> Self;
+
+    /// Subtract a constant value to the range or index, saturating at bounds
+    #[must_use]
+    fn saturating_sub(&self, n: usize) -> Self;
 }
 
 impl IndexAdjustable for usize {
     #[inline]
     fn add(&self, n: usize) -> Self {
         self + n
+    }
+
+    #[inline]
+    fn sub(&self, n: usize) -> Self {
+        self - n
+    }
+
+    #[inline]
+    fn saturating_sub(&self, n: usize) -> Self {
+        usize::saturating_sub(*self, n)
     }
 }
 
@@ -27,12 +46,32 @@ impl IndexAdjustable for Range<usize> {
     fn add(&self, n: usize) -> Self {
         self.start + n..self.end + n
     }
+
+    #[inline]
+    fn sub(&self, n: usize) -> Self {
+        self.start - n..self.end - n
+    }
+
+    #[inline]
+    fn saturating_sub(&self, n: usize) -> Self {
+        self.start.saturating_sub(n)..self.end.saturating_sub(n)
+    }
 }
 
 impl IndexAdjustable for RangeInclusive<usize> {
     #[inline]
     fn add(&self, n: usize) -> Self {
         self.start() + n..=self.end() + n
+    }
+
+    #[inline]
+    fn sub(&self, n: usize) -> Self {
+        self.start() - n..=self.end() - n
+    }
+
+    #[inline]
+    fn saturating_sub(&self, n: usize) -> Self {
+        self.start().saturating_sub(n)..=self.end().saturating_sub(n)
     }
 }
 
@@ -41,6 +80,16 @@ impl IndexAdjustable for RangeFrom<usize> {
     fn add(&self, n: usize) -> Self {
         self.start + n..
     }
+
+    #[inline]
+    fn sub(&self, n: usize) -> Self {
+        self.start - n..
+    }
+
+    #[inline]
+    fn saturating_sub(&self, n: usize) -> Self {
+        self.start.saturating_sub(n)..
+    }
 }
 
 impl IndexAdjustable for RangeTo<usize> {
@@ -48,11 +97,31 @@ impl IndexAdjustable for RangeTo<usize> {
     fn add(&self, n: usize) -> Self {
         ..self.end + n
     }
+
+    #[inline]
+    fn sub(&self, n: usize) -> Self {
+        ..self.end - n
+    }
+
+    #[inline]
+    fn saturating_sub(&self, n: usize) -> Self {
+        ..self.end.saturating_sub(n)
+    }
 }
 
 impl IndexAdjustable for RangeToInclusive<usize> {
     #[inline]
     fn add(&self, n: usize) -> Self {
         ..=self.end + n
+    }
+
+    #[inline]
+    fn sub(&self, n: usize) -> Self {
+        ..=self.end - n
+    }
+
+    #[inline]
+    fn saturating_sub(&self, n: usize) -> Self {
+        ..=self.end.saturating_sub(n)
     }
 }

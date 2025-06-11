@@ -1,9 +1,14 @@
 #![allow(dead_code)]
 // TODO: Remove this when more pHMM stuff is added
 
-use crate::{data::ByteIndexMap, math::Float};
+use crate::{
+    alignment::phmm::indexing::{LastMatch, PhmmIndex, PhmmIndexable},
+    data::ByteIndexMap,
+    math::Float,
+};
 use std::ops::{Index, IndexMut};
 
+mod indexing;
 mod sam_parser;
 mod state;
 mod traits;
@@ -148,6 +153,17 @@ pub struct CorePhmm<T, const S: usize>(
 );
 
 impl<T, const S: usize> CorePhmm<T, S> {
+    /// Get a layer from within the core pHMM. Although there is no actual layer
+    /// for the `End` state, for readability we let `End` be synonymous with
+    /// `LastMatch` since `End` emphasizes it is the last layer.
+    pub(crate) fn get_layer(&self, j: impl PhmmIndex) -> &LayerParams<T, S> {
+        if j.is_end() {
+            self.get_layer(LastMatch)
+        } else {
+            &self.0[self.get_dp_index(j)]
+        }
+    }
+
     /// Returns the length of the "reference" represented by the pHMM
     #[inline]
     #[must_use]
