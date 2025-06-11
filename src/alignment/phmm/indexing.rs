@@ -179,7 +179,7 @@ pub(crate) struct SeqIndex(pub usize);
 /// 1 represents the first position in the sequence (reference or query), while
 /// 0 represents matching no bases or the BEGIN state of the pHMM.
 #[repr(transparent)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 pub(crate) struct DpIndex(pub(crate) usize);
 
 /// A [`PhmmIndex`] representing the BEGIN state of the pHMM, as well as the

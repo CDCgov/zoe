@@ -2,9 +2,8 @@ use crate::{
     alignment::{
         Alignment, AlignmentStates,
         phmm::{
-            Begin, BestScore, CorePhmm, DpIndex, End, LastBase, LayerParams, LocalPhmm, PhmmError, PhmmState,
-            PhmmStateArray, PhmmStateOrEnter, PrecomputedLocalModule, QueryIndex, QueryIndexable, ViterbiStrategy,
-            ViterbiTraceback,
+            BestScore, CorePhmm, DpIndex, End, LastBase, LayerParams, NoBases, PhmmError, PhmmState, PhmmStateArray,
+            PhmmStateOrEnter, QueryIndex, QueryIndexable, SemiLocalModule, SemiLocalPhmm, ViterbiStrategy, ViterbiTraceback,
             indexing::{LastMatch, PhmmIndex, PhmmIndexable},
             viterbi::{ExitLocation, update_match},
         },
@@ -14,35 +13,35 @@ use crate::{
 };
 use std::ops::Bound::{Excluded, Included};
 
-/// Parameters for running a local Viterbi alignment, including the pHMM
+/// Parameters for running a semilocal Viterbi alignment, including the pHMM
 /// information and the query.
-pub struct LocalViterbiParams<'a, T, const S: usize> {
+pub struct SemiLocalViterbiParams<'a, T, const S: usize> {
     mapping: &'static ByteIndexMap<S>,
     core:    &'a CorePhmm<T, S>,
-    begin:   PrecomputedLocalModule<'a, T, S>,
-    end:     PrecomputedLocalModule<'a, T, S>,
+    begin:   &'a SemiLocalModule<T>,
+    end:     &'a SemiLocalModule<T>,
     query:   &'a [u8],
 }
 
-impl<'a, T: Float, const S: usize> LocalViterbiParams<'a, T, S> {
-    /// Groups the parameters for a local Viterbi alignment in
-    /// [`LocalViterbiParams`].
+impl<'a, T: Float, const S: usize> SemiLocalViterbiParams<'a, T, S> {
+    /// Groups the parameters for a semilocal Viterbi alignment in
+    /// [`SemiLocalViterbiParams`].
     #[inline]
     #[must_use]
-    fn new(phmm: &'a LocalPhmm<T, S>, query: &'a [u8]) -> Self {
+    fn new(phmm: &'a SemiLocalPhmm<T, S>, query: &'a [u8]) -> Self {
         Self {
             mapping: phmm.mapping,
             core: &phmm.core,
-            begin: phmm.begin.precompute_begin_mod(query, phmm.mapping),
-            end: phmm.end.precompute_end_mod(query, phmm.mapping),
+            begin: &phmm.begin,
+            end: &phmm.end,
             query,
         }
     }
 }
 
-impl<'a, T: Float, const S: usize> ViterbiStrategy<'a, T, S> for LocalViterbiParams<'a, T, S> {
+impl<'a, T: Float, const S: usize> ViterbiStrategy<'a, T, S> for SemiLocalViterbiParams<'a, T, S> {
     type TracebackState = PhmmStateOrEnter;
-    type BestScore = LocalBestScore<T>;
+    type BestScore = SemiLocalBestScore<T>;
 
     const TRACEBACK_DEFAULT: PhmmStateArray<PhmmStateOrEnter> = PhmmStateArray::new([PhmmStateOrEnter::Enter; 3]);
 
@@ -65,8 +64,6 @@ impl<'a, T: Float, const S: usize> ViterbiStrategy<'a, T, S> for LocalViterbiPar
     fn initial_check(&self) -> Result<(), PhmmError> {
         if self.begin.num_pseudomatch() != self.core.num_pseudomatch()
             || self.end.num_pseudomatch() != self.core.num_pseudomatch()
-            || self.begin.internal_params.seq_len() != self.query.seq_len()
-            || self.end.internal_params.seq_len() != self.query.seq_len()
         {
             return Err(PhmmError::IncompatibleModule);
         }
@@ -75,9 +72,8 @@ impl<'a, T: Float, const S: usize> ViterbiStrategy<'a, T, S> for LocalViterbiPar
 
     #[inline]
     fn fill_vm(&self, v_m: &mut [T]) {
-        for (i, value) in v_m.iter_mut().enumerate() {
-            *value = self.begin.get_score(DpIndex(i), Begin);
-        }
+        v_m.fill(T::INFINITY);
+        v_m[0] = T::ZERO;
     }
 
     fn update_match_score(
@@ -88,20 +84,21 @@ impl<'a, T: Float, const S: usize> ViterbiStrategy<'a, T, S> for LocalViterbiPar
         // consume all bases up to i in the begin module, then the (i+1)st is
         // consumed in this match state. The emission parameter is added within
         // `update_match`.
-        let enter_score = self.begin.get_score(i, j.next_index());
-        update_match(layer, x_idx, cur_vals.with_enter(enter_score))
+        if self.query.to_dp_index(i) == self.query.to_dp_index(NoBases) {
+            let enter_score = self.begin.get_score(j.next_index());
+            update_match(layer, x_idx, cur_vals.with_enter(enter_score))
+        } else {
+            let (state, score) = update_match(layer, x_idx, cur_vals);
+            (PhmmStateOrEnter::from(state), score)
+        }
     }
 
     fn perform_traceback(
-        self, best_score: LocalBestScore<T>, traceback: ViterbiTraceback<PhmmStateArray<PhmmStateOrEnter>>,
+        self, best_score: SemiLocalBestScore<T>, traceback: ViterbiTraceback<PhmmStateArray<PhmmStateOrEnter>>,
     ) -> Alignment<T> {
         use PhmmState::*;
 
-        let LocalBestScore {
-            score,
-            i: DpIndex(end_i),
-            loc,
-        } = best_score;
+        let SemiLocalBestScore { score, loc } = best_score;
         let (mut state, end_j) = match loc {
             ExitLocation::Begin => {
                 let mut states = AlignmentStates::new();
@@ -116,8 +113,8 @@ impl<'a, T: Float, const S: usize> ViterbiStrategy<'a, T, S> for LocalViterbiPar
                 };
             }
             ExitLocation::Match(j) => (Match, self.core.get_dp_index(j)),
-            ExitLocation::End(state) => {
-                let Some(state) = PhmmState::get_from(state) else {
+            ExitLocation::End(ptr) => {
+                let Some(ptr) = PhmmState::get_from(ptr) else {
                     let mut states = AlignmentStates::new();
                     states.soft_clip(self.query.len());
                     return Alignment {
@@ -129,9 +126,11 @@ impl<'a, T: Float, const S: usize> ViterbiStrategy<'a, T, S> for LocalViterbiPar
                         query_len: self.query.len(),
                     };
                 };
-                (state, self.core.get_dp_index(LastMatch))
+                (ptr, self.core.get_dp_index(LastMatch))
             }
         };
+        let end_i = self.query.len();
+
         let mut i = end_i;
         let mut j = end_j;
 
@@ -142,7 +141,7 @@ impl<'a, T: Float, const S: usize> ViterbiStrategy<'a, T, S> for LocalViterbiPar
         // encountered (see break statement)
         while j > 0 || state != Match {
             states.add_state(state.to_op());
-            let next_state = traceback.get(i, j)[state];
+            let next_ptr = traceback.get(i, j)[state];
 
             match state {
                 Match => {
@@ -157,7 +156,7 @@ impl<'a, T: Float, const S: usize> ViterbiStrategy<'a, T, S> for LocalViterbiPar
                 }
             }
 
-            state = match next_state {
+            state = match next_ptr {
                 PhmmStateOrEnter::Delete => Delete,
                 PhmmStateOrEnter::Match => Match,
                 PhmmStateOrEnter::Insert => Insert,
@@ -189,19 +188,17 @@ impl<'a, T: Float, const S: usize> ViterbiStrategy<'a, T, S> for LocalViterbiPar
     }
 }
 
-/// A tracker for the best score for the local Viterbi algorithm.
-pub struct LocalBestScore<T> {
+/// A tracker for the best score for the semilocal Viterbi algorithm.
+pub struct SemiLocalBestScore<T> {
     /// The best score found at the end of the model
     score: T,
-    /// The last query index consumed by the [`CorePhmm`]
-    i:     DpIndex,
     /// The location from which the alignment exits the [`CorePhmm`]
     loc:   ExitLocation,
 }
 
-impl<T: Float, const S: usize> BestScore<T, S> for LocalBestScore<T> {
+impl<T: Float, const S: usize> BestScore<T, S> for SemiLocalBestScore<T> {
     type Specs<'a>
-        = LocalViterbiParams<'a, T, S>
+        = SemiLocalViterbiParams<'a, T, S>
     where
         T: 'a;
 
@@ -211,44 +208,14 @@ impl<T: Float, const S: usize> BestScore<T, S> for LocalBestScore<T> {
     }
 
     #[inline]
-    fn update(&mut self, specs: &Self::Specs<'_>, vals: PhmmStateArray<T>, i: impl QueryIndex, j: impl PhmmIndex) {
-        let score = vals[PhmmState::Match] + specs.end.get_score(i, j);
+    fn update_seq_end(&mut self, specs: &Self::Specs<'_>, vals: PhmmStateArray<T>, j: impl PhmmIndex) {
+        let score = vals[PhmmState::Match] + specs.end.get_score(j);
         if score < self.score {
             self.score = score;
-            self.i = specs.query.to_dp_index(i);
             self.loc = match specs.core.to_seq_index(j) {
                 Some(loc) => ExitLocation::Match(loc),
                 None => ExitLocation::Begin,
             }
-        }
-    }
-
-    #[inline]
-    fn update_seq_end(&mut self, specs: &Self::Specs<'_>, vals: PhmmStateArray<T>, j: impl PhmmIndex) {
-        self.update(specs, vals, LastBase, j);
-    }
-
-    #[inline]
-    fn update_last_layer(
-        &mut self, specs: &Self::Specs<'_>, layer: &LayerParams<T, S>, mut vals: PhmmStateArray<T>, i: impl QueryIndex,
-    ) {
-        use crate::alignment::phmm::PhmmState::*;
-
-        // Option 1: Early exit from this layer
-        self.update(specs, vals, i, LastMatch);
-
-        // Option 2: Go through END state
-        vals[Delete] += layer.transition[(Delete, Match)];
-        vals[Match] += layer.transition[(Match, Match)];
-        vals[Insert] += layer.transition[(Insert, Match)];
-
-        let (state, mut score) = vals.with_enter(specs.begin.get_score(i, End)).locate_min();
-        score += specs.end.get_score(i, End);
-
-        if score < self.score {
-            self.score = score;
-            self.i = specs.query.to_dp_index(i);
-            self.loc = ExitLocation::End(state);
         }
     }
 
@@ -258,18 +225,17 @@ impl<T: Float, const S: usize> BestScore<T, S> for LocalBestScore<T> {
     }
 }
 
-impl<T: Float> Default for LocalBestScore<T> {
+impl<T: Float> Default for SemiLocalBestScore<T> {
     #[inline]
     fn default() -> Self {
         Self {
             score: T::INFINITY,
-            i:     DpIndex(0),
             loc:   ExitLocation::End(PhmmStateOrEnter::Match),
         }
     }
 }
 
-impl<T: Float, const S: usize> LocalPhmm<T, S> {
+impl<T: Float, const S: usize> SemiLocalPhmm<T, S> {
     /// Obtain the best scoring local alignment along with its score via the
     /// Viterbi algorithm.
     ///
@@ -279,7 +245,7 @@ impl<T: Float, const S: usize> LocalPhmm<T, S> {
     /// error is also returned if the model has no layers.
     pub fn viterbi<Q: AsRef<[u8]>>(&self, seq: Q) -> Result<Alignment<T>, PhmmError> {
         let seq = seq.as_ref();
-        let specs = LocalViterbiParams::new(self, seq);
+        let specs = SemiLocalViterbiParams::new(self, seq);
         specs.viterbi()
     }
 }

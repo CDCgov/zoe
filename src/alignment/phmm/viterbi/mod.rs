@@ -3,7 +3,7 @@ use crate::{
         Alignment,
         phmm::{
             CorePhmm, DpIndex, EnumArray, LayerParams, PhmmError, PhmmIndex, PhmmState, PhmmStateArray, PhmmStateEnum,
-            QueryIndex,
+            PhmmStateOrEnter, QueryIndex, SeqIndex,
         },
     },
     data::ByteIndexMap,
@@ -12,9 +12,11 @@ use crate::{
 
 mod global;
 mod local;
+mod semilocal;
 
 pub use global::*;
 pub use local::*;
+pub use semilocal::*;
 
 /// Given the current `vals` for delete/match/insert and the next `layer`,
 /// calculate the best score for the next match state and the state from which
@@ -317,4 +319,18 @@ pub(crate) trait BestScore<T, const S: usize> {
     /// * `vals`: the current values in the delete, match, and insert states
     fn update_seq_end_last_layer(&mut self, _specs: &Self::Specs<'_>, _layer: &LayerParams<T, S>, _vals: PhmmStateArray<T>) {
     }
+}
+
+/// The location from which the alignment exits the [`CorePhmm`] for local or
+/// semilocal alignment.
+#[derive(Clone, Copy)]
+enum ExitLocation {
+    /// The alignment exited the core pHMM through the BEGIN state.
+    Begin,
+    /// The alignment exited the core pHMM through a match state (not BEGIN or
+    /// END). The index of the match state is stored.
+    Match(SeqIndex),
+    /// The alignment exited the core pHMM through the END state. The transition
+    /// used to reach the END state is stored.
+    End(PhmmStateOrEnter),
 }
