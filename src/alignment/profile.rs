@@ -1,5 +1,8 @@
 use crate::{
-    alignment::sw::{sw_scalar_score, sw_simd_score},
+    alignment::{
+        Alignment,
+        sw::{sw_scalar_alignment, sw_scalar_score, sw_simd_alignment, sw_simd_score},
+    },
     data::{WeightMatrix, err::QueryProfileError, mappings::ByteIndexMap},
     math::{AnyInt, FromSameSignedness},
     simd::SimdAnyInt,
@@ -9,8 +12,6 @@ use std::{
     simd::{LaneCount, SimdElement, SupportedLaneCount, prelude::*},
     vec,
 };
-
-use super::{Alignment, sw::sw_scalar_alignment};
 
 /// Validate the arguments for [`ScalarProfile`] or [`StripedProfile`].
 ///
@@ -154,7 +155,7 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
 /// * `N` - The number of SIMD lanes (usually 16, 32 or 64)
 /// * `S` - The size of the alphabet (usually 5 for DNA including *N*)
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct StripedProfile<T, const N: usize, const S: usize>
+pub struct StripedProfile<'a, T, const N: usize, const S: usize>
 where
     T: SimdElement,
     LaneCount<N>: SupportedLaneCount, {
@@ -162,10 +163,11 @@ where
     pub(crate) gap_open:   T,
     pub(crate) gap_extend: T,
     pub(crate) bias:       T,
-    pub(crate) mapping:    &'static ByteIndexMap<S>,
+    pub(crate) mapping:    &'a ByteIndexMap<S>,
+    pub(crate) seq_len:    usize,
 }
 
-impl<T, const N: usize, const S: usize> StripedProfile<T, N, S>
+impl<T, const N: usize, const S: usize> StripedProfile<'_, T, N, S>
 where
     T: AnyInt + SimdElement,
     LaneCount<N>: SupportedLaneCount,
@@ -228,6 +230,7 @@ where
             gap_extend: T::from_literal(-gap_extend),
             bias,
             mapping: matrix.mapping,
+            seq_len: query.len(),
         }
     }
 
@@ -239,7 +242,7 @@ where
     }
 }
 
-impl<T, const N: usize, const S: usize> StripedProfile<T, N, S>
+impl<T, const N: usize, const S: usize> StripedProfile<'_, T, N, S>
 where
     LaneCount<N>: SupportedLaneCount,
     T: AnyInt + SimdElement,
@@ -269,6 +272,10 @@ where
     #[must_use]
     pub fn smith_waterman_score(&self, seq: &[u8]) -> Option<u64> {
         sw_simd_score::<T, N, S>(seq, self)
+    }
+
+    pub fn smith_waterman_alignment(&self, seq: &[u8]) -> Option<Alignment<u64>> {
+        sw_simd_alignment::<T, N, S>(seq, self)
     }
 }
 

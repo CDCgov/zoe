@@ -65,7 +65,7 @@ impl<'a> Arbitrary<'a> for NucleotidesAcgtun {
 /// A wrapper around [`Nucleotides`] such that the implementation of
 /// [`Arbitrary`](https://docs.rs/arbitrary/latest/arbitrary/trait.Arbitrary.html)
 /// only generates bases in `ACGTUacgtu`.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NucleotidesAcgtu(pub Nucleotides);
 
 impl_deref! {NucleotidesAcgtu, Nucleotides}
@@ -74,6 +74,26 @@ impl<'a> Arbitrary<'a> for NucleotidesAcgtu {
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
         const ALPHA: &[u8] = b"ACGTUacgtu";
         Ok(NucleotidesAcgtu(
+            u.arbitrary_iter::<u8>()?
+                .flatten()
+                .map(|b| ALPHA[b as usize % ALPHA.len()])
+                .collect(),
+        ))
+    }
+}
+
+/// A wrapper around [`Nucleotides`] such that the implementation of
+/// [`Arbitrary`](https://docs.rs/arbitrary/latest/arbitrary/trait.Arbitrary.html)
+/// only generates bases in `ACGT`.
+#[derive(Debug, Clone)]
+pub struct NucleotidesAcgtUpper(pub Nucleotides);
+
+impl_deref! {NucleotidesAcgtUpper, Nucleotides}
+
+impl<'a> Arbitrary<'a> for NucleotidesAcgtUpper {
+    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
+        const ALPHA: &[u8] = b"ACGT";
+        Ok(NucleotidesAcgtUpper(
             u.arbitrary_iter::<u8>()?
                 .flatten()
                 .map(|b| ALPHA[b as usize % ALPHA.len()])

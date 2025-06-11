@@ -1,8 +1,7 @@
 #![allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation, clippy::needless_range_loop)]
 // TODO: revisit truncation issues
-
 use super::*;
-use crate::{data::cigar::Ciglet, math::AnyInt, simd::SimdAnyInt};
+use crate::{alignment::Alignment, data::cigar::Ciglet, math::AnyInt, simd::SimdAnyInt};
 use std::{
     cmp::Ordering::{Equal, Greater, Less},
     ops::Add,
@@ -216,6 +215,7 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
     let mut backtrack = BacktrackMatrix::new(reference.len(), query.seq.len());
 
     //backtrack.stop();
+    //TODO: deal with empty reference
 
     for (r, reference_base) in reference.iter().copied().enumerate() {
         let mut f = query.gap_open;
@@ -231,7 +231,7 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
             let mut e = e_row[c];
             h = h.max(e).max(f).max(0);
 
-            if h >= best_score {
+            if h > best_score {
                 best_score = h;
                 r_end = r;
                 c_end = c;
@@ -303,6 +303,7 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
             r -= 1;
             c -= 1;
         }
+
         states.add_state(op);
         backtrack.move_to(r.saturating_sub(1), c.saturating_sub(1)); // 0-based next position
     }
@@ -472,6 +473,197 @@ where
     }
 }
 
+#[allow(non_snake_case, clippy::too_many_lines)]
+#[must_use]
+#[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
+pub fn sw_simd_alignment<T, const N: usize, const S: usize>(
+    reference: &[u8], query: &StripedProfile<T, N, S>,
+) -> Option<Alignment<u64>>
+where
+    T: AnyInt + SimdElement,
+    LaneCount<N>: SupportedLaneCount,
+    Simd<T, N>: SimdAnyInt<T, N>, {
+    let num_vecs = query.number_vectors();
+    let profile: &Vec<Simd<T, N>> = &query.profile;
+
+    let min = T::MIN;
+    let gap_opens = Simd::splat(query.gap_open);
+    let gap_extends = Simd::splat(query.gap_extend);
+    let minimums = Simd::splat(T::MIN);
+    let biases = Simd::splat(query.bias);
+
+    let mut load = vec![minimums; num_vecs];
+    let mut store = vec![minimums; num_vecs];
+    let mut e_scores = vec![minimums; num_vecs];
+    let mut max_row = vec![minimums; num_vecs];
+
+    let mut best = min;
+    let mut r_end = reference.len() - 1;
+
+    let mut backtrack = BacktrackMatrixStriped::new(reference.len(), num_vecs);
+
+    let map = query.mapping;
+
+    for (r, ref_index) in reference.iter().copied().map(|r| map.to_index(r)).enumerate() {
+        let mut F = minimums;
+        let mut H = store[num_vecs - 1].shift_elements_right::<1>(min);
+
+        (load, store) = (store, load);
+
+        // This statement helps with bounds checks.
+        let scores_vec = &profile[(ref_index * num_vecs)..(ref_index * num_vecs + num_vecs)];
+        let mut max_scores = minimums;
+
+        for v in 0..num_vecs {
+            let mut E = e_scores[v];
+
+            H = H.saturating_add(scores_vec[v]);
+            if !T::SIGNED {
+                H = H.saturating_sub(biases);
+            }
+
+            H = H.simd_max(E).simd_max(F);
+
+            backtrack.simd_move_to(r, v);
+
+            max_scores = max_scores.simd_max(H);
+
+            backtrack.simd_up(E.simd_eq(H).cast());
+            backtrack.simd_left(F.simd_eq(H).cast());
+
+            let stopped = H.simd_eq(minimums).cast();
+            backtrack.simd_stop(stopped);
+
+            store[v] = H;
+
+            H = H.saturating_sub(gap_opens);
+            E = E.saturating_sub(gap_extends).simd_max(H);
+            F = F.saturating_sub(gap_extends).simd_max(H);
+
+            backtrack.simd_up_extending(!stopped & E.simd_gt(H).cast());
+            backtrack.simd_left_extending(!stopped & F.simd_gt(H).cast());
+
+            // Store E; Load H
+            e_scores[v] = E;
+            H = load[v];
+        }
+
+        let mut v = 0;
+        H = store[v];
+
+        F = F.shift_elements_right::<1>(min);
+
+        // ¬∀x (F = (H - Go))
+        //  ∃x (F > (H - Go)), given 1-sided
+        let mut mask = F.simd_gt(H.saturating_sub(gap_opens));
+        while mask.any() {
+            H = H.simd_max(F);
+            store[v] = H;
+
+            backtrack.simd_move_to(r, v);
+            let stopped = H.simd_eq(minimums);
+
+            backtrack.simd_set_left(F.simd_eq(H).cast());
+            backtrack.simd_stop(stopped.cast());
+
+            H = H.saturating_sub(gap_opens);
+            F = F.saturating_sub(gap_extends);
+            let E = e_scores[v];
+            let F2 = F.simd_max(H);
+
+            backtrack.simd_left_extending((!stopped & F2.simd_gt(H)).cast());
+            backtrack.simd_up_extending((!stopped & E.simd_gt(H)).cast());
+
+            v += 1;
+            if v == num_vecs {
+                v = 0;
+                F = F.shift_elements_right::<1>(min);
+            }
+
+            H = store[v];
+            mask = F.simd_gt(H.saturating_sub(gap_opens));
+        }
+
+        let row_best = max_scores.reduce_max();
+        if row_best > best {
+            best = row_best;
+            r_end = r;
+            max_row.copy_from_slice(&store);
+        }
+    }
+
+    let mut c_end = query.seq_len - 1;
+
+    for ci in 0..query.seq_len {
+        let v = ci % num_vecs;
+        let lane = (ci - v) / num_vecs;
+
+        if max_row[v][lane] == best {
+            c_end = ci;
+            break;
+        }
+    }
+
+    let mut states = AlignmentStates::new();
+    let mut op = 0;
+
+    backtrack.move_to(r_end, c_end); // 0-based move to max
+
+    // 1-based as though we had a padded matrix
+    r_end += 1;
+    c_end += 1;
+
+    let (mut r, mut c) = (r_end, c_end);
+
+    // soft clip 3'
+    states.soft_clip(query.seq_len - c);
+
+    while !backtrack.is_stop() && r > 0 && c > 0 {
+        if op == b'D' && backtrack.is_up_extending() {
+            op = b'D';
+            r -= 1;
+        } else if op == b'I' && backtrack.is_left_extending() {
+            op = b'I';
+            c -= 1;
+        } else if backtrack.is_up() {
+            op = b'D';
+            r -= 1;
+        } else if backtrack.is_left() {
+            op = b'I';
+            c -= 1;
+        } else {
+            op = b'M';
+            r -= 1;
+            c -= 1;
+        }
+        states.add_state(op);
+        backtrack.move_to(r.saturating_sub(1), c.saturating_sub(1)); // 0-based next position
+    }
+
+    // soft clip 5'
+    states.soft_clip(c);
+    states.make_reverse();
+
+    if T::SIGNED {
+        // Map best score to an unsigned range. Note that: MAX+1 = abs(MIN). If
+        // we would have overflowed (saturated), return None, otherwise return
+        // the best score.
+        (best < T::MAX).then(|| (T::MAX.cast_as::<u64>() + 1).wrapping_add_signed(best.cast_as::<i64>()))
+    } else {
+        // If we would have overflowed, return None, otherwise return the best
+        // score. We add one because we care if the value is equal to the MAX.
+        best.checked_add(query.bias + T::ONE).map(|_| best.cast_as::<u64>())
+    }
+    .map(|score| Alignment {
+        score,
+        ref_range: r..r_end,
+        query_range: c..c_end,
+        states,
+        ref_len: reference.len(),
+        query_len: query.seq_len,
+    })
+}
+
 #[cfg(test)]
 pub(crate) mod test_data {
     use super::ScalarProfile;
@@ -491,188 +683,7 @@ pub(crate) mod test_data {
 }
 
 #[cfg(test)]
-mod test {
-    use super::{test_data::*, *};
-    use crate::alignment::profile::StripedProfile;
-    use crate::data::constants::matrices::WeightMatrix;
-    use crate::data::mappings::DNA_PROFILE_MAP;
-
-    #[test]
-    #[allow(clippy::cast_sign_loss)]
-    fn sw_verify_score_from_path() {
-        let reference = b"ATTCCTTTTGCCGGG";
-        let weights: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(3, -1, Some(b'N'));
-        let profile = ScalarProfile::new(b"ATTGCGCCCGG", &weights, -4, -1).unwrap();
-
-        let Alignment {
-            score,
-            ref_range,
-            states,
-            ..
-        } = sw_scalar_alignment(reference, &profile);
-
-        assert_eq!(Ok(score as u64), sw_score_from_path(&states, &reference[ref_range], &profile));
-    }
-
-    #[test]
-    fn sw() {
-        let weights: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(2, -5, Some(b'N'));
-        let profile = ScalarProfile::new(QUERY, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
-        let Alignment { score, ref_range, .. } = sw_scalar_alignment(REFERENCE, &profile);
-        assert_eq!((336, 37), (ref_range.start, score));
-
-        let score = sw_scalar_score(REFERENCE, &profile);
-        assert_eq!(37, score);
-
-        let v: Vec<_> = std::iter::repeat_n(b'A', 100).collect();
-        let profile = ScalarProfile::new(&v, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
-        let score = sw_scalar_score(&v, &profile);
-        assert_eq!(200, score);
-    }
-
-    #[test]
-    fn sw_t_u_check() {
-        let profile = ScalarProfile::new(b"ACGTUNacgtun", &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-        let score = sw_scalar_score(b"ACGTTNACGTTN", &profile);
-        assert_eq!(score, 20);
-
-        let profile = StripedProfile::<u16, 16, 5>::new(b"ACGTUNacgtun", &BIASED_WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-        let score = sw_simd_score(b"ACGTTNACGTTN", &profile);
-        assert_eq!(score, Some(20));
-
-        let profile = StripedProfile::<i16, 16, 5>::new(b"ACGTUNacgtun", &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-        let score = sw_simd_score(b"ACGTTNACGTTN", &profile);
-        assert_eq!(score, Some(20));
-    }
-
-    #[test]
-    fn sw_simd() {
-        let matrix_i = WeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N'));
-        let matrix_u = matrix_i.into_biased_matrix();
-
-        let profile = StripedProfile::<u8, 16, 5>::new(REFERENCE, &matrix_u, GAP_OPEN, GAP_EXTEND).unwrap();
-        let score = profile.smith_waterman_score(QUERY);
-        assert_eq!(Some(37), score);
-
-        let profile = StripedProfile::<i16, 16, 5>::new(REFERENCE, &matrix_i, GAP_OPEN, GAP_EXTEND).unwrap();
-        let score = profile.smith_waterman_score(QUERY);
-        assert_eq!(Some(37), score);
-    }
-
-    #[test]
-    fn sw_simd_poly_a() {
-        let v: Vec<_> = std::iter::repeat_n(b'A', 100).collect();
-        let matrix = WeightMatrix::new_dna_matrix(2, -5, Some(b'N')).into_biased_matrix();
-        let profile = StripedProfile::<u16, 16, 5>::new(&v, &matrix, GAP_OPEN, GAP_EXTEND).unwrap();
-        let score = profile.smith_waterman_score(&v);
-        assert_eq!(Some(200), score);
-    }
-
-    #[test]
-    fn sw_simd_single() {
-        let v: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/CY137594.txt"));
-        let matrix = WeightMatrix::<i8, 5>::new_dna_matrix(2, -5, Some(b'N')).into_biased_matrix();
-        let profile = StripedProfile::<u16, 16, 5>::new(v, &matrix, GAP_OPEN, GAP_EXTEND).unwrap();
-        let score = profile.smith_waterman_score(v);
-        assert_eq!(Some(3372), score);
-    }
-
-    #[test]
-    fn sw_simd_regression() {
-        let query = b"AGA";
-        let reference = b"AA";
-        let matrix = WeightMatrix::new(&DNA_PROFILE_MAP, 10, -10, Some(b'N')).into_biased_matrix();
-        let profile = StripedProfile::<u16, 4, 5>::new(query, &matrix, -5, -5).unwrap();
-        let score: Option<u64> = profile.smith_waterman_score(reference);
-        assert_eq!(Some(15), score);
-    }
-
-    #[test]
-    fn sw_simd_overflow_check() {
-        let query = b"AAAA";
-        let reference = b"AAAA";
-
-        let matrix = WeightMatrix::new(&DNA_PROFILE_MAP, 127, 0, Some(b'N')).into_biased_matrix();
-        let profile = StripedProfile::<u8, 8, 5>::new(query, &matrix, GAP_OPEN, GAP_EXTEND).unwrap();
-        let score = profile.smith_waterman_score(reference);
-        assert!(score.is_none());
-    }
-
-    #[test]
-    fn sw_simd_profile_set() {
-        let v: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/CY137594.txt"));
-        let matrix_i = WeightMatrix::<i8, 5>::new_dna_matrix(2, -5, Some(b'N'));
-
-        let profile = LocalProfiles::<16, 8, 4, 2, 5>::new(&v, &matrix_i, GAP_OPEN, GAP_EXTEND).unwrap();
-        let score = profile.smith_waterman_score_from_i8(&v);
-        assert_eq!(Some(3372), score);
-    }
-}
+mod test;
 
 #[cfg(test)]
-mod bench {
-    extern crate test;
-    use super::{test_data::*, *};
-    use crate::alignment::profile::StripedProfile;
-    use test::Bencher;
-
-    #[bench]
-    fn sw_alignment_scalar(b: &mut Bencher) {
-        let query_profile = &*SCALAR_PROFILE;
-        b.iter(|| sw_scalar_alignment(REFERENCE, query_profile));
-    }
-
-    #[bench]
-    fn sw_score_scalar(b: &mut Bencher) {
-        let query_profile = &*SCALAR_PROFILE;
-        b.iter(|| sw_scalar_score(REFERENCE, query_profile));
-    }
-
-    #[bench]
-    fn sw_simd_no_profile_16n08u(b: &mut Bencher) {
-        let query_profile = StripedProfile::new(REFERENCE, &BIASED_WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-        b.iter(|| sw_simd_score::<u8, 16, 5>(QUERY, &query_profile));
-    }
-
-    #[bench]
-    fn sw_simd_no_profile_16n16u(b: &mut Bencher) {
-        let query_profile = StripedProfile::new(REFERENCE, &BIASED_WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-        b.iter(|| sw_simd_score::<u16, 16, 5>(QUERY, &query_profile));
-    }
-
-    #[bench]
-    fn sw_simd_no_profile_32n08u(b: &mut Bencher) {
-        let query_profile = StripedProfile::new(REFERENCE, &BIASED_WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-        b.iter(|| sw_simd_score::<u8, 32, 5>(QUERY, &query_profile));
-    }
-
-    #[bench]
-    fn sw_simd_no_profile_32n16u(b: &mut Bencher) {
-        let query_profile = StripedProfile::new(REFERENCE, &BIASED_WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-        b.iter(|| sw_simd_score::<u16, 32, 5>(QUERY, &query_profile));
-    }
-
-    #[bench]
-    fn sw_simd_no_profile_16n08i(b: &mut Bencher) {
-        let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-        b.iter(|| sw_simd_score::<i8, 16, 5>(QUERY, &query_profile));
-    }
-
-    #[bench]
-    fn sw_simd_no_profile_16n16i(b: &mut Bencher) {
-        let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-        b.iter(|| sw_simd_score::<i16, 16, 5>(QUERY, &query_profile));
-    }
-
-    #[bench]
-    fn sw_simd_no_profile_32n08i(b: &mut Bencher) {
-        let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-        b.iter(|| sw_simd_score::<i8, 32, 5>(QUERY, &query_profile));
-    }
-
-    #[bench]
-    fn sw_simd_no_profile_32n16i(b: &mut Bencher) {
-        let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-        b.iter(|| sw_simd_score::<i16, 32, 5>(QUERY, &query_profile));
-    }
-}
+mod bench;

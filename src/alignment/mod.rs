@@ -216,6 +216,24 @@ impl<T> Alignment<T> {
     ) -> AlignmentIter<'a, std::iter::Copied<std::slice::Iter<'a, Ciglet>>> {
         AlignmentIter::new(reference, query, &self.states, self.ref_range.start)
     }
+
+    // Convenience function for coercing to scores to `u64` for fuzzing and
+    // testing.
+    #[inline]
+    #[must_use]
+    #[cfg(any(feature = "fuzzing", test))]
+    pub fn as_u64(&self) -> Alignment<u64>
+    where
+        T: crate::math::AnyInt, {
+        Alignment {
+            score:       self.score.cast_as::<u64>(),
+            ref_range:   self.ref_range.clone(),
+            query_range: self.query_range.clone(),
+            states:      self.states.clone(),
+            ref_len:     self.ref_len,
+            query_len:   self.query_len,
+        }
+    }
 }
 
 impl<T: Copy> Alignment<T> {

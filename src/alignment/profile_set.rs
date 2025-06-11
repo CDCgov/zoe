@@ -33,10 +33,10 @@ where
     pub(crate) matrix:      &'a WeightMatrix<i8, S>,
     pub(crate) gap_open:    i8,
     pub(crate) gap_extend:  i8,
-    pub(crate) profile_i8:  OnceCell<StripedProfile<i8, M, S>>,
-    pub(crate) profile_i16: OnceCell<StripedProfile<i16, N, S>>,
-    pub(crate) profile_i32: OnceCell<StripedProfile<i32, O, S>>,
-    pub(crate) profile_i64: OnceCell<StripedProfile<i64, P, S>>,
+    pub(crate) profile_i8:  OnceCell<StripedProfile<'a, i8, M, S>>,
+    pub(crate) profile_i16: OnceCell<StripedProfile<'a, i16, N, S>>,
+    pub(crate) profile_i32: OnceCell<StripedProfile<'a, i32, O, S>>,
+    pub(crate) profile_i64: OnceCell<StripedProfile<'a, i64, P, S>>,
 }
 
 impl<'a, const M: usize, const N: usize, const O: usize, const P: usize, const S: usize> LocalProfiles<'a, M, N, O, P, S>
@@ -315,10 +315,10 @@ where
     pub(crate) matrix:      &'a WeightMatrix<i8, S>,
     pub(crate) gap_open:    i8,
     pub(crate) gap_extend:  i8,
-    pub(crate) profile_i8:  OnceLock<StripedProfile<i8, M, S>>,
-    pub(crate) profile_i16: OnceLock<StripedProfile<i16, N, S>>,
-    pub(crate) profile_i32: OnceLock<StripedProfile<i32, O, S>>,
-    pub(crate) profile_i64: OnceLock<StripedProfile<i64, P, S>>,
+    pub(crate) profile_i8:  OnceLock<StripedProfile<'a, i8, M, S>>,
+    pub(crate) profile_i16: OnceLock<StripedProfile<'a, i16, N, S>>,
+    pub(crate) profile_i32: OnceLock<StripedProfile<'a, i32, O, S>>,
+    pub(crate) profile_i64: OnceLock<StripedProfile<'a, i64, P, S>>,
 }
 
 impl<'a, const M: usize, const N: usize, const O: usize, const P: usize, const S: usize> SharedProfiles<'a, M, N, O, P, S>

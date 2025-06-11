@@ -6,6 +6,10 @@ use crate::{
     },
     private::Sealed,
 };
+use std::{
+    fmt::Write,
+    simd::{LaneCount, SupportedLaneCount, prelude::*},
+};
 
 /// A trait representing a sequence of alignment states, where each element is
 /// represented as a [`Ciglet`].
@@ -268,6 +272,17 @@ impl std::fmt::Debug for AlignmentStates {
     }
 }
 
+impl std::fmt::Display for AlignmentStates {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut buff = itoa::Buffer::new();
+        for Ciglet { inc, op } in self {
+            f.write_str(buff.format(inc))?;
+            f.write_char(op as char)?;
+        }
+        Ok(())
+    }
+}
+
 /// Aligns two sequences using anything that can be converted to an iterator
 /// over [`Ciglet`], inserting gaps as needed. Also takes a reference sequence,
 /// query sequence, and a reference index, and returns two aligned sequences
@@ -516,6 +531,7 @@ where
 }
 
 /// Experimental backtracking matrix for alignment with affine gap scores.
+#[derive(Clone, Debug)]
 pub(crate) struct BacktrackMatrix {
     pub data: Vec<u8>,
     cols:     usize,
@@ -591,12 +607,235 @@ impl BacktrackMatrix {
     pub(crate) fn is_stop(&self) -> bool {
         self.data[self.cursor] & Self::STOP > 0
     }
+
+    #[allow(dead_code)]
+    pub(crate) fn print(&mut self) {
+        let mut bt = self.clone();
+        let nr = self.data.len() / self.cols;
+        let nc = self.cols;
+
+        print!("    ");
+        for _ in 0..=nc {
+            print!("x");
+        }
+        println!();
+        for r in 0..nr {
+            print!("{r:02}: x");
+            for c in 0..nc {
+                bt.move_to(r, c);
+                if bt.is_stop() {
+                    print!("o");
+                } else if bt.is_up() {
+                    print!("^");
+                } else if bt.is_left() {
+                    print!("<");
+                } else if bt.is_up_extending() {
+                    print!(":");
+                } else if bt.is_left_extending() {
+                    print!("-");
+                } else {
+                    print!("\\");
+                }
+            }
+            println!();
+        }
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Clone, Debug)]
+pub(crate) struct BacktrackMatrixStriped<const N: usize>
+where
+    LaneCount<N>: SupportedLaneCount, {
+    pub data:  Vec<Simd<u8, N>>,
+    num_vecs:  usize,
+    v_cursor:  usize,
+    curr_lane: usize,
+}
+
+#[allow(dead_code)]
+impl<const N: usize> BacktrackMatrixStriped<N>
+where
+    LaneCount<N>: SupportedLaneCount,
+{
+    const UP: Simd<u8, N> = Simd::splat(BacktrackMatrix::UP);
+    const UP_EXTENDING: Simd<u8, N> = Simd::splat(BacktrackMatrix::UP_EXTENDING);
+    const LEFT: Simd<u8, N> = Simd::splat(BacktrackMatrix::LEFT);
+    const LEFT_EXTENDING: Simd<u8, N> = Simd::splat(BacktrackMatrix::LEFT_EXTENDING);
+    const STOP: Simd<u8, N> = Simd::splat(BacktrackMatrix::STOP);
+
+    pub(crate) fn new(rows: usize, num_vecs: usize) -> Self {
+        BacktrackMatrixStriped {
+            data: vec![Simd::splat(0); rows * num_vecs],
+            num_vecs,
+            v_cursor: 0,
+            curr_lane: 0,
+        }
+    }
+
+    #[inline]
+    pub(crate) fn simd_move_to(&mut self, r: usize, v: usize) {
+        self.v_cursor = self.num_vecs * r + v;
+    }
+
+    #[inline]
+    pub(crate) fn move_to(&mut self, r: usize, c: usize) {
+        let v = c % self.num_vecs;
+        self.curr_lane = (c - v) / self.num_vecs;
+        self.v_cursor = self.num_vecs * r + v;
+    }
+
+    #[inline]
+    pub(crate) fn simd_up(&mut self, mask: Mask<i8, N>) {
+        self.data[self.v_cursor] = mask.select(self.data[self.v_cursor] | Self::UP, self.data[self.v_cursor]);
+    }
+
+    #[inline]
+    pub(crate) fn simd_left(&mut self, mask: Mask<i8, N>) {
+        self.data[self.v_cursor] = mask.select(self.data[self.v_cursor] | Self::LEFT, self.data[self.v_cursor]);
+    }
+
+    #[inline]
+    pub(crate) fn simd_set_left(&mut self, mask: Mask<i8, N>) {
+        self.data[self.v_cursor] = mask.select(Self::LEFT, self.data[self.v_cursor]);
+    }
+
+    #[inline]
+    pub(crate) fn simd_up_extending(&mut self, mask: Mask<i8, N>) {
+        self.data[self.v_cursor] = mask.select(self.data[self.v_cursor] | Self::UP_EXTENDING, self.data[self.v_cursor]);
+    }
+
+    #[inline]
+    pub(crate) fn simd_left_extending(&mut self, mask: Mask<i8, N>) {
+        self.data[self.v_cursor] = mask.select(self.data[self.v_cursor] | Self::LEFT_EXTENDING, self.data[self.v_cursor]);
+    }
+
+    #[inline]
+    pub(crate) fn simd_stop(&mut self, mask: Mask<i8, N>) {
+        self.data[self.v_cursor] = mask.select(Self::STOP, self.data[self.v_cursor]);
+    }
+
+    #[inline]
+    pub(crate) fn is_up(&self) -> bool {
+        (self.data[self.v_cursor][self.curr_lane] & BacktrackMatrix::UP) > 0
+    }
+
+    #[inline]
+    pub(crate) fn is_left(&self) -> bool {
+        (self.data[self.v_cursor][self.curr_lane] & BacktrackMatrix::LEFT) > 0
+    }
+
+    #[inline]
+    pub(crate) fn is_left_extending(&self) -> bool {
+        (self.data[self.v_cursor][self.curr_lane] & BacktrackMatrix::LEFT_EXTENDING) > 0
+    }
+
+    #[inline]
+    pub(crate) fn is_up_extending(&self) -> bool {
+        (self.data[self.v_cursor][self.curr_lane] & BacktrackMatrix::UP_EXTENDING) > 0
+    }
+
+    #[inline]
+    pub(crate) fn is_stop(&self) -> bool {
+        (self.data[self.v_cursor][self.curr_lane] & BacktrackMatrix::STOP) > 0
+    }
+
+    pub(crate) fn debug_cell(&self, r: usize, c: usize) -> String {
+        let v = c % self.num_vecs;
+        let lane = (c - v) / self.num_vecs;
+        let cell = self.data[self.num_vecs * r + v][lane];
+
+        let mut states = String::new();
+        if cell & BacktrackMatrix::STOP > 0 {
+            states.push('o');
+        }
+
+        if cell & BacktrackMatrix::UP > 0 {
+            states.push('^');
+        }
+
+        if cell & BacktrackMatrix::LEFT > 0 {
+            states.push('<');
+        }
+
+        if cell & BacktrackMatrix::UP_EXTENDING > 0 {
+            states.push(':');
+        }
+
+        if cell & BacktrackMatrix::LEFT_EXTENDING > 0 {
+            states.push('-');
+        }
+
+        if cell == 0 {
+            states.push('\\');
+        }
+
+        states
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn print(&self) {
+        let mut bt = self.clone();
+        let nr = self.data.len() / self.num_vecs;
+        let nc = self.num_vecs * N;
+
+        print!("    ");
+        for _ in 0..=nc {
+            print!("x");
+        }
+        println!();
+        for r in 0..nr {
+            print!("{r:02}: x");
+            for c in 0..nc {
+                bt.move_to(r, c);
+                if bt.is_stop() {
+                    print!("o");
+                } else if bt.is_up() {
+                    print!("^");
+                } else if bt.is_left() {
+                    print!("<");
+                } else if bt.is_up_extending() {
+                    print!(":");
+                } else if bt.is_left_extending() {
+                    print!("-");
+                } else {
+                    print!("\\");
+                }
+            }
+            println!();
+        }
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn print_row(&self, r: usize) {
+        let mut bt = self.clone();
+        let nc = self.num_vecs * N;
+
+        print!("{r:02}: x");
+        for c in 0..nc {
+            bt.move_to(r, c);
+            if bt.is_stop() {
+                print!("o");
+            } else if bt.is_up() {
+                print!("^");
+            } else if bt.is_left() {
+                print!("<");
+            } else if bt.is_up_extending() {
+                print!(":");
+            } else if bt.is_left_extending() {
+                print!("-");
+            } else {
+                print!("\\");
+            }
+        }
+        println!();
+    }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::data::types::cigar::Cigar;
+    use crate::alignment::BacktrackMatrixStriped;
 
     #[test]
     fn states_sequence() {
@@ -695,6 +934,17 @@ mod test {
                 (ref_output, query_ouptut)
             );
         }
+    }
+
+    #[test]
+    fn display() {
+        let mut bt: BacktrackMatrixStriped<8> = super::BacktrackMatrixStriped::new(5, 2);
+        bt.simd_move_to(0, 0);
+        bt.simd_left(std::simd::Mask::splat(true));
+        bt.print();
+        bt.simd_move_to(0, 1);
+        bt.simd_left(std::simd::Mask::splat(true));
+        bt.print();
     }
 
     #[test]
