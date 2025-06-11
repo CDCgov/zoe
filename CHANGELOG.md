@@ -16,6 +16,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `parse_matrix` for parsing a `WeightMatrix` from a file at compile time
 - Added accessor `byte_keys()` for `ByteIndexMap`
 - Added `score_from_path` and `viterbi` for `LocalPhmm` (behind `dev-phmm` feature gate)
+- Added `DomainPhmm` (behind `dev-phmm` feature gate)
 
 ### Changed
 

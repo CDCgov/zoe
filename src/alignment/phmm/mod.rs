@@ -246,9 +246,9 @@ pub struct GlobalPhmm<T, const S: usize> {
 /// alignment (aligning a subsequence to a submodel).
 ///
 /// This is created from a [`GlobalPhmm`] using [`into_local_phmm`]. Two
-/// [`LocalModule`] modules are added to either end of the [`GlobalPhmm`], which
-/// can match arbitrarily many bases at the beginning or end of the sequence,
-/// and can skip arbitrarily many states at the beginning or end of the pHMM.
+/// [`LocalModule`] modules are added to either end which can match arbitrarily
+/// many bases at the beginning or end of the sequence, and can skip arbitrarily
+/// many states at the beginning or end of the pHMM.
 ///
 /// [`into_local_phmm`]: GlobalPhmm::into_local_phmm
 #[derive(Debug)]
@@ -289,6 +289,27 @@ impl<T: Float, const S: usize> LocalPhmm<T, S> {
     }
 }
 
+/// An implementation of a profile hidden Markov model (pHMM) for domain
+/// alignment (aligning a subsequence to a full model).
+///
+/// This is created from a [`GlobalPhmm`] using [`into_domain_phmm`]. Two
+/// [`DomainModule`] modules are added to either end which can match arbitrarily
+/// many bases at the beginning or end of the sequence.
+///
+/// [`into_domain_phmm`]: GlobalPhmm::into_domain_phmm
+#[derive(Debug)]
+pub struct DomainPhmm<T, const S: usize> {
+    /// The mapping used when processing the bases. This will vary depending on
+    /// the alphabet used.
+    pub mapping: &'static ByteIndexMap<S>,
+    /// The core model containing the parameters.
+    pub core:    CorePhmm<T, S>,
+    /// The module for handling any bases before the core model
+    pub begin:   DomainModule<T, S>,
+    /// The module for handling any bases after the core model
+    pub end:     DomainModule<T, S>,
+}
+
 /// Options for how to construct a [`LocalPhmm`] from a [`GlobalPhmm`]
 #[non_exhaustive]
 pub enum LocalConfig<T, const S: usize> {
@@ -299,6 +320,19 @@ pub enum LocalConfig<T, const S: usize> {
     Custom {
         begin: LocalModule<T, S>,
         end:   LocalModule<T, S>,
+    },
+}
+
+/// Options for how to construct a [`DomainPhmm`] from a [`GlobalPhmm`]
+#[non_exhaustive]
+pub enum DomainConfig<T, const S: usize> {
+    /// Does not penalize any transitions in the [`DomainModule`], instead
+    /// solely penalizing the emissions for any insertions
+    NoPenalty { background_emission: EmissionParams<T, S> },
+    /// Use a custom [`DomainModule`] for the begin and end.
+    Custom {
+        begin: DomainModule<T, S>,
+        end:   DomainModule<T, S>,
     },
 }
 
@@ -317,6 +351,28 @@ impl<T: Float, const S: usize> GlobalPhmm<T, S> {
             LocalConfig::Custom { begin, end } => (begin, end),
         };
         LocalPhmm {
+            mapping: self.mapping,
+            core: self.core,
+            begin,
+            end,
+        }
+    }
+
+    /// Creates a [`DomainPhmm`] from a [`GlobalPhmm`].
+    ///
+    /// The method to use for defining the local alignment behavior is specified
+    /// with `config`.
+    #[inline]
+    #[must_use]
+    pub fn into_domain_phmm(self, config: DomainConfig<T, S>) -> DomainPhmm<T, S> {
+        let (begin, end) = match config {
+            DomainConfig::NoPenalty { background_emission } => (
+                DomainModule::no_penalty(background_emission.clone()),
+                DomainModule::no_penalty(background_emission),
+            ),
+            DomainConfig::Custom { begin, end } => (begin, end),
+        };
+        DomainPhmm {
             mapping: self.mapping,
             core: self.core,
             begin,
