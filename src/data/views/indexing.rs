@@ -21,6 +21,7 @@ pub(crate) trait IndexAdjustable {
 
     /// Subtract a constant value to the range or index, saturating at bounds
     #[must_use]
+    #[allow(dead_code)]
     fn saturating_sub(&self, n: usize) -> Self;
 }
 

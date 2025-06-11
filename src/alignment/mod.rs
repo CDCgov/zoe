@@ -7,6 +7,7 @@
 //!
 //! [Smith-Waterman]: https://en.wikipedia.org/wiki/Smith%E2%80%93Waterman_algorithm
 
+#[cfg(feature = "dev-phmm")]
 pub mod phmm;
 pub mod sw;
 

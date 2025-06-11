@@ -6,6 +6,7 @@ use crate::{
         CorePhmm, EmissionParams,
         indexing::{PhmmIndex, PhmmIndexable},
     },
+    data::ByteIndexMap,
     math::Float,
 };
 
@@ -61,6 +62,51 @@ pub struct DomainModule<T, const S: usize> {
     pub start_to_end:        T,
     /// The emission parameters for all inserted/skipped residues
     pub background_emission: EmissionParams<T, S>,
+}
+
+impl<T: Float, const S: usize> DomainModule<T, S> {
+    /// Given the residues which were inserted, lazily compute the score for a
+    /// [`DomainModule`] at the beginning of a pHMM (rather than using
+    /// `DomainPrecomputed`).
+    ///
+    /// This is designed to give the exact same score as the precomputed
+    /// version, performing all arithmetic operations in the same order so as
+    /// not to change the floating point error.
+    pub(crate) fn get_begin_score(&self, inserted: &[u8], mapping: &'static ByteIndexMap<S>) -> T {
+        if inserted.is_empty() {
+            self.start_to_end
+        } else {
+            self.start_to_insert
+                + self.insert_to_end
+                + (inserted
+                    .iter()
+                    .map(|x| self.background_emission[mapping.to_index(*x)])
+                    .fold(T::ZERO, |acc, elem| acc + elem)
+                    + T::cast_from(inserted.len() - 1) * self.insert_to_insert)
+        }
+    }
+
+    /// Given the residues which were inserted, lazily compute the score for a
+    /// [`DomainModule`] at the end of a pHMM (rather than using
+    /// `DomainPrecomputed`).
+    ///
+    /// This is designed to give the exact same score as the precomputed
+    /// version, performing all arithmetic operations in the same order so as
+    /// not to change the floating point error.
+    pub(crate) fn get_end_score(&self, inserted: &[u8], mapping: &'static ByteIndexMap<S>) -> T {
+        if inserted.is_empty() {
+            self.start_to_end
+        } else {
+            self.start_to_insert
+                + self.insert_to_end
+                + (inserted
+                    .iter()
+                    .rev()
+                    .map(|x| self.background_emission[mapping.to_index(*x)])
+                    .fold(T::ZERO, |acc, elem| acc + elem)
+                    + T::cast_from(inserted.len() - 1) * self.insert_to_insert)
+        }
+    }
 }
 
 impl<T: Float, const S: usize> LocalModule<T, S> {

@@ -72,6 +72,7 @@ at the user's discretion.
 
 - **multiversion**: This optional feature adds multiversioning of select Zoe SIMD functions using the [multiversion](https://docs.rs/multiversion/latest/multiversion/) crate.
 - **fuzzing**: This optional feature adds several testing features to Zoe, including [`Arbitrary`](https://docs.rs/arbitrary/latest/arbitrary/trait.Arbitrary.html) implementations for many of Zoe's data types to support fuzz testing. It also introduces many wrapper types with custom [`Arbitrary`](https://docs.rs/arbitrary/latest/arbitrary/trait.Arbitrary.html) implementations providing data with stronger assumptions.
+- **dev-phmm**: This optional feature adds profile Hidden Markov Model implementations to *Zoe*, which are in active development and are not complete.
 
 ## Notices
 

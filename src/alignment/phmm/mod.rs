@@ -1,3 +1,14 @@
+//! Structs and algorithms for profile Hidden Markov Models (pHMMs).
+//!
+//! <div class="warning note">
+//!
+//! **Note**
+//!
+//! You must enable the *dev-phmm* feature in your `Cargo.toml` to use these
+//! functions. They are in active development and are not complete.
+//!
+//! </div>
+
 #![allow(dead_code)]
 // TODO: Remove this when more pHMM stuff is added
 
@@ -215,6 +226,31 @@ pub struct LocalPhmm<T, const S: usize> {
     pub begin:   LocalModule<T, S>,
     /// The module for handling any bases after the core model
     pub end:     LocalModule<T, S>,
+}
+
+impl<T: Float, const S: usize> LocalPhmm<T, S> {
+    /// Gets the score incurred by skipping `inserted` bases from the beginning
+    /// of the query, before entering the [`CorePhmm`].
+    pub(crate) fn get_begin_internal_score(&self, inserted: &[u8], mapping: &'static ByteIndexMap<S>) -> T {
+        self.begin.internal_params.get_begin_score(inserted, mapping)
+    }
+
+    /// Gets the score incurred by skipping to `index` while entering the
+    /// [`CorePhmm`].
+    pub(crate) fn get_begin_external_score(&self, index: impl PhmmIndex) -> T {
+        self.begin.external_params.get_score(index)
+    }
+
+    /// Gets the score incurred by exiting the [`CorePhmm`] from `index`.
+    pub(crate) fn get_end_external_score(&self, index: impl PhmmIndex) -> T {
+        self.end.external_params.get_score(index)
+    }
+
+    /// Gets the score incurred by skipping `inserted` bases from the end of the
+    /// query, after exiting the [`CorePhmm`].
+    pub(crate) fn get_end_internal_score(&self, inserted: &[u8], mapping: &'static ByteIndexMap<S>) -> T {
+        self.end.internal_params.get_end_score(inserted, mapping)
+    }
 }
 
 /// Options for how to construct a [`LocalPhmm`] from a [`GlobalPhmm`]

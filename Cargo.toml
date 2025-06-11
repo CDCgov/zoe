@@ -43,6 +43,10 @@ multiversion = ["dep:multiversion"]
 # Arbitrary implementations
 fuzzing = ["dep:arbitrary"]
 
+# An optional feature enabling pHMM functionality which is currently in
+# development
+dev-phmm = []
+
 [dependencies]
 arbitrary = { version = "1", optional = true, features = ["derive"] }
 multiversion = { version = "0.8", optional = true }
@@ -54,5 +58,5 @@ strip = true
 lto = "thin"
 
 [package.metadata.docs.rs]
-features = ["rand", "fuzzing"]
+features = ["rand", "fuzzing", "dev-phmm"]
 rustdoc-args = ["--html-in-header", "./assets/docs-header.html"]

@@ -109,7 +109,7 @@ mod validation;
 mod whichever;
 
 pub use constants::{
-    mappings::{ByteIndexMap, DNA_PROFILE_MAP, StdGeneticCode},
+    mappings::{AA_UNAMBIG_PROFILE_MAP, ByteIndexMap, DNA_PROFILE_MAP, DNA_UNAMBIG_PROFILE_MAP, StdGeneticCode},
     matrices::WeightMatrix,
 };
 pub use records::{fasta, fastq, sam};

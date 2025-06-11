@@ -1,7 +1,10 @@
 use crate::{
     alignment::{
-        AlignmentStates,
-        phmm::{Begin, CorePhmm, DpIndex, End, GlobalPhmm, IndexOffset, PhmmError, PhmmState, SeqIndex},
+        AlignmentStates, StatesSequence,
+        phmm::{
+            Begin, CorePhmm, DpIndex, End, FirstMatch, GlobalPhmm, IndexOffset, LocalPhmm, PhmmError, PhmmState, SeqIndex,
+            indexing::LastMatch,
+        },
     },
     data::{ByteIndexMap, cigar::Ciglet},
     math::Float,
@@ -160,6 +163,144 @@ impl<T: Float, const S: usize> GlobalPhmm<T, S> {
 
         // Add transition into END state
         score += self.core.get_layer(End).transition[(final_state, Match)];
+
+        Ok(score)
+    }
+}
+
+impl<T: Float, const S: usize> LocalPhmm<T, S> {
+    /// Get the best score for an empty alignment (all soft clipping).
+    fn score_empty_alignment<Q: AsRef<[u8]>>(&self, seq: Q) -> T {
+        let seq = seq.as_ref();
+        let mut best_score = T::INFINITY;
+
+        for i in 0..=seq.len() {
+            let (inserted_begin, inserted_end) = seq.split_at(i);
+            let score_through_begin = {
+                let begin_score = self.begin.internal_params.get_begin_score(inserted_begin, self.mapping)
+                    + self.get_begin_external_score(Begin);
+                let end_score = self.get_end_internal_score(inserted_end, self.mapping) + self.get_end_external_score(Begin);
+                begin_score + end_score
+            };
+            let score_through_end = {
+                let begin_score = self.begin.internal_params.get_begin_score(inserted_begin, self.mapping)
+                    + self.get_begin_external_score(End);
+                let end_score = self.get_end_internal_score(inserted_end, self.mapping) + self.get_end_external_score(End);
+                begin_score + end_score
+            };
+            let score = score_through_begin.min(score_through_end);
+            if score < best_score {
+                best_score = score;
+            }
+        }
+
+        best_score
+    }
+
+    // TODO: Fix doc link
+    /// Get the best score for a particular path. The score may be infinite if
+    /// no paths have a nonzero probability.
+    ///
+    /// This is designed to give the exact same score as `viterbi` when the
+    /// best `path` is passed, performing all arithmetic operations in the same
+    /// order so as not to change the floating point error.
+    ///
+    /// ## Errors
+    ///
+    /// The CIGAR string must consume the entire model and sequence, and the
+    /// only supported operations are M, =, X, I, and D. If `path` does not
+    /// correspond to a valid path through a [`LocalPhmm`], then
+    /// [`PhmmError::InvalidPath`] is returned.
+    pub fn score_from_path<Q: AsRef<[u8]>>(
+        &self, seq: Q, alignment: &AlignmentStates, ref_range: Range<usize>,
+    ) -> Result<T, PhmmError> {
+        use PhmmState::*;
+
+        let seq = seq.as_ref();
+        let mut ciglets = alignment.as_slice();
+        let mut score = T::ZERO;
+
+        // Split query between begin module, core pHMM, and end module
+        let (begin_seq, seq, end_seq) = {
+            let begin_inserted = ciglets.next_if_op(|op| op == b'S').map_or(0, |ciglet| ciglet.inc);
+            let end_inserted = ciglets.next_back_if_op(|op| op == b'S').map_or(0, |ciglet| ciglet.inc);
+            if ciglets.is_empty() {
+                return Ok(self.score_empty_alignment(seq));
+            }
+
+            let (seq, end_seq) = seq.split_at(seq.len() - end_inserted);
+            let (begin_seq, seq) = seq.split_at(begin_inserted);
+            (begin_seq, seq, end_seq)
+        };
+
+        // Add contribution from internal parameters of begin module
+        score += self.get_begin_internal_score(begin_seq, self.mapping);
+
+        // Add the contribution of the external parameters into the core pHMM
+        // and the transitions out of the BEGIN state
+        if ref_range.start == 0 {
+            let first_op = ciglets.peek_op().ok_or(PhmmError::FullModelNotUsed)?;
+            let first_state = PhmmState::from_op(first_op)?;
+            let score_through_begin =
+                score + self.get_begin_external_score(Begin) + self.core.get_layer(Begin).transition[(Match, first_state)];
+
+            match first_state {
+                Delete | Insert => score = score_through_begin,
+                Match => {
+                    // Handle ambiguity: it is unclear whether we pass through
+                    // the BEGIN state of the core PHMM or not
+                    let score_skipping_begin = score + self.get_begin_external_score(FirstMatch);
+                    score = score_through_begin.min(score_skipping_begin);
+                }
+            }
+        } else {
+            // We must enter into a match state if not going through BEGIN
+            if PhmmState::from_op(ciglets.peek_op().ok_or(PhmmError::FullModelNotUsed)?)? != Match {
+                return Err(PhmmError::InvalidPath);
+            }
+
+            score += self.get_begin_external_score(SeqIndex(ref_range.start));
+        }
+
+        // Add the contribution from the core pHMM excluding transitions into
+        // the END state, and obtain the final state before the END state
+        let (mut score, final_state) = score_from_path_core(
+            &self.core,
+            self.mapping,
+            seq,
+            ref_range.clone(),
+            ciglets.iter().copied(),
+            score,
+        )?;
+
+        // Compute the contribution from the internal parameters of the end
+        // module, which involves processing any soft clipping at the end of the
+        // alignment
+        let end_score_internal = self.get_end_internal_score(end_seq, self.mapping);
+
+        score = if ref_range.end == self.core.ref_length() {
+            let score_through_end = score
+                + self.core.get_layer(End).transition[(final_state, Match)]
+                + (end_score_internal + self.get_end_external_score(End));
+
+            match final_state {
+                Delete | Insert => score_through_end,
+                Match => {
+                    // Handle ambiguity: it is unclear whether we pass through
+                    // the END state of the core PHMM or not
+                    let score_skipping_end = score + (end_score_internal + self.get_end_external_score(LastMatch));
+                    score_through_end.min(score_skipping_end)
+                }
+            }
+        } else {
+            // We must exit from a match state if not going through END
+            if final_state != Match {
+                return Err(PhmmError::InvalidPath);
+            }
+
+            // Subtract 1 since range is end-exclusive
+            score + (end_score_internal + self.get_end_external_score(SeqIndex(ref_range.end - 1)))
+        };
 
         Ok(score)
     }

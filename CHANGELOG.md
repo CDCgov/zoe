@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file. The format
 is roughly based on [Keep a Changelog], and this project tries to adheres to
 [Semantic Versioning].
 
+## [0.0.21] - TBD
+
+### Added
+
+- Added `score_from_path` for `LocalPhmm` (behind `dev-phmm` feature gate)
+
 ## [0.0.20] - 2025-08-18
 
 ### Added
@@ -28,6 +34,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Modified `ScalarProfile` for alignments to hold a reference to the weight matrix.
 - Methods `into_*_profile()` for `Nucleotides` now returns balanced profiles for register widths of 256.
 - Improved performance of profile creation.
+- All pHMM functionality is behind the feature gate `dev-phmm`.
 - Moved `clear` and `restrict` methods for views into a separate `Restrict` trait.
 - Extend the lifetimes returned by `as_bytes` and other methods for non-mutable views.
 - Changed the `Debug` format for `AlignmentStates`, and converted `AlignmentStates::reverse()` to `make_reverse` and `to_reverse`.
@@ -258,6 +265,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - **Added**: Initial internal release. Provides various readers and types for bioinformatics data manipulation.
 
 <!-- Versions -->
+[0.0.21]: https://github.com/CDCgov/zoe/compare/v0.0.20...v0.0.21
 [0.0.20]: https://github.com/CDCgov/zoe/compare/v0.0.19...v0.0.20
 [0.0.19]: https://github.com/CDCgov/zoe/compare/v0.0.18...v0.0.19
 [0.0.18]: https://github.com/CDCgov/zoe/compare/v0.0.17...v0.0.18
