@@ -261,9 +261,11 @@ impl<T, const S: usize> CorePhmm<T, S> {
         CorePhmm(layers)
     }
 
-    /// Get a layer from within the core pHMM. Although there is no actual layer
-    /// for the `End` state, for readability we let `End` be synonymous with
-    /// `LastMatch` since `End` emphasizes it is the last layer.
+    /// Get a layer from within the core pHMM.
+    ///
+    /// Although there is no actual layer for the `End` state, for readability
+    /// we let `End` be synonymous with `LastMatch` since `End` emphasizes it is
+    /// the last layer.
     pub(crate) fn get_layer(&self, j: impl PhmmIndex) -> &LayerParams<T, S> {
         if j.is_end() {
             self.get_layer(LastMatch)

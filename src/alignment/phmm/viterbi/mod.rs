@@ -9,10 +9,12 @@ use crate::{
     data::ByteIndexMap,
 };
 
+mod domain;
 mod global;
 mod local;
 mod semilocal;
 
+pub use domain::*;
 pub use global::*;
 pub use local::*;
 pub use semilocal::*;
@@ -156,7 +158,7 @@ pub(crate) trait ViterbiStrategy<'a, T: PhmmNumber + 'a, const S: usize>: Sized 
     type TracebackState: From<PhmmState> + Copy;
 
     /// The type used for tracking the best score and end of the alignment.
-    type BestScore: Default + BestScore<T, S, Specs<'a> = Self>;
+    type BestScore: Default + BestScore<T, S, Strategy<'a> = Self>;
 
     /// The default value to initialize the traceback matrix with.
     const TRACEBACK_DEFAULT: PhmmStateArray<Self::TracebackState>;
@@ -294,7 +296,7 @@ pub(crate) trait ViterbiStrategy<'a, T: PhmmNumber + 'a, const S: usize>: Sized 
 /// various points in the Viterbi algorithm.
 pub(crate) trait BestScore<T, const S: usize> {
     /// The [`ViterbiStrategy`] struct this [`BestScore`] type corresponds with.
-    type Specs<'a>
+    type Strategy<'a>
     where
         T: 'a;
 
@@ -305,30 +307,31 @@ pub(crate) trait BestScore<T, const S: usize> {
     ///
     /// ## Arguments
     ///
-    /// * `specs`: the [`ViterbiStrategy`] struct this [`BestScore`] type
+    /// * `strategy`: the [`ViterbiStrategy`] struct this [`BestScore`] type
     ///   corresponds with
     /// * `vals`: the current values in the delete, match, and insert states
     /// * `i`: The current number of bases consumed
     /// * `j`: The current model layer
-    fn update(&mut self, _specs: &Self::Specs<'_>, _vals: PhmmStateArray<T>, _i: impl QueryIndex, _j: impl PhmmIndex) {}
+    fn update(&mut self, _strategy: &Self::Strategy<'_>, _vals: PhmmStateArray<T>, _i: impl QueryIndex, _j: impl PhmmIndex) {
+    }
 
     /// Updates the best score before the end of the model but at the end of the
     /// sequence.
     ///
     /// ## Arguments
     ///
-    /// * `specs`: the [`ViterbiStrategy`] struct this [`BestScore`] type
+    /// * `strategy`: the [`ViterbiStrategy`] struct this [`BestScore`] type
     ///   corresponds with
     /// * `vals`: the current values in the delete, match, and insert states
     /// * `j`: The current model layer
-    fn update_seq_end(&mut self, _specs: &Self::Specs<'_>, _vals: PhmmStateArray<T>, _j: impl PhmmIndex) {}
+    fn update_seq_end(&mut self, _strategy: &Self::Strategy<'_>, _vals: PhmmStateArray<T>, _j: impl PhmmIndex) {}
 
     /// Updates the best score before the end of the sequence but at the end of
     /// the model.
     ///
     /// ## Arguments
     ///
-    /// * `specs`: the [`ViterbiStrategy`] struct this [`BestScore`] type
+    /// * `strategy`: the [`ViterbiStrategy`] struct this [`BestScore`] type
     ///   corresponds with
     /// * `layer`: the last layer, including transition probabilities into the
     ///   END state
@@ -337,7 +340,7 @@ pub(crate) trait BestScore<T, const S: usize> {
     ///   of that state as well as exits through the END state.
     /// * `i`: The current number of bases consumed
     fn update_last_layer(
-        &mut self, _specs: &Self::Specs<'_>, _layer: &LayerParams<T, S>, _vals: PhmmStateArray<T>, _i: impl QueryIndex,
+        &mut self, _strategy: &Self::Strategy<'_>, _layer: &LayerParams<T, S>, _vals: PhmmStateArray<T>, _i: impl QueryIndex,
     ) {
     }
 
@@ -345,12 +348,14 @@ pub(crate) trait BestScore<T, const S: usize> {
     ///
     /// ## Arguments
     ///
-    /// * `specs`: the [`ViterbiStrategy`] struct this [`BestScore`] type
+    /// * `strategy`: the [`ViterbiStrategy`] struct this [`BestScore`] type
     ///   corresponds with
     /// * `layer`: the last layer, including transition probabilities into the
     ///   END state
     /// * `vals`: the current values in the delete, match, and insert states
-    fn update_seq_end_last_layer(&mut self, _specs: &Self::Specs<'_>, _layer: &LayerParams<T, S>, _vals: PhmmStateArray<T>) {
+    fn update_seq_end_last_layer(
+        &mut self, _strategy: &Self::Strategy<'_>, _layer: &LayerParams<T, S>, _vals: PhmmStateArray<T>,
+    ) {
     }
 }
 

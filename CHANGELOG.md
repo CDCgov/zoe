@@ -9,6 +9,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 ### Added
 
 - Added `HeaderReadable` getter trait for record types
+- Added Viterbi algorithm for `DomainPhmm` (behind `dev-phmm` feature gate)
 - Implemented `Arbitrary` for `SemiLocalPhmm` and `DomainPhmm` (behind `fuzzing` and `dev-phmm` feature gates)
 
 ### Changed

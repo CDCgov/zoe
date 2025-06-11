@@ -128,7 +128,9 @@ impl<T: PhmmNumber, const S: usize> DomainModule<T, S> {
     ///
     /// This should only be called on modules placed at the beginning of the
     /// pHMM. See [`PrecomputedDomainModule`] for more details.
-    fn precompute_begin_mod<Q: AsRef<[u8]>>(&self, seq: Q, mapping: &ByteIndexMap<S>) -> PrecomputedDomainModule<T, S> {
+    pub(crate) fn precompute_begin_mod<Q: AsRef<[u8]>>(
+        &self, seq: Q, mapping: &ByteIndexMap<S>,
+    ) -> PrecomputedDomainModule<T, S> {
         let seq = seq.as_ref();
         let mut internal_params = vec![self.start_to_insert + self.insert_to_end; seq.len() + 1];
         internal_params[0] = self.start_to_end;
@@ -147,7 +149,9 @@ impl<T: PhmmNumber, const S: usize> DomainModule<T, S> {
     ///
     /// This should only be called on modules placed at the end of the pHMM. See
     /// [`PrecomputedDomainModule`] for more details.
-    fn precompute_end_mod<Q: AsRef<[u8]>>(&self, seq: Q, mapping: &ByteIndexMap<S>) -> PrecomputedDomainModule<T, S> {
+    pub(crate) fn precompute_end_mod<Q: AsRef<[u8]>>(
+        &self, seq: Q, mapping: &ByteIndexMap<S>,
+    ) -> PrecomputedDomainModule<T, S> {
         let seq = seq.as_ref();
         let mut internal_params = vec![self.start_to_insert + self.insert_to_end; seq.len() + 1];
         internal_params[seq.len()] = self.start_to_end;
@@ -179,7 +183,7 @@ impl<T: Copy, const S: usize> PrecomputedDomainModule<T, S> {
     /// this module is placed at the beginning of the [`CorePhmm`]) or skipping
     /// the last `i` residues in the query (when this module is placed at the
     /// end of the [`CorePhmm`]).
-    fn get_score(&self, i: impl QueryIndex) -> T {
+    pub(crate) fn get_score(&self, i: impl QueryIndex) -> T {
         self.0[self.get_dp_index(i)]
     }
 }

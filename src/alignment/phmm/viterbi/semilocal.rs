@@ -197,7 +197,7 @@ pub struct SemiLocalBestScore<T> {
 }
 
 impl<T: PhmmNumber, const S: usize> BestScore<T, S> for SemiLocalBestScore<T> {
-    type Specs<'a>
+    type Strategy<'a>
         = SemiLocalViterbiParams<'a, T, S>
     where
         T: 'a;
@@ -208,7 +208,7 @@ impl<T: PhmmNumber, const S: usize> BestScore<T, S> for SemiLocalBestScore<T> {
     }
 
     #[inline]
-    fn update_seq_end(&mut self, specs: &Self::Specs<'_>, vals: PhmmStateArray<T>, j: impl PhmmIndex) {
+    fn update_seq_end(&mut self, specs: &Self::Strategy<'_>, vals: PhmmStateArray<T>, j: impl PhmmIndex) {
         let score = vals[PhmmState::Match] + specs.end.get_score(j);
         if score < self.score {
             self.score = score;
@@ -221,26 +221,26 @@ impl<T: PhmmNumber, const S: usize> BestScore<T, S> for SemiLocalBestScore<T> {
 
     #[inline]
     fn update_seq_end_last_layer(
-        &mut self, specs: &Self::Specs<'_>, layer: &LayerParams<T, S>, mut vals: PhmmStateArray<T>,
+        &mut self, strategy: &Self::Strategy<'_>, layer: &LayerParams<T, S>, mut vals: PhmmStateArray<T>,
     ) {
         use crate::alignment::phmm::PhmmState::*;
 
         // Option 1: Early exit from this layer
-        self.update_seq_end(specs, vals, LastMatch);
+        self.update_seq_end(strategy, vals, LastMatch);
 
         // Option 2: Go through END state
         vals[Delete] += layer.transition[(Delete, Match)];
         vals[Match] += layer.transition[(Match, Match)];
         vals[Insert] += layer.transition[(Insert, Match)];
 
-        let (ptr, mut score) = if specs.query.is_empty() {
-            vals.with_enter(specs.begin.get_score(End)).locate_min()
+        let (ptr, mut score) = if strategy.query.is_empty() {
+            vals.with_enter(strategy.begin.get_score(End)).locate_min()
         } else {
             let (ptr, score) = vals.locate_min();
             (PhmmStateOrEnter::from(ptr), score)
         };
 
-        score += specs.end.get_score(End);
+        score += strategy.end.get_score(End);
 
         if score < self.score {
             self.score = score;

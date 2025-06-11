@@ -199,7 +199,7 @@ pub struct LocalBestScore<T> {
 }
 
 impl<T: PhmmNumber, const S: usize> BestScore<T, S> for LocalBestScore<T> {
-    type Specs<'a>
+    type Strategy<'a>
         = LocalViterbiParams<'a, T, S>
     where
         T: 'a;
@@ -210,12 +210,12 @@ impl<T: PhmmNumber, const S: usize> BestScore<T, S> for LocalBestScore<T> {
     }
 
     #[inline]
-    fn update(&mut self, specs: &Self::Specs<'_>, vals: PhmmStateArray<T>, i: impl QueryIndex, j: impl PhmmIndex) {
-        let score = vals[PhmmState::Match] + specs.end.get_score(i, j);
+    fn update(&mut self, strategy: &Self::Strategy<'_>, vals: PhmmStateArray<T>, i: impl QueryIndex, j: impl PhmmIndex) {
+        let score = vals[PhmmState::Match] + strategy.end.get_score(i, j);
         if score < self.score {
             self.score = score;
-            self.i = specs.query.to_dp_index(i);
-            self.loc = match specs.core.to_seq_index(j) {
+            self.i = strategy.query.to_dp_index(i);
+            self.loc = match strategy.core.to_seq_index(j) {
                 Some(loc) => ExitLocation::Match(loc),
                 None => ExitLocation::Begin,
             }
@@ -223,37 +223,39 @@ impl<T: PhmmNumber, const S: usize> BestScore<T, S> for LocalBestScore<T> {
     }
 
     #[inline]
-    fn update_seq_end(&mut self, specs: &Self::Specs<'_>, vals: PhmmStateArray<T>, j: impl PhmmIndex) {
-        self.update(specs, vals, LastBase, j);
+    fn update_seq_end(&mut self, strategy: &Self::Strategy<'_>, vals: PhmmStateArray<T>, j: impl PhmmIndex) {
+        self.update(strategy, vals, LastBase, j);
     }
 
     #[inline]
     fn update_last_layer(
-        &mut self, specs: &Self::Specs<'_>, layer: &LayerParams<T, S>, mut vals: PhmmStateArray<T>, i: impl QueryIndex,
+        &mut self, strategy: &Self::Strategy<'_>, layer: &LayerParams<T, S>, mut vals: PhmmStateArray<T>, i: impl QueryIndex,
     ) {
         use crate::alignment::phmm::PhmmState::*;
 
         // Option 1: Early exit from this layer
-        self.update(specs, vals, i, LastMatch);
+        self.update(strategy, vals, i, LastMatch);
 
         // Option 2: Go through END state
         vals[Delete] += layer.transition[(Delete, Match)];
         vals[Match] += layer.transition[(Match, Match)];
         vals[Insert] += layer.transition[(Insert, Match)];
 
-        let (state, mut score) = vals.with_enter(specs.begin.get_score(i, End)).locate_min();
-        score += specs.end.get_score(i, End);
+        let (state, mut score) = vals.with_enter(strategy.begin.get_score(i, End)).locate_min();
+        score += strategy.end.get_score(i, End);
 
         if score < self.score {
             self.score = score;
-            self.i = specs.query.to_dp_index(i);
+            self.i = strategy.query.to_dp_index(i);
             self.loc = ExitLocation::End(state);
         }
     }
 
     #[inline]
-    fn update_seq_end_last_layer(&mut self, specs: &Self::Specs<'_>, layer: &LayerParams<T, S>, vals: PhmmStateArray<T>) {
-        self.update_last_layer(specs, layer, vals, LastBase);
+    fn update_seq_end_last_layer(
+        &mut self, strategy: &Self::Strategy<'_>, layer: &LayerParams<T, S>, vals: PhmmStateArray<T>,
+    ) {
+        self.update_last_layer(strategy, layer, vals, LastBase);
     }
 }
 

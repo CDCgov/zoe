@@ -5,7 +5,9 @@ mod integer;
 pub use crate::simd::SimdAnyInt;
 pub use integer::*;
 
+#[cfg(feature = "dev-phmm")]
 pub(crate) use cast::*;
+
 pub(crate) use float::*;
 
 #[cfg(any(feature = "fuzzing", test))]

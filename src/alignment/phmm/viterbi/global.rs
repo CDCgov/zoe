@@ -116,7 +116,7 @@ pub(crate) struct GlobalBestScore<T> {
 }
 
 impl<T: PhmmNumber, const S: usize> BestScore<T, S> for GlobalBestScore<T> {
-    type Specs<'a>
+    type Strategy<'a>
         = GlobalViterbiParams<'a, T, S>
     where
         T: 'a;
@@ -128,7 +128,7 @@ impl<T: PhmmNumber, const S: usize> BestScore<T, S> for GlobalBestScore<T> {
 
     #[inline]
     fn update_seq_end_last_layer(
-        &mut self, _specs: &Self::Specs<'_>, layer: &LayerParams<T, S>, mut vals: PhmmStateArray<T>,
+        &mut self, _strategy: &Self::Strategy<'_>, layer: &LayerParams<T, S>, mut vals: PhmmStateArray<T>,
     ) {
         use crate::alignment::phmm::PhmmState::*;
 
