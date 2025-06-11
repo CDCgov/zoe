@@ -1,5 +1,5 @@
 use crate::{
-    alignment::phmm::{CorePhmm, SemiLocalModule},
+    alignment::phmm::{CorePhmm, PrecomputedDomainModule, PrecomputedLocalModule, SemiLocalModule},
     data::views::IndexAdjustable,
 };
 use std::ops::{Bound, Range};
@@ -241,9 +241,22 @@ impl<T> PhmmIndexable for SemiLocalModule<T> {
 }
 
 impl QueryIndexable for &[u8] {
-    #[inline]
     fn seq_len(&self) -> usize {
         self.len()
+    }
+}
+
+impl<T, const S: usize> PhmmIndexable for PrecomputedLocalModule<'_, T, S> {
+    #[inline]
+    fn num_pseudomatch(&self) -> usize {
+        self.external_params.num_pseudomatch()
+    }
+}
+
+impl<T, const S: usize> QueryIndexable for PrecomputedDomainModule<T, S> {
+    #[inline]
+    fn seq_len(&self) -> usize {
+        self.0.len() - 1
     }
 }
 

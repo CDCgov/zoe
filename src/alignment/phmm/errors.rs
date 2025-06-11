@@ -23,6 +23,8 @@ pub enum PhmmError {
     InvalidCigarOp,
     /// Alignment modules were incompatible with core pHMM
     IncompatibleModule,
+    /// Not enough layers were specified
+    TooFewLayers(usize),
 }
 
 impl fmt::Display for PhmmError {
@@ -43,6 +45,9 @@ impl fmt::Display for PhmmError {
             PhmmError::InvalidCigar => write!(f, "The CIGAR string was invalid!"),
             PhmmError::InvalidCigarOp => write!(f, "An unsupported CIGAR opcode was encountered!"),
             PhmmError::IncompatibleModule => write!(f, "The pHMM's alignment modules are incompatible with the core pHMM!"),
+            PhmmError::TooFewLayers(num) => {
+                write!(f, "Too few layers were specified for the pHMM! At least {num} are required")
+            }
         }
     }
 }

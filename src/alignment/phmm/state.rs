@@ -119,7 +119,7 @@ impl<T, E, const N: usize> EnumArray<T, E, N> {
     /// Create a new array of type `[T; N]` indexed by enum `E`.
     #[inline]
     #[must_use]
-    pub(crate) fn new(inner: [T; N]) -> Self {
+    pub(crate) const fn new(inner: [T; N]) -> Self {
         Self {
             inner,
             phantom: PhantomData,

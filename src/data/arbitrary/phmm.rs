@@ -2,7 +2,10 @@ use std::{fmt::Debug, marker::PhantomData};
 
 use super::impl_deref;
 use crate::{
-    alignment::phmm::{CorePhmm, EmissionParams, GlobalPhmm, LayerParams, PhmmState, TransitionParams},
+    alignment::phmm::{
+        Begin, CorePhmm, DomainModule, EmissionParams, End, GlobalPhmm, LayerParams, LocalModule, LocalPhmm, PhmmIndexable,
+        PhmmState, SemiLocalModule, TransitionParams,
+    },
     data::mappings::DNA_UNAMBIG_PROFILE_MAP,
     math::Float,
 };
@@ -29,6 +32,42 @@ impl<'a, T: Arbitrary<'a>, const S: usize> Arbitrary<'a> for LayerParams<T, S> {
             transition:      TransitionParams::arbitrary(u)?,
             emission_match:  EmissionParams::arbitrary(u)?,
             emission_insert: EmissionParams::arbitrary(u)?,
+        })
+    }
+}
+
+impl<'a, T: Arbitrary<'a>, const S: usize> Arbitrary<'a> for CorePhmm<T, S> {
+    #[inline]
+    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
+        let mut layers = vec![LayerParams::<T, S>::arbitrary(u)?, LayerParams::<T, S>::arbitrary(u)?];
+        layers.extend(Vec::<LayerParams<T, S>>::arbitrary(u)?);
+        Ok(CorePhmm::new_unchecked(layers))
+    }
+}
+
+impl<'a, T: Arbitrary<'a>> Arbitrary<'a> for SemiLocalModule<T> {
+    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
+        Ok(Self(Vec::<T>::arbitrary(u)?))
+    }
+}
+
+impl<'a, T: Arbitrary<'a>, const S: usize> Arbitrary<'a> for DomainModule<T, S> {
+    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
+        Ok(Self {
+            start_to_insert:     T::arbitrary(u)?,
+            insert_to_insert:    T::arbitrary(u)?,
+            insert_to_end:       T::arbitrary(u)?,
+            start_to_end:        T::arbitrary(u)?,
+            background_emission: EmissionParams::<T, S>::arbitrary(u)?,
+        })
+    }
+}
+
+impl<'a, T: Arbitrary<'a>, const S: usize> Arbitrary<'a> for LocalModule<T, S> {
+    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
+        Ok(Self {
+            external_params: SemiLocalModule::arbitrary(u)?,
+            internal_params: DomainModule::arbitrary(u)?,
         })
     }
 }
@@ -114,76 +153,248 @@ where
 /// * `F`: The floating point type or arbitrary wrapper for generating the
 ///   parameters
 /// * `R`: If true, ensure invalid transitions are set to infinity
-/// * `L`: If true, ensures at least two layers are present
 #[derive(Debug)]
-pub struct DnaGlobalPhmm<T, F, const R: bool, const L: bool>(pub GlobalPhmm<T, 4>, PhantomData<F>);
+pub struct CorePhmmArbitrary<T, F, const S: usize, const R: bool>(pub CorePhmm<T, S>, PhantomData<F>);
 
-impl_deref! {DnaGlobalPhmm<T, F, R, L>, GlobalPhmm<T, 4>, <T: Float, F, const R: bool, const L: bool>}
+impl_deref! {CorePhmmArbitrary<T, F, S, R>, CorePhmm<T, S>, <T: Float, F, const S: usize, const R: bool>}
 
 // Basic implementation: no correction for invalid transitions, no minimum on
 // layers
-impl<'a, T: Float + Arbitrary<'a>, F> Arbitrary<'a> for DnaGlobalPhmm<T, F, false, false>
+impl<'a, T: Float + Arbitrary<'a>, F, const S: usize> Arbitrary<'a> for CorePhmmArbitrary<T, F, S, false>
 where
-    LayerParamsArbitrary<T, F, 4>: Arbitrary<'a>,
+    LayerParamsArbitrary<T, F, S>: Arbitrary<'a>,
 {
     #[inline]
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        Ok(DnaGlobalPhmm(
-            GlobalPhmm {
-                mapping: &DNA_UNAMBIG_PROFILE_MAP,
-                core:    CorePhmm(
-                    Vec::<LayerParamsArbitrary<T, F, 4>>::arbitrary(u)?
-                        .into_iter()
-                        .map(|x| x.0)
-                        .collect::<Vec<_>>(),
-                ),
+        let mut layers = vec![
+            LayerParamsArbitrary::<T, F, S>::arbitrary(u)?.0,
+            LayerParamsArbitrary::<T, F, S>::arbitrary(u)?.0,
+        ];
+        layers.extend(Vec::<LayerParamsArbitrary<T, F, S>>::arbitrary(u)?.into_iter().map(|x| x.0));
+        Ok(CorePhmmArbitrary(CorePhmm::new_unchecked(layers), PhantomData))
+    }
+}
+
+// Implementation that corrects for invalid transitions (calls off to previous
+// implementation)
+impl<'a, T: Float + Arbitrary<'a>, F, const S: usize> Arbitrary<'a> for CorePhmmArbitrary<T, F, S, true>
+where
+    CorePhmmArbitrary<T, F, S, false>: Arbitrary<'a>,
+{
+    #[inline]
+    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
+        use PhmmState::*;
+
+        let mut core = CorePhmmArbitrary::<T, F, S, false>::arbitrary(u)?.0;
+
+        let first_layer = core.get_layer_mut(Begin);
+        first_layer.transition[(Delete, Delete)] = T::INFINITY;
+        first_layer.transition[(Delete, Match)] = T::INFINITY;
+        first_layer.transition[(Delete, Insert)] = T::INFINITY;
+
+        let last_layer = core.get_layer_mut(End);
+        last_layer.transition[(Delete, Delete)] = T::INFINITY;
+        last_layer.transition[(Insert, Delete)] = T::INFINITY;
+        last_layer.transition[(Match, Delete)] = T::INFINITY;
+
+        Ok(CorePhmmArbitrary(core, PhantomData))
+    }
+}
+
+/// ## Parameters:
+///
+/// * T: The floating point type for the parameters
+/// * F: The floating point type or arbitrary wrapper for generating the
+///   parameters
+pub struct SemiLocalModuleArbitrary<T, F>(SemiLocalModule<T>, PhantomData<F>);
+
+impl_deref! {SemiLocalModuleArbitrary<T, F>, SemiLocalModule<T>, <T, F>}
+
+impl<'a, T, F> Arbitrary<'a> for SemiLocalModuleArbitrary<T, F>
+where
+    T: Arbitrary<'a>,
+    F: Into<T> + Arbitrary<'a>,
+{
+    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
+        Ok(Self(
+            SemiLocalModule(
+                Vec::<F>::arbitrary(u)?
+                    .into_iter()
+                    .map(std::convert::Into::into)
+                    .collect::<Vec<_>>(),
+            ),
+            PhantomData,
+        ))
+    }
+}
+
+impl<'a, T, F> SemiLocalModuleArbitrary<T, F>
+where
+    T: Arbitrary<'a>,
+    F: Into<T> + Arbitrary<'a>,
+{
+    #[allow(clippy::missing_errors_doc)]
+    pub fn arbitrary_compatible<const S: usize>(u: &mut Unstructured<'a>, core: &CorePhmm<T, S>) -> Result<Self>
+    where
+        T: Arbitrary<'a>, {
+        Ok(Self(
+            SemiLocalModule(
+                std::iter::from_fn(|| Some(F::arbitrary(u).map(Into::into)))
+                    .take(core.num_pseudomatch())
+                    .collect::<Result<Vec<_>, _>>()?,
+            ),
+            PhantomData,
+        ))
+    }
+}
+
+/// ## Parameters:
+///
+/// * T: The floating point type for the parameters
+/// * F: The floating point type or arbitrary wrapper for generating the
+///   parameters
+pub struct DomainModuleArbitrary<T, F, const S: usize>(DomainModule<T, S>, PhantomData<F>);
+
+impl_deref! {DomainModuleArbitrary<T, F, S>, DomainModule<T, S>, <T, F, const S: usize>}
+
+impl<'a, T, F, const S: usize> Arbitrary<'a> for DomainModuleArbitrary<T, F, S>
+where
+    T: Arbitrary<'a>,
+    F: Into<T> + Arbitrary<'a>,
+{
+    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
+        Ok(Self(
+            DomainModule {
+                start_to_insert:     F::arbitrary(u)?.into(),
+                insert_to_insert:    F::arbitrary(u)?.into(),
+                insert_to_end:       F::arbitrary(u)?.into(),
+                start_to_end:        F::arbitrary(u)?.into(),
+                background_emission: EmissionParamsArbitrary::<T, F, S>::arbitrary(u)?.0,
             },
             PhantomData,
         ))
     }
 }
 
-// Implementation that adds minimum on number of layers (calls off to basic
-// implementation)
-impl<'a, T: Float + Arbitrary<'a>, F> Arbitrary<'a> for DnaGlobalPhmm<T, F, false, true>
+/// ## Parameters:
+///
+/// * T: The floating point type for the parameters
+/// * F: The floating point type or arbitrary wrapper for generating the
+///   parameters
+pub struct LocalModuleArbitrary<T, F, const S: usize>(LocalModule<T, S>, PhantomData<F>);
+
+impl_deref! {LocalModuleArbitrary<T, F, S>, LocalModule<T, S>, <T, F, const S: usize>}
+
+impl<'a, T, F, const S: usize> Arbitrary<'a> for LocalModuleArbitrary<T, F, S>
 where
-    LayerParamsArbitrary<T, F, 4>: Arbitrary<'a>,
+    T: Arbitrary<'a>,
+    F: Into<T> + Arbitrary<'a>,
 {
-    #[inline]
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        let first_layer = LayerParamsArbitrary::<T, F, 4>::arbitrary(u)?;
-        let last_layer = LayerParamsArbitrary::<T, F, 4>::arbitrary(u)?;
-        let mut phmm = DnaGlobalPhmm::<T, F, false, false>::arbitrary(u)?;
-        phmm.core.0.insert(0, first_layer.0);
-        phmm.core.0.push(last_layer.0);
-        Ok(DnaGlobalPhmm(phmm.0, PhantomData))
+        Ok(Self(
+            LocalModule {
+                external_params: SemiLocalModuleArbitrary::<T, F>::arbitrary(u)?.0,
+                internal_params: DomainModuleArbitrary::<T, F, S>::arbitrary(u)?.0,
+            },
+            PhantomData,
+        ))
     }
 }
 
-// Implementation that corrects for invalid transitions (calls off to previous
-// implementation)
-impl<'a, T: Float + Arbitrary<'a>, F, const L: bool> Arbitrary<'a> for DnaGlobalPhmm<T, F, true, L>
+impl<'a, T, F, const S: usize> LocalModuleArbitrary<T, F, S>
 where
-    DnaGlobalPhmm<T, F, false, L>: Arbitrary<'a>,
+    T: Arbitrary<'a>,
+    F: Into<T> + Arbitrary<'a>,
+{
+    #[allow(clippy::missing_errors_doc)]
+    pub fn arbitrary_compatible(u: &mut Unstructured<'a>, core: &CorePhmm<T, S>) -> Result<Self>
+    where
+        T: Arbitrary<'a>, {
+        Ok(Self(
+            LocalModule {
+                external_params: SemiLocalModuleArbitrary::<T, F>::arbitrary_compatible(u, core)?.0,
+                internal_params: DomainModuleArbitrary::<T, F, S>::arbitrary(u)?.0,
+            },
+            PhantomData,
+        ))
+    }
+}
+
+/// Parameters:
+///
+/// * `T`: The floating point type for the parameters
+/// * `F`: The floating point type or arbitrary wrapper for generating the
+///   parameters
+/// * `R`: If true, ensure invalid transitions are set to infinity
+#[derive(Debug)]
+pub struct DnaGlobalPhmm<T, F, const R: bool>(pub GlobalPhmm<T, 4>, PhantomData<F>);
+
+impl_deref! {DnaGlobalPhmm<T, F, R>, GlobalPhmm<T, 4>, <T: Float, F, const R: bool>}
+
+impl<'a, T: Float + Arbitrary<'a>, F, const R: bool> Arbitrary<'a> for DnaGlobalPhmm<T, F, R>
+where
+    CorePhmmArbitrary<T, F, 4, R>: Arbitrary<'a>,
 {
     #[inline]
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        use PhmmState::*;
+        Ok(DnaGlobalPhmm(
+            GlobalPhmm {
+                mapping: &DNA_UNAMBIG_PROFILE_MAP,
+                core:    CorePhmmArbitrary::<T, F, 4, R>::arbitrary(u)?.0,
+            },
+            PhantomData,
+        ))
+    }
+}
 
-        let mut out = DnaGlobalPhmm::<T, F, false, L>::arbitrary(u)?;
+/// Parameters:
+/// * F: The floating point type or arbitrary wrapper for generating the
+///   parameters
+/// * M: If true, ensure there are the [`LocalModule`]s are compatible with the
+///   pHMM
+/// * R: If true, ensure invalid transitions are set to infinity
+#[derive(Debug)]
+pub struct DnaLocalPhmm<T, F, const M: bool, const R: bool>(pub LocalPhmm<T, 4>, pub PhantomData<F>);
 
-        if let Some(first_layer) = out.0.core.0.first_mut() {
-            first_layer.transition[(Delete, Delete)] = T::INFINITY;
-            first_layer.transition[(Delete, Match)] = T::INFINITY;
-            first_layer.transition[(Delete, Insert)] = T::INFINITY;
-        }
+impl_deref! {DnaLocalPhmm<T, F, M, R>, LocalPhmm<T, 4>, <T: Float, F, const M: bool, const R: bool>}
 
-        if let Some(last_layer) = out.0.core.0.last_mut() {
-            last_layer.transition[(Delete, Delete)] = T::INFINITY;
-            last_layer.transition[(Insert, Delete)] = T::INFINITY;
-            last_layer.transition[(Match, Delete)] = T::INFINITY;
-        }
+impl<'a, T: Float + Arbitrary<'a>, F, const R: bool> Arbitrary<'a> for DnaLocalPhmm<T, F, false, R>
+where
+    CorePhmmArbitrary<T, F, 4, R>: Arbitrary<'a>,
+    LocalModuleArbitrary<T, F, 4>: Arbitrary<'a>,
+{
+    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
+        Ok(Self(
+            LocalPhmm {
+                mapping: &DNA_UNAMBIG_PROFILE_MAP,
+                core:    CorePhmmArbitrary::<T, F, 4, R>::arbitrary(u)?.0,
+                begin:   LocalModuleArbitrary::<T, F, 4>::arbitrary(u)?.0,
+                end:     LocalModuleArbitrary::<T, F, 4>::arbitrary(u)?.0,
+            },
+            PhantomData,
+        ))
+    }
+}
 
-        Ok(DnaGlobalPhmm(out.0, PhantomData))
+impl<'a, T: Float + Arbitrary<'a>, F, const R: bool> Arbitrary<'a> for DnaLocalPhmm<T, F, true, R>
+where
+    T: Arbitrary<'a>,
+    F: Into<T> + Arbitrary<'a>,
+    CorePhmmArbitrary<T, F, 4, R>: Arbitrary<'a>,
+{
+    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
+        let core = CorePhmmArbitrary::<T, F, 4, R>::arbitrary(u)?.0;
+        let begin = LocalModuleArbitrary::<T, F, 4>::arbitrary_compatible(u, &core)?.0;
+        let end = LocalModuleArbitrary::<T, F, 4>::arbitrary_compatible(u, &core)?.0;
+
+        Ok(Self(
+            LocalPhmm {
+                mapping: &DNA_UNAMBIG_PROFILE_MAP,
+                core,
+                begin,
+                end,
+            },
+            PhantomData,
+        ))
     }
 }

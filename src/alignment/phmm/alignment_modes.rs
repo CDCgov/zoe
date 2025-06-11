@@ -3,7 +3,7 @@
 
 use crate::{
     alignment::phmm::{
-        CorePhmm, EmissionParams,
+        CorePhmm, EmissionParams, QueryIndex, QueryIndexable,
         indexing::{PhmmIndex, PhmmIndexable},
     },
     data::ByteIndexMap,
@@ -67,7 +67,7 @@ pub struct DomainModule<T, const S: usize> {
 impl<T: Float, const S: usize> DomainModule<T, S> {
     /// Given the residues which were inserted, lazily compute the score for a
     /// [`DomainModule`] at the beginning of a pHMM (rather than using
-    /// `DomainPrecomputed`).
+    /// [`PrecomputedDomainModule`]).
     ///
     /// This is designed to give the exact same score as the precomputed
     /// version, performing all arithmetic operations in the same order so as
@@ -88,7 +88,7 @@ impl<T: Float, const S: usize> DomainModule<T, S> {
 
     /// Given the residues which were inserted, lazily compute the score for a
     /// [`DomainModule`] at the end of a pHMM (rather than using
-    /// `DomainPrecomputed`).
+    /// [`PrecomputedDomainModule`]).
     ///
     /// This is designed to give the exact same score as the precomputed
     /// version, performing all arithmetic operations in the same order so as
@@ -107,6 +107,64 @@ impl<T: Float, const S: usize> DomainModule<T, S> {
                     + T::cast_from(inserted.len() - 1) * self.insert_to_insert)
         }
     }
+
+    /// Precomputes the transition probabilities for skipping any number of
+    /// residues from the beginning of `seq`.
+    ///
+    /// This should only be called on modules placed at the beginning of the
+    /// pHMM. See [`PrecomputedDomainModule`] for more details.
+    fn precompute_begin_mod<Q: AsRef<[u8]>>(&self, seq: Q, mapping: &ByteIndexMap<S>) -> PrecomputedDomainModule<T, S> {
+        let seq = seq.as_ref();
+        let mut internal_params = vec![self.start_to_insert + self.insert_to_end; seq.len() + 1];
+        internal_params[0] = self.start_to_end;
+
+        let mut emissions_sum = T::ZERO;
+        for (i, x_idx) in seq.iter().map(|x| mapping.to_index(*x)).enumerate() {
+            emissions_sum += self.background_emission[x_idx];
+            internal_params[i + 1] += emissions_sum + T::cast_from(i) * self.insert_to_insert;
+        }
+
+        PrecomputedDomainModule(internal_params)
+    }
+
+    /// Precomputes the transition probabilities for skipping any number of
+    /// residues from the end of `seq`.
+    ///
+    /// This should only be called on modules placed at the end of the pHMM. See
+    /// [`PrecomputedDomainModule`] for more details.
+    fn precompute_end_mod<Q: AsRef<[u8]>>(&self, seq: Q, mapping: &ByteIndexMap<S>) -> PrecomputedDomainModule<T, S> {
+        let seq = seq.as_ref();
+        let mut internal_params = vec![self.start_to_insert + self.insert_to_end; seq.len() + 1];
+        internal_params[seq.len()] = self.start_to_end;
+
+        let mut emissions_sum = T::ZERO;
+        for (i, x_idx) in seq.iter().rev().map(|x| mapping.to_index(*x)).enumerate() {
+            emissions_sum += self.background_emission[x_idx];
+            internal_params[seq.len() - i - 1] += emissions_sum + T::cast_from(i) * self.insert_to_insert;
+        }
+
+        PrecomputedDomainModule(internal_params)
+    }
+}
+
+/// Precomputed parameters from a [`DomainModule`] for use in a Viterbi
+/// alignment.
+///
+/// When a [`CorePhmm`] includes a [`DomainModule`] at the beginning, the
+/// transition probabilities of skipping $i$ residues from the start of the
+/// query require $O(i)$ time. Over all $i$, this results in $O(n^2)$ time,
+/// where $n$ is the sequence length.
+///
+/// To avoid this, [`PrecomputedDomainModule`] carries out all the computations
+/// beforehand in $O(n)$ time.
+pub(crate) struct PrecomputedDomainModule<T, const S: usize>(pub(crate) Vec<T>);
+
+impl<T: Copy, const S: usize> PrecomputedDomainModule<T, S> {
+    /// Gets the score for skipping `i` bases in the query (either at the
+    /// beginning or end, depending on where the module is placed).
+    fn get_score(&self, i: impl QueryIndex) -> T {
+        self.0[self.get_dp_index(i)]
+    }
 }
 
 impl<T: Float, const S: usize> LocalModule<T, S> {
@@ -124,6 +182,59 @@ impl<T: Float, const S: usize> LocalModule<T, S> {
             external_params: SemiLocalModule::no_penalty(core),
             internal_params: DomainModule::no_penalty(background_emission),
         }
+    }
+}
+
+/// Precomputed parameters from a [`LocalModule`] for use in a Viterbi
+/// alignment.
+///
+/// When a [`CorePhmm`] includes a [`LocalModule`] at the beginning, every match
+/// state computation is influenced by the [`LocalModule`], due to the
+/// possibility of skipping directly to that layer. Since this would result in
+/// repeated computations, the [`PrecomputedLocalModule`] carries out all such
+/// computations beforehand. These are the same computations performed by
+/// [`PrecomputedDomainModule`].
+pub(crate) struct PrecomputedLocalModule<'a, T, const S: usize> {
+    /// The transition parameters from the last state of the module to match
+    /// state j in the core pHMM.
+    pub(crate) external_params: &'a SemiLocalModule<T>,
+    /// The transition parameters for consuming i bases within the module.
+    pub(crate) internal_params: PrecomputedDomainModule<T, S>,
+}
+
+impl<T: Float, const S: usize> LocalModule<T, S> {
+    /// Precomputes the transition probabilities for skipping any number of
+    /// residues from the beginning of `seq`.
+    ///
+    /// This should only be called on modules placed at the beginning of the
+    /// pHMM. See [`PrecomputedLocalModule`] for more details.
+    pub(crate) fn precompute_begin_mod<Q: AsRef<[u8]>>(
+        &self, seq: Q, mapping: &ByteIndexMap<S>,
+    ) -> PrecomputedLocalModule<'_, T, S> {
+        PrecomputedLocalModule {
+            internal_params: self.internal_params.precompute_begin_mod(seq, mapping),
+            external_params: &self.external_params,
+        }
+    }
+
+    /// Precomputes the transition probabilities for skipping any number of
+    /// residues from the end of `seq`.
+    ///
+    /// This should only be called on modules placed at the end of the pHMM. See
+    /// [`PrecomputedLocalModule`] for more details.
+    pub(crate) fn precompute_end_mod<Q: AsRef<[u8]>>(
+        &self, seq: Q, mapping: &ByteIndexMap<S>,
+    ) -> PrecomputedLocalModule<'_, T, S> {
+        PrecomputedLocalModule {
+            internal_params: self.internal_params.precompute_end_mod(seq, mapping),
+            external_params: &self.external_params,
+        }
+    }
+}
+
+impl<T: Float, const S: usize> PrecomputedLocalModule<'_, T, S> {
+    pub(crate) fn get_score(&self, i: impl QueryIndex, j: impl PhmmIndex) -> T {
+        self.internal_params.get_score(i) + self.external_params.get_score(j)
     }
 }
 

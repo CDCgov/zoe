@@ -13,7 +13,7 @@
 // TODO: Remove this when more pHMM stuff is added
 
 use crate::{
-    alignment::phmm::indexing::{LastMatch, PhmmIndex, PhmmIndexable},
+    alignment::phmm::indexing::{LastMatch, PhmmIndex},
     data::ByteIndexMap,
     math::Float,
 };
@@ -149,9 +149,11 @@ impl<T: Float, const S: usize> Default for LayerParams<T, S> {
     }
 }
 
-// TODO: Fix doc comments (add local)
 /// The core profile hidden Markov model (pHMM) used by [`GlobalPhmm`],
 /// [`LocalPhmm`] and other PHMMs.
+///
+/// This includes the layers of the pHMM without any modules at the beginning or
+/// end.
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct CorePhmm<T, const S: usize>(
     /// The parameters for the pHMM.
@@ -173,6 +175,26 @@ pub struct CorePhmm<T, const S: usize>(
 );
 
 impl<T, const S: usize> CorePhmm<T, S> {
+    /// Create a new [`CorePhmm`] from a `Vec` of the parameters.
+    ///
+    /// ## Errors
+    ///
+    /// At least two layers are required, otherwise [`PhmmError::TooFewLayers`]
+    /// is returned.
+    pub(crate) fn new(layers: Vec<LayerParams<T, S>>) -> Result<Self, PhmmError> {
+        if layers.len() >= 2 {
+            Ok(CorePhmm(layers))
+        } else {
+            Err(PhmmError::TooFewLayers(2))
+        }
+    }
+
+    /// Creates a new [`CorePhmm`] from a `Vec` of the parameters, without
+    /// checking that the number of layers is valid (at least 2).
+    pub(crate) fn new_unchecked(layers: Vec<LayerParams<T, S>>) -> Self {
+        CorePhmm(layers)
+    }
+
     /// Get a layer from within the core pHMM. Although there is no actual layer
     /// for the `End` state, for readability we let `End` be synonymous with
     /// `LastMatch` since `End` emphasizes it is the last layer.
@@ -181,6 +203,20 @@ impl<T, const S: usize> CorePhmm<T, S> {
             self.get_layer(LastMatch)
         } else {
             &self.0[self.get_dp_index(j)]
+        }
+    }
+
+    /// Get a mutable reference to a layer from within the core pHMM.
+    ///
+    /// Although there is no actual layer for the `End` state, for readability
+    /// we let `End` be synonymous with `LastMatch` since `End` emphasizes it is
+    /// the last layer.
+    pub(crate) fn get_layer_mut(&mut self, j: impl PhmmIndex) -> &mut LayerParams<T, S> {
+        if j.is_end() {
+            self.get_layer_mut(LastMatch)
+        } else {
+            let idx = self.get_dp_index(j);
+            &mut self.0[idx]
         }
     }
 
