@@ -17,7 +17,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `score_from_path` for `GlobalPhmm`
 - Added `ref_len` and `query_len` to the `Alignment` struct
 - Added viterbi algorithm to `GlobalPhmm`
-- Added structs towards supporting other alignment modes in pHMMs
+- Added `LocalPhmm` and structs towards supporting other alignment modes in pHMMs
+
 
 ### Changed
 
