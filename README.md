@@ -1,7 +1,7 @@
 # The Zoe Anthology
 
 [Zoe](https://en.wikipedia.org/wiki/Zoe_(name)) provides both broad and highly specialized implementations for
-bioinformatics. In particular, we focus on common data formats and methods relevant for the sequencing of RNA viruses. Read the [documentation](https://cdcgov.github.io/zoe).
+bioinformatics. In particular, we focus on common data formats and methods relevant for the sequencing of RNA viruses. Read the [internal documentation](https://cdcgov.github.io/zoe) or the [public docs](https://docs.rs/zoe/latest/zoe/) on [docs.rs](https://docs.rs).
 
 **This library runs on Rust *nightly*.**
 
