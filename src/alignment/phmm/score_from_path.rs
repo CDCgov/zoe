@@ -3,7 +3,7 @@ use crate::{
         AlignmentStates, StatesSequence,
         phmm::{
             Begin, CorePhmm, DomainPhmm, DpIndex, End, FirstMatch, GlobalPhmm, IndexOffset, LocalPhmm, PhmmError, PhmmState,
-            SeqIndex, indexing::LastMatch,
+            SemiLocalPhmm, SeqIndex, indexing::LastMatch,
         },
     },
     data::{ByteIndexMap, cigar::Ciglet},
@@ -322,7 +322,7 @@ impl<T: Float, const S: usize> DomainPhmm<T, S> {
     /// only supported operations are M, =, X, I, and D. If `path` does not
     /// correspond to a valid path through a [`DomainPhmm`], then
     /// [`PhmmError::InvalidPath`] is returned.
-    pub fn score_path<Q: AsRef<[u8]>>(&self, seq: Q, alignment: &AlignmentStates) -> Result<T, PhmmError> {
+    pub fn score_from_path<Q: AsRef<[u8]>>(&self, seq: Q, alignment: &AlignmentStates) -> Result<T, PhmmError> {
         use PhmmState::*;
 
         let seq = seq.as_ref();
@@ -363,6 +363,108 @@ impl<T: Float, const S: usize> DomainPhmm<T, S> {
 
         // Add the contribution from parameters of the end module
         score += self.get_end_score(end_seq, self.mapping);
+
+        Ok(score)
+    }
+}
+
+impl<T: Float, const S: usize> SemiLocalPhmm<T, S> {
+    /// Get the best score for an empty alignment (which means the sequence is
+    /// also empty)
+    fn score_empty_alignment(&self) -> T {
+        let score_through_begin = self.get_begin_score(Begin) + self.get_end_score(Begin);
+        let score_through_end = self.get_begin_score(End) + self.get_end_score(End);
+
+        score_through_begin.min(score_through_end)
+    }
+
+    /// Get the best score for a particular path. The score may be infinite if
+    /// no paths have a nonzero probability.
+    ///
+    /// This is designed to give the exact same score as [`viterbi`] when the
+    /// best `path` is passed, performing all arithmetic operations in the same
+    /// order so as not to change the floating point error.
+    ///
+    /// ## Errors
+    ///
+    /// The CIGAR string must consume the entire model and sequence, and the
+    /// only supported operations are M, =, X, I, and D. If `path` does not
+    /// correspond to a valid path through a [`LocalPhmm`], then
+    /// [`PhmmError::InvalidPath`] is returned.
+    ///
+    /// [`viterbi`]: LocalPhmm::viterbi
+    pub fn score_from_path<Q: AsRef<[u8]>>(
+        &self, seq: Q, alignment: &AlignmentStates, ref_range: Range<usize>,
+    ) -> Result<T, PhmmError> {
+        use PhmmState::*;
+
+        let seq = seq.as_ref();
+        let ciglets = alignment.as_slice();
+        let mut score = T::ZERO;
+
+        if ciglets.peek_op().is_none() {
+            return Ok(self.score_empty_alignment());
+        }
+
+        // Add the contribution of the external parameters into the core pHMM
+        // and the transitions out of the BEGIN state
+        if ref_range.start == 0 {
+            let first_op = ciglets.peek_op().ok_or(PhmmError::FullModelNotUsed)?;
+            let first_state = PhmmState::from_op(first_op)?;
+            let score_through_begin =
+                score + self.get_begin_score(Begin) + self.core.get_layer(Begin).transition[(Match, first_state)];
+
+            match first_state {
+                Delete | Insert => score = score_through_begin,
+                Match => {
+                    // Handle ambiguity: it is unclear whether we pass through
+                    // the BEGIN state of the core PHMM or not
+                    let score_skipping_begin = score + self.get_begin_score(FirstMatch);
+                    score = score_through_begin.min(score_skipping_begin);
+                }
+            }
+        } else {
+            // We must enter into a match state if not going through BEGIN
+            if PhmmState::from_op(ciglets.peek_op().ok_or(PhmmError::FullModelNotUsed)?)? != Match {
+                return Err(PhmmError::InvalidPath);
+            }
+
+            score += self.get_begin_score(SeqIndex(ref_range.start));
+        }
+
+        // Add the contribution from the core pHMM excluding transitions into
+        // the END state, and obtain the final state before the END state
+        let (mut score, final_state) = score_from_path_core(
+            &self.core,
+            self.mapping,
+            seq,
+            ref_range.clone(),
+            ciglets.iter().copied(),
+            score,
+        )?;
+
+        score = if ref_range.end == self.core.ref_length() {
+            let score_through_end =
+                score + self.core.get_layer(End).transition[(final_state, Match)] + self.get_end_score(End);
+
+            match final_state {
+                Delete | Insert => score_through_end,
+                Match => {
+                    // Handle ambiguity: it is unclear whether we pass through
+                    // the END state of the core PHMM or not
+                    let score_skipping_end = score + self.get_end_score(LastMatch);
+                    score_through_end.min(score_skipping_end)
+                }
+            }
+        } else {
+            // We must exit from a match state if not going through END
+            if final_state != Match {
+                return Err(PhmmError::InvalidPath);
+            }
+
+            // Subtract 1 since range is end-exclusive
+            score + self.get_end_score(SeqIndex(ref_range.end - 1))
+        };
 
         Ok(score)
     }

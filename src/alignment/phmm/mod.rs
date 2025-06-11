@@ -310,10 +310,22 @@ pub struct DomainPhmm<T, const S: usize> {
 }
 
 impl<T: Float, const S: usize> DomainPhmm<T, S> {
+    /// Gets the score for transitioning into a given [`PhmmIndex`] from the
+    /// [`DomainModule`] at the beginning of the pHMM.
+    ///
+    /// This is lazily computed. Use [`PrecomputedDomainModule`] for a more
+    /// efficienct alternative.
+    #[inline]
     pub(crate) fn get_begin_score(&self, inserted: &[u8], mapping: &'static ByteIndexMap<S>) -> T {
         self.begin.get_begin_score(inserted, mapping)
     }
 
+    /// Gets the score for transitioning out of a given [`PhmmIndex`] into the
+    /// [`DomainModule`] at the end of the pHMM.
+    ///
+    /// This is lazily computed. Use [`PrecomputedDomainModule`] for a more
+    /// efficienct alternative.
+    #[inline]
     pub(crate) fn get_end_score(&self, inserted: &[u8], mapping: &'static ByteIndexMap<S>) -> T {
         self.end.get_end_score(inserted, mapping)
     }
@@ -338,6 +350,20 @@ pub struct SemiLocalPhmm<T, const S: usize> {
     pub begin:   SemiLocalModule<T>,
     /// The module for handling any bases after the core model
     pub end:     SemiLocalModule<T>,
+}
+
+impl<T: Float, const S: usize> SemiLocalPhmm<T, S> {
+    /// Gets the score for transitioning into a given [`PhmmIndex`] from the
+    /// [`SemiLocalModule`] at the beginning of the pHMM.
+    pub(crate) fn get_begin_score(&self, index: impl PhmmIndex) -> T {
+        self.begin.get_score(index)
+    }
+
+    /// Gets the score for transitioning out of a given [`PhmmIndex`] into the
+    /// [`SemiLocalModule`] at the end of the pHMM.
+    pub(crate) fn get_end_score(&self, index: impl PhmmIndex) -> T {
+        self.end.get_score(index)
+    }
 }
 
 /// Options for how to construct a [`LocalPhmm`] from a [`GlobalPhmm`]
