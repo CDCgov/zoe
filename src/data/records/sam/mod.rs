@@ -67,6 +67,10 @@ impl SamData {
         }
     }
 
+    /// Creates a new unmapped [`SamData`] record.
+    ///
+    /// The sequence and quality fields are set to `*`, `POS` is set to 0,
+    /// `MAPQ` is set to 255, and the CIGAR string is empty.
     fn unmapped(qname: &str, rname: &str) -> Self {
         // In the context of an unmapped `SamData` record, this should not be
         // misinterpreted
@@ -102,6 +106,9 @@ impl SamData {
     }
 
     /// Tests if the [`SamData`] is unmapped.
+    ///
+    /// A record is considered unmapped if either the `flag` field has 0x4 set,
+    /// or if `cigar` has a match length of 0.
     #[inline]
     #[must_use]
     pub fn is_unmapped(&self) -> bool {

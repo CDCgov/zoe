@@ -13,6 +13,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Implemented `Arbitrary` for PHMM-related types under the `fuzzing feature
 - Added `SamHmmWriter` for writing pHMMs to SAM model files
 - Added `expanded_cigar_iter` for iterating over the operations in a CIGAR string
+- Added `peek_op`, `next_if_op`, and other related helper methods to `CigletIterator`
 - Added `IsValidDNA` strategies for non-ambiguous bases
 - Exposed `AlignmentStates`, a struct for incrementally building up CIGAR strings
 - Add `invert` method to `Alignment`
@@ -24,6 +25,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Renamed `arbitrary` feature to `fuzzing`
 - Add additional error checks and improve error messages for `FastQReader` and `FastaReader`.
 - `SamData` is no longer boxed in `SamRow`; `SamAligned` and `SamInsertion` are now private.
+- `merge_pair_using_reference` now includes clipping in the output.
 
 ## [0.0.18] - 2025-05-09
 
