@@ -2,7 +2,7 @@ use crate::{
     alignment::{
         Alignment, AlignmentStates,
         phmm::{
-            Begin, BestScore, CorePhmm, DpIndex, End, LastBase, LayerParams, LocalPhmm, PhmmError, PhmmState,
+            Begin, BestScore, CorePhmm, DpIndex, End, LastBase, LayerParams, LocalPhmm, PhmmError, PhmmNumber, PhmmState,
             PhmmStateArray, PhmmStateOrEnter, PrecomputedLocalModule, QueryIndex, QueryIndexable, ViterbiStrategy,
             ViterbiTraceback,
             indexing::{LastMatch, PhmmIndex, PhmmIndexable},
@@ -10,7 +10,6 @@ use crate::{
         },
     },
     data::ByteIndexMap,
-    math::Float,
 };
 use std::ops::Bound::{Excluded, Included};
 
@@ -24,7 +23,7 @@ pub struct LocalViterbiParams<'a, T, const S: usize> {
     query:   &'a [u8],
 }
 
-impl<'a, T: Float, const S: usize> LocalViterbiParams<'a, T, S> {
+impl<'a, T: PhmmNumber, const S: usize> LocalViterbiParams<'a, T, S> {
     /// Groups the parameters for a local Viterbi alignment in
     /// [`LocalViterbiParams`].
     #[inline]
@@ -40,7 +39,7 @@ impl<'a, T: Float, const S: usize> LocalViterbiParams<'a, T, S> {
     }
 }
 
-impl<'a, T: Float, const S: usize> ViterbiStrategy<'a, T, S> for LocalViterbiParams<'a, T, S> {
+impl<'a, T: PhmmNumber, const S: usize> ViterbiStrategy<'a, T, S> for LocalViterbiParams<'a, T, S> {
     type TracebackState = PhmmStateOrEnter;
     type BestScore = LocalBestScore<T>;
 
@@ -199,7 +198,7 @@ pub struct LocalBestScore<T> {
     loc:   ExitLocation,
 }
 
-impl<T: Float, const S: usize> BestScore<T, S> for LocalBestScore<T> {
+impl<T: PhmmNumber, const S: usize> BestScore<T, S> for LocalBestScore<T> {
     type Specs<'a>
         = LocalViterbiParams<'a, T, S>
     where
@@ -258,7 +257,7 @@ impl<T: Float, const S: usize> BestScore<T, S> for LocalBestScore<T> {
     }
 }
 
-impl<T: Float> Default for LocalBestScore<T> {
+impl<T: PhmmNumber> Default for LocalBestScore<T> {
     #[inline]
     fn default() -> Self {
         Self {
@@ -269,7 +268,7 @@ impl<T: Float> Default for LocalBestScore<T> {
     }
 }
 
-impl<T: Float, const S: usize> LocalPhmm<T, S> {
+impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
     /// Obtain the best scoring local alignment along with its score via the
     /// Viterbi algorithm.
     ///

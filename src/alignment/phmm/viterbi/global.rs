@@ -2,12 +2,11 @@ use crate::{
     alignment::{
         Alignment, AlignmentStates,
         phmm::{
-            BestScore, CorePhmm, GlobalPhmm, LayerParams, PhmmError, PhmmState, PhmmStateArray, QueryIndex, ViterbiStrategy,
-            ViterbiTraceback, indexing::PhmmIndex, viterbi::update_match,
+            BestScore, CorePhmm, GlobalPhmm, LayerParams, PhmmError, PhmmNumber, PhmmState, PhmmStateArray, QueryIndex,
+            ViterbiStrategy, ViterbiTraceback, indexing::PhmmIndex, viterbi::update_match,
         },
     },
     data::ByteIndexMap,
-    math::Float,
 };
 
 /// Parameters for running a global Viterbi alignment, including the pHMM
@@ -17,7 +16,7 @@ pub struct GlobalViterbiParams<'a, T, const S: usize> {
     query: &'a [u8],
 }
 
-impl<'a, T: Float, const S: usize> GlobalViterbiParams<'a, T, S> {
+impl<'a, T: PhmmNumber, const S: usize> GlobalViterbiParams<'a, T, S> {
     /// Groups the parameters for a global Viterbi alignment in
     /// [`GlobalViterbiParams`].
     #[inline]
@@ -27,7 +26,7 @@ impl<'a, T: Float, const S: usize> GlobalViterbiParams<'a, T, S> {
     }
 }
 
-impl<'a, T: Float, const S: usize> ViterbiStrategy<'a, T, S> for GlobalViterbiParams<'a, T, S> {
+impl<'a, T: PhmmNumber, const S: usize> ViterbiStrategy<'a, T, S> for GlobalViterbiParams<'a, T, S> {
     type TracebackState = PhmmState;
     type BestScore = GlobalBestScore<T>;
 
@@ -116,7 +115,7 @@ pub(crate) struct GlobalBestScore<T> {
     score: T,
 }
 
-impl<T: Float, const S: usize> BestScore<T, S> for GlobalBestScore<T> {
+impl<T: PhmmNumber, const S: usize> BestScore<T, S> for GlobalBestScore<T> {
     type Specs<'a>
         = GlobalViterbiParams<'a, T, S>
     where
@@ -141,7 +140,7 @@ impl<T: Float, const S: usize> BestScore<T, S> for GlobalBestScore<T> {
     }
 }
 
-impl<T: Float> Default for GlobalBestScore<T> {
+impl<T: PhmmNumber> Default for GlobalBestScore<T> {
     #[inline]
     fn default() -> Self {
         Self {
@@ -151,7 +150,7 @@ impl<T: Float> Default for GlobalBestScore<T> {
     }
 }
 
-impl<T: Float, const S: usize> GlobalPhmm<T, S> {
+impl<T: PhmmNumber, const S: usize> GlobalPhmm<T, S> {
     /// Obtain the best scoring global alignment along with its score via the
     /// Viterbi algorithm.
     ///

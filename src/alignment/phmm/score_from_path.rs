@@ -2,12 +2,11 @@ use crate::{
     alignment::{
         AlignmentStates, StatesSequence,
         phmm::{
-            Begin, CorePhmm, DomainPhmm, DpIndex, End, FirstMatch, GlobalPhmm, IndexOffset, LocalPhmm, PhmmError, PhmmState,
-            SemiLocalPhmm, SeqIndex, indexing::LastMatch,
+            Begin, CorePhmm, DomainPhmm, DpIndex, End, FirstMatch, GlobalPhmm, IndexOffset, LocalPhmm, PhmmError,
+            PhmmNumber, PhmmState, SemiLocalPhmm, SeqIndex, indexing::LastMatch,
         },
     },
     data::{ByteIndexMap, cigar::Ciglet},
-    math::Float,
 };
 use std::ops::Range;
 
@@ -31,7 +30,7 @@ use std::ops::Range;
 /// * Transitions from a starting or ending module into a match state
 ///
 /// [`ref_length`]: CorePhmm::ref_length
-fn score_from_path_core<T: Float, const S: usize>(
+fn score_from_path_core<T: PhmmNumber, const S: usize>(
     core: &CorePhmm<T, S>, mapping: &ByteIndexMap<S>, seq_in_alignment: &[u8], ref_range: Range<usize>,
     ciglets: impl IntoIterator<Item = Ciglet>, score: T,
 ) -> Result<(T, PhmmState), PhmmError> {
@@ -133,7 +132,7 @@ fn score_from_path_core<T: Float, const S: usize>(
     Ok((score, state))
 }
 
-impl<T: Float, const S: usize> GlobalPhmm<T, S> {
+impl<T: PhmmNumber, const S: usize> GlobalPhmm<T, S> {
     /// Get the score for a particular alignment.
     ///
     /// This is designed to give the exact same score as [`viterbi`] when the
@@ -168,7 +167,7 @@ impl<T: Float, const S: usize> GlobalPhmm<T, S> {
     }
 }
 
-impl<T: Float, const S: usize> LocalPhmm<T, S> {
+impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
     /// Get the best score for an empty alignment (all soft clipping).
     fn score_empty_alignment<Q: AsRef<[u8]>>(&self, seq: Q) -> T {
         let seq = seq.as_ref();
@@ -307,7 +306,7 @@ impl<T: Float, const S: usize> LocalPhmm<T, S> {
     }
 }
 
-impl<T: Float, const S: usize> DomainPhmm<T, S> {
+impl<T: PhmmNumber, const S: usize> DomainPhmm<T, S> {
     // TODO: Doc link
     /// Get the best score for a particular alignment.
     ///
@@ -368,7 +367,7 @@ impl<T: Float, const S: usize> DomainPhmm<T, S> {
     }
 }
 
-impl<T: Float, const S: usize> SemiLocalPhmm<T, S> {
+impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
     /// Get the best score for an empty alignment (which means the sequence is
     /// also empty)
     fn score_empty_alignment(&self) -> T {

@@ -3,11 +3,10 @@
 
 use crate::{
     alignment::phmm::{
-        CorePhmm, EmissionParams, QueryIndex, QueryIndexable,
+        CorePhmm, EmissionParams, PhmmNumber, QueryIndex, QueryIndexable,
         indexing::{PhmmIndex, PhmmIndexable},
     },
     data::ByteIndexMap,
-    math::Float,
 };
 
 /// A module placed before or after a [`CorePhmm`] to support local alignment
@@ -64,7 +63,7 @@ pub struct DomainModule<T, const S: usize> {
     pub background_emission: EmissionParams<T, S>,
 }
 
-impl<T: Float, const S: usize> DomainModule<T, S> {
+impl<T: PhmmNumber, const S: usize> DomainModule<T, S> {
     /// Given the residues which were inserted, lazily compute the score for a
     /// [`DomainModule`] at the beginning of a pHMM (rather than using
     /// [`PrecomputedDomainModule`]).
@@ -185,7 +184,7 @@ impl<T: Copy, const S: usize> PrecomputedDomainModule<T, S> {
     }
 }
 
-impl<T: Float, const S: usize> LocalModule<T, S> {
+impl<T: PhmmNumber, const S: usize> LocalModule<T, S> {
     /// Constructs a [`LocalModule`] where all transitions are free, and the
     /// only penalty is the emission parameters for any skipped bases in the
     /// query.
@@ -220,7 +219,7 @@ pub(crate) struct PrecomputedLocalModule<'a, T, const S: usize> {
     pub(crate) internal_params: PrecomputedDomainModule<T, S>,
 }
 
-impl<T: Float, const S: usize> LocalModule<T, S> {
+impl<T: PhmmNumber, const S: usize> LocalModule<T, S> {
     /// Precomputes the transition probabilities for skipping any number of
     /// residues from the beginning of `seq`.
     ///
@@ -250,7 +249,7 @@ impl<T: Float, const S: usize> LocalModule<T, S> {
     }
 }
 
-impl<T: Float, const S: usize> PrecomputedLocalModule<'_, T, S> {
+impl<T: PhmmNumber, const S: usize> PrecomputedLocalModule<'_, T, S> {
     /// Gets the score for skipping `i` residues in the query and
     /// entering/exiting layer `j`.
     ///
@@ -266,7 +265,7 @@ impl<T: Float, const S: usize> PrecomputedLocalModule<'_, T, S> {
     }
 }
 
-impl<T: Float, const S: usize> DomainModule<T, S> {
+impl<T: PhmmNumber, const S: usize> DomainModule<T, S> {
     /// Constructs a [`DomainModule`] where all transitions are free, and the
     /// only penalty is the emission parameters for any skipped bases in the
     /// query.
@@ -287,7 +286,7 @@ impl<T: Float, const S: usize> DomainModule<T, S> {
     }
 }
 
-impl<T: Float> SemiLocalModule<T> {
+impl<T: PhmmNumber> SemiLocalModule<T> {
     /// Constructs a [`SemiLocalModule`] where all transitions are free.
     ///
     /// This will not produce a true probabilistic model where the probabilities

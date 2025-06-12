@@ -1,6 +1,6 @@
 use crate::{
     alignment::phmm::{
-        CorePhmm, EmissionParams, GlobalPhmm, LayerParams,
+        CorePhmm, EmissionParams, GlobalPhmm, LayerParams, PhmmNumber,
         PhmmState::{self, *},
         TransitionParams,
     },
@@ -8,7 +8,6 @@ use crate::{
         ByteIndexMap,
         mappings::{AA_UNAMBIG_PROFILE_MAP, DNA_UNAMBIG_PROFILE_MAP},
     },
-    math::Float,
     unwrap_or_return_some_err,
 };
 use std::{
@@ -54,7 +53,7 @@ impl SamHmmParser {
 /// model parameters.
 struct GenericSamHmmParser<T>(PhantomData<T>);
 
-impl<T: Float> GenericSamHmmParser<T> {
+impl<T: PhmmNumber> GenericSamHmmParser<T> {
     /// Parse a DNA pHMM from a SAM model file.
     ///
     /// ## Errors
@@ -93,7 +92,7 @@ impl SamHmmWriter {
     /// * The mapping of the pHMM must correspond to DNA
     /// * The model must have at least one layer
     #[inline]
-    pub fn write_dna_model<T: Float>(filename: impl AsRef<Path>, model: &GlobalPhmm<T, 4>) -> std::io::Result<()> {
+    pub fn write_dna_model<T: PhmmNumber>(filename: impl AsRef<Path>, model: &GlobalPhmm<T, 4>) -> std::io::Result<()> {
         SupportedConfig::write_sam_model_file(filename, model)
     }
 
@@ -105,7 +104,7 @@ impl SamHmmWriter {
     /// * The mapping of the pHMM must correspond to DNA
     /// * The model must have at least one layer
     #[inline]
-    pub fn write_protein_model<T: Float>(filename: impl AsRef<Path>, model: &GlobalPhmm<T, 20>) -> std::io::Result<()> {
+    pub fn write_protein_model<T: PhmmNumber>(filename: impl AsRef<Path>, model: &GlobalPhmm<T, 20>) -> std::io::Result<()> {
         SupportedConfig::write_sam_model_file(filename, model)
     }
 }
@@ -139,11 +138,11 @@ trait SamHmmConfig<const S: usize, const L: usize> {
 
     /// Given a flat array of `L=2*S+9` parameters, converts them into
     /// [`LayerParams`].
-    fn group_params<T: Float>(params: [T; L]) -> LayerParams<T, S>;
+    fn group_params<T: PhmmNumber>(params: [T; L]) -> LayerParams<T, S>;
 
     /// The inverse of `group_params`, taking a layer and flattening it to SAM
     /// parameters.
-    fn ungroup_params<T: Float>(params: &LayerParams<T, S>) -> [T; L];
+    fn ungroup_params<T: PhmmNumber>(params: &LayerParams<T, S>) -> [T; L];
 
     /// Parse a SAM model file representing a pHMM.
     ///
@@ -155,7 +154,7 @@ trait SamHmmConfig<const S: usize, const L: usize> {
     ///   `L`
     /// * No negative indices are allowed in layer names
     /// * At least three layers must be present in the model
-    fn parse_sam_model_file<T: Float, P>(filename: P) -> Result<GlobalPhmm<T, S>, IOError>
+    fn parse_sam_model_file<T: PhmmNumber, P>(filename: P) -> Result<GlobalPhmm<T, S>, IOError>
     where
         P: AsRef<Path>,
         SupportedConfig: SamHmmConfig<S, L>, {
@@ -201,7 +200,7 @@ trait SamHmmConfig<const S: usize, const L: usize> {
     /// * IO errors (when creating file or writing to it)
     /// * The mapping of the pHMM must correspond to DNA
     /// * The model must have at least one layer
-    fn write_sam_model_file<T: Float, P>(filename: P, model: &GlobalPhmm<T, S>) -> std::io::Result<()>
+    fn write_sam_model_file<T: PhmmNumber, P>(filename: P, model: &GlobalPhmm<T, S>) -> std::io::Result<()>
     where
         P: AsRef<Path>,
         SupportedConfig: SamHmmConfig<S, L>, {
@@ -284,7 +283,7 @@ trait SamHmmConfig<const S: usize, const L: usize> {
     ///   parameters on any line (see [`fill_params_from_iter`])
     ///
     /// [`fill_params_from_iter`]: crate::alignment::phmm::sam_parser::SamHmmConfig::fill_params_from_iter
-    fn parse_layer_params<'a, T: Float>(
+    fn parse_layer_params<'a, T: PhmmNumber>(
         mut rest_of_line: impl Iterator<Item = &'a str>, lines: &mut LineIterator,
     ) -> Result<LayerParams<T, S>, IOError> {
         let mut params = [T::ZERO; L];
@@ -323,7 +322,7 @@ trait SamHmmConfig<const S: usize, const L: usize> {
     /// * The parameters must successfully parse (see [`parse_param`])
     /// * If `params` gets filled, then `iter` must not contain any more
     ///   elements
-    fn fill_params_from_iter<'a, T: Float>(
+    fn fill_params_from_iter<'a, T: PhmmNumber>(
         iter: &mut impl Iterator<Item = &'a str>, params: &mut [T], mut i: usize,
     ) -> Result<usize, std::io::Error> {
         for param in iter.take(L - i) {
@@ -362,7 +361,7 @@ impl SamHmmConfig<4, 17> for SupportedConfig {
     }
 
     #[inline]
-    fn group_params<T: Float>(params: [T; 17]) -> LayerParams<T, 4> {
+    fn group_params<T: PhmmNumber>(params: [T; 17]) -> LayerParams<T, 4> {
         let transition = TransitionParams([
             [params[0], params[1], params[2]],
             [params[3], params[4], params[5]],
@@ -380,7 +379,7 @@ impl SamHmmConfig<4, 17> for SupportedConfig {
     }
 
     #[inline]
-    fn ungroup_params<T: Float>(params: &LayerParams<T, 4>) -> [T; 17] {
+    fn ungroup_params<T: PhmmNumber>(params: &LayerParams<T, 4>) -> [T; 17] {
         let mut out = [T::ZERO; 17];
         out[0..3].copy_from_slice(&params.transition.0[0]);
         out[3..6].copy_from_slice(&params.transition.0[1]);
@@ -419,7 +418,7 @@ impl SamHmmConfig<20, 49> for SupportedConfig {
     }
 
     #[inline]
-    fn group_params<T: Float>(params: [T; 49]) -> LayerParams<T, 20> {
+    fn group_params<T: PhmmNumber>(params: [T; 49]) -> LayerParams<T, 20> {
         let (transition, rest) = params.split_at(9);
 
         let transition = TransitionParams([
@@ -440,7 +439,7 @@ impl SamHmmConfig<20, 49> for SupportedConfig {
     }
 
     #[inline]
-    fn ungroup_params<T: Float>(params: &LayerParams<T, 20>) -> [T; 49] {
+    fn ungroup_params<T: PhmmNumber>(params: &LayerParams<T, 20>) -> [T; 49] {
         let mut out = [T::ZERO; 49];
         out[0..3].copy_from_slice(&params.transition.0[0]);
         out[3..6].copy_from_slice(&params.transition.0[1]);
@@ -506,24 +505,20 @@ fn validate_model_line(lines: &mut LineIterator) -> Result<(), IOError> {
 /// * Negative parameters are not allowed
 /// * The parameter must succeed when parsing to type `T`
 #[inline]
-fn parse_param<T: Float>(param: &str) -> Result<T, IOError> {
-    if param.starts_with('-') {
+fn parse_param<T: PhmmNumber>(prob: &str) -> Result<T, IOError> {
+    if prob.starts_with('-') {
         return Err(IOError::new(
             ErrorKind::InvalidData,
-            format!("A negative parameter was found: {param}"),
+            format!("A negative parameter was found: {prob}"),
         ));
     }
-    let param = param.parse::<T>().map_err(|_| {
+    let prob = prob.parse::<f64>().map_err(|_| {
         IOError::new(
             ErrorKind::InvalidData,
-            format!("When parsing the model parameters, the value {param} could not be parsed as a float"),
+            format!("When parsing the model parameters, the value {prob} could not be parsed as a float"),
         )
     })?;
-    let mut param = -param.ln();
-    if param.is_nan() {
-        param = T::INFINITY;
-    }
-    Ok(param)
+    Ok(T::from_prob(prob))
 }
 
 /// An iterator over the layers in a SAM pHMM file, rearranged to be compatible
@@ -535,7 +530,7 @@ struct LayerIter<'a, T, const S: usize, const L: usize> {
     last_layer: LayerParams<T, S>,
 }
 
-impl<'a, T: Float, const S: usize, const L: usize> LayerIter<'a, T, S, L>
+impl<'a, T: PhmmNumber, const S: usize, const L: usize> LayerIter<'a, T, S, L>
 where
     SupportedConfig: SamHmmConfig<S, L>,
 {
@@ -555,7 +550,7 @@ where
     }
 }
 
-impl<T: Float, const S: usize, const L: usize> Iterator for LayerIter<'_, T, S, L>
+impl<T: PhmmNumber, const S: usize, const L: usize> Iterator for LayerIter<'_, T, S, L>
 where
     SupportedConfig: SamHmmConfig<S, L>,
 {
@@ -597,7 +592,7 @@ impl<'a, T, const S: usize, const L: usize> RawLayerIter<'a, T, S, L> {
     }
 }
 
-impl<T: Float, const S: usize, const L: usize> Iterator for RawLayerIter<'_, T, S, L>
+impl<T: PhmmNumber, const S: usize, const L: usize> Iterator for RawLayerIter<'_, T, S, L>
 where
     SupportedConfig: SamHmmConfig<S, L>,
 {
@@ -704,8 +699,8 @@ impl Iterator for LineIterator {
 /// Print the parameters for a layer to a single line, space-separated, and add
 /// a newline.
 #[inline]
-fn print_params<T: Float, const N: usize>(writer: &mut impl Write, params: [T; N]) -> std::io::Result<()> {
-    let mut params = params.into_iter().map(|param| (-param).exp());
+fn print_params<T: PhmmNumber, const N: usize>(writer: &mut impl Write, params: [T; N]) -> std::io::Result<()> {
+    let mut params = params.into_iter().map(super::PhmmNumber::to_prob::<f32>);
     let Some(param) = params.next() else { return Ok(()) };
     write!(writer, "{param:.6}")?;
     for param in params {

@@ -2,14 +2,14 @@ use crate::{
     alignment::{
         Alignment, AlignmentStates,
         phmm::{
-            Begin, BestScore, CorePhmm, DpIndex, End, LayerParams, NoBases, PhmmError, PhmmState, PhmmStateArray,
-            PhmmStateOrEnter, QueryIndex, QueryIndexable, SemiLocalModule, SemiLocalPhmm, ViterbiStrategy, ViterbiTraceback,
+            Begin, BestScore, CorePhmm, DpIndex, End, LayerParams, NoBases, PhmmError, PhmmNumber, PhmmState,
+            PhmmStateArray, PhmmStateOrEnter, QueryIndex, QueryIndexable, SemiLocalModule, SemiLocalPhmm, ViterbiStrategy,
+            ViterbiTraceback,
             indexing::{LastMatch, PhmmIndex, PhmmIndexable},
             viterbi::{ExitLocation, update_match},
         },
     },
     data::ByteIndexMap,
-    math::Float,
 };
 use std::ops::Bound::{Excluded, Included};
 
@@ -23,7 +23,7 @@ pub struct SemiLocalViterbiParams<'a, T, const S: usize> {
     query:   &'a [u8],
 }
 
-impl<'a, T: Float, const S: usize> SemiLocalViterbiParams<'a, T, S> {
+impl<'a, T: PhmmNumber, const S: usize> SemiLocalViterbiParams<'a, T, S> {
     /// Groups the parameters for a semilocal Viterbi alignment in
     /// [`SemiLocalViterbiParams`].
     #[inline]
@@ -39,7 +39,7 @@ impl<'a, T: Float, const S: usize> SemiLocalViterbiParams<'a, T, S> {
     }
 }
 
-impl<'a, T: Float, const S: usize> ViterbiStrategy<'a, T, S> for SemiLocalViterbiParams<'a, T, S> {
+impl<'a, T: PhmmNumber, const S: usize> ViterbiStrategy<'a, T, S> for SemiLocalViterbiParams<'a, T, S> {
     type TracebackState = PhmmStateOrEnter;
     type BestScore = SemiLocalBestScore<T>;
 
@@ -196,7 +196,7 @@ pub struct SemiLocalBestScore<T> {
     loc:   ExitLocation,
 }
 
-impl<T: Float, const S: usize> BestScore<T, S> for SemiLocalBestScore<T> {
+impl<T: PhmmNumber, const S: usize> BestScore<T, S> for SemiLocalBestScore<T> {
     type Specs<'a>
         = SemiLocalViterbiParams<'a, T, S>
     where
@@ -249,7 +249,7 @@ impl<T: Float, const S: usize> BestScore<T, S> for SemiLocalBestScore<T> {
     }
 }
 
-impl<T: Float> Default for SemiLocalBestScore<T> {
+impl<T: PhmmNumber> Default for SemiLocalBestScore<T> {
     #[inline]
     fn default() -> Self {
         Self {
@@ -259,7 +259,7 @@ impl<T: Float> Default for SemiLocalBestScore<T> {
     }
 }
 
-impl<T: Float, const S: usize> SemiLocalPhmm<T, S> {
+impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
     /// Obtain the best scoring local alignment along with its score via the
     /// Viterbi algorithm.
     ///

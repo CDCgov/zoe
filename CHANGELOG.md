@@ -11,6 +11,10 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `HeaderReadable` getter trait for record types
 - Implemented `Arbitrary` for `SemiLocalPhmm` and `DomainPhmm` (behind `fuzzing` and `dev-phmm` feature gates)
 
+### Changed
+
+- pHMM types and algorithms now rely on the more general `PhmmNumber` trait instead of `Float` (behind `dev-phmm` feature gate)
+
 ### Fixes
 
 - `ProfileSets` is re-exported in the prelude

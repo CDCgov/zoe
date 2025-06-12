@@ -15,9 +15,9 @@
 use crate::{
     alignment::phmm::indexing::{LastMatch, PhmmIndex},
     data::ByteIndexMap,
-    math::Float,
+    math::{CastAs, CastAsNumeric, CastFrom, CastFromNumeric, Float},
 };
-use std::ops::{Index, IndexMut};
+use std::ops::{Add, AddAssign, Index, IndexMut, Mul};
 
 mod alignment_modes;
 mod errors;
@@ -35,6 +35,75 @@ pub use sam_parser::*;
 pub(crate) use state::*;
 pub use viterbi::*;
 
+/// A trait for numeric types compatible with pHMMs.
+///
+/// These numeric types are used for performing pHMM calculations in negative
+/// log space.
+pub trait PhmmNumber:
+    Copy + Add<Output = Self> + Mul<Output = Self> + AddAssign + PartialOrd + CastAs + CastAsNumeric + CastFrom + CastFromNumeric
+{
+    /// Infinity, the negative log space score corresponding to probability zero
+    const INFINITY: Self;
+    /// Zero, the negative log space score corresponding to probability one
+    const ZERO: Self;
+
+    /// Converts a probability (a floating point value) into negative log space
+    fn from_prob<T: Float>(prob: T) -> Self;
+
+    /// Converts a negative log space score back to a probability
+    fn to_prob<T: Float>(self) -> T;
+
+    /// Computes the minimum of two negative log space scores
+    #[must_use]
+    fn min(self, other: Self) -> Self;
+}
+
+impl PhmmNumber for f32 {
+    const INFINITY: Self = f32::INFINITY;
+    const ZERO: Self = 0.0;
+
+    #[inline]
+    fn from_prob<T: Float>(prob: T) -> Self {
+        // Increase precision by converting to f32 last
+        let param = (-prob.ln()).cast_as::<f32>();
+        if param.is_nan() { Self::INFINITY } else { param }
+    }
+
+    #[inline]
+    fn to_prob<T: Float>(self) -> T {
+        // Increase precision by converting from f32 first
+        (-T::cast_from(self)).exp()
+    }
+
+    #[inline]
+    fn min(self, other: Self) -> Self {
+        self.min(other)
+    }
+}
+
+impl PhmmNumber for f64 {
+    const INFINITY: Self = f64::INFINITY;
+    const ZERO: Self = 0.0;
+
+    #[inline]
+    fn from_prob<T: Float>(prob: T) -> Self {
+        // Increase precision by converting to f64 first
+        let param = -prob.cast_as::<f64>().ln();
+        if param.is_nan() { Self::INFINITY } else { param }
+    }
+
+    #[inline]
+    fn to_prob<T: Float>(self) -> T {
+        // Increase precision by converting from f64 last
+        T::cast_from((-self).exp())
+    }
+
+    #[inline]
+    fn min(self, other: Self) -> Self {
+        self.min(other)
+    }
+}
+
 /// The transition probabilities for a layer of the pHMM.
 ///
 /// The parameters are converted to log space with $-\operatorname{ln}(\cdot)$.
@@ -50,7 +119,7 @@ pub use viterbi::*;
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct TransitionParams<T>(pub(crate) [[T; 3]; 3]);
 
-impl<T: Float> Default for TransitionParams<T> {
+impl<T: PhmmNumber> Default for TransitionParams<T> {
     /// Initialize the transition parameters so that all transitions are
     /// probability zero
     #[inline]
@@ -97,7 +166,7 @@ impl<T> IndexMut<PhmmState> for TransitionParams<T> {
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct EmissionParams<T, const S: usize>(pub(crate) [T; S]);
 
-impl<T: Float, const S: usize> Default for EmissionParams<T, S> {
+impl<T: PhmmNumber, const S: usize> Default for EmissionParams<T, S> {
     /// Initialize the emission parameters so that all residues are probability
     /// zero
     #[inline]
@@ -107,15 +176,13 @@ impl<T: Float, const S: usize> Default for EmissionParams<T, S> {
     }
 }
 
-// `f32` and `f64` both implement From<u16>
-impl<T: Float + From<u16>, const S: usize> EmissionParams<T, S> {
+impl<T: PhmmNumber, const S: usize> EmissionParams<T, S> {
     /// Generates the emission parameters for a uniform distribution.
     #[inline]
     #[must_use]
-    #[allow(clippy::cast_possible_truncation)]
+    #[allow(clippy::cast_precision_loss)]
     pub fn uniform() -> Self {
-        const { assert!(S < u16::MAX as usize) }
-        Self([-(T::ONE / T::from(S as u16)).ln(); S])
+        Self([T::from_prob(1.0f64 / (S as f64)); S])
     }
 }
 
@@ -138,7 +205,7 @@ pub struct LayerParams<T, const S: usize> {
     pub(crate) emission_insert: EmissionParams<T, S>,
 }
 
-impl<T: Float, const S: usize> Default for LayerParams<T, S> {
+impl<T: PhmmNumber, const S: usize> Default for LayerParams<T, S> {
     #[inline]
     fn default() -> Self {
         Self {
@@ -263,7 +330,7 @@ pub struct LocalPhmm<T, const S: usize> {
     pub end:     LocalModule<T, S>,
 }
 
-impl<T: Float, const S: usize> LocalPhmm<T, S> {
+impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
     /// Gets the score incurred by skipping `inserted` bases from the beginning
     /// of the query, before entering the [`CorePhmm`].
     pub(crate) fn get_begin_internal_score(&self, inserted: &[u8], mapping: &'static ByteIndexMap<S>) -> T {
@@ -309,7 +376,7 @@ pub struct DomainPhmm<T, const S: usize> {
     pub end:     DomainModule<T, S>,
 }
 
-impl<T: Float, const S: usize> DomainPhmm<T, S> {
+impl<T: PhmmNumber, const S: usize> DomainPhmm<T, S> {
     /// Gets the score for transitioning into a given [`PhmmIndex`] from the
     /// [`DomainModule`] at the beginning of the pHMM.
     ///
@@ -352,7 +419,7 @@ pub struct SemiLocalPhmm<T, const S: usize> {
     pub end:     SemiLocalModule<T>,
 }
 
-impl<T: Float, const S: usize> SemiLocalPhmm<T, S> {
+impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
     /// Gets the score for transitioning into a given [`PhmmIndex`] from the
     /// [`SemiLocalModule`] at the beginning of the pHMM.
     pub(crate) fn get_begin_score(&self, index: impl PhmmIndex) -> T {
@@ -404,11 +471,12 @@ pub enum SemiLocalConfig<T> {
     },
 }
 
-impl<T: Float, const S: usize> GlobalPhmm<T, S> {
+impl<T: PhmmNumber, const S: usize> GlobalPhmm<T, S> {
     /// Creates a [`LocalPhmm`] from a [`GlobalPhmm`].
     ///
     /// The method to use for defining the local alignment behavior is specified
     /// with `config`.
+    #[inline]
     #[must_use]
     pub fn into_local_phmm(self, config: LocalConfig<T, S>) -> LocalPhmm<T, S> {
         let (begin, end) = match config {

@@ -2,12 +2,11 @@ use crate::{
     alignment::{
         Alignment,
         phmm::{
-            CorePhmm, DpIndex, EnumArray, LayerParams, PhmmError, PhmmIndex, PhmmState, PhmmStateArray, PhmmStateEnum,
-            PhmmStateOrEnter, QueryIndex, SeqIndex,
+            CorePhmm, DpIndex, EnumArray, LayerParams, PhmmError, PhmmIndex, PhmmNumber, PhmmState, PhmmStateArray,
+            PhmmStateEnum, PhmmStateOrEnter, QueryIndex, SeqIndex,
         },
     },
     data::ByteIndexMap,
-    math::Float,
 };
 
 mod global;
@@ -26,7 +25,7 @@ pub use semilocal::*;
 /// score for the case of local alignment.
 #[inline]
 #[must_use]
-fn update_match<T: Float, const S: usize, E: PhmmStateEnum, const N: usize>(
+fn update_match<T: PhmmNumber, const S: usize, E: PhmmStateEnum, const N: usize>(
     layer: &LayerParams<T, S>, x_idx: usize, mut vals: EnumArray<T, E, N>,
 ) -> (E, T) {
     use crate::alignment::phmm::state::PhmmState::*;
@@ -44,7 +43,7 @@ fn update_match<T: Float, const S: usize, E: PhmmStateEnum, const N: usize>(
 /// it was reached.
 #[inline]
 #[must_use]
-fn update_insert<T: Float, const S: usize>(
+fn update_insert<T: PhmmNumber, const S: usize>(
     layer: &LayerParams<T, S>, x_idx: usize, mut vals: PhmmStateArray<T>,
 ) -> (PhmmState, T) {
     use crate::alignment::phmm::PhmmState::*;
@@ -62,7 +61,7 @@ fn update_insert<T: Float, const S: usize>(
 /// it was reached.
 #[inline]
 #[must_use]
-fn update_delete<T: Float, const S: usize>(layer: &LayerParams<T, S>, mut vals: PhmmStateArray<T>) -> (PhmmState, T) {
+fn update_delete<T: PhmmNumber, const S: usize>(layer: &LayerParams<T, S>, mut vals: PhmmStateArray<T>) -> (PhmmState, T) {
     use crate::alignment::phmm::PhmmState::*;
 
     vals[Delete] += layer.transition[(Delete, Delete)];
@@ -149,7 +148,7 @@ impl<T> ViterbiTraceback<T> {
 /// alignment modes. By specifying various components of the algorithm via the
 /// required trait methods, this trait provides an implementation of the Viterbi
 /// algorithm.
-pub(crate) trait ViterbiStrategy<'a, T: Float + 'a, const S: usize>: Sized {
+pub(crate) trait ViterbiStrategy<'a, T: PhmmNumber + 'a, const S: usize>: Sized {
     /// The type used in the traceback matrix, either [`PhmmState`] or
     /// [`PhmmStateOrEnter`].
     ///
