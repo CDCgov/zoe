@@ -115,6 +115,7 @@ pub fn sw_score_from_path<const S: usize>(
 ///    <https://doi.org/10.1101/031500>
 ///
 #[must_use]
+#[allow(clippy::cast_sign_loss)]
 pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S>) -> u64 {
     struct SWCells {
         matching:   i32,
@@ -165,7 +166,7 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
     }
 
     // Score must be non-negative
-    best_score.as_u64()
+    best_score as u64
 }
 
 /// Perform a local Smith-Waterman alignment.
@@ -480,11 +481,11 @@ where
         // Map best score to an unsigned range. Note that: MAX+1 = abs(MIN). If
         // we would have overflowed (saturated), return None, otherwise return
         // the best score.
-        (best < T::MAX).then(|| (T::MAX.as_u64() + 1).wrapping_add_signed(best.as_i64()))
+        (best < T::MAX).then(|| (T::MAX.cast_as::<u64>() + 1).wrapping_add_signed(best.cast_as::<i64>()))
     } else {
         // If we would have overflowed, return None, otherwise return the best
         // score. We add one because we care if the value is equal to the MAX.
-        best.checked_add(query.bias + T::ONE).map(|_| best.as_u64())
+        best.checked_add(query.bias + T::ONE).map(|_| best.cast_as::<u64>())
     }
 }
 
@@ -514,6 +515,7 @@ mod test {
     use crate::data::mappings::DNA_PROFILE_MAP;
 
     #[test]
+    #[allow(clippy::cast_sign_loss)]
     fn sw_verify_score_from_path() {
         let reference = b"ATTCCTTTTGCCGGG";
         let weights: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(3, -1, Some(b'N'));
@@ -526,10 +528,7 @@ mod test {
             states: cigar,
         } = sw_scalar_alignment(reference, &profile);
 
-        assert_eq!(
-            Ok(score.as_u64()),
-            sw_score_from_path(&cigar, &reference[ref_range], &profile)
-        );
+        assert_eq!(Ok(score as u64), sw_score_from_path(&cigar, &reference[ref_range], &profile));
     }
 
     #[test]

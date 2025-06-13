@@ -4,10 +4,16 @@ use std::{
     ops::{Add, AddAssign, BitAnd, BitOr, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign},
 };
 
-use crate::private::Sealed;
+use crate::{
+    math::cast::{CastAsNumeric, CastFromBool, CastFromNumeric},
+    private::Sealed,
+};
 
 pub trait AnyInt:
-    Sized
+    CastAsNumeric
+    + CastFromNumeric
+    + CastFromBool
+    + Sized
     + Copy
     + Debug
     + Ord
@@ -40,10 +46,6 @@ pub trait AnyInt:
         out
     }
 
-    fn from_bool(b: bool) -> Self;
-    fn as_usize(self) -> usize;
-    fn as_u64(self) -> u64;
-    fn as_i64(self) -> i64;
     fn checked_add(self, other: Self) -> Option<Self>;
     fn trailing_zeros(self) -> u32;
     fn count_ones(self) -> u32;
@@ -73,23 +75,6 @@ macro_rules! impl_int {
             const ZERO: $ty = 0;
             const ONE: $ty = 1;
             const SIGNED: bool = stringify!($ty).as_bytes()[0] == b'i';
-
-            #[inline]
-            fn from_bool(b: bool) -> $ty {
-                <$ty>::from(b)
-            }
-
-            #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation, clippy::cast_lossless, clippy::cast_possible_wrap)]
-            #[inline]
-            fn as_usize(self) -> usize { self as usize }
-
-            #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation, clippy::cast_lossless, clippy::cast_possible_wrap)]
-            #[inline]
-            fn as_u64(self) -> u64 { self as u64 }
-
-            #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation, clippy::cast_lossless, clippy::cast_possible_wrap)]
-            #[inline]
-            fn as_i64(self) -> i64 { self as i64 }
 
             #[inline]
             fn checked_add(self, other: Self) -> Option<Self> {

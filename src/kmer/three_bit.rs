@@ -210,7 +210,7 @@ where
     #[inline]
     fn decode_base(encoded_base: Self::EncodedBase) -> u8 {
         // as_usize is valid since encoded_base will be in `3..=8`
-        b"000NACGT"[encoded_base.as_usize()]
+        b"000NACGT"[encoded_base.cast_as::<usize>()]
     }
 
     /// Decodes a single base. If the base is not in `3..=8`, then `None` is

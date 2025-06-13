@@ -24,6 +24,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - `Alignment` now uses `AlignmentStates` instead of `Cigar`
 - Modified args for `AlignmentStates::reverse()` and the `Debug` format for `AlignmentStates`
 - Modified `ScalarProfile` for alignment to hold a reference to the weight matrix
+- Replace ad-hoc casting methods in `AnyInt` and `Float` with generic `cast_as` and `cast_from` 
 
 ### Removed
 

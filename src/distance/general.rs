@@ -23,8 +23,8 @@ use crate::math::Uint;
 pub fn hamming<T: Uint>(a: &[u8], b: &[u8]) -> usize {
     std::iter::zip(a, b)
         .map(|(a, b)| a != b)
-        .fold(T::ZERO, |a, b| a + T::from_bool(b))
-        .as_usize()
+        .fold(T::ZERO, |a, b| a + T::cast_from(b))
+        .cast_as::<usize>()
 }
 
 /// Calculates the number of differences at the byte (or base/residue) level.
