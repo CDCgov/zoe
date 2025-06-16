@@ -43,6 +43,10 @@ multiversion = ["dep:multiversion"]
 # Arbitrary implementations
 fuzzing = ["dep:arbitrary"]
 
+# An optional feature exposing additional alignment-related functions and
+# internals, such as for testing
+alignment-diagnostics = []
+
 # Note: development features may be removed at any time.
 
 # An optional feature enabling pHMM functionality which is currently in
@@ -64,5 +68,5 @@ strip = true
 lto = "thin"
 
 [package.metadata.docs.rs]
-features = ["rand", "fuzzing", "dev-phmm", "dev-3pass"]
+features = ["rand", "fuzzing", "dev-phmm", "dev-3pass", "alignment-diagnostics"]
 rustdoc-args = ["--html-in-header", "./assets/docs-header.html"]

@@ -13,7 +13,7 @@
 // TODO: Remove this when more pHMM stuff is added
 
 use crate::{
-    alignment::phmm::indexing::{LastMatch, PhmmIndex},
+    alignment::phmm::indexing::{LastMatch, PhmmIndex, PhmmIndexable},
     data::ByteIndexMap,
     math::{CastAs, CastAsNumeric, CastFrom, CastFromNumeric, Float},
 };
@@ -21,16 +21,28 @@ use std::ops::{Add, AddAssign, Index, IndexMut, Mul};
 
 mod alignment_modes;
 mod errors;
-mod indexing;
 mod sam_parser;
-mod score_from_path;
 mod state;
 mod traits;
 mod viterbi;
 
+#[cfg(not(feature = "alignment-diagnostics"))]
+pub(crate) mod indexing;
+#[cfg(feature = "alignment-diagnostics")]
+pub mod indexing;
+
+#[cfg(not(feature = "alignment-diagnostics"))]
+mod score_from_path;
+#[cfg(feature = "alignment-diagnostics")]
+pub mod score_from_path;
+
+#[cfg(not(feature = "alignment-diagnostics"))]
+mod visit_params;
+#[cfg(feature = "alignment-diagnostics")]
+pub mod visit_params;
+
 pub use alignment_modes::*;
 pub use errors::*;
-pub(crate) use indexing::*;
 pub use sam_parser::*;
 pub(crate) use state::*;
 pub use viterbi::*;

@@ -1,3 +1,15 @@
+//! Structs and traits to enable more readable/correct indexing into
+//! pHMM-related data structures.
+//!
+//! <div class="warning note">
+//!
+//! **Note**
+//!
+//! You must enable the *alignment-diagnostics* feature in your `Cargo.toml` to
+//! use these functions.
+//!
+//! </div>
+
 use crate::{
     alignment::phmm::{CorePhmm, PrecomputedDomainModule, PrecomputedLocalModule, SemiLocalModule},
     data::views::IndexAdjustable,
@@ -6,7 +18,7 @@ use std::ops::{Bound, Range};
 
 /// A trait for structures that can be indexed via a [`PhmmIndex`], such as
 /// pHMMs and modules.
-pub(crate) trait PhmmIndexable: Sized {
+pub trait PhmmIndexable: Sized {
     /// Returns the number of pseudomatch states in the pHMM-related structure
     /// (either a match state for the reference, or BEGIN or END).
     fn num_pseudomatch(&self) -> usize;
@@ -25,6 +37,12 @@ pub(crate) trait PhmmIndexable: Sized {
     #[inline]
     fn get_dp_index(&self, j: impl PhmmIndex) -> usize {
         j.get_phmm_dp_index(self)
+    }
+
+    /// Converts the [`PhmmIndex`] to a dynamic programming index.
+    #[inline]
+    fn to_dp_index(&self, j: impl PhmmIndex) -> DpIndex {
+        DpIndex(self.get_dp_index(j))
     }
 
     /// Returns the [`PhmmIndex`] as a sequence index (with respect to the
@@ -77,7 +95,7 @@ pub(crate) trait PhmmIndexable: Sized {
 
 /// A trait for structures that can be indexed via a [`QueryIndex`], such as
 /// query sequence.
-pub(crate) trait QueryIndexable: Sized {
+pub trait QueryIndexable: Sized {
     /// Returns the length of the query sequence.
     fn seq_len(&self) -> usize;
 
@@ -135,7 +153,7 @@ pub(crate) trait QueryIndexable: Sized {
 /// (such as a dynamic programming index with [`DpIndex`] or a sequence index
 /// with [`SeqIndex`]). It also allows special elements to be accessed with
 /// [`Begin`], [`FirstMatch`], [`LastMatch`], and [`End`].
-pub(crate) trait PhmmIndex: IndexOffset {
+pub trait PhmmIndex: IndexOffset {
     /// Helper function for [`PhmmIndexable::get_dp_index`], allowing each index
     /// type to control how it gets coverted to a dynamic programming index
     fn get_phmm_dp_index(&self, v: &impl PhmmIndexable) -> usize;
@@ -158,7 +176,7 @@ pub(crate) trait PhmmIndex: IndexOffset {
 /// (such as a dynamic programming index with [`DpIndex`] or a sequence index
 /// with [`SeqIndex`]). It also allows special elements to be accessed with
 /// [`NoBases`], [`FirstBase`], and [`LastBase`].
-pub(crate) trait QueryIndex: IndexOffset {
+pub trait QueryIndex: IndexOffset {
     /// Helper function for [`QueryIndexable::get_dp_index`], allowing each
     /// index type to control how it gets converted to a dynamic programming
     /// index.
@@ -171,7 +189,7 @@ pub(crate) trait QueryIndex: IndexOffset {
 /// 0 represents the first position in the sequence (reference or query).
 #[repr(transparent)]
 #[derive(Clone, Copy)]
-pub(crate) struct SeqIndex(pub usize);
+pub struct SeqIndex(pub usize);
 
 /// A [`PhmmIndex`] or [`QueryIndex`] representing an index with respect to the
 /// dynamic programming tables, rather than with respect to the sequence itself.
@@ -180,25 +198,25 @@ pub(crate) struct SeqIndex(pub usize);
 /// 0 represents matching no bases or the BEGIN state of the pHMM.
 #[repr(transparent)]
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
-pub(crate) struct DpIndex(pub(crate) usize);
+pub struct DpIndex(pub usize);
 
 /// A [`PhmmIndex`] representing the BEGIN state of the pHMM, as well as the
 /// first layer (which holds the transition probabilities out of the BEGIN
 /// state).
 #[derive(Clone, Copy)]
-pub(crate) struct Begin;
+pub struct Begin;
 
 /// A [`PhmmIndex`] representing the first match state of the pHMM after BEGIN.
 ///
 /// This corresponds to the first residue in the reference sequences.
 #[derive(Clone, Copy)]
-pub(crate) struct FirstMatch;
+pub struct FirstMatch;
 
 /// A [`PhmmIndex`] representing the last match state of the pHMM before END.
 ///
 /// This corresponds to the last residue in the reference sequences.
 #[derive(Clone, Copy)]
-pub(crate) struct LastMatch;
+pub struct LastMatch;
 
 /// A [`PhmmIndex`] representing the END state of the pHMM.
 ///
@@ -208,22 +226,22 @@ pub(crate) struct LastMatch;
 ///
 /// [`get_layer`]: CorePhmm::get_layer
 #[derive(Clone, Copy)]
-pub(crate) struct End;
+pub struct End;
 
 /// A [`QueryIndex`] representing not matching any bases from the sequence
 /// (dynamic programming index 0).
 #[derive(Clone, Copy)]
 #[allow(dead_code)]
-pub(crate) struct NoBases;
+pub struct NoBases;
 
 /// A [`QueryIndex`] representing the first base in the sequence.
 #[derive(Clone, Copy)]
 #[allow(dead_code)]
-pub(crate) struct FirstBase;
+pub struct FirstBase;
 
 /// A [`QueryIndex`] representing the last base in the sequence.
 #[derive(Clone, Copy)]
-pub(crate) struct LastBase;
+pub struct LastBase;
 
 impl<T, const S: usize> PhmmIndexable for CorePhmm<T, S> {
     #[inline]
@@ -345,7 +363,7 @@ impl QueryIndex for LastBase {
 
 /// A trait enabling a [`PhmmIndex`] or [`QueryIndex`] to be offset in either
 /// direction via the type system, without converting it to [`DpIndex`].
-pub(crate) trait IndexOffset: Copy {
+pub trait IndexOffset: Copy {
     /// Get the index before the current one.
     #[inline]
     fn prev_index(self) -> PrevOffset<Self> {

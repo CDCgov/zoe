@@ -6,6 +6,10 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ## [0.0.23] - TBD
 
+### Added
+
+- Added `visit_params` methods to pHMMs as a diagnostic tool for inspecting the parameters that are visited along a given path (behind `dev-phmm` and `alignment-diagnostics` feature gates)
+
 ### Changed
 
 - Modified Viterbi algorithm to use compact bit representation instead of array (behind `dev-phmm` feature gate)

@@ -1,7 +1,8 @@
 use crate::{
     alignment::phmm::{
-        Begin, CorePhmm, DomainModule, DomainPhmm, EmissionParams, End, GlobalPhmm, LayerParams, LocalModule, LocalPhmm,
-        PhmmIndexable, PhmmState, SemiLocalModule, SemiLocalPhmm, TransitionParams,
+        CorePhmm, DomainModule, DomainPhmm, EmissionParams, GlobalPhmm, LayerParams, LocalModule, LocalPhmm, PhmmState,
+        SemiLocalModule, SemiLocalPhmm, TransitionParams,
+        indexing::{Begin, End, PhmmIndexable},
     },
     data::{arbitrary::impl_deref, mappings::DNA_UNAMBIG_PROFILE_MAP},
     math::Float,

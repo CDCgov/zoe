@@ -3,8 +3,8 @@
 
 use crate::{
     alignment::phmm::{
-        CorePhmm, EmissionParams, PhmmNumber, QueryIndex, QueryIndexable,
-        indexing::{PhmmIndex, PhmmIndexable},
+        CorePhmm, EmissionParams, PhmmNumber,
+        indexing::{PhmmIndex, PhmmIndexable, QueryIndex, QueryIndexable},
     },
     data::ByteIndexMap,
 };

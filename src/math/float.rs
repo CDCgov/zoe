@@ -5,6 +5,7 @@ use crate::{
     private::Sealed,
 };
 use std::{
+    cmp::Ordering,
     fmt::{Debug, Display},
     ops::{Add, AddAssign, Div, DivAssign, Mul, Neg, Sub},
     simd::SimdElement,
@@ -66,6 +67,10 @@ pub trait Float:
     #[must_use]
     fn abs(self) -> Self;
 
+    /// Generic comparison of 2 values for [`Float`]
+    #[must_use]
+    fn total_cmp(&self, other: &Self) -> Ordering;
+
     /// Generic minimum of 2 values for [`Float`]
     #[must_use]
     fn min(self, other: Self) -> Self;
@@ -106,6 +111,11 @@ macro_rules! impl_float {
             #[inline]
             fn abs(self) -> Self {
                 self.abs()
+            }
+
+            #[inline]
+            fn total_cmp(&self, other: &Self) -> Ordering {
+                self.total_cmp(other)
             }
 
             #[inline]

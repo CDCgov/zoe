@@ -1,9 +1,10 @@
+use crate::alignment::phmm::{PhmmBacktrackFlags, PhmmTracebackState, ViterbiTraceback, best_state};
 use crate::{
     alignment::{
         Alignment, AlignmentStates,
         phmm::{
-            BestScore, CorePhmm, GlobalPhmm, LayerParams, PhmmBacktrackFlags, PhmmError, PhmmNumber, PhmmState,
-            PhmmTracebackState, QueryIndex, ViterbiStrategy, ViterbiTraceback, best_state, indexing::PhmmIndex,
+            BestScore, CorePhmm, GlobalPhmm, LayerParams, PhmmError, PhmmNumber, PhmmState, ViterbiStrategy,
+            indexing::{PhmmIndex, QueryIndex},
         },
     },
     data::ByteIndexMap,

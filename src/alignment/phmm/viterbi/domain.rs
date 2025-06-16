@@ -2,10 +2,9 @@ use crate::{
     alignment::{
         Alignment, AlignmentStates,
         phmm::{
-            BestScore, CorePhmm, DomainPhmm, DpIndex, LastBase, LayerParams, PhmmBacktrackFlags, PhmmError, PhmmIndexable,
-            PhmmNumber, PhmmState, PhmmTracebackState, PrecomputedDomainModule, QueryIndex, QueryIndexable, ViterbiStrategy,
-            ViterbiTraceback, best_state,
-            indexing::{LastMatch, PhmmIndex},
+            BestScore, CorePhmm, DomainPhmm, LayerParams, PhmmBacktrackFlags, PhmmError, PhmmNumber, PhmmState,
+            PhmmTracebackState, PrecomputedDomainModule, ViterbiStrategy, ViterbiTraceback, best_state,
+            indexing::{DpIndex, LastBase, LastMatch, PhmmIndex, PhmmIndexable, QueryIndex, QueryIndexable},
         },
     },
     data::ByteIndexMap,

@@ -2,10 +2,10 @@ use crate::{
     alignment::{
         Alignment, AlignmentStates,
         phmm::{
-            Begin, BestScore, CorePhmm, DpIndex, End, LastBase, LayerParams, LocalPhmm, PhmmBacktrackFlags, PhmmError,
-            PhmmNumber, PhmmState, PhmmStateOrEnter, PhmmTracebackState, PrecomputedLocalModule, QueryIndex, QueryIndexable,
-            ViterbiStrategy, ViterbiTraceback, best_state_or_enter,
-            indexing::{LastMatch, PhmmIndex, PhmmIndexable},
+            BestScore, CorePhmm, LayerParams, LocalPhmm, PhmmBacktrackFlags, PhmmError, PhmmNumber, PhmmState,
+            PhmmStateOrEnter, PhmmTracebackState, PrecomputedLocalModule, ViterbiStrategy, ViterbiTraceback,
+            best_state_or_enter,
+            indexing::{Begin, DpIndex, End, LastBase, LastMatch, PhmmIndex, PhmmIndexable, QueryIndex, QueryIndexable},
             viterbi::ExitLocation,
         },
     },

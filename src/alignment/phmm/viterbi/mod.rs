@@ -2,8 +2,9 @@ use crate::{
     alignment::{
         Alignment,
         phmm::{
-            CorePhmm, DpIndex, LayerParams, PhmmBacktrackFlags, PhmmError, PhmmIndex, PhmmNumber, PhmmState,
-            PhmmStateOrEnter, PhmmTracebackState, QueryIndex, SeqIndex, best_state,
+            CorePhmm, LayerParams, PhmmBacktrackFlags, PhmmError, PhmmIndex, PhmmNumber, PhmmState, PhmmStateOrEnter,
+            PhmmTracebackState, best_state,
+            indexing::{DpIndex, QueryIndex, SeqIndex},
         },
     },
     data::ByteIndexMap,

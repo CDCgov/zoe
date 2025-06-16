@@ -72,6 +72,7 @@ at the user's discretion.
 
 - **multiversion**: This optional feature adds multiversioning of select Zoe SIMD functions using the [multiversion](https://docs.rs/multiversion/latest/multiversion/) crate.
 - **fuzzing**: This optional feature adds several testing features to Zoe, including [`Arbitrary`](https://docs.rs/arbitrary/latest/arbitrary/trait.Arbitrary.html) implementations for many of Zoe's data types to support fuzz testing. It also introduces many wrapper types with custom [`Arbitrary`](https://docs.rs/arbitrary/latest/arbitrary/trait.Arbitrary.html) implementations providing data with stronger assumptions.
+- **alignment-diagnostics**: An optional feature exposing additional alignment-related functions and internals, such as for testing.
 - ***Development features*** (of the format `dev-*`) are considered **unstable** and will be **removed** after completion of the work. Users should not rely on them. Functionality from the work may become available either without a feature or under a new feature name in a future release.
 
 ## Notices
