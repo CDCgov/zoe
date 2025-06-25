@@ -501,7 +501,6 @@ where
     let mut r_end = reference.len() - 1;
 
     let mut backtrack = BacktrackMatrixStriped::new(reference.len(), num_vecs);
-
     let map = query.mapping;
 
     for (r, ref_index) in reference.iter().copied().map(|r| map.to_index(r)).enumerate() {
@@ -512,6 +511,7 @@ where
 
         // This statement helps with bounds checks.
         let scores_vec = &profile[(ref_index * num_vecs)..(ref_index * num_vecs + num_vecs)];
+        let backtrack_row = &mut backtrack.data[(r * num_vecs)..(r * num_vecs + num_vecs)];
         let mut max_scores = minimums;
 
         for v in 0..num_vecs {
@@ -524,15 +524,13 @@ where
 
             H = H.simd_max(E).simd_max(F);
 
-            backtrack.simd_move_to(r, v);
-
+            let mut flags = Simd::<u8, N>::simd_match();
             max_scores = max_scores.simd_max(H);
 
-            backtrack.simd_up(E.simd_eq(H).cast());
-            backtrack.simd_left(F.simd_eq(H).cast());
+            flags.simd_up(E.simd_eq(H).cast());
+            flags.simd_left(F.simd_eq(H).cast());
 
             let stopped = H.simd_eq(minimums).cast();
-            backtrack.simd_stop(stopped);
 
             store[v] = H;
 
@@ -540,10 +538,11 @@ where
             E = E.saturating_sub(gap_extends).simd_max(H);
             F = F.saturating_sub(gap_extends).simd_max(H);
 
-            backtrack.simd_up_extending(!stopped & E.simd_gt(H).cast());
-            backtrack.simd_left_extending(!stopped & F.simd_gt(H).cast());
+            flags.simd_up_extending(E.simd_gt(H).cast());
+            flags.simd_left_extending(F.simd_gt(H).cast());
+            flags.simd_stop(stopped);
 
-            // Store E; Load H
+            backtrack_row[v] = flags;
             e_scores[v] = E;
             H = load[v];
         }
@@ -559,20 +558,20 @@ where
         while mask.any() {
             H = H.simd_max(F);
             store[v] = H;
+            let mut flags = backtrack_row[v];
 
-            backtrack.simd_move_to(r, v);
             let stopped = H.simd_eq(minimums);
 
-            backtrack.simd_set_left(F.simd_eq(H).cast());
-            backtrack.simd_stop(stopped.cast());
+            flags.simd_correct_and_set_left(F.simd_eq(H).cast());
 
             H = H.saturating_sub(gap_opens);
             F = F.saturating_sub(gap_extends);
-            let E = e_scores[v];
-            let F2 = F.simd_max(H);
+            //let E = e_scores[v];
 
-            backtrack.simd_left_extending((!stopped & F2.simd_gt(H)).cast());
-            backtrack.simd_up_extending((!stopped & E.simd_gt(H)).cast());
+            flags.simd_left_extending(F.simd_gt(H).cast());
+            //flags.simd_up_extending(E.simd_gt(H).cast());
+            flags.simd_stop(stopped.cast());
+            backtrack_row[v] = flags;
 
             v += 1;
             if v == num_vecs {

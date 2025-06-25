@@ -81,7 +81,7 @@ where
     /// Get or initialize [`StripedProfile`] with elements of `i8` and `M` SIMD
     /// lanes and returns a reference to the field.
     #[inline]
-    pub fn get_i8(&self) -> &StripedProfile<i8, M, S> {
+    pub fn get_i8(&self) -> &StripedProfile<'_, i8, M, S> {
         // We already validated profile
         self.profile_i8.get_or_init(|| {
             StripedProfile::<i8, M, S>::new_unchecked(self.query, self.matrix, self.gap_open, self.gap_extend)
@@ -91,7 +91,7 @@ where
     /// Get or initialize [`StripedProfile`] with elements of `i16` and `N` SIMD
     /// lanes and returns a reference to the field.
     #[inline]
-    pub fn get_i16(&self) -> &StripedProfile<i16, N, S> {
+    pub fn get_i16(&self) -> &StripedProfile<'_, i16, N, S> {
         // We already validated profile
         self.profile_i16.get_or_init(|| {
             StripedProfile::<i16, N, S>::new_unchecked(self.query, self.matrix, self.gap_open, self.gap_extend)
@@ -101,7 +101,7 @@ where
     /// Get or initialize [`StripedProfile`] with elements of `i32` and `O` SIMD
     /// lanes and returns a reference to the field.
     #[inline]
-    pub fn get_i32(&self) -> &StripedProfile<i32, O, S> {
+    pub fn get_i32(&self) -> &StripedProfile<'_, i32, O, S> {
         // We already validated profile
         self.profile_i32.get_or_init(|| {
             StripedProfile::<i32, O, S>::new_unchecked(self.query, self.matrix, self.gap_open, self.gap_extend)
@@ -111,7 +111,7 @@ where
     /// Get or initialize [`StripedProfile`] with elements of `i64` and `P` SIMD
     /// lanes and returns a reference to the field.
     #[inline]
-    pub fn get_i64(&self) -> &StripedProfile<i64, P, S> {
+    pub fn get_i64(&self) -> &StripedProfile<'_, i64, P, S> {
         // We already validated profile
         self.profile_i64.get_or_init(|| {
             StripedProfile::<i64, P, S>::new_unchecked(self.query, self.matrix, self.gap_open, self.gap_extend)
@@ -363,7 +363,7 @@ where
     /// Get or initialize [`StripedProfile`] with elements of `i8` and `M` SIMD
     /// lanes and returns a reference to the field.
     #[inline]
-    pub fn get_i8(&self) -> &StripedProfile<i8, M, S> {
+    pub fn get_i8(&self) -> &StripedProfile<'_, i8, M, S> {
         // We already validated profile
         self.profile_i8.get_or_init(|| {
             StripedProfile::<i8, M, S>::new_unchecked(&self.query, self.matrix, self.gap_open, self.gap_extend)
@@ -373,7 +373,7 @@ where
     /// Get or initialize [`StripedProfile`] with elements of `i16` and `N` SIMD
     /// lanes and returns a reference to the field.
     #[inline]
-    pub fn get_i16(&self) -> &StripedProfile<i16, N, S> {
+    pub fn get_i16(&self) -> &StripedProfile<'_, i16, N, S> {
         self.profile_i16.get_or_init(|| {
             // We already validated profile
             StripedProfile::<i16, N, S>::new_unchecked(&self.query, self.matrix, self.gap_open, self.gap_extend)
@@ -383,7 +383,7 @@ where
     /// Get or initialize [`StripedProfile`] with elements of `i32` and `O` SIMD
     /// lanes and returns a reference to the field.
     #[inline]
-    pub fn get_i32(&self) -> &StripedProfile<i32, O, S> {
+    pub fn get_i32(&self) -> &StripedProfile<'_, i32, O, S> {
         self.profile_i32.get_or_init(|| {
             // We already validated profile
             StripedProfile::<i32, O, S>::new_unchecked(&self.query, self.matrix, self.gap_open, self.gap_extend)
@@ -393,7 +393,7 @@ where
     /// Get or initialize [`StripedProfile`] with elements of `i64` and `P` SIMD
     /// lanes and returns a reference to the field.
     #[inline]
-    pub fn get_i64(&self) -> &StripedProfile<i64, P, S> {
+    pub fn get_i64(&self) -> &StripedProfile<'_, i64, P, S> {
         self.profile_i64.get_or_init(|| {
             // We already validated profile
             StripedProfile::<i64, P, S>::new_unchecked(&self.query, self.matrix, self.gap_open, self.gap_extend)

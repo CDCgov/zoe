@@ -11,7 +11,7 @@ impl<'a> Arbitrary<'a> for Nucleotides {
 /// A wrapper around [`Nucleotides`] such that the implementation of
 /// [`Arbitrary`](https://docs.rs/arbitrary/latest/arbitrary/trait.Arbitrary.html)
 /// only generates graphic ASCII in the range `!`..=`~`.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NucleotidesAsciiGraphic(pub Nucleotides);
 
 impl_deref! {NucleotidesAsciiGraphic, Nucleotides}
@@ -29,7 +29,7 @@ impl<'a> Arbitrary<'a> for NucleotidesAsciiGraphic {
 ///
 /// The allowed symbols are
 /// `%+,-./0123456789:@ABCDEFGHIJKLMNOPQRSTUVWXYZ^_abcdefghijklmnopqrstuvwxyz`.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NucleotidesAsciiGraphicBashSafe(pub Nucleotides);
 
 impl_deref! {NucleotidesAsciiGraphicBashSafe, Nucleotides}
@@ -45,7 +45,7 @@ impl<'a> Arbitrary<'a> for NucleotidesAsciiGraphicBashSafe {
 /// A wrapper around [`Nucleotides`] such that the implementation of
 /// [`Arbitrary`](https://docs.rs/arbitrary/latest/arbitrary/trait.Arbitrary.html)
 /// only generates bases in `ACGTUNacgtun`.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NucleotidesAcgtun(pub Nucleotides);
 
 impl_deref! {NucleotidesAcgtun, Nucleotides}

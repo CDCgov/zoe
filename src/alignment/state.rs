@@ -674,45 +674,10 @@ where
     }
 
     #[inline]
-    pub(crate) fn simd_move_to(&mut self, r: usize, v: usize) {
-        self.v_cursor = self.num_vecs * r + v;
-    }
-
-    #[inline]
     pub(crate) fn move_to(&mut self, r: usize, c: usize) {
         let v = c % self.num_vecs;
         self.curr_lane = (c - v) / self.num_vecs;
         self.v_cursor = self.num_vecs * r + v;
-    }
-
-    #[inline]
-    pub(crate) fn simd_up(&mut self, mask: Mask<i8, N>) {
-        self.data[self.v_cursor] = mask.select(self.data[self.v_cursor] | Self::UP, self.data[self.v_cursor]);
-    }
-
-    #[inline]
-    pub(crate) fn simd_left(&mut self, mask: Mask<i8, N>) {
-        self.data[self.v_cursor] = mask.select(self.data[self.v_cursor] | Self::LEFT, self.data[self.v_cursor]);
-    }
-
-    #[inline]
-    pub(crate) fn simd_set_left(&mut self, mask: Mask<i8, N>) {
-        self.data[self.v_cursor] = mask.select(Self::LEFT, self.data[self.v_cursor]);
-    }
-
-    #[inline]
-    pub(crate) fn simd_up_extending(&mut self, mask: Mask<i8, N>) {
-        self.data[self.v_cursor] = mask.select(self.data[self.v_cursor] | Self::UP_EXTENDING, self.data[self.v_cursor]);
-    }
-
-    #[inline]
-    pub(crate) fn simd_left_extending(&mut self, mask: Mask<i8, N>) {
-        self.data[self.v_cursor] = mask.select(self.data[self.v_cursor] | Self::LEFT_EXTENDING, self.data[self.v_cursor]);
-    }
-
-    #[inline]
-    pub(crate) fn simd_stop(&mut self, mask: Mask<i8, N>) {
-        self.data[self.v_cursor] = mask.select(Self::STOP, self.data[self.v_cursor]);
     }
 
     #[inline]
@@ -743,34 +708,8 @@ where
     pub(crate) fn debug_cell(&self, r: usize, c: usize) -> String {
         let v = c % self.num_vecs;
         let lane = (c - v) / self.num_vecs;
-        let cell = self.data[self.num_vecs * r + v][lane];
-
-        let mut states = String::new();
-        if cell & BacktrackMatrix::STOP > 0 {
-            states.push('o');
-        }
-
-        if cell & BacktrackMatrix::UP > 0 {
-            states.push('^');
-        }
-
-        if cell & BacktrackMatrix::LEFT > 0 {
-            states.push('<');
-        }
-
-        if cell & BacktrackMatrix::UP_EXTENDING > 0 {
-            states.push(':');
-        }
-
-        if cell & BacktrackMatrix::LEFT_EXTENDING > 0 {
-            states.push('-');
-        }
-
-        if cell == 0 {
-            states.push('\\');
-        }
-
-        states
+        let v = self.data[self.num_vecs * r + v];
+        v.debug_cell(lane)
     }
 
     #[allow(dead_code)]
@@ -832,10 +771,126 @@ where
     }
 }
 
+/// Trait for SIMD backtracking operations on packed u8 values
+pub(crate) trait SimdBacktrackFlags<const N: usize>
+where
+    LaneCount<N>: SupportedLaneCount, {
+    const UP: Simd<u8, N>;
+    const UP_EXTENDING: Simd<u8, N>;
+    const LEFT: Simd<u8, N>;
+    const LEFT_EXTENDING: Simd<u8, N>;
+    const STOP: Simd<u8, N>;
+
+    /// Creates a new match variable
+    fn simd_match() -> Simd<u8, N> {
+        Simd::splat(0)
+    }
+
+    /// Add Up direction to lanes selected by mask
+    fn simd_up(&mut self, mask: Mask<i8, N>);
+
+    /// Add Left direction to lanes selected by mask
+    fn simd_left(&mut self, mask: Mask<i8, N>);
+
+    fn simd_correct_and_set_left(&mut self, mask: Mask<i8, N>);
+
+    /// Set Left direction (replacing existing) to lanes selected by mask
+    fn simd_set_left(&mut self, mask: Mask<i8, N>);
+
+    /// Apply Up Extending direction to lanes selected by mask
+    fn simd_up_extending(&mut self, mask: Mask<i8, N>);
+
+    /// Add Left Extending direction to lanes selected by mask
+    fn simd_left_extending(&mut self, mask: Mask<i8, N>);
+
+    /// Set Stop state to lanes selected by mask
+    fn simd_stop(&mut self, mask: Mask<i8, N>);
+
+    /// Debug representation of a cell at the given lane
+    fn debug_cell(&self, lane: usize) -> String;
+}
+
+impl<const N: usize> SimdBacktrackFlags<N> for Simd<u8, N>
+where
+    LaneCount<N>: SupportedLaneCount,
+{
+    const UP: Simd<u8, N> = Simd::splat(BacktrackMatrix::UP);
+    const UP_EXTENDING: Simd<u8, N> = Simd::splat(BacktrackMatrix::UP_EXTENDING);
+    const LEFT: Simd<u8, N> = Simd::splat(BacktrackMatrix::LEFT);
+    const LEFT_EXTENDING: Simd<u8, N> = Simd::splat(BacktrackMatrix::LEFT_EXTENDING);
+    const STOP: Simd<u8, N> = Simd::splat(BacktrackMatrix::STOP);
+
+    #[inline]
+    fn simd_up(&mut self, mask: Mask<i8, N>) {
+        *self = mask.select(*self | Self::UP, *self);
+    }
+
+    #[inline]
+    fn simd_left(&mut self, mask: Mask<i8, N>) {
+        *self = mask.select(*self | Self::LEFT, *self);
+    }
+
+    #[allow(dead_code)]
+    #[inline]
+    fn simd_set_left(&mut self, mask: Mask<i8, N>) {
+        *self = mask.select(Self::LEFT, *self);
+    }
+
+    #[inline]
+    fn simd_correct_and_set_left(&mut self, mask: Mask<i8, N>) {
+        *self = mask.select((*self & Self::UP_EXTENDING) | Self::LEFT, *self);
+    }
+
+    #[inline]
+    fn simd_up_extending(&mut self, mask: Mask<i8, N>) {
+        *self = mask.select(*self | Self::UP_EXTENDING, *self);
+    }
+
+    #[inline]
+    fn simd_left_extending(&mut self, mask: Mask<i8, N>) {
+        *self = mask.select(*self | Self::LEFT_EXTENDING, *self);
+    }
+
+    #[inline]
+    fn simd_stop(&mut self, mask: Mask<i8, N>) {
+        *self = mask.select(Self::STOP, *self);
+    }
+
+    fn debug_cell(&self, lane: usize) -> String {
+        let cell = self[lane];
+
+        let mut states = String::new();
+        if cell & BacktrackMatrix::STOP > 0 {
+            states.push('o');
+        }
+
+        if cell & BacktrackMatrix::UP > 0 {
+            states.push('^');
+        }
+
+        if cell & BacktrackMatrix::LEFT > 0 {
+            states.push('<');
+        }
+
+        if cell & BacktrackMatrix::UP_EXTENDING > 0 {
+            states.push(':');
+        }
+
+        if cell & BacktrackMatrix::LEFT_EXTENDING > 0 {
+            states.push('-');
+        }
+
+        if cell == 0 {
+            states.push('\\');
+        }
+
+        states
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::alignment::BacktrackMatrixStriped;
 
     #[test]
     fn states_sequence() {
@@ -934,17 +989,6 @@ mod test {
                 (ref_output, query_ouptut)
             );
         }
-    }
-
-    #[test]
-    fn display() {
-        let mut bt: BacktrackMatrixStriped<8> = super::BacktrackMatrixStriped::new(5, 2);
-        bt.simd_move_to(0, 0);
-        bt.simd_left(std::simd::Mask::splat(true));
-        bt.print();
-        bt.simd_move_to(0, 1);
-        bt.simd_left(std::simd::Mask::splat(true));
-        bt.print();
     }
 
     #[test]

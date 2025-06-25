@@ -282,12 +282,12 @@ fn sw_simd_aln11() {
 
     assert_eq!(aln_scalar.ref_range.end, aln_simd.ref_range.end);
     assert_eq!(aln_scalar.query_range.end, aln_simd.query_range.end);
-    let recaculated_score = sw_score_from_path(&aln_simd.cigar, &reference[aln_simd.ref_range.clone()], &profile_scalar);
+    let recaculated_score = sw_score_from_path(&aln_simd.states, &reference[aln_simd.ref_range.clone()], &profile_scalar);
     assert_eq!(
         Ok(score.unwrap()),
         recaculated_score,
         "{aln_simd:?} (v {cigar})",
-        cigar = aln_scalar.cigar
+        cigar = aln_scalar.states
     );
     assert_eq!(aln_scalar, aln_simd);
 }
