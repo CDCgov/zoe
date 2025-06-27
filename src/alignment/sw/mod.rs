@@ -468,6 +468,9 @@ where
         let mut F = minimums;
         let mut H = store[num_vecs - 1].shift_elements_right::<1>(min);
 
+        if r > 1 && r_end == r - 2 {
+            (max_row, load) = (load, max_row);
+        }
         (load, store) = (store, load);
 
         // This statement helps with bounds checks.
@@ -546,8 +549,14 @@ where
         if row_best > best {
             best = row_best;
             r_end = r;
-            max_row.copy_from_slice(&store);
+            //max_row.copy_from_slice(&store);
         }
+    }
+
+    if r_end == reference.len() - 1 {
+        max_row = store;
+    } else if r_end == reference.len() - 2 {
+        max_row = load;
     }
 
     let mut c_end = query.seq_len - 1;
