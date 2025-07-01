@@ -1,5 +1,7 @@
 /// A macro for implementing [`Len`], given the owning type, the view type, the
 /// mutable view type, and the name of the field which determines the length.
+///
+/// [`Len`]: crate::data::views::Len
 macro_rules! impl_len {
     ($owned:ident, $view:ident, $viewmut:ident, $lenfield:tt) => {
         impl $crate::data::views::Len for $owned {
@@ -44,6 +46,9 @@ macro_rules! impl_len {
 /// given the owning type, the view type, and the mutable view type. Also
 /// implements [`Slice`] and [`SliceMut`]. It is assumed that the types are all
 /// wrappers around a single field.
+///
+/// [`Slice`]: crate::data::views::traits::Slice
+/// [`SliceMut`]: crate::data::views::traits::SliceMut
 macro_rules! impl_views_for_wrapper {
     ($owned:ident, $view:ident, $viewmut:ident) => {
         impl $crate::data::views::DataOwned for $owned {

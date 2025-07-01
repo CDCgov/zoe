@@ -70,7 +70,7 @@
 //! [`slice`]: crate::prelude::Slice::slice
 //! [`slice_mut`]: crate::prelude::SliceMut::slice_mut
 //! [`to_owned_data`]: crate::prelude::DataView::to_owned_data
-//! [`restrict`]: crate::prelude::DataView::restrict
+//! [`restrict`]: crate::prelude::Restrict::restrict
 
 #[cfg(feature = "fuzzing")]
 pub mod arbitrary;
@@ -95,6 +95,9 @@ pub(crate) mod extension;
 /// Used for type validation
 mod validation;
 /// Contains the macros [`define_whichever`] and [`impl_traits`]
+///
+/// [`define_whichever`]: crate::define_whichever
+/// [`impl_traits`]: crate::impl_traits
 mod whichever;
 
 pub use constants::{

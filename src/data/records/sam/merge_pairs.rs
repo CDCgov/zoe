@@ -265,6 +265,8 @@ impl SamData {
     ///
     /// Currently panics on invalid cigar states. To be removed in the future
     /// for either a `Result` or type-state validated Cigars.
+    ///
+    /// [`Cigar`]: crate::data::types::cigar::Cigar
     #[must_use]
     fn get_aligned(&self) -> SamAligned {
         // Convert SAM 1-based to 0-based

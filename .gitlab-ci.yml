@@ -25,6 +25,7 @@ zoe-test:
   script:
     - perl -ne 'BEGIN { $/ = undef } if (/^## \[(.*?)\]/m) { if (! /<!-- Versions -->.*?^\[$1\]:/ms) { die "Version $1 not linked!\n"; } }' CHANGELOG.md
     - cargo test --verbose
+    - cargo doc --no-deps --document-private-items --all-features
 
 pages:
   stage: deploy

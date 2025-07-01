@@ -206,7 +206,7 @@ pub trait GetCodons: NucleotidesReadable + Sealed {
     /// entry. To use a different reading frame, consider creating a view of the
     /// sequence with [`slice`].
     ///
-    /// [`slice`]: crate::data::view_traits::Slice
+    /// [`slice`]: crate::data::views::Slice
     #[inline]
     #[must_use]
     fn as_codons(&self) -> (&[[u8; 3]], &[u8]) {
@@ -277,7 +277,7 @@ pub trait GetCodonsMut: NucleotidesMutable + Sealed {
     /// second tuple entry. To use a different reading frame, consider creating
     /// a view of the sequence with [`slice_mut`].
     ///
-    /// [`slice_mut`]: crate::data::view_traits::SliceMut
+    /// [`slice_mut`]: crate::data::views::SliceMut
     #[inline]
     #[must_use]
     fn as_codons_mut(&mut self) -> (&mut [[u8; 3]], &mut [u8]) {

@@ -14,6 +14,7 @@
 // compatibility. Can be removed in the future.
 #![feature(const_fn_floating_point_arithmetic, let_chains, lazy_cell, slice_as_chunks)]
 #![forbid(incomplete_features)]
+#![deny(rustdoc::broken_intra_doc_links)]
 
 /// Mathematical utilities.
 pub mod math;

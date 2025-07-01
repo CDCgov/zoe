@@ -78,8 +78,8 @@
 //! The former is designed for use within a single thread, while the latter
 //! allows multiple threads to access it. Both store a set of lazily-evaluated
 //! query profiles for `i8`, `i16`, `i32`, and `i64`. To create one of these,
-//! you can call [`LocalProfiles::new_with_i8`],
-//! [`SharedProfiles::new_with_i8`], or one of the other constructors. Then,
+//! you can call [`LocalProfiles::new_with_w256`],
+//! [`SharedProfiles::new_with_w256`], or one of the other constructors. Then,
 //! call [`LocalProfiles::smith_waterman_score_from_i8`],
 //! [`SharedProfiles::smith_waterman_score_from_i8`], or one of the other
 //! methods.
@@ -142,8 +142,6 @@
 //!    StripedProfile::smith_waterman_score
 //! [`LocalProfiles`]: LocalProfiles
 //! [`SharedProfiles`]: SharedProfiles
-//! [`LocalProfiles::new_with_i8`]: LocalProfiles::new_with_i8
-//! [`SharedProfiles::new_with_i8`]: SharedProfiles::new_with_i8
 //! [`LocalProfiles::smith_waterman_score_from_i8`]:
 //!     LocalProfiles::smith_waterman_score_from_i8
 //! [`SharedProfiles::smith_waterman_score_from_i8`]:

@@ -197,12 +197,12 @@ impl<T: Copy, S: NearlyEqual<T>> NearlyEqual<T> for Vec<S> {
 /// that type `T` can be compared using this macro, so can `Option<T>`, `[T;
 /// N]`, and `Vec<T>`. Additionally, the following Zoe structs can be compared:
 /// * Profile Hidden Markov Models: [`TransitionParams`], [`EmissionParams`],
-///   [`LayerParams`], and [`Phmm`]
+///   [`LayerParams`], and [`GlobalPhmm`]
 ///
 /// [`TransitionParams`]: crate::alignment::phmm::TransitionParams
 /// [`EmissionParams`]: crate::alignment::phmm::EmissionParams
 /// [`LayerParams`]: crate::alignment::phmm::LayerParams
-/// [`Phmm`]: crate::alignment::phmm::Phmm
+/// [`GlobalPhmm`]: crate::alignment::phmm::GlobalPhmm
 #[macro_export]
 macro_rules! assert_fp_eq {
     ($(@$method:tt,)? $a:expr, $b:expr) => {

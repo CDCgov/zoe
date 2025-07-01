@@ -49,7 +49,7 @@ impl SamHmmParser {
     }
 }
 
-/// A struct providing methods for parsing a [`Phmm`] from a SAM (sequence
+/// A struct providing methods for parsing a [`GlobalPhmm`] from a SAM (sequence
 /// alignment and modeling system) model file, using type `T` to represent all
 /// model parameters.
 struct GenericSamHmmParser<T>(PhantomData<T>);
@@ -122,7 +122,7 @@ const PARAMS_TO_COPY_PARSING: [(PhmmState, PhmmState); 6] = [
 ];
 
 /// A zero-size struct through which supported parser configurations can be
-/// specified (via implementing the [`ParserConfig`] trait).
+/// specified (via implementing the [`SamHmmConfig`] trait).
 struct SupportedConfig;
 
 /// A trait providing the ability to handle different alphabets in SAM files.
@@ -141,7 +141,7 @@ trait SamHmmConfig<const S: usize, const L: usize> {
     /// [`LayerParams`].
     fn group_params<T: Float>(params: [T; L]) -> LayerParams<T, S>;
 
-    /// The inverse of [`group_params`], taking a layer and flattening it to SAM
+    /// The inverse of `group_params`, taking a layer and flattening it to SAM
     /// parameters.
     fn ungroup_params<T: Float>(params: &LayerParams<T, S>) -> [T; L];
 
@@ -280,6 +280,8 @@ trait SamHmmConfig<const S: usize, const L: usize> {
     ///   fill a full set of parameters
     /// * All parameters must parse successfully, and there should be no extra
     ///   parameters on any line (see [`fill_params_from_iter`])
+    ///
+    /// [`fill_params_from_iter`]: crate::alignment::phmm::sam_parser::SamHmmConfig::fill_params_from_iter
     fn parse_layer_params<'a, T: Float>(
         mut rest_of_line: impl Iterator<Item = &'a str>, lines: &mut LineIterator,
     ) -> Result<LayerParams<T, S>, IOError> {
