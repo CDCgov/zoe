@@ -102,7 +102,45 @@ impl Cigar {
     #[inline]
     #[must_use]
     pub fn is_valid(&self) -> bool {
-        Cigar::try_from(&self.0[..]).is_ok()
+        Self::check_for_err(&self.0).is_ok()
+    }
+
+    /// Checks for errors in the CIGAR string, returning the particular
+    /// [`CigarError`] if one is present
+    fn check_for_err(bytes: &[u8]) -> Result<(), CigarError> {
+        let mut num: usize = 0;
+        let mut has_number = false;
+
+        if bytes == b"*" || bytes.is_empty() {
+            return Ok(());
+        }
+
+        for b in bytes {
+            if b.is_ascii_digit() {
+                num = num
+                    .checked_mul(10)
+                    .and_then(|n| n.checked_add((b - b'0') as usize))
+                    .ok_or(CigarError::IncOverflow)?;
+                has_number = true;
+            } else if IS_CIGAR[*b as usize] {
+                if !has_number {
+                    return Err(CigarError::MissingInc);
+                }
+                if num == 0 {
+                    return Err(CigarError::IncZero);
+                }
+                num = 0;
+                has_number = false;
+            } else {
+                return Err(CigarError::InvalidOperation);
+            }
+        }
+
+        if has_number {
+            return Err(CigarError::MissingOp);
+        }
+
+        Ok(())
     }
 }
 
@@ -164,38 +202,7 @@ impl TryFrom<Vec<u8>> for Cigar {
     type Error = CigarError;
 
     fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
-        let mut num: usize = 0;
-        let mut has_number = false;
-
-        if bytes == b"*" || bytes.is_empty() {
-            return Ok(Cigar::new());
-        }
-
-        for b in &bytes {
-            if b.is_ascii_digit() {
-                num = num
-                    .checked_mul(10)
-                    .and_then(|n| n.checked_add((b - b'0') as usize))
-                    .ok_or(CigarError::IncOverflow)?;
-                has_number = true;
-            } else if IS_CIGAR[*b as usize] {
-                if !has_number {
-                    return Err(CigarError::MissingInc);
-                }
-                if num == 0 {
-                    return Err(CigarError::IncZero);
-                }
-                num = 0;
-                has_number = false;
-            } else {
-                return Err(CigarError::InvalidOperation);
-            }
-        }
-
-        if has_number {
-            return Err(CigarError::MissingOp);
-        }
-
+        Self::check_for_err(&bytes)?;
         Ok(Cigar(bytes))
     }
 }
