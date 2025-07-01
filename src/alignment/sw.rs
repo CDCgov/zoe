@@ -89,7 +89,7 @@ pub fn sw_score_from_path<const S: usize>(
 /// const GAP_OPEN: i8 = -3;
 /// const GAP_EXTEND: i8 = -1;
 ///
-/// let profile = ScalarProfile::<5>::new(query, WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+/// let profile = ScalarProfile::<5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
 /// let score = sw_scalar_score(&reference, &profile);
 /// assert_eq!(score, 27);
 /// ```
@@ -191,7 +191,7 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 /// const GAP_OPEN: i8 = -3;
 /// const GAP_EXTEND: i8 = -1;
 ///
-/// let profile = ScalarProfile::<5>::new(query, WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+/// let profile = ScalarProfile::<5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
 /// let alignment = sw_scalar_alignment(&reference, &profile);
 /// assert_eq!(alignment.ref_range.start, 3);
 /// assert_eq!(alignment.states, Cigar::from_slice_unchecked("5M1D4M"));
@@ -500,7 +500,7 @@ pub(crate) mod test_data {
     pub(crate) static WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(2, -5, Some(b'N'));
     pub(crate) static BIASED_WEIGHTS: WeightMatrix<u8, 5> = WEIGHTS.into_biased_matrix();
     pub(crate) static SCALAR_PROFILE: LazyLock<ScalarProfile<5>> =
-        LazyLock::new(|| ScalarProfile::new(QUERY, WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap());
+        LazyLock::new(|| ScalarProfile::new(QUERY, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap());
 
     pub(crate) const GAP_OPEN: i8 = -10;
     pub(crate) const GAP_EXTEND: i8 = -1;
@@ -517,7 +517,7 @@ mod test {
     fn sw_verify_score_from_path() {
         let reference = b"ATTCCTTTTGCCGGG";
         let weights: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(3, -1, Some(b'N'));
-        let profile = ScalarProfile::new(b"ATTGCGCCCGG", weights, -4, -1).unwrap();
+        let profile = ScalarProfile::new(b"ATTGCGCCCGG", &weights, -4, -1).unwrap();
 
         let Alignment {
             score,
@@ -535,7 +535,7 @@ mod test {
     #[test]
     fn sw() {
         let weights: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(2, -5, Some(b'N'));
-        let profile = ScalarProfile::new(QUERY, weights, GAP_OPEN, GAP_EXTEND).unwrap();
+        let profile = ScalarProfile::new(QUERY, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
         let Alignment {
             score,
             ref_range,
@@ -548,14 +548,14 @@ mod test {
         assert_eq!(37, score);
 
         let v: Vec<_> = std::iter::repeat_n(b'A', 100).collect();
-        let profile = ScalarProfile::new(&v, weights, GAP_OPEN, GAP_EXTEND).unwrap();
+        let profile = ScalarProfile::new(&v, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
         let score = sw_scalar_score(&v, &profile);
         assert_eq!(200, score);
     }
 
     #[test]
     fn sw_t_u_check() {
-        let profile = ScalarProfile::new(b"ACGTUNacgtun", WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+        let profile = ScalarProfile::new(b"ACGTUNacgtun", &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
         let score = sw_scalar_score(b"ACGTTNACGTTN", &profile);
         assert_eq!(score, 20);
 

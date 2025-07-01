@@ -23,6 +23,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Extend the lifetimes returned by `as_bytes` and other methods for non-mutable views
 - `Alignment` now uses `AlignmentStates` instead of `Cigar`
 - Modified args for `AlignmentStates::reverse()` and the `Debug` format for `AlignmentStates`
+- Modified `ScalarProfile` for alignment to hold a reference to the weight matrix
 
 ### Removed
 

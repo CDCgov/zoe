@@ -53,7 +53,7 @@ pub(crate) fn validate_profile_args<Q: AsRef<[u8]>>(
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScalarProfile<'a, const S: usize> {
     pub(crate) query:      &'a [u8],
-    pub(crate) matrix:     WeightMatrix<i8, S>,
+    pub(crate) matrix:     &'a WeightMatrix<i8, S>,
     pub(crate) gap_open:   i32,
     pub(crate) gap_extend: i32,
 }
@@ -72,7 +72,7 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// * [`QueryProfileError::BadGapWeights`] if `gap_extend` is less than
     ///   `gap_open`
     pub fn new<Q: AsRef<[u8]> + ?Sized>(
-        query: &'a Q, matrix: WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
+        query: &'a Q, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
     ) -> Result<Self, QueryProfileError> {
         validate_profile_args(query, gap_open, gap_extend)?;
 
@@ -100,7 +100,7 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// const GAP_OPEN: i8 = -3;
     /// const GAP_EXTEND: i8 = -1;
     ///
-    /// let profile = ScalarProfile::<5>::new(query, WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+    /// let profile = ScalarProfile::<5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
     /// let score = profile.smith_waterman_score(reference);
     /// assert_eq!(score, 27);
     /// ```
@@ -127,7 +127,7 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// const GAP_OPEN: i8 = -3;
     /// const GAP_EXTEND: i8 = -1;
     ///
-    /// let profile = ScalarProfile::<5>::new(query, WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+    /// let profile = ScalarProfile::<5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
     /// let alignment = profile.smith_waterman_alignment(reference);
     /// assert_eq!(alignment.ref_range.start, 3);
     /// assert_eq!(alignment.states, Cigar::from_slice_unchecked("5M1D4M"));

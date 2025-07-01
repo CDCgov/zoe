@@ -258,7 +258,7 @@ mod test {
         let reference: &[u8] = b"GGCCACAGGATTGAGC";
         let query: &[u8] = b"TCTCAGATTGCAGTTT";
 
-        let profile = ScalarProfile::<5>::new(query, WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+        let profile = ScalarProfile::<5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
         let alignment = sw_scalar_alignment(reference, &profile);
         let invert_alignment = alignment.invert(reference);
 
