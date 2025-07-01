@@ -9,10 +9,16 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 ### Added
 
 - Added macros for easily implementing traits on enums and wrapper types (`define_whichever` and `impl_traits`)
+- Added `new_with_w*` constructors for `SharedProfiles` and `LocalProfiles` for balanced profile creation for a segment width.
 
 ### Changed
 
 - Moved `clear` and `restrict` methods for views into a separate `Restrict` trait
+- Methods `into_*_profile()` for `Nucleotides` now returns balanced profiles for register widths of 256.
+
+### Removed
+
+- Removed `new_with_i8()` and `new_with_i16()` from `SharedProfiles` and `LocalProfiles`
 
 ## [0.0.19] - 2025-06-11
 

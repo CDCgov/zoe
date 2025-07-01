@@ -97,7 +97,7 @@
 //! const GAP_OPEN: i8 = -3;
 //! const GAP_EXTEND: i8 = -1;
 //!
-//! let profile = query.into_local_profile::<32, 5>(&WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+//! let profile = query.into_local_profile(&WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
 //! let score = profile.smith_waterman_score_from_i8(reference).unwrap();
 //! assert_eq!(score, 27);
 //! ```
@@ -116,7 +116,7 @@
 //! const GAP_OPEN: i8 = -4;
 //! const GAP_EXTEND: i8 = -2;
 //!
-//! let profile = LocalProfiles::<32, 4>::new_with_i8(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+//! let profile = LocalProfiles::new_with_w256(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
 //! let score = profile.smith_waterman_score_from_i8(reference).unwrap();
 //! assert_eq!(score, 5);
 //! ```

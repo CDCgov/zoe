@@ -629,7 +629,7 @@ mod test {
         let v: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/CY137594.txt"));
         let matrix_i = WeightMatrix::<i8, 5>::new_dna_matrix(2, -5, Some(b'N'));
 
-        let profile = LocalProfiles::<16, 5>::new(&v, &matrix_i, GAP_OPEN, GAP_EXTEND).unwrap();
+        let profile = LocalProfiles::<16, 8, 4, 2, 5>::new(&v, &matrix_i, GAP_OPEN, GAP_EXTEND).unwrap();
         let score = profile.smith_waterman_score_from_i8(&v);
         assert_eq!(Some(3372), score);
     }

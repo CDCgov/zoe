@@ -3,7 +3,6 @@ use crate::{
     data::{err::QueryProfileError, matrices::WeightMatrix},
     prelude::*,
 };
-use std::simd::{LaneCount, SupportedLaneCount};
 
 /// Getters to help with trait implementations.
 mod getter_traits;
@@ -161,18 +160,17 @@ impl Nucleotides {
     /// const GAP_OPEN: i8 = -3;
     /// const GAP_EXTEND: i8 = -1;
     ///
-    /// let profile = query.into_local_profile::<32, 5>(&WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+    /// let profile = query.into_local_profile(&WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
     /// let score = profile.smith_waterman_score_from_i8(reference).unwrap();
     /// assert_eq!(score, 27);
     /// ```
     #[inline]
-    pub fn into_local_profile<'a, 'b, const N: usize, const S: usize>(
+    pub fn into_local_profile<'a, 'b, const S: usize>(
         &'b self, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
-    ) -> Result<LocalProfiles<'a, N, S>, QueryProfileError>
+    ) -> Result<LocalProfiles<'a, 32, 16, 8, 4, S>, QueryProfileError>
     where
-        LaneCount<N>: SupportedLaneCount,
         'b: 'a, {
-        LocalProfiles::new(&self.0, matrix, gap_open, gap_extend)
+        LocalProfiles::new_with_w256(&self.0, matrix, gap_open, gap_extend)
     }
 
     /// Creates a [`SharedProfiles`] for alignment.
@@ -193,17 +191,16 @@ impl Nucleotides {
     /// const GAP_OPEN: i8 = -3;
     /// const GAP_EXTEND: i8 = -1;
     ///
-    /// let profile = query.into_shared_profile::<32, 5>(&WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+    /// let profile = query.into_shared_profile(&WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
     /// let score = profile.smith_waterman_score_from_i8(reference).unwrap();
     /// assert_eq!(score, 27);
     /// ```
     #[inline]
-    pub fn into_shared_profile<'a, const N: usize, const S: usize>(
+    pub fn into_shared_profile<'a, const S: usize>(
         &self, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
-    ) -> Result<SharedProfiles<'a, N, S>, QueryProfileError>
-    where
-        LaneCount<N>: SupportedLaneCount, {
-        SharedProfiles::new(self.as_bytes().into(), matrix, gap_open, gap_extend)
+    ) -> Result<SharedProfiles<'a, 32, 16, 8, 4, S>, QueryProfileError>
+where {
+        SharedProfiles::new_with_w256(self.as_bytes().into(), matrix, gap_open, gap_extend)
     }
 
     /// Returns the reverse complement of the sequence as a new record.
