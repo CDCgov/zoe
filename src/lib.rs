@@ -69,7 +69,10 @@ mod private {
         simd::{LaneCount, Simd, SimdElement, SupportedLaneCount},
     };
 
-    use crate::prelude::*;
+    use crate::{
+        data::cigar::{Cigar, CigarView, CigarViewMut},
+        prelude::*,
+    };
 
     macro_rules! sealed {
         ($($t:ty),* $(,)?) => { $( impl Sealed for $t {} )* };
@@ -99,6 +102,9 @@ mod private {
         QualityScores,
         QualityScoresView<'_>,
         QualityScoresViewMut<'_>,
+        Cigar,
+        CigarView<'_>,
+        CigarViewMut<'_>,
     );
     sealed!(f32, f64, u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
 }

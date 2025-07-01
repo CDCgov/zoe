@@ -10,6 +10,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 - Added macros for easily implementing traits on enums and wrapper types (`define_whichever` and `impl_traits`)
 - Added `new_with_w*` constructors for `SharedProfiles` and `LocalProfiles` for balanced profile creation for a segment width.
+- Added structs `CigarView` and `CigarViewMut`
 
 ### Changed
 

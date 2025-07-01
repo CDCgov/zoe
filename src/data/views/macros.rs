@@ -98,7 +98,15 @@ macro_rules! impl_views_for_wrapper {
                 $owned(self.0.to_vec())
             }
         }
+    };
+}
 
+/// A macro for implementing [`Slice`] and [`SliceMut`] for wrapper types.
+///
+/// [`Slice`]: crate::data::views::traits::Slice
+/// [`SliceMut`]: crate::data::views::traits::SliceMut
+macro_rules! impl_slice_for_wrapper {
+    ($owned:ident, $view:ident, $viewmut:ident) => {
         impl $crate::data::views::Slice for $owned {
             type View<'a> = $view<'a>;
 
@@ -211,4 +219,5 @@ macro_rules! impl_restrict_for_wrapper {
 
 pub(crate) use impl_len;
 pub(crate) use impl_restrict_for_wrapper;
+pub(crate) use impl_slice_for_wrapper;
 pub(crate) use impl_views_for_wrapper;

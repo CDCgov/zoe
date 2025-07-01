@@ -7,8 +7,10 @@ mod test;
 mod benches;
 
 mod error;
+mod views;
 
 pub use error::*;
+pub use views::*;
 
 /// A [CIGAR string] of length-opcode pairs used in sequence alignment.
 ///
