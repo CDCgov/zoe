@@ -16,6 +16,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Moved `clear` and `restrict` methods for views into a separate `Restrict` trait
 - Methods `into_*_profile()` for `Nucleotides` now returns balanced profiles for register widths of 256.
 - Removes an extra allocation when calling `Cigar::is_valid`
+- Extend the lifetimes returned by `as_bytes` and other methods for non-mutable views
 
 ### Removed
 

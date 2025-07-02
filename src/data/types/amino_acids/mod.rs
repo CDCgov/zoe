@@ -155,14 +155,14 @@ impl<'a> AminoAcidsView<'a> {
     /// Obtains the bytes as a slice.
     #[inline]
     #[must_use]
-    pub fn as_bytes(&self) -> &[u8] {
+    pub fn as_bytes(&self) -> &'a [u8] {
         self.0
     }
 
     /// Gets the amino acids or byte slice at the zero-based index, returning an
     /// [`Option`].
     #[inline]
-    pub fn get<I>(&self, index: I) -> Option<&I::Output>
+    pub fn get<I>(&self, index: I) -> Option<&'a I::Output>
     where
         I: std::slice::SliceIndex<[u8]>, {
         self.0.get(index)
@@ -170,7 +170,7 @@ impl<'a> AminoAcidsView<'a> {
 
     /// Creates an iterator over the amino acids as `&u8`.
     #[inline]
-    pub fn iter(&self) -> std::slice::Iter<'_, u8> {
+    pub fn iter(&self) -> std::slice::Iter<'a, u8> {
         self.0.iter()
     }
 }

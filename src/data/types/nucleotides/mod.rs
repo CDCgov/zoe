@@ -249,7 +249,7 @@ impl<'a> NucleotidesView<'a> {
     /// Gets the nucleotides as a byte slice.
     #[inline]
     #[must_use]
-    pub fn as_bytes(&self) -> &[u8] {
+    pub fn as_bytes(&self) -> &'a [u8] {
         self.0
     }
 
@@ -257,7 +257,7 @@ impl<'a> NucleotidesView<'a> {
     /// [`Option`].
     #[inline]
     #[must_use]
-    pub fn get<I>(&self, index: I) -> Option<&I::Output>
+    pub fn get<I>(&self, index: I) -> Option<&'a I::Output>
     where
         I: std::slice::SliceIndex<[u8]>, {
         self.0.get(index)
@@ -265,7 +265,7 @@ impl<'a> NucleotidesView<'a> {
 
     /// Creates an iterator over the nucleotides as `&u8`.
     #[inline]
-    pub fn iter(&self) -> std::slice::Iter<'_, u8> {
+    pub fn iter(&self) -> std::slice::Iter<'a, u8> {
         self.0.iter()
     }
 
