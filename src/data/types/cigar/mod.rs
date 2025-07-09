@@ -1,4 +1,5 @@
 use crate::alignment::AlignmentStates;
+use core::fmt::NumBuffer;
 
 #[cfg(test)]
 mod test;
@@ -76,12 +77,9 @@ impl Cigar {
     where
         I: IntoIterator<Item = Ciglet>, {
         let mut cigar = Vec::new();
-        let mut format_buffer = itoa::Buffer::new();
 
         for ciglet in ciglets {
-            let Ciglet { inc, op } = ciglet;
-            cigar.extend_from_slice(format_buffer.format(inc).as_bytes());
-            cigar.push(op);
+            cigar.push_formatted_ciglet(ciglet);
         }
 
         Cigar(cigar)
@@ -260,6 +258,18 @@ impl TryFrom<&str> for Cigar {
     }
 }
 
+pub(crate) trait FormatCigletForCigarVec {
+    fn push_formatted_ciglet(&mut self, ciglet: Ciglet);
+}
+impl FormatCigletForCigarVec for Vec<u8> {
+    #[inline]
+    fn push_formatted_ciglet(&mut self, ciglet: Ciglet) {
+        let mut buff = NumBuffer::new();
+        self.extend_from_slice(ciglet.inc.format_into(&mut buff).as_bytes());
+        self.push(ciglet.op);
+    }
+}
+
 /// A single increment-opcode pair.
 ///
 /// This is yielded when iterating over a [`Cigar`] string. One can also collect
@@ -299,17 +309,15 @@ impl FromIterator<Ciglet> for Result<Cigar, CigarError> {
     #[inline]
     fn from_iter<T: IntoIterator<Item = Ciglet>>(data: T) -> Self {
         let mut byte_string = Vec::new();
-        let mut format_buffer = itoa::Buffer::new();
 
-        for Ciglet { inc, op } in data {
-            if inc == 0 {
+        for ciglet in data {
+            if ciglet.inc == 0 {
                 return Err(CigarError::IncZero);
-            } else if !is_valid_op(op) {
+            } else if !is_valid_op(ciglet.op) {
                 return Err(CigarError::InvalidOperation);
             }
 
-            byte_string.extend_from_slice(format_buffer.format(inc).as_bytes());
-            byte_string.push(op);
+            byte_string.push_formatted_ciglet(ciglet);
         }
 
         Ok(Cigar(byte_string))
@@ -327,7 +335,6 @@ impl ExpandedCigar {
     #[must_use]
     pub(crate) fn condense_to_cigar(self) -> Cigar {
         let mut condensed: Vec<u8> = Vec::new();
-        let mut format_buffer = itoa::Buffer::new();
 
         let mut cigars = self.0.iter().copied().filter(|op| is_valid_op(*op));
 
@@ -341,15 +348,13 @@ impl ExpandedCigar {
             if previous == op {
                 count += 1;
             } else {
-                condensed.extend_from_slice(format_buffer.format(count).as_bytes());
-                condensed.push(previous);
+                condensed.push_formatted_ciglet(Ciglet { inc: count, op: previous });
                 previous = op;
                 count = 1;
             }
         }
 
-        condensed.extend_from_slice(format_buffer.format(count).as_bytes());
-        condensed.push(previous);
+        condensed.push_formatted_ciglet(Ciglet { inc: count, op: previous });
 
         Cigar(condensed)
     }

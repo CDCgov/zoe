@@ -27,6 +27,10 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - `is_amino_acid` now behaves the same as `is_known_amino_acid`, and `is_known_amino_acid` is removed
 - Renamed `is_valid_codon` to `is_resolvable_codon` in `CodonExtension`
 
+### Removed
+
+- `itoa` is no longer a dependency of Zoe.
+
 ### Fixes
 
 - Fixes a bug in `p_distance_acgt` where longer sequences could be normalized incorrectly.

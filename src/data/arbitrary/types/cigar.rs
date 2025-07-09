@@ -5,7 +5,7 @@ use crate::{
     alignment::{AlignmentStates, StatesSequence},
     data::{
         arbitrary::ArbitrarySpecs,
-        cigar::{Cigar, Ciglet, LenInAlignment},
+        cigar::{Cigar, Ciglet, FormatCigletForCigarVec, LenInAlignment},
     },
 };
 use arbitrary::{Arbitrary, Result, Unstructured};
@@ -161,8 +161,7 @@ impl CigarSpecs {
             let mut out = Vec::new();
             for (ciglet, leading_zeros) in states.into_iter().zip(leading_zeros) {
                 out.extend(std::iter::repeat_n(b'0', leading_zeros as usize));
-                out.extend_from_slice(ciglet.inc.to_string().as_bytes());
-                out.push(ciglet.op);
+                out.push_formatted_ciglet(ciglet);
             }
             Cigar::from_vec_unchecked(out)
         } else {
@@ -381,7 +380,7 @@ impl ClampAlignment for Cigar {
                 if total > max_total {
                     break;
                 }
-                new_vec.extend_from_slice(format!("{ciglet}").as_bytes());
+                new_vec.push_formatted_ciglet(ciglet);
             }
             *self = Cigar::from_vec_unchecked(new_vec);
         }
@@ -407,7 +406,7 @@ impl ClampAlignment for Cigar {
                         break;
                     }
                 }
-                new_vec.extend_from_slice(ciglet.to_string().as_bytes());
+                new_vec.push_formatted_ciglet(ciglet);
             }
             *self = Cigar::from_vec_unchecked(new_vec);
         }
@@ -452,9 +451,9 @@ impl ClampAlignment for Cigar {
                     // Update clipping_len with the new amount of clipping
                     clipping_len = ciglet.inc;
                     // Push soft and hard clipping ciglets
-                    new_vec.extend_from_slice(ciglet.to_string().as_bytes());
+                    new_vec.push_formatted_ciglet(ciglet);
                     if let Some(ciglet) = ciglets.next_if_op(|op| op == b'H') {
-                        new_vec.extend_from_slice(ciglet.to_string().as_bytes());
+                        new_vec.push_formatted_ciglet(ciglet);
                     }
                 } else {
                     // The number of residues in the query consumed by this ciglet
@@ -479,7 +478,7 @@ impl ClampAlignment for Cigar {
 
                     // Clear clipping_len, since we no longer end in clipping
                     clipping_len = 0;
-                    new_vec.extend_from_slice(ciglet.to_string().as_bytes());
+                    new_vec.push_formatted_ciglet(ciglet);
                 }
             }
 
@@ -507,7 +506,7 @@ impl ClampAlignment for Cigar {
                         break;
                     }
                 }
-                new_vec.extend_from_slice(format!("{ciglet}").as_bytes());
+                new_vec.push_formatted_ciglet(ciglet);
             }
             *self = Cigar::from_vec_unchecked(new_vec);
         }

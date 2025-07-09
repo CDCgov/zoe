@@ -102,9 +102,9 @@ impl std::fmt::Debug for AlignmentStates {
 
 impl std::fmt::Display for AlignmentStates {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut buff = itoa::Buffer::new();
+        let mut buff = core::fmt::NumBuffer::new();
         for Ciglet { inc, op } in self {
-            f.write_str(buff.format(inc))?;
+            f.write_str(inc.format_into(&mut buff))?;
             f.write_char(op as char)?;
         }
         Ok(())
