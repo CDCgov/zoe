@@ -1,4 +1,4 @@
-use crate::data::mappings::IS_CIGAR;
+use crate::{alignment::AlignmentStates, data::mappings::IS_CIGAR};
 
 #[cfg(test)]
 mod test;
@@ -279,13 +279,14 @@ pub struct Ciglet {
 #[derive(Debug)]
 pub struct CigletIterator<'a> {
     buffer: &'a [u8],
+    valid:  bool,
 }
 
 impl<'a> CigletIterator<'a> {
     /// Constructs an iterator from a CIGAR byte buffer.
     #[inline]
     fn new(buffer: &'a [u8]) -> Self {
-        CigletIterator { buffer }
+        CigletIterator { buffer, valid: true }
     }
 
     /// Peeks at the operator for the next ciglet without consuming it.
@@ -353,6 +354,12 @@ impl<'a> CigletIterator<'a> {
             0
         }
     }
+
+    /// For internal `eq()` only
+    #[inline]
+    pub(crate) fn valid(&self) -> bool {
+        self.valid
+    }
 }
 
 impl Iterator for CigletIterator<'_> {
@@ -372,6 +379,7 @@ impl Iterator for CigletIterator<'_> {
                 self.buffer = &self.buffer[index + 1..];
                 return Some(Ciglet { inc: num, op: b });
             } else {
+                self.valid = false;
                 return None;
             }
             index += 1;
@@ -387,6 +395,7 @@ impl Iterator for CigletIterator<'_> {
                 self.buffer = &self.buffer[index + 1..];
                 return Some(Ciglet { inc: num, op: b });
             } else {
+                self.valid = false;
                 return None;
             }
             index += 1;
@@ -458,6 +467,13 @@ impl DoubleEndedIterator for CigletIterator<'_> {
         }
 
         Some(Ciglet { inc: num, op })
+    }
+}
+
+impl PartialEq<AlignmentStates> for Cigar {
+    #[inline]
+    fn eq(&self, other: &AlignmentStates) -> bool {
+        other.eq(self)
     }
 }
 

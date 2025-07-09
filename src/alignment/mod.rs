@@ -161,7 +161,7 @@ pub use profile::*;
 pub use profile_set::*;
 pub use state::*;
 
-use crate::data::cigar::{Cigar, Ciglet};
+use crate::data::cigar::Ciglet;
 use std::ops::Range;
 
 // For the `Alignment` struct below, both ranges are 0-based and end-exclusive.
@@ -181,9 +181,8 @@ pub struct Alignment<T> {
     /// A range for the indices of the query that are included in the alignment,
     /// already **excludes** clipped bases
     pub query_range: Range<usize>,
-    /// The CIGAR string for aligning the query to the reference, including
-    /// clipping information
-    pub cigar:       Cigar,
+    /// States mapping reference and query.
+    pub states:      AlignmentStates,
 }
 
 impl<T> Alignment<T> {
@@ -193,7 +192,7 @@ impl<T> Alignment<T> {
     #[inline]
     #[must_use]
     pub fn get_aligned_seqs(&self, reference: &[u8], query: &[u8]) -> (Vec<u8>, Vec<u8>) {
-        pairwise_align_with_cigar(reference, query, &self.cigar, self.ref_range.start)
+        pairwise_align_with(reference, query, &self.states, self.ref_range.start)
     }
 
     /// Returns an iterator over the pairs of aligned bases in `reference` and
@@ -208,8 +207,10 @@ impl<T> Alignment<T> {
     /// [`get_aligned_iter`]: Alignment::get_aligned_iter
     #[inline]
     #[must_use]
-    pub fn get_aligned_iter<'a>(&'a self, reference: &'a [u8], query: &'a [u8]) -> AlignWithCigarIter<'a> {
-        AlignWithCigarIter::new(reference, query, &self.cigar, self.ref_range.start)
+    pub fn get_aligned_iter<'a>(
+        &'a self, reference: &'a [u8], query: &'a [u8],
+    ) -> AlignmentIter<'a, std::iter::Copied<std::slice::Iter<'a, Ciglet>>> {
+        AlignmentIter::new(reference, query, &self.states, self.ref_range.start)
     }
 }
 
@@ -217,9 +218,9 @@ impl<T: Copy> Alignment<T> {
     /// Gets the alignment for when the query and reference are swapped.
     #[must_use]
     pub fn invert(&self, reference: &[u8]) -> Self {
-        let mut new_alignment = AlignmentStates::new();
-        new_alignment.soft_clip(self.ref_range.start);
-        let inverted_ciglets = self.cigar.iter().filter_map(|ciglet| match ciglet.op {
+        let mut states = AlignmentStates::new();
+        states.soft_clip(self.ref_range.start);
+        let inverted_ciglets = self.states.0.iter().filter_map(|&ciglet| match ciglet.op {
             b'S' | b'H' => None,
             b'D' => Some(Ciglet {
                 inc: ciglet.inc,
@@ -231,14 +232,14 @@ impl<T: Copy> Alignment<T> {
             }),
             _ => Some(ciglet),
         });
-        new_alignment.extend_from_ciglets(inverted_ciglets);
-        new_alignment.soft_clip(reference.len() - self.ref_range.end);
+        states.extend_from_ciglets(inverted_ciglets);
+        states.soft_clip(reference.len() - self.ref_range.end);
 
         Self {
-            score:       self.score,
-            ref_range:   self.query_range.clone(),
+            score: self.score,
+            ref_range: self.query_range.clone(),
             query_range: self.ref_range.clone(),
-            cigar:       new_alignment.to_cigar_unchecked(),
+            states,
         }
     }
 }
@@ -246,7 +247,7 @@ impl<T: Copy> Alignment<T> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{alignment::sw::sw_scalar_alignment, data::WeightMatrix};
+    use crate::{alignment::sw::sw_scalar_alignment, data::WeightMatrix, data::types::cigar::Cigar};
 
     #[test]
     fn alignment_invert() {
@@ -263,10 +264,10 @@ mod test {
 
         assert_eq!(alignment.ref_range, 3..15);
         assert_eq!(alignment.query_range, 1..13);
-        assert_eq!(alignment.cigar, Cigar::from_slice_unchecked("1S5M1D4M1I2M3S"));
+        assert_eq!(alignment.states, Cigar::from_slice_unchecked("1S5M1D4M1I2M3S"));
 
         assert_eq!(invert_alignment.ref_range, 1..13);
         assert_eq!(invert_alignment.query_range, 3..15);
-        assert_eq!(invert_alignment.cigar, Cigar::from_slice_unchecked("3S5M1I4M1D2M1S"));
+        assert_eq!(invert_alignment.states, Cigar::from_slice_unchecked("3S5M1I4M1D2M1S"));
     }
 }

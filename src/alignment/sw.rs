@@ -18,15 +18,13 @@ use std::{
 /// - All of `query`, `ref_in_alignment`, and `cigar` must be fully consumed
 /// - The final score should be nonnegative
 pub fn sw_score_from_path<const S: usize>(
-    cigar: &Cigar, ref_in_alignment: &[u8], query: &ScalarProfile<S>,
+    ciglets: impl IntoIterator<Item = Ciglet>, ref_in_alignment: &[u8], query: &ScalarProfile<S>,
 ) -> Result<u64, ScoringError> {
-    debug_assert!(cigar.is_valid());
-
     let mut score = 0;
     let mut r: usize = 0;
     let mut q = 0;
 
-    for Ciglet { inc, op } in cigar {
+    for Ciglet { inc, op } in ciglets {
         match op {
             b'M' | b'=' | b'X' => {
                 for _ in 0..inc {
@@ -196,7 +194,7 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 /// let profile = ScalarProfile::<5>::new(query, WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
 /// let alignment = sw_scalar_alignment(&reference, &profile);
 /// assert_eq!(alignment.ref_range.start, 3);
-/// assert_eq!(alignment.cigar, Cigar::from_slice_unchecked("5M1D4M"));
+/// assert_eq!(alignment.states, Cigar::from_slice_unchecked("5M1D4M"));
 /// assert_eq!(alignment.score, 27);
 /// ```
 ///
@@ -324,7 +322,7 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
 
     // soft clip 5'
     states.soft_clip(c);
-    let cigar = states.reverse().to_cigar_unchecked();
+    states.reverse();
 
     // r and c are 1-based in this function. However, since clipping is prefered
     // to insertion/deletion, the non-clipped portion of the alignment will
@@ -336,7 +334,7 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
         score: best_score,
         ref_range: r..best_r,
         query_range: c..best_c,
-        cigar,
+        states,
     }
 }
 
@@ -525,10 +523,9 @@ mod test {
             score,
             ref_range,
             query_range: _,
-            cigar,
+            states: cigar,
         } = sw_scalar_alignment(reference, &profile);
 
-        println!("{cigar:?}");
         assert_eq!(
             Ok(score.as_u64()),
             sw_score_from_path(&cigar, &reference[ref_range], &profile)
@@ -543,7 +540,7 @@ mod test {
             score,
             ref_range,
             query_range: _,
-            cigar: _,
+            states: _,
         } = sw_scalar_alignment(REFERENCE, &profile);
         assert_eq!((336, 37), (ref_range.start, score));
 

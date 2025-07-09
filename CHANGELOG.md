@@ -12,6 +12,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `new_with_w*` constructors for `SharedProfiles` and `LocalProfiles` for balanced profile creation for a segment width.
 - Added structs `CigarView` and `CigarViewMut`
 - Added `CorePhmm` struct storing PHMM layers (without other end modules or model information)
+- Added `IntoIterator` implementations for `AlignmentStates` as well as an `iter()` method
+- Added `PartialEq` between `Cigar` and `AlignmentStates` without allocating on the heap
 
 ### Changed
 
@@ -19,6 +21,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Methods `into_*_profile()` for `Nucleotides` now returns balanced profiles for register widths of 256.
 - Removes an extra allocation when calling `Cigar::is_valid`
 - Extend the lifetimes returned by `as_bytes` and other methods for non-mutable views
+- `Alignment` now uses `AlignmentStates` instead of `Cigar`
+- Modified args for `AlignmentStates::reverse()` and the `Debug` format for `AlignmentStates`
 
 ### Removed
 

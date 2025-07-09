@@ -84,12 +84,12 @@ impl SamData {
     #[inline]
     #[must_use]
     pub fn from_alignment<T>(
-        alignment: Alignment<T>, qname: String, flag: u16, rname: String, mapq: u8, seq: Nucleotides, qual: QualityScores,
+        alignment: &Alignment<T>, qname: String, flag: u16, rname: String, mapq: u8, seq: Nucleotides, qual: QualityScores,
     ) -> Self {
         // Both SAM and Alignment exclude clipped bases when reporting
         // positions, so we just need to adjust to 1-based
         let pos = alignment.ref_range.start + 1;
-        let cigar = alignment.cigar;
+        let cigar = alignment.states.to_cigar_unchecked();
         SamData {
             qname,
             flag,

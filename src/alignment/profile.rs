@@ -130,7 +130,7 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// let profile = ScalarProfile::<5>::new(query, WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
     /// let alignment = profile.smith_waterman_alignment(reference);
     /// assert_eq!(alignment.ref_range.start, 3);
-    /// assert_eq!(alignment.cigar, Cigar::from_slice_unchecked("5M1D4M"));
+    /// assert_eq!(alignment.states, Cigar::from_slice_unchecked("5M1D4M"));
     /// assert_eq!(alignment.score, 27);
     /// ```
     #[inline]
