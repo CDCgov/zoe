@@ -421,28 +421,12 @@ impl std::fmt::Display for FastaSeq {
 
 impl std::fmt::Display for FastaNT {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        if self.sequence.is_ascii_simd::<16>() {
-            // SAFETY: we just checked it is ASCII using our fast SIMD function.
-            // ASCII is valid UTF8.
-            write!(f, ">{}\n{}\n", self.name, unsafe {
-                std::str::from_utf8_unchecked(&self.sequence.0)
-            })
-        } else {
-            write!(f, ">{}\n{}\n", self.name, String::from_utf8_lossy(&self.sequence.0))
-        }
+        write!(f, ">{}\n{}\n", self.name, self.sequence)
     }
 }
 
 impl std::fmt::Display for FastaAA {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        if self.sequence.is_ascii_simd::<16>() {
-            // SAFETY: we just checked it is ASCII using our fast SIMD function.
-            // ASCII is valid UTF8.
-            write!(f, ">{}\n{}\n", self.name, unsafe {
-                std::str::from_utf8_unchecked(&self.sequence.0)
-            })
-        } else {
-            write!(f, ">{}\n{}\n", self.name, String::from_utf8_lossy(&self.sequence.0))
-        }
+        write!(f, ">{}\n{}\n", self.name, self.sequence)
     }
 }

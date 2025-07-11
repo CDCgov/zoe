@@ -277,7 +277,7 @@ impl std::fmt::Display for QualityScores {
     // it is "graphic ascii", which will be valid utf8.
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", unsafe { std::str::from_utf8_unchecked(&self.0) })
+        f.write_str(unsafe { std::str::from_utf8_unchecked(&self.0) })
     }
 }
 
@@ -286,7 +286,7 @@ impl std::fmt::Display for QualityScoresView<'_> {
     // it is "graphic ascii", which will be valid utf8.
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", unsafe { std::str::from_utf8_unchecked(self.0) })
+        f.write_str(unsafe { std::str::from_utf8_unchecked(self.0) })
     }
 }
 
@@ -295,7 +295,7 @@ impl std::fmt::Display for QualityScoresViewMut<'_> {
     // it is "graphic ascii", which will be valid utf8.
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", unsafe { std::str::from_utf8_unchecked(self.0) })
+        f.write_str(unsafe { std::str::from_utf8_unchecked(self.0) })
     }
 }
 

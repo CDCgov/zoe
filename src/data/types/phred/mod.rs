@@ -375,7 +375,8 @@ impl From<EncodedQS> for QScoreInt {
 impl std::fmt::Display for QScoreInt {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+        let mut buff = itoa::Buffer::new();
+        f.write_str(buff.format(self.0))
     }
 }
 

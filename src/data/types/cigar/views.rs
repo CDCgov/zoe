@@ -57,9 +57,9 @@ impl std::fmt::Display for CigarView<'_> {
             write!(f, "*")
         } else if self.0.is_ascii() {
             // SAFETY: we just checked it is ASCII and ASCII is valid UTF8.
-            write!(f, "{}", unsafe { std::str::from_utf8_unchecked(self.0) })
+            f.write_str(unsafe { std::str::from_utf8_unchecked(self.0) })
         } else {
-            write!(f, "{}", String::from_utf8_lossy(self.0))
+            f.write_str(&String::from_utf8_lossy(self.0))
         }
     }
 }

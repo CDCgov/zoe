@@ -278,9 +278,9 @@ impl std::fmt::Display for Nucleotides {
         if self.0.is_ascii_simd::<16>() {
             // SAFETY: we just checked it is ASCII using our fast SIMD function.
             // ASCII is valid UTF8.
-            write!(f, "{}", unsafe { std::str::from_utf8_unchecked(&self.0) })
+            f.write_str(unsafe { std::str::from_utf8_unchecked(&self.0) })
         } else {
-            write!(f, "{}", String::from_utf8_lossy(&self.0))
+            f.write_str(&String::from_utf8_lossy(&self.0))
         }
     }
 }
@@ -291,9 +291,9 @@ impl std::fmt::Display for NucleotidesView<'_> {
         if self.0.is_ascii_simd::<16>() {
             // SAFETY: we just checked it is ASCII using our fast SIMD function.
             // ASCII is valid UTF8.
-            write!(f, "{}", unsafe { std::str::from_utf8_unchecked(self.0) })
+            f.write_str(unsafe { std::str::from_utf8_unchecked(self.0) })
         } else {
-            write!(f, "{}", String::from_utf8_lossy(self.0))
+            f.write_str(&String::from_utf8_lossy(self.0))
         }
     }
 }
@@ -304,9 +304,9 @@ impl std::fmt::Display for NucleotidesViewMut<'_> {
         if self.0.is_ascii_simd::<16>() {
             // SAFETY: we just checked it is ASCII using our fast SIMD function.
             // ASCII is valid UTF8.
-            write!(f, "{}", unsafe { std::str::from_utf8_unchecked(self.0) })
+            f.write_str(unsafe { std::str::from_utf8_unchecked(self.0) })
         } else {
-            write!(f, "{}", String::from_utf8_lossy(self.0))
+            f.write_str(&String::from_utf8_lossy(self.0))
         }
     }
 }
