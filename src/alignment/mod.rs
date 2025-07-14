@@ -183,6 +183,10 @@ pub struct Alignment<T> {
     pub query_range: Range<usize>,
     /// States mapping reference and query.
     pub states:      AlignmentStates,
+    /// The length of the reference sequence
+    pub ref_len:     usize,
+    /// The length of the query sequence
+    pub query_len:   usize,
 }
 
 impl<T> Alignment<T> {
@@ -217,7 +221,7 @@ impl<T> Alignment<T> {
 impl<T: Copy> Alignment<T> {
     /// Gets the alignment for when the query and reference are swapped.
     #[must_use]
-    pub fn invert(&self, reference: &[u8]) -> Self {
+    pub fn invert(&self) -> Self {
         let mut states = AlignmentStates::new();
         states.soft_clip(self.ref_range.start);
         let inverted_ciglets = self.states.0.iter().filter_map(|&ciglet| match ciglet.op {
@@ -233,13 +237,15 @@ impl<T: Copy> Alignment<T> {
             _ => Some(ciglet),
         });
         states.extend_from_ciglets(inverted_ciglets);
-        states.soft_clip(reference.len() - self.ref_range.end);
+        states.soft_clip(self.ref_len - self.ref_range.end);
 
         Self {
             score: self.score,
             ref_range: self.query_range.clone(),
             query_range: self.ref_range.clone(),
             states,
+            ref_len: self.query_len,
+            query_len: self.ref_len,
         }
     }
 }
@@ -260,7 +266,7 @@ mod test {
 
         let profile = ScalarProfile::<5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
         let alignment = sw_scalar_alignment(reference, &profile);
-        let invert_alignment = alignment.invert(reference);
+        let invert_alignment = alignment.invert();
 
         assert_eq!(alignment.ref_range, 3..15);
         assert_eq!(alignment.query_range, 1..13);

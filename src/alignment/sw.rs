@@ -342,6 +342,8 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
         ref_range: r..best_r,
         query_range: c..best_c,
         states,
+        ref_len: reference.len(),
+        query_len: query.query.len(),
     }
 }
 
@@ -530,23 +532,18 @@ mod test {
         let Alignment {
             score,
             ref_range,
-            query_range: _,
-            states: cigar,
+            states,
+            ..
         } = sw_scalar_alignment(reference, &profile);
 
-        assert_eq!(Ok(score as u64), sw_score_from_path(&cigar, &reference[ref_range], &profile));
+        assert_eq!(Ok(score as u64), sw_score_from_path(&states, &reference[ref_range], &profile));
     }
 
     #[test]
     fn sw() {
         let weights: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(2, -5, Some(b'N'));
         let profile = ScalarProfile::new(QUERY, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
-        let Alignment {
-            score,
-            ref_range,
-            query_range: _,
-            states: _,
-        } = sw_scalar_alignment(REFERENCE, &profile);
+        let Alignment { score, ref_range, .. } = sw_scalar_alignment(REFERENCE, &profile);
         assert_eq!((336, 37), (ref_range.start, score));
 
         let score = sw_scalar_score(REFERENCE, &profile);
