@@ -1,6 +1,9 @@
 use crate::{
     alignment::{Alignment, AlignmentStates, MaybeAligned, StatesSequence},
-    data::types::cigar::{Cigar, CigarView, CigarViewMut},
+    data::{
+        cigar::LenInAlignment,
+        types::cigar::{Cigar, CigarView, CigarViewMut},
+    },
     math::AnyInt,
     prelude::*,
 };
@@ -305,7 +308,7 @@ impl SamData {
         let query_len = self.seq.len();
 
         let ref_range_start = self.pos - 1;
-        let ref_range_end = ref_range_start + self.cigar.match_length();
+        let ref_range_end = ref_range_start + self.cigar.ref_len_in_alignment();
         let ref_range = ref_range_start..ref_range_end;
 
         let mut ciglets = self.cigar.iter();
@@ -339,7 +342,7 @@ impl SamData {
     #[inline]
     #[must_use]
     pub fn is_unmapped(&self) -> bool {
-        self.flag & 0x4 != 0 || self.cigar.match_length() == 0
+        self.flag & 0x4 != 0 || self.cigar.ref_len_in_alignment() == 0
     }
 }
 

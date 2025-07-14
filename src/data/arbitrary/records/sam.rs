@@ -2,10 +2,9 @@
 //! record type.
 
 use crate::{
-    alignment::CheckedCigar,
     data::{
         arbitrary::{ArbitrarySpecs, CigarSpecs, ClampAlignment, NucleotidesSpecs, StringSpecs},
-        cigar::Cigar,
+        cigar::{Cigar, LenInAlignment},
         sam::SamData,
     },
     prelude::{Len, Nucleotides, QualityScores},
@@ -88,13 +87,13 @@ impl<'a> ArbitrarySpecs<'a> for SamDataSpecs {
 
         if self.correct_seq_len {
             cigar.clamp_query_len(seq.len());
-            seq.shorten_to(cigar.num_query_consumed_checked().unwrap());
+            seq.shorten_to(cigar.query_len_in_alignment());
         }
 
         let pos = match (self.nonzero_pos, self.cap_end_pos) {
             (false, false) => usize::arbitrary(u)?,
             (false, true) => {
-                if let Some(match_len) = cigar.num_ref_consumed_checked() {
+                if let Some(match_len) = cigar.ref_len_in_alignment_checked() {
                     u.int_in_range(0..=(usize::MAX - match_len))?
                 } else {
                     usize::arbitrary(u)?
@@ -102,7 +101,7 @@ impl<'a> ArbitrarySpecs<'a> for SamDataSpecs {
             }
             (true, false) => NonZeroUsize::arbitrary(u)?.into(),
             (true, true) => {
-                if let Some(match_len) = cigar.num_ref_consumed_checked()
+                if let Some(match_len) = cigar.ref_len_in_alignment_checked()
                     && match_len < usize::MAX
                 {
                     u.int_in_range(1..=(usize::MAX - match_len))?

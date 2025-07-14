@@ -15,7 +15,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `smith_waterman_alignment_from_i16_3pass` and `smith_waterman_alignment_from_i32_3pass` (behind `dev-3pass` feature gate)
 - Added `get_first_codon`, `get_last_codon`, and `get_tail_codon` to `GetCodons` trait, with mutable equivalents in `GetCodonsMut`
 - Added `CodonExtension` trait for `[u8; 3]` with convenience codon characterization methods
-- Added `ConsumingCheckedCigar` (similar to `CheckedCigar`) which is implemented on `CigletIterator` (behind `fuzzing` feature gate)
+- Added `ToCigletIterator` trait, implemented on structs which can be converted to an iterator of ciglets
+- Added `LenInAlignment` trait, replacing the previous `match_len` and offering a more flexible API
 
 ### Changed
 
@@ -26,6 +27,11 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 ### Fixes
 
 - Fixed spelling of `filter_to_dna_uanligned` to `filter_to_dna_unaligned` in trait `ToDNA`
+
+### Removed
+
+- Removed the `match_len` method from CIGAR strings in favor of `LenInAlignment`
+- Removed `CheckedCigar` in favor of `LenInAlignment` (checked methods are behind the `fuzzing` feature gate)
 
 ## [0.0.23] - 2025-11-24
 

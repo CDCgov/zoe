@@ -63,7 +63,7 @@ fn test_iter() {
 }
 
 #[test]
-fn test_match_length() {
+fn test_ref_len_in_alignment() {
     let cigars = [
         ("4S10M2I2D3M4H4P", 15),
         ("", 0),
@@ -75,7 +75,24 @@ fn test_match_length() {
 
     for (c, l) in cigars {
         let cigar = Cigar::from_slice_unchecked(c.as_bytes());
-        assert_eq!(cigar.match_length(), l);
+        assert_eq!(cigar.ref_len_in_alignment(), l);
+    }
+}
+
+#[test]
+fn test_query_len_in_alignment() {
+    let cigars = [
+        ("4S10M2I2D3M4H4P", 19),
+        ("", 0),
+        ("3M2D1M", 4),
+        ("255M", 255),
+        ("3M1D4I8X9=4M", 28),
+        ("M", 0),
+    ];
+
+    for (c, l) in cigars {
+        let cigar = Cigar::from_slice_unchecked(c.as_bytes());
+        assert_eq!(cigar.query_len_in_alignment(), l);
     }
 }
 

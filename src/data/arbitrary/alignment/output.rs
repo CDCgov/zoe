@@ -5,8 +5,11 @@
 //! and [`AlignmentAndQuerySpecs`].
 
 use crate::{
-    alignment::{Alignment, AlignmentStates, CheckedCigar, StatesSequence, StatesSequenceMut},
-    data::arbitrary::{AlignmentStatesSpecs, ArbitrarySpecs, ByteSpecs, ClampAlignment, VecSpecs},
+    alignment::{Alignment, AlignmentStates, StatesSequence, StatesSequenceMut},
+    data::{
+        arbitrary::{AlignmentStatesSpecs, ArbitrarySpecs, ByteSpecs, ClampAlignment, VecSpecs},
+        cigar::LenInAlignment,
+    },
     prelude::Len,
 };
 use arbitrary::{Arbitrary, Result, Unstructured};
@@ -197,7 +200,7 @@ where
         let ref_range = if self.compatible_ref_range_and_states {
             // Validity: the number of bases consumed in the reference was
             // clamped above when compatible_ref_range_and_states is set
-            let len = states.num_ref_consumed_checked().unwrap();
+            let len = states.ref_len_in_alignment();
             // Validity: subtraction will not overflow because we clamped len to
             // at most max_ref_range_end
             max_ref_range_start = max_ref_range_start.min(max_ref_range_end - len);
@@ -227,7 +230,7 @@ where
             // be mutated when generating query_range. Validity: the number of
             // residues consumed in the query was clamped above when
             // compatible_query_range_and_states is set.
-            let num_query_consumed_no_clipping = ciglets.num_query_consumed_checked().unwrap();
+            let num_query_consumed_no_clipping = ciglets.query_len_in_alignment();
 
             // Decrease max_query_range_start as needed to ensure a random start
             // index can have an end index computed that does not exceed
@@ -267,7 +270,7 @@ where
 
         // Get the number of query residues consumed, including clipping
         let num_query_consumed = soft_clip_at_start_ciglet.as_ref().map_or(0, |c| c.inc)
-            + ciglets.num_query_consumed_checked().unwrap()
+            + ciglets.query_len_in_alignment()
             + soft_clip_at_end_ciglet.as_ref().map_or(0, |c| c.inc);
 
         // Generate the reference length if it isn't fixed
@@ -278,7 +281,7 @@ where
             if self.compatible_ref_len_and_states {
                 // Validity: compatible_ref_len_and_states causes the states to
                 // have a clamped match_len
-                min_ref_len = min_ref_len.max(ciglets.num_ref_consumed_checked().unwrap());
+                min_ref_len = min_ref_len.max(ciglets.ref_len_in_alignment());
             }
             if self.compatible_ref_len_and_range {
                 min_ref_len = min_ref_len.max(ref_range.end);

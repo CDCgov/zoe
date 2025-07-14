@@ -16,7 +16,7 @@ fn condense_cigar(b: &mut Bencher) {
 }
 
 #[bench]
-fn match_length(b: &mut Bencher) {
+fn ref_len_in_alignment(b: &mut Bencher) {
     let cigar = Cigar::from_slice_unchecked("4S10M2I2D3M4H4P");
-    b.iter(|| cigar.match_length());
+    b.iter(|| cigar.ref_len_in_alignment());
 }

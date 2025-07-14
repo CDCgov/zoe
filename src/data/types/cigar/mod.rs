@@ -101,21 +101,7 @@ impl Cigar {
         ExpandedCigar(expanded)
     }
 
-    /// Sums lengths for operations `M`, `D`, `N`, `X`, and `=`.
-    #[must_use]
-    pub fn match_length(&self) -> usize {
-        self.into_iter()
-            .filter(|Ciglet { inc: _, op }| matches!(op, b'M' | b'D' | b'N' | b'X' | b'='))
-            .map(|Ciglet { inc, .. }| inc)
-            .sum()
-    }
-
-    /// Returns an (unchecked) iterator of [`Ciglet`] values for the CIGAR
-    /// string.
-    ///
-    /// This iterator does not perform any checking of the input CIGAR string
-    /// for validity. See the documentation for [`CigletIterator`] to understand
-    /// its behavior for different cases.
+    /// Returns an iterator of [`Ciglet`] for the CIGAR.
     #[inline]
     #[must_use]
     pub fn iter(&self) -> CigletIterator<'_> {
@@ -682,4 +668,219 @@ impl<const N: usize> From<&[u8; N]> for ExpandedCigar {
 #[inline]
 pub(crate) const fn is_valid_op(op: u8) -> bool {
     matches!(op, b'M' | b'I' | b'D' | b'N' | b'S' | b'H' | b'P' | b'X' | b'=')
+}
+
+/// A trait for types from which an iterator of [`Ciglet`] values can be made.
+///
+/// This is useful for trait bounds, where a generic implementation should
+/// function over anything that "looks like" a CIGAR string. In particular, this
+/// is stronger than `IntoIterator<Item = Ciglet>` since it is implemented on
+/// both owned types and references (calling [`copied`] on the iterator for the
+/// latter).
+///
+/// [`copied`]: Iterator::copied
+pub trait ToCigletIterator {
+    type Iter<'a>: Iterator<Item = Ciglet>
+    where
+        Self: 'a;
+
+    /// Creates an iterator over the [`Ciglet`] values.
+    fn to_ciglet_iterator(&self) -> Self::Iter<'_>;
+}
+
+impl<'a> ToCigletIterator for CigletIterator<'a> {
+    type Iter<'b>
+        = CigletIterator<'a>
+    where
+        Self: 'b;
+
+    #[inline]
+    fn to_ciglet_iterator(&self) -> Self::Iter<'_> {
+        self.clone()
+    }
+}
+
+impl ToCigletIterator for Cigar {
+    type Iter<'a> = CigletIterator<'a>;
+
+    #[inline]
+    fn to_ciglet_iterator(&self) -> CigletIterator<'_> {
+        self.iter()
+    }
+}
+
+impl ToCigletIterator for &Cigar {
+    type Iter<'a>
+        = CigletIterator<'a>
+    where
+        Self: 'a;
+
+    #[inline]
+    fn to_ciglet_iterator(&self) -> CigletIterator<'_> {
+        self.iter()
+    }
+}
+
+impl ToCigletIterator for &mut Cigar {
+    type Iter<'a>
+        = CigletIterator<'a>
+    where
+        Self: 'a;
+
+    #[inline]
+    fn to_ciglet_iterator(&self) -> CigletIterator<'_> {
+        self.iter()
+    }
+}
+
+impl ToCigletIterator for AlignmentStates {
+    type Iter<'a> = std::iter::Copied<std::slice::Iter<'a, Ciglet>>;
+
+    #[inline]
+    fn to_ciglet_iterator(&self) -> Self::Iter<'_> {
+        self.iter().copied()
+    }
+}
+
+impl ToCigletIterator for &AlignmentStates {
+    type Iter<'a>
+        = std::iter::Copied<std::slice::Iter<'a, Ciglet>>
+    where
+        Self: 'a;
+
+    #[inline]
+    fn to_ciglet_iterator(&self) -> Self::Iter<'_> {
+        self.iter().copied()
+    }
+}
+
+impl ToCigletIterator for &mut AlignmentStates {
+    type Iter<'a>
+        = std::iter::Copied<std::slice::Iter<'a, Ciglet>>
+    where
+        Self: 'a;
+
+    #[inline]
+    fn to_ciglet_iterator(&self) -> Self::Iter<'_> {
+        self.iter().copied()
+    }
+}
+
+impl ToCigletIterator for Vec<Ciglet> {
+    type Iter<'a> = std::iter::Copied<std::slice::Iter<'a, Ciglet>>;
+
+    #[inline]
+    fn to_ciglet_iterator(&self) -> Self::Iter<'_> {
+        self.iter().copied()
+    }
+}
+
+impl ToCigletIterator for &[Ciglet] {
+    type Iter<'a>
+        = std::iter::Copied<std::slice::Iter<'a, Ciglet>>
+    where
+        Self: 'a;
+
+    #[inline]
+    fn to_ciglet_iterator(&self) -> Self::Iter<'_> {
+        self.iter().copied()
+    }
+}
+
+impl ToCigletIterator for &mut [Ciglet] {
+    type Iter<'a>
+        = std::iter::Copied<std::slice::Iter<'a, Ciglet>>
+    where
+        Self: 'a;
+
+    #[inline]
+    fn to_ciglet_iterator(&self) -> Self::Iter<'_> {
+        self.iter().copied()
+    }
+}
+
+/// A trait allowing the length of the query or reference in an alignment to be
+/// re-computed for CIGAR-like data.
+///
+/// This is implemented for anything that can be converted into an iterator of
+/// [`Ciglet`] values via the trait [`ToCigletIterator`].
+pub trait LenInAlignment {
+    /// Sums lengths for operations `M`, `D`, `N`, `X`, and `=`, which is the
+    /// length of the reference that is included in the alignment.
+    #[must_use]
+    fn ref_len_in_alignment(&self) -> usize;
+
+    /// Sums lengths for operations `M`, `I`, `S`, `X`, and `=`, which is the
+    /// length of the query that is included in the alignment.
+    #[must_use]
+    fn query_len_in_alignment(&self) -> usize;
+
+    /// A checked version of [`ref_len_in_alignment`], returning `None` on
+    /// overflow.
+    ///
+    /// <div class="warning note">
+    ///
+    /// **Note**
+    ///
+    /// You must enable the *fuzzing* feature in your `Cargo.toml` to use this
+    /// method.
+    ///
+    /// </div>
+    ///
+    /// [`ref_len_in_alignment`]: LenInAlignment::ref_len_in_alignment
+    #[must_use]
+    #[cfg(feature = "fuzzing")]
+    fn ref_len_in_alignment_checked(&self) -> Option<usize>;
+
+    /// A checked version of [`query_len_in_alignment`], returning `None` on
+    /// overflow.
+    ///
+    /// <div class="warning note">
+    ///
+    /// **Note**
+    ///
+    /// You must enable the *fuzzing* feature in your `Cargo.toml` to use this
+    /// method.
+    ///
+    /// </div>
+    ///
+    /// [`query_len_in_alignment`]: LenInAlignment::query_len_in_alignment
+    #[must_use]
+    #[cfg(feature = "fuzzing")]
+    fn query_len_in_alignment_checked(&self) -> Option<usize>;
+}
+
+impl<T> LenInAlignment for T
+where
+    T: ToCigletIterator,
+{
+    #[inline]
+    fn ref_len_in_alignment(&self) -> usize {
+        self.to_ciglet_iterator()
+            .filter_map(|Ciglet { inc, op }| matches!(op, b'M' | b'D' | b'N' | b'=' | b'X').then_some(inc))
+            .sum()
+    }
+
+    #[inline]
+    fn query_len_in_alignment(&self) -> usize {
+        self.to_ciglet_iterator()
+            .filter_map(|Ciglet { inc, op }| matches!(op, b'M' | b'I' | b'S' | b'=' | b'X').then_some(inc))
+            .sum()
+    }
+
+    #[inline]
+    #[cfg(feature = "fuzzing")]
+    fn ref_len_in_alignment_checked(&self) -> Option<usize> {
+        self.to_ciglet_iterator()
+            .filter_map(|Ciglet { inc, op }| matches!(op, b'M' | b'D' | b'N' | b'=' | b'X').then_some(inc))
+            .try_fold(0, usize::checked_add)
+    }
+
+    #[inline]
+    #[cfg(feature = "fuzzing")]
+    fn query_len_in_alignment_checked(&self) -> Option<usize> {
+        self.to_ciglet_iterator()
+            .filter_map(|Ciglet { inc, op }| matches!(op, b'M' | b'I' | b'S' | b'=' | b'X').then_some(inc))
+            .try_fold(0, usize::checked_add)
+    }
 }

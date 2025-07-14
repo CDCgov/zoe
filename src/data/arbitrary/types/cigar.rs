@@ -2,10 +2,10 @@
 //! [`AlignmentStates`], and related structs.
 
 use crate::{
-    alignment::{AlignmentStates, CheckedCigar, ConsumingCheckedCigar, StatesSequence},
+    alignment::{AlignmentStates, StatesSequence},
     data::{
         arbitrary::ArbitrarySpecs,
-        cigar::{Cigar, Ciglet},
+        cigar::{Cigar, Ciglet, LenInAlignment},
     },
 };
 use arbitrary::{Arbitrary, Result, Unstructured};
@@ -210,7 +210,9 @@ pub(crate) trait ClampAlignment {
 impl ClampAlignment for AlignmentStates {
     #[inline]
     fn clamp_total(&mut self, max_total: usize) {
-        let needs_shrink = match self.total_increments_checked() {
+        let total_increments = self.iter().try_fold(0usize, |sum, ciglet| sum.checked_add(ciglet.inc));
+
+        let needs_shrink = match total_increments {
             Some(total) => total > max_total,
             None => true,
         };
@@ -235,7 +237,7 @@ impl ClampAlignment for AlignmentStates {
 
     #[inline]
     fn clamp_query_len(&mut self, max_query_len: usize) {
-        let needs_shrink = match self.num_query_consumed_checked() {
+        let needs_shrink = match self.query_len_in_alignment_checked() {
             Some(query_len) => query_len > max_query_len,
             None => true,
         };
@@ -268,7 +270,7 @@ impl ClampAlignment for AlignmentStates {
         ciglets.next_back_if_op(|op| op == b'H');
         ciglets.next_back_if_op(|op| op == b'S');
 
-        let needs_shrink = match ciglets.num_query_consumed_checked() {
+        let needs_shrink = match ciglets.query_len_in_alignment_checked() {
             Some(query_len) => query_len > max_query_len,
             None => true,
         };
@@ -333,7 +335,7 @@ impl ClampAlignment for AlignmentStates {
 
     #[inline]
     fn clamp_match_len(&mut self, max_match_len: usize) {
-        let needs_shrink = match self.num_ref_consumed_checked() {
+        let needs_shrink = match self.ref_len_in_alignment_checked() {
             Some(match_len) => match_len > max_match_len,
             None => true,
         };
@@ -361,7 +363,9 @@ impl ClampAlignment for AlignmentStates {
 impl ClampAlignment for Cigar {
     #[inline]
     fn clamp_total(&mut self, max_total: usize) {
-        let needs_shrink = match self.total_increments_checked() {
+        let total_increments = self.iter().try_fold(0usize, |sum, ciglet| sum.checked_add(ciglet.inc));
+
+        let needs_shrink = match total_increments {
             Some(total) => total > max_total,
             None => true,
         };
@@ -385,7 +389,7 @@ impl ClampAlignment for Cigar {
 
     #[inline]
     fn clamp_query_len(&mut self, max_query_len: usize) {
-        let needs_shrink = match self.num_query_consumed_checked() {
+        let needs_shrink = match self.query_len_in_alignment_checked() {
             Some(query_len) => query_len > max_query_len,
             None => true,
         };
@@ -417,7 +421,7 @@ impl ClampAlignment for Cigar {
             ciglets.remove_clipping_back();
 
             // Get count without clipping at front or back
-            match ciglets.num_query_consumed_checked() {
+            match ciglets.query_len_in_alignment_checked() {
                 Some(query_len) => query_len > max_query_len,
                 None => true,
             }
@@ -485,7 +489,7 @@ impl ClampAlignment for Cigar {
 
     #[inline]
     fn clamp_match_len(&mut self, max_match_len: usize) {
-        let needs_shrink = match self.num_ref_consumed_checked() {
+        let needs_shrink = match self.ref_len_in_alignment_checked() {
             Some(match_len) => match_len > max_match_len,
             None => true,
         };
