@@ -248,6 +248,32 @@ impl<T: Copy> Alignment<T> {
             query_len: self.ref_len,
         }
     }
+
+    /// Gets the alignment for when the query and reference are both reversed
+    /// (or reverse-complemented).
+    #[must_use]
+    pub fn to_reverse(&self) -> Self {
+        let ref_range = (self.ref_len - self.ref_range.end)..(self.ref_len - self.ref_range.start - 1);
+        let query_range = (self.query_len - self.query_range.end)..(self.query_len - self.query_range.start - 1);
+        let states = self.states.to_reverse();
+
+        Alignment {
+            score: self.score,
+            ref_range,
+            query_range,
+            states,
+            ref_len: self.ref_len,
+            query_len: self.query_len,
+        }
+    }
+
+    /// Converts an alignment in-place so that it represents the alignment
+    /// between the reversed (or reverse-complemented) query and reference.
+    pub fn make_reverse(&mut self) {
+        self.ref_range = (self.ref_len - self.ref_range.end)..(self.ref_len - self.ref_range.start - 1);
+        self.query_range = (self.query_len - self.query_range.end)..(self.query_len - self.query_range.start - 1);
+        self.states.make_reverse();
+    }
 }
 
 #[cfg(test)]
