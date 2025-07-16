@@ -24,7 +24,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Removes an extra allocation when calling `Cigar::is_valid`
 - Extend the lifetimes returned by `as_bytes` and other methods for non-mutable views
 - `Alignment` now uses `AlignmentStates` instead of `Cigar`
-- Modified args for `AlignmentStates::reverse()` and the `Debug` format for `AlignmentStates`
+- Changed the `Debug` format for `AlignmentStates`, and converted `AlignmentStates::reverse()` to `make_reverse` and `to_reverse`
 - Modified `ScalarProfile` for alignment to hold a reference to the weight matrix
 - Replace ad-hoc casting methods in `AnyInt` and `Float` with generic `cast_as` and `cast_from`
 - Implement `Ord` and `PartialOrd` for `Cigar` and `QualityScores`

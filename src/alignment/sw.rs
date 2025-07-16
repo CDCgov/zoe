@@ -329,7 +329,7 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
 
     // soft clip 5'
     states.soft_clip(c);
-    states.reverse();
+    states.make_reverse();
 
     // r and c are 1-based in this function. However, since clipping is prefered
     // to insertion/deletion, the non-clipped portion of the alignment will

@@ -68,11 +68,18 @@ impl AlignmentStates {
         Cigar::from_ciglets_unchecked(self.0.iter().copied())
     }
 
-    /// Reverses the order of the stored alignment states
+    /// Reverses the order of the stored alignment states in-place
     #[inline]
-    pub fn reverse(&mut self) -> &mut Self {
+    pub fn make_reverse(&mut self) {
         self.0.reverse();
-        self
+    }
+
+    /// Reverses the order of the stored alignment states in-place
+    #[inline]
+    #[must_use]
+    pub fn to_reverse(&self) -> Self {
+        // TODO: Switch to collect
+        Self(self.into_iter().rev().collect())
     }
 
     #[inline]
