@@ -1,3 +1,4 @@
+use std::error::Error;
 use std::fmt::Display;
 
 #[macro_export]
@@ -12,6 +13,13 @@ macro_rules! unwrap_or_return_some_err {
 
 /// Trait for specifying getting exit codes from errors.
 pub trait GetCode {
+    /// Retrieves the exit code associated with a given error.
+    ///
+    /// The blanket implementation returns `1`. We also implement on
+    /// [`std::io::Error`] to return the [`raw_os_error`] if available.
+    ///
+    /// [`raw_os_error`]: std::io::Error::raw_os_error
+    #[inline]
     #[must_use]
     fn get_code(&self) -> i32 {
         1
@@ -21,7 +29,21 @@ pub trait GetCode {
 impl GetCode for std::io::Error {
     #[inline]
     fn get_code(&self) -> i32 {
-        self.raw_os_error().unwrap_or(1)
+        if let Some(code) = self.raw_os_error() {
+            return code;
+        }
+
+        let mut source = self.source();
+        while let Some(err) = source {
+            if let Some(e) = err.downcast_ref::<std::io::Error>()
+                && let Some(code) = e.raw_os_error()
+            {
+                return code;
+            }
+            source = err.source();
+        }
+
+        1
     }
 }
 
