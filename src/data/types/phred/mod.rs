@@ -11,7 +11,7 @@ pub use stats::*;
 /// [`QualityScores`] is a transparent, new-type wrapper around [`Vec<u8>`] that
 /// representing Phred quality scores. It is guaranteed to contain graphic
 /// ASCII in range `!`..=`~`.
-#[derive(Clone, Eq, PartialEq, Hash, Default)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Default)]
 #[repr(transparent)]
 pub struct QualityScores(pub(crate) Vec<EncodedQS>);
 

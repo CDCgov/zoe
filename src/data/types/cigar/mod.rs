@@ -15,7 +15,7 @@ pub use views::*;
 /// A [CIGAR string] of length-opcode pairs used in sequence alignment.
 ///
 /// [CIGAR string]: https://en.wikipedia.org/wiki/Sequence_alignment#CIGAR_Format
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Cigar(pub(crate) Vec<u8>);
 
 #[cfg(target_pointer_width = "16")]
