@@ -271,56 +271,7 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
         }
     }
 
-    let mut states = AlignmentStates::new();
-    let mut op = 0;
-
-    backtrack.move_to(r_end, c_end); // 0-based move to max
-
-    // 1-based as though we had a padded matrix
-    r_end += 1;
-    c_end += 1;
-
-    let (mut r, mut c) = (r_end, c_end);
-
-    // soft clip 3'
-    states.soft_clip(query.seq.len() - c);
-
-    while !backtrack.is_stop() && r > 0 && c > 0 {
-        if op == b'D' && backtrack.is_up_extending() {
-            op = b'D';
-            r -= 1;
-        } else if op == b'I' && backtrack.is_left_extending() {
-            op = b'I';
-            c -= 1;
-        } else if backtrack.is_up() {
-            op = b'D';
-            r -= 1;
-        } else if backtrack.is_left() {
-            op = b'I';
-            c -= 1;
-        } else {
-            op = b'M';
-            r -= 1;
-            c -= 1;
-        }
-
-        states.add_state(op);
-        backtrack.move_to(r.saturating_sub(1), c.saturating_sub(1)); // 0-based next position
-    }
-
-    // soft clip 5'
-    states.soft_clip(c);
-    states.make_reverse();
-
-    // r and c are decremented and becomes 0-based
-    Alignment {
-        score: best_score,
-        ref_range: r..r_end,
-        query_range: c..c_end,
-        states,
-        ref_len: reference.len(),
-        query_len: query.seq.len(),
-    }
+    backtrack.to_alignment(best_score, r_end, c_end, reference.len(), query.seq.len())
 }
 
 /// Smith-Waterman algorithm (vectorized), yielding the optimal score.
@@ -603,46 +554,6 @@ where
         }
     }
 
-    let mut states = AlignmentStates::new();
-    let mut op = 0;
-
-    backtrack.move_to(r_end, c_end); // 0-based move to max
-
-    // 1-based as though we had a padded matrix
-    r_end += 1;
-    c_end += 1;
-
-    let (mut r, mut c) = (r_end, c_end);
-
-    // soft clip 3'
-    states.soft_clip(query.seq_len - c);
-
-    while !backtrack.is_stop() && r > 0 && c > 0 {
-        if op == b'D' && backtrack.is_up_extending() {
-            op = b'D';
-            r -= 1;
-        } else if op == b'I' && backtrack.is_left_extending() {
-            op = b'I';
-            c -= 1;
-        } else if backtrack.is_up() {
-            op = b'D';
-            r -= 1;
-        } else if backtrack.is_left() {
-            op = b'I';
-            c -= 1;
-        } else {
-            op = b'M';
-            r -= 1;
-            c -= 1;
-        }
-        states.add_state(op);
-        backtrack.move_to(r.saturating_sub(1), c.saturating_sub(1)); // 0-based next position
-    }
-
-    // soft clip 5'
-    states.soft_clip(c);
-    states.make_reverse();
-
     if T::SIGNED {
         // Map best score to an unsigned range. Note that: MAX+1 = abs(MIN). If
         // we would have overflowed (saturated), return None, otherwise return
@@ -653,14 +564,7 @@ where
         // score. We add one because we care if the value is equal to the MAX.
         best.checked_add(query.bias + T::ONE).map(|_| best.cast_as::<u64>())
     }
-    .map(|score| Alignment {
-        score,
-        ref_range: r..r_end,
-        query_range: c..c_end,
-        states,
-        ref_len: reference.len(),
-        query_len: query.seq_len,
-    })
+    .map(|score| backtrack.to_alignment(score, r_end, c_end, reference.len(), query.seq_len))
 }
 
 #[cfg(test)]
