@@ -28,7 +28,13 @@ pub fn sw_score_from_path<const S: usize>(
         match op {
             b'M' | b'=' | b'X' => {
                 for _ in 0..inc {
-                    score += i32::from(query.matrix.get_weight(ref_in_alignment[r], query.query[q]));
+                    let Some(reference_base) = ref_in_alignment.get(r).copied() else {
+                        return Err(ScoringError::ReferenceEnded);
+                    };
+                    let Some(query_base) = query.query.get(q).copied() else {
+                        return Err(ScoringError::QueryEnded);
+                    };
+                    score += i32::from(query.matrix.get_weight(reference_base, query_base));
                     q += 1;
                     r += 1;
                 }

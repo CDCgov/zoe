@@ -34,6 +34,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 ### Fixed
 
 - `GetCode` now correctly retrieves nested IO error codes even if the outer IO error doesn't have one.
+- `sw_score_from_path` no longer panics if the query or reference are not long enough
 
 ## [0.0.19] - 2025-06-11
 
