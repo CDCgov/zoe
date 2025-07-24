@@ -1,5 +1,8 @@
 use super::{StripedProfile, validate_profile_args};
-use crate::data::{err::QueryProfileError, matrices::WeightMatrix};
+use crate::{
+    alignment::MaybeAligned,
+    data::{err::QueryProfileError, matrices::WeightMatrix},
+};
 use std::{
     cell::OnceCell,
     simd::{LaneCount, SupportedLaneCount},
@@ -154,21 +157,7 @@ where
     /// profiles and works its way up to the `i64` profile. Execution stops when
     /// the score returned no longer overflows the profile's integer range.
     ///
-    /// ## Example
-    ///
-    /// ```
-    /// # use zoe::{alignment::{LocalProfiles, sw::sw_simd_score}, data::WeightMatrix};
-    /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
-    /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
-    ///
-    /// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
-    /// const GAP_OPEN: i8 = -3;
-    /// const GAP_EXTEND: i8 = -1;
-    ///
-    /// let profile = LocalProfiles::new_with_w256(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-    /// let score = profile.smith_waterman_score_from_i16(reference).unwrap();
-    /// assert_eq!(score, 26);
-    /// ```
+    /// See [`LocalProfiles::smith_waterman_score_from_i8`] for an example.
     #[inline]
     #[must_use]
     pub fn smith_waterman_score_from_i16<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u64> {
@@ -185,6 +174,21 @@ where
     /// Execution stops when the score returned no longer overflows the
     /// profile's integer range.
     ///
+    /// See [`LocalProfiles::smith_waterman_score_from_i8`] for an example.
+    #[inline]
+    #[must_use]
+    pub fn smith_waterman_score_from_i32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u64> {
+        let query = query.as_ref();
+        self.get_i32()
+            .smith_waterman_score(query)
+            .or_else(|| self.get_i64().smith_waterman_score(query))
+    }
+
+    /// Lazily execute [`StripedProfile::smith_waterman_alignment`] starting with
+    /// the `i8` profile. Lazily initializes the profiles and works its way up
+    /// to the `i64` profile. Execution stops when the alignment returned no longer
+    /// overflows the profile's integer range.
+    ///
     /// ## Example
     ///
     /// ```
@@ -197,16 +201,49 @@ where
     /// const GAP_EXTEND: i8 = -1;
     ///
     /// let profile = LocalProfiles::new_with_w256(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-    /// let score = profile.smith_waterman_score_from_i32(reference).unwrap();
-    /// assert_eq!(score, 26);
+    /// let alignment = profile.smith_waterman_alignment_from_i8(reference).unwrap();
     /// ```
     #[inline]
     #[must_use]
-    pub fn smith_waterman_score_from_i32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u64> {
+    pub fn smith_waterman_alignment_from_i8<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u64> {
+        let query = query.as_ref();
+        self.get_i8()
+            .smith_waterman_alignment(query)
+            .or_else_overflowed(|| self.get_i16().smith_waterman_alignment(query))
+            .or_else_overflowed(|| self.get_i32().smith_waterman_alignment(query))
+            .or_else_overflowed(|| self.get_i64().smith_waterman_alignment(query))
+    }
+
+    /// Lazily execute [`StripedProfile::smith_waterman_alignment`] starting with
+    /// the `i16` profile, skipping the `i8` profile. Lazily initializes the
+    /// profiles and works its way up to the `i64` profile. Execution stops when
+    /// the alignment returned no longer overflows the profile's integer range.
+    ///
+    /// See [`LocalProfiles::smith_waterman_alignment_from_i8`] for an example.
+    #[inline]
+    #[must_use]
+    pub fn smith_waterman_alignment_from_i16<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u64> {
+        let query = query.as_ref();
+        self.get_i16()
+            .smith_waterman_alignment(query)
+            .or_else_overflowed(|| self.get_i32().smith_waterman_alignment(query))
+            .or_else_overflowed(|| self.get_i64().smith_waterman_alignment(query))
+    }
+
+    /// Lazily execute [`StripedProfile::smith_waterman_alignment`] starting with
+    /// the `i32` profile, skipping the `i8` and `i16` profiles. Lazily
+    /// initializes the profiles and works its way up to the `i64` profile.
+    /// Execution stops when the alignment returned no longer overflows the
+    /// profile's integer range.
+    ///
+    /// See [`LocalProfiles::smith_waterman_alignment_from_i8`] for an example.
+    #[inline]
+    #[must_use]
+    pub fn smith_waterman_alignment_from_i32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u64> {
         let query = query.as_ref();
         self.get_i32()
-            .smith_waterman_score(query)
-            .or_else(|| self.get_i64().smith_waterman_score(query))
+            .smith_waterman_alignment(query)
+            .or_else_overflowed(|| self.get_i64().smith_waterman_alignment(query))
     }
 }
 
@@ -436,21 +473,7 @@ where
     /// profiles and works its way up to the `i64` profile. Execution stops when
     /// the score returned no longer overflows the profile's integer range.
     ///
-    /// ## Example
-    ///
-    /// ```
-    /// # use zoe::{alignment::{SharedProfiles, sw::sw_simd_score}, data::WeightMatrix};
-    /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
-    /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
-    ///
-    /// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
-    /// const GAP_OPEN: i8 = -3;
-    /// const GAP_EXTEND: i8 = -1;
-    ///
-    /// let profile = SharedProfiles::new_with_w256(query.into(), &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-    /// let score = profile.smith_waterman_score_from_i16(reference).unwrap();
-    /// assert_eq!(score, 26);
-    /// ```
+    /// See [`SharedProfiles::smith_waterman_score_from_i8`] for an example.
     #[inline]
     #[must_use]
     pub fn smith_waterman_score_from_i16<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u64> {
@@ -467,6 +490,21 @@ where
     /// Execution stops when the score returned no longer overflows the
     /// profile's integer range.
     ///
+    /// See [`SharedProfiles::smith_waterman_score_from_i8`] for an example.
+    #[inline]
+    #[must_use]
+    pub fn smith_waterman_score_from_i32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u64> {
+        let query = query.as_ref();
+        self.get_i32()
+            .smith_waterman_score(query)
+            .or_else(|| self.get_i64().smith_waterman_score(query))
+    }
+
+    /// Lazily execute [`StripedProfile::smith_waterman_alignment`] starting with
+    /// the `i8` profile. Lazily initializes the profiles and works its way up
+    /// to the `i64` profile. Execution stops when the alignment returned no longer
+    /// overflows the profile's integer range.
+    ///
     /// ## Example
     ///
     /// ```
@@ -479,16 +517,49 @@ where
     /// const GAP_EXTEND: i8 = -1;
     ///
     /// let profile = SharedProfiles::new_with_w256(query.into(), &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-    /// let score = profile.smith_waterman_score_from_i32(reference).unwrap();
-    /// assert_eq!(score, 26);
+    /// let alignment = profile.smith_waterman_alignment_from_i8(reference).unwrap();
     /// ```
     #[inline]
     #[must_use]
-    pub fn smith_waterman_score_from_i32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u64> {
+    pub fn smith_waterman_alignment_from_i8<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u64> {
+        let query = query.as_ref();
+        self.get_i8()
+            .smith_waterman_alignment(query)
+            .or_else_overflowed(|| self.get_i16().smith_waterman_alignment(query))
+            .or_else_overflowed(|| self.get_i32().smith_waterman_alignment(query))
+            .or_else_overflowed(|| self.get_i64().smith_waterman_alignment(query))
+    }
+
+    /// Lazily execute [`StripedProfile::smith_waterman_alignment`] starting with
+    /// the `i16` profile, skipping the `i8` profile. Lazily initializes the
+    /// profiles and works its way up to the `i64` profile. Execution stops when
+    /// the alignment returned no longer overflows the profile's integer range.
+    ///
+    /// See [`SharedProfiles::smith_waterman_alignment_from_i8`] for an example.
+    #[inline]
+    #[must_use]
+    pub fn smith_waterman_alignment_from_i16<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u64> {
+        let query = query.as_ref();
+        self.get_i16()
+            .smith_waterman_alignment(query)
+            .or_else_overflowed(|| self.get_i32().smith_waterman_alignment(query))
+            .or_else_overflowed(|| self.get_i64().smith_waterman_alignment(query))
+    }
+
+    /// Lazily execute [`StripedProfile::smith_waterman_alignment`] starting with
+    /// the `i32` profile, skipping the `i8` and `i16` profiles. Lazily
+    /// initializes the profiles and works its way up to the `i64` profile.
+    /// Execution stops when the alignment returned no longer overflows the
+    /// profile's integer range.
+    ///
+    /// See [`SharedProfiles::smith_waterman_alignment_from_i8`] for an example.
+    #[inline]
+    #[must_use]
+    pub fn smith_waterman_alignment_from_i32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u64> {
         let query = query.as_ref();
         self.get_i32()
-            .smith_waterman_score(query)
-            .or_else(|| self.get_i64().smith_waterman_score(query))
+            .smith_waterman_alignment(query)
+            .or_else_overflowed(|| self.get_i64().smith_waterman_alignment(query))
     }
 }
 

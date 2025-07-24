@@ -1,6 +1,6 @@
 use crate::{
     alignment::{
-        Alignment,
+        MaybeAligned,
         sw::{sw_scalar_alignment, sw_scalar_score, sw_simd_alignment, sw_simd_score},
     },
     data::{WeightMatrix, err::QueryProfileError, mappings::ByteIndexMap},
@@ -129,14 +129,14 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// const GAP_EXTEND: i8 = -1;
     ///
     /// let profile = ScalarProfile::<5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-    /// let alignment = profile.smith_waterman_alignment(reference);
+    /// let alignment = profile.smith_waterman_alignment(reference).unwrap();
     /// assert_eq!(alignment.ref_range.start, 3);
     /// assert_eq!(alignment.states, Cigar::from_slice_unchecked("5M1D4M"));
     /// assert_eq!(alignment.score, 27);
     /// ```
     #[inline]
     #[must_use]
-    pub fn smith_waterman_alignment(&self, seq: &[u8]) -> Alignment<i32> {
+    pub fn smith_waterman_alignment(&self, seq: &[u8]) -> MaybeAligned<i32> {
         sw_scalar_alignment(seq, self)
     }
 }
@@ -274,7 +274,30 @@ where
         sw_simd_score::<T, N, S>(seq, self)
     }
 
-    pub fn smith_waterman_alignment(&self, seq: &[u8]) -> Option<Alignment<u64>> {
+    /// Computes the Smith-Waterman local alignment between the profile and a
+    /// passed sequence, yielding the reference starting position, cigar, and
+    /// optimal score. Returns [`None`] if the score overflowed.
+    ///
+    /// For more info, see: [`sw_simd_alignment`].
+    ///
+    /// ## Example
+    ///
+    /// ```
+    /// # use zoe::{alignment::{StripedProfile, sw::sw_simd_alignment}, data::WeightMatrix};
+    /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
+    /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
+    ///
+    /// const WEIGHTS: WeightMatrix<u8, 5> = WeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
+    /// const GAP_OPEN: i8 = -3;
+    /// const GAP_EXTEND: i8 = -1;
+    ///
+    /// let profile = StripedProfile::<u8, 32, 5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+    /// let alignment = profile.smith_waterman_alignment(reference).unwrap();
+    /// // alignment contains ref_range, states (cigar), and score
+    /// ```
+    #[inline]
+    #[must_use]
+    pub fn smith_waterman_alignment(&self, seq: &[u8]) -> MaybeAligned<u64> {
         sw_simd_alignment::<T, N, S>(seq, self)
     }
 }

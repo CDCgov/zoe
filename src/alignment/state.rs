@@ -1,5 +1,5 @@
 use crate::{
-    alignment::Alignment,
+    alignment::{Alignment, MaybeAligned},
     data::types::{
         amino_acids::AminoAcids,
         cigar::{Cigar, Ciglet},
@@ -768,7 +768,7 @@ pub(crate) trait BackTrackable {
     /// Create an [`Alignment`] from a backtrack matrix and other information.
     fn to_alignment<T>(
         &mut self, score: T, mut r_end: usize, mut c_end: usize, ref_len: usize, query_len: usize,
-    ) -> Alignment<T> {
+    ) -> MaybeAligned<T> {
         let mut states = AlignmentStates::new();
         let mut op = 0;
 
@@ -810,14 +810,14 @@ pub(crate) trait BackTrackable {
         states.make_reverse();
 
         // r and c are decremented and becomes 0-based
-        Alignment {
+        MaybeAligned::Some(Alignment {
             score,
             ref_range: r..r_end,
             query_range: c..c_end,
             states,
             ref_len,
             query_len,
-        }
+        })
     }
 
     /// Prints the backtracking matrix in a human-readable format

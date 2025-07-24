@@ -16,7 +16,7 @@ fn sw_verify_score_from_path() {
         query_range: _,
         states,
         ..
-    } = sw_scalar_alignment(reference, &profile);
+    } = sw_scalar_alignment(reference, &profile).unwrap();
 
     assert_eq!(Ok(score as u64), sw_score_from_path(&states, &reference[ref_range], &profile));
 }
@@ -25,7 +25,7 @@ fn sw_verify_score_from_path() {
 fn sw() {
     let weights: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(2, -5, Some(b'N'));
     let profile = ScalarProfile::new(QUERY, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
-    let Alignment { score, ref_range, .. } = sw_scalar_alignment(REFERENCE, &profile);
+    let Alignment { score, ref_range, .. } = sw_scalar_alignment(REFERENCE, &profile).unwrap();
     assert_eq!((336, 37), (ref_range.start, score));
 
     let score = sw_scalar_score(REFERENCE, &profile);
@@ -74,7 +74,7 @@ fn sw_simd_aln() {
 
     let score = profile_simd.smith_waterman_score(QUERY);
 
-    let aln_scalar = profile_scalar.smith_waterman_alignment(QUERY).as_u64();
+    let aln_scalar = profile_scalar.smith_waterman_alignment(QUERY).unwrap().as_u64();
     let aln_simd = profile_simd.smith_waterman_alignment(QUERY).unwrap();
     assert_eq!(score, Some(aln_scalar.score));
     assert_eq!(aln_scalar, aln_simd);
@@ -91,7 +91,7 @@ fn sw_simd_aln2() {
 
     let score = profile_simd.smith_waterman_score(reference);
 
-    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).as_u64();
+    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).unwrap().as_u64();
     let aln_simd = profile_simd.smith_waterman_alignment(reference).unwrap();
     assert_eq!(score, Some(aln_scalar.score));
     assert_eq!(aln_scalar, aln_simd);
@@ -108,7 +108,7 @@ fn sw_simd_aln3() {
 
     let score = profile_simd.smith_waterman_score(reference);
 
-    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).as_u64();
+    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).unwrap().as_u64();
     let aln_simd = profile_simd.smith_waterman_alignment(reference).unwrap();
     assert_eq!(score, Some(aln_scalar.score));
     assert_eq!(aln_scalar, aln_simd);
@@ -125,7 +125,7 @@ fn sw_simd_aln4() {
 
     let score = profile_simd.smith_waterman_score(reference);
 
-    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).as_u64();
+    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).unwrap().as_u64();
     let aln_simd = profile_simd.smith_waterman_alignment(reference).unwrap();
     assert_eq!(score, Some(aln_scalar.score));
     assert_eq!(aln_scalar, aln_simd);
@@ -142,7 +142,7 @@ fn sw_simd_aln5() {
 
     let score = profile_simd.smith_waterman_score(reference);
 
-    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).as_u64();
+    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).unwrap().as_u64();
     let aln_simd = profile_simd.smith_waterman_alignment(reference).unwrap();
     assert_eq!(score, Some(aln_scalar.score));
     assert_eq!(aln_scalar, aln_simd);
@@ -159,7 +159,7 @@ fn sw_simd_aln6() {
 
     let score = profile_simd.smith_waterman_score(reference);
 
-    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).as_u64();
+    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).unwrap().as_u64();
     let aln_simd = profile_simd.smith_waterman_alignment(reference).unwrap();
     assert_eq!(score, Some(aln_scalar.score));
     assert_eq!(aln_scalar, aln_simd);
@@ -175,7 +175,7 @@ fn sw_simd_aln7() {
 
     let score = profile_simd.smith_waterman_score(reference);
 
-    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).as_u64();
+    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).unwrap().as_u64();
     let aln_simd = profile_simd.smith_waterman_alignment(reference).unwrap();
     assert_eq!(score, Some(aln_scalar.score));
 
@@ -195,7 +195,7 @@ fn sw_simd_aln8() {
 
     let score = profile_simd.smith_waterman_score(reference);
 
-    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).as_u64();
+    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).unwrap().as_u64();
     let aln_simd = profile_simd.smith_waterman_alignment(reference).unwrap();
     assert_eq!(score, Some(aln_scalar.score));
 
@@ -224,7 +224,7 @@ fn sw_simd_aln9() {
 
     let score = profile_simd.smith_waterman_score(reference);
 
-    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).as_u64();
+    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).unwrap().as_u64();
     let aln_simd = profile_simd.smith_waterman_alignment(reference).unwrap();
     assert_eq!(score, Some(aln_scalar.score));
 
@@ -249,7 +249,7 @@ fn sw_simd_aln10() {
 
     let score = profile_simd.smith_waterman_score(reference);
 
-    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).as_u64();
+    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).unwrap().as_u64();
     let aln_simd = profile_simd.smith_waterman_alignment(reference).unwrap();
     assert_eq!(score, Some(aln_scalar.score));
 
@@ -276,7 +276,7 @@ fn sw_simd_aln11() {
 
     let score = profile_simd.smith_waterman_score(reference);
 
-    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).as_u64();
+    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).unwrap().as_u64();
     let aln_simd = profile_simd.smith_waterman_alignment(reference).unwrap();
     assert_eq!(score, Some(aln_scalar.score));
 
@@ -303,7 +303,7 @@ fn sw_simd_aln12() {
 
     let score = profile_simd.smith_waterman_score(reference);
 
-    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).as_u64();
+    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).unwrap().as_u64();
     let aln_simd = profile_simd.smith_waterman_alignment(reference).unwrap();
     assert_eq!(score, Some(aln_scalar.score));
 

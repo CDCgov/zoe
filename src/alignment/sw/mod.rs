@@ -1,7 +1,7 @@
 #![allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation, clippy::needless_range_loop)]
 // TODO: revisit truncation issues
 use super::*;
-use crate::{alignment::Alignment, data::cigar::Ciglet, math::AnyInt, simd::SimdAnyInt};
+use crate::{data::cigar::Ciglet, math::AnyInt, simd::SimdAnyInt};
 use std::{
     cmp::Ordering::{Equal, Greater, Less},
     ops::Add,
@@ -176,7 +176,7 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 /// const GAP_EXTEND: i8 = -1;
 ///
 /// let profile = ScalarProfile::<5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-/// let alignment = sw_scalar_alignment(&reference, &profile);
+/// let alignment = sw_scalar_alignment(&reference, &profile).unwrap();
 /// assert_eq!(alignment.ref_range.start, 3);
 /// assert_eq!(alignment.states, Cigar::from_slice_unchecked("5M1D4M"));
 /// assert_eq!(alignment.score, 27);
@@ -207,15 +207,16 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 ///    <https://doi.org/10.1101/031500>
 ///
 #[must_use]
-pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfile<S>) -> Alignment<i32> {
+pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfile<S>) -> MaybeAligned<i32> {
+    if reference.is_empty() {
+        return MaybeAligned::Unmapped;
+    }
+
     let (mut best_score, mut r_end, mut c_end) = (0, 0, 0);
     let mut h_row = vec![0; query.seq.len()];
     let mut e_row = vec![query.gap_open; query.seq.len()];
 
     let mut backtrack = BacktrackMatrix::new(reference.len(), query.seq.len());
-
-    //backtrack.stop();
-    //TODO: deal with empty reference
 
     for (r, reference_base) in reference.iter().copied().enumerate() {
         let mut f = query.gap_open;
@@ -269,6 +270,10 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
             h = next_diag;
             e_row[c] = e;
         }
+    }
+
+    if best_score == 0 {
+        return MaybeAligned::Unmapped;
     }
 
     backtrack.to_alignment(best_score, r_end, c_end, reference.len(), query.seq.len())
@@ -424,16 +429,21 @@ where
     }
 }
 
+// TODO: documentation and bibliography
 #[allow(non_snake_case, clippy::too_many_lines)]
 #[must_use]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
 pub fn sw_simd_alignment<T, const N: usize, const S: usize>(
     reference: &[u8], query: &StripedProfile<T, N, S>,
-) -> Option<Alignment<u64>>
+) -> MaybeAligned<u64>
 where
     T: AnyInt + SimdElement,
     LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdAnyInt<T, N>, {
+    if reference.is_empty() {
+        return MaybeAligned::Unmapped;
+    }
+
     let num_vecs = query.number_vectors();
     let profile: &Vec<Simd<T, N>> = &query.profile;
 
@@ -517,10 +527,8 @@ where
 
             H = H.saturating_sub(gap_opens);
             F = F.saturating_sub(gap_extends);
-            //let E = e_scores[v];
 
             flags.simd_left_extending(F.simd_gt(H).cast());
-            //flags.simd_up_extending(E.simd_gt(H).cast());
             flags.simd_stop(stopped.cast());
             backtrack_row[v] = flags;
 
@@ -564,7 +572,13 @@ where
         // score. We add one because we care if the value is equal to the MAX.
         best.checked_add(query.bias + T::ONE).map(|_| best.cast_as::<u64>())
     }
-    .map(|score| backtrack.to_alignment(score, r_end, c_end, reference.len(), query.seq_len))
+    .map_or(MaybeAligned::Overflowed, |score| {
+        if score == 0 {
+            MaybeAligned::Unmapped
+        } else {
+            backtrack.to_alignment(score, r_end, c_end, reference.len(), query.seq_len)
+        }
+    })
 }
 
 #[cfg(test)]

@@ -164,12 +164,69 @@ pub use state::*;
 use crate::data::cigar::Ciglet;
 use std::ops::Range;
 
+/// The output of an alignment algorithm.
+///
+/// Often this is some [`Alignment`], but if no portion of the query mapped to
+/// the reference, [`Unmapped`] is used. [`Overflowed`] is used when the score
+/// exceeded numeric type range.
+///
+/// [`Some`]: MaybeAligned::Some
+/// [`Overflowed`]: MaybeAligned::Overflowed
+/// [`Unmapped`]: MaybeAligned::Unmapped
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub enum MaybeAligned<T> {
+    /// Contains a successful alignment result
+    Some(Alignment<T>),
+    /// Indicates the alignment score overflowed the numeric type
+    Overflowed,
+    /// Indicates the sequence could not be mapped/aligned
+    Unmapped,
+}
+
+impl<T> MaybeAligned<T> {
+    /// Unwraps the alignment, consuming the [`MaybeAligned<T>`] and returning the
+    /// contained [`Alignment<T>`].
+    ///
+    /// # Panics
+    ///
+    /// Panics if the value is [`MaybeAligned::Overflowed`] or
+    /// [`MaybeAligned::Unmapped`].
+    #[inline]
+    #[must_use]
+    pub fn unwrap(self) -> Alignment<T> {
+        match self {
+            MaybeAligned::Some(aln) => aln,
+            MaybeAligned::Overflowed => panic!("Alignment score overflowed!"),
+            MaybeAligned::Unmapped => panic!("Sequence could not be mapped!"),
+        }
+    }
+
+    /// Gets the contained [`Alignment`] as an [`Option`].
+    #[inline]
+    #[must_use]
+    pub fn get(self) -> Option<Alignment<T>> {
+        match self {
+            MaybeAligned::Some(aln) => Some(aln),
+            _ => None,
+        }
+    }
+
+    /// Returns the alignment if it did not overflow, otherwise calls `f` and
+    /// returns the result.
+    #[inline]
+    #[must_use]
+    pub fn or_else_overflowed(self, f: impl FnOnce() -> MaybeAligned<T>) -> MaybeAligned<T> {
+        if let MaybeAligned::Overflowed = self { f() } else { self }
+    }
+}
+
 // For the `Alignment` struct below, both ranges are 0-based and end-exclusive.
 // For a global alignment, the ranges will each be encompass the full length of
 // the sequences. For local alignment, `query_range` does NOT include hard or
 // soft clipped bases, even though `cigar` does contain this information.
 
-/// The output of an alignment algorithm
+/// A struct representing the information for an alignment, such as its score
+/// and where in the sequences it occurs.
 #[non_exhaustive]
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Alignment<T> {
@@ -309,7 +366,7 @@ mod test {
         let query: &[u8] = b"TCTCAGATTGCAGTTT";
 
         let profile = ScalarProfile::<5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-        let alignment = sw_scalar_alignment(reference, &profile);
+        let alignment = sw_scalar_alignment(reference, &profile).unwrap();
         let invert_alignment = alignment.invert();
 
         assert_eq!(alignment.ref_range, 3..15);
