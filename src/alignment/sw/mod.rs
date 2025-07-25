@@ -452,6 +452,8 @@ where
     let gap_extends = Simd::splat(query.gap_extend);
     let minimums = Simd::splat(T::MIN);
     let biases = Simd::splat(query.bias);
+    // Any value strictly less than this threshold did not saturate
+    let saturating_threshold = if T::SIGNED { T::MAX } else { T::MAX - query.bias };
 
     let mut load = vec![minimums; num_vecs];
     let mut store = vec![minimums; num_vecs];
@@ -549,6 +551,9 @@ where
 
         let row_best = max_scores.reduce_max();
         if row_best > best {
+            if row_best >= saturating_threshold {
+                return MaybeAligned::Overflowed;
+            }
             best = row_best;
             r_end = r;
             //max_row.copy_from_slice(&store);
