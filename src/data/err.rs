@@ -56,13 +56,23 @@ pub trait OrFail<T> {
 
 impl<T, E> OrFail<T> for Result<T, E>
 where
-    E: GetCode + Display,
+    E: GetCode + Display + Error,
 {
     fn unwrap_or_fail(self) -> T {
         match self {
             Ok(result) => result,
             Err(e) => {
                 eprintln!("Error: {e}");
+                let mut source = e.source();
+                let mut first = true;
+                while let Some(err) = source {
+                    if first {
+                        eprintln!();
+                        first = false;
+                    }
+                    eprintln!("Caused by:\n\t{err}");
+                    source = err.source();
+                }
                 std::process::exit(e.get_code());
             }
         }
@@ -73,6 +83,16 @@ where
             Ok(result) => result,
             Err(e) => {
                 eprintln!("Error: {msg}\n\n{e}");
+                let mut source = e.source();
+                let mut first = true;
+                while let Some(err) = source {
+                    if first {
+                        eprintln!();
+                        first = false;
+                    }
+                    eprintln!("Caused by:\n\t{err}");
+                    source = err.source();
+                }
                 std::process::exit(e.get_code());
             }
         }
