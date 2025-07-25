@@ -2,6 +2,7 @@ use crate::{
     DEFAULT_SIMD_LANES,
     data::{
         id_types::FastaIDs,
+        records::RecordReader,
         types::{
             amino_acids::AminoAcids,
             nucleotides::{self, Nucleotides, ToDNA, Translate},
@@ -316,16 +317,17 @@ impl FastaReader<std::fs::File> {
     /// ## Errors
     ///
     /// Will return `Err` if file or permissions do not exist, or if the file is
-    /// empty.
+    /// empty. The file path is included in the error message.
     pub fn from_filename<P>(filename: P) -> std::io::Result<FastaReader<File>>
     where
         P: AsRef<Path>, {
-        let file = File::open(filename)?;
-        if file.metadata()?.len() == 0 {
-            return Err(IOError::new(ErrorKind::InvalidData, "FASTA file was empty!"));
-        }
+        let file = Self::open_nonempty_file(filename)?;
         Ok(FastaReader::new(file))
     }
+}
+
+impl<R: std::io::Read> RecordReader for FastaReader<R> {
+    const RECORD_NAME: &str = "FASTA";
 }
 
 /// An iterator for buffered reading of

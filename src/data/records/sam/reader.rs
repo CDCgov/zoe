@@ -5,7 +5,7 @@ use std::{
 };
 
 use crate::{
-    data::{cigar::Cigar, sam::SamData},
+    data::{cigar::Cigar, records::RecordReader, sam::SamData},
     unwrap_or_return_some_err,
 };
 
@@ -183,14 +183,15 @@ impl SAMReader<std::fs::File> {
     /// ## Errors
     ///
     /// Will return `Err` if file or permissions do not exist, or if the file is
-    /// empty.
+    /// empty. The file path is included in the error message.
     pub fn from_filename<P>(filename: P) -> Result<SAMReader<File>, std::io::Error>
     where
         P: AsRef<Path>, {
-        let file = File::open(filename)?;
-        if file.metadata()?.len() == 0 {
-            return Err(IOError::new(ErrorKind::InvalidData, "SAM file was empty!"));
-        }
+        let file = Self::open_nonempty_file(filename)?;
         Ok(SAMReader::new(file))
     }
+}
+
+impl<R: std::io::Read> RecordReader for SAMReader<R> {
+    const RECORD_NAME: &str = "SAM";
 }

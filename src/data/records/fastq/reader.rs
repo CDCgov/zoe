@@ -1,4 +1,7 @@
-use crate::{data::vec_types::ChopLineBreak, prelude::*};
+use crate::{
+    data::{records::RecordReader, vec_types::ChopLineBreak},
+    prelude::*,
+};
 use std::{
     fs::File,
     io::{BufRead, BufReader, Error as IOError, ErrorKind},
@@ -65,16 +68,17 @@ impl FastQReader<std::fs::File> {
     /// ## Errors
     ///
     /// Will return `Err` if file or permissions do not exist, or if the file is
-    /// empty.
+    /// empty. The file path is included in the error message.
     pub fn from_filename<P>(filename: P) -> Result<FastQReader<File>, std::io::Error>
     where
         P: AsRef<Path>, {
-        let file = File::open(filename)?;
-        if file.metadata()?.len() == 0 {
-            return Err(IOError::new(ErrorKind::InvalidData, "FASTQ file was empty!"));
-        }
+        let file = Self::open_nonempty_file(filename)?;
         Ok(FastQReader::new(file))
     }
+}
+
+impl<R: std::io::Read> RecordReader for FastQReader<R> {
+    const RECORD_NAME: &str = "FASTQ";
 }
 
 /// An iterator for buffered reading of a
