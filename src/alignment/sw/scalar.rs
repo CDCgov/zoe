@@ -28,7 +28,7 @@ use std::ops::Add;
 /// ## Example
 ///
 /// ```
-/// # use zoe::{alignment::{ScalarProfile, sw::sw_scalar_score}, data::WeightMatrix};
+/// # use zoe::{alignment::{ScalarProfile, sw::sw_scalar_score}, data::matrices::WeightMatrix};
 /// let reference: &[u8] = b"GGCCACAGGATTGAG";
 /// let query: &[u8] = b"CTCAGATTG";
 ///
@@ -105,7 +105,10 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 /// ## Example
 ///
 ///  ```
-/// # use zoe::{alignment::{Alignment, ScalarProfile, sw::sw_scalar_alignment}, data::{WeightMatrix, cigar::Cigar}};
+/// # use zoe::{
+/// #     alignment::{Alignment, ScalarProfile, sw::sw_scalar_alignment},
+/// #     data::{matrices::WeightMatrix, cigar::Cigar}
+/// # };
 /// let reference: &[u8] = b"GGCCACAGGATTGAG";
 /// let query: &[u8] = b"CTCAGATTG";
 ///

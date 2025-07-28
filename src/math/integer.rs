@@ -1,7 +1,7 @@
 use std::{
-    fmt::Debug,
+    fmt::{Debug, Display},
     hash::Hash,
-    ops::{Add, AddAssign, BitAnd, BitOr, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign},
+    ops::{Add, AddAssign, BitAnd, BitOr, Mul, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign},
     simd::SimdElement,
 };
 
@@ -21,12 +21,15 @@ pub trait AnyInt:
     + Sized
     + Copy
     + Debug
+    + Display
+    + ToString
     + Ord
     + Hash
     + Default
     + PartialEq
     + Add<Output = Self>
     + Sub<Output = Self>
+    + Mul<Output = Self>
     + AddAssign
     + SubAssign
     + BitAnd<Output = Self>

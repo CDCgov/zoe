@@ -5,7 +5,7 @@ use crate::{
         Alignment, MaybeAligned,
         sw::{sw_scalar_alignment, sw_scalar_score, sw_simd_alignment, sw_simd_score, sw_simd_score_ends},
     },
-    data::{WeightMatrix, err::QueryProfileError, mappings::ByteIndexMap},
+    data::{err::QueryProfileError, mappings::ByteIndexMap, matrices::WeightMatrix},
     math::{AlignableIntWidth, AnyInt, FromSameSignedness},
     simd::SimdAnyInt,
 };
@@ -56,7 +56,7 @@ pub(crate) fn validate_profile_args<Q: AsRef<[u8]>>(
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScalarProfile<'a, const S: usize> {
     pub(crate) seq:        &'a [u8],
-    pub(crate) matrix:     &'a WeightMatrix<i8, S>,
+    pub(crate) matrix:     &'a WeightMatrix<'a, i8, S>,
     pub(crate) gap_open:   i32,
     pub(crate) gap_extend: i32,
 }
@@ -75,7 +75,7 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// * [`QueryProfileError::BadGapWeights`] if `gap_extend` is less than
     ///   `gap_open`
     pub fn new<Q: AsRef<[u8]> + ?Sized>(
-        query: &'a Q, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
+        query: &'a Q, matrix: &'a WeightMatrix<'a, i8, S>, gap_open: i8, gap_extend: i8,
     ) -> Result<Self, QueryProfileError> {
         validate_profile_args(query, gap_open, gap_extend)?;
 
@@ -95,7 +95,7 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// ## Example
     ///
     /// ```
-    /// # use zoe::{alignment::{ScalarProfile, sw::sw_scalar_score}, data::WeightMatrix};
+    /// # use zoe::{alignment::{ScalarProfile, sw::sw_scalar_score}, data::matrices::WeightMatrix};
     /// let reference: &[u8] = b"GGCCACAGGATTGAG";
     /// let query: &[u8] = b"CTCAGATTG";
     ///
@@ -122,7 +122,10 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// ## Example
     ///
     /// ```
-    /// # use zoe::{alignment::{Alignment, ScalarProfile, sw::sw_scalar_score}, data::{WeightMatrix, cigar::Cigar}};
+    /// # use zoe::{
+    /// #     alignment::{Alignment, ScalarProfile, sw::sw_scalar_score},
+    /// #     data::{matrices::WeightMatrix, cigar::Cigar}
+    /// # };
     /// let reference: &[u8] = b"GGCCACAGGATTGAG";
     /// let query: &[u8] = b"CTCAGATTG";
     ///
@@ -169,7 +172,7 @@ where
     pub(crate) seq_len:    usize,
 }
 
-impl<T, const N: usize, const S: usize> StripedProfile<'_, T, N, S>
+impl<'a, T, const N: usize, const S: usize> StripedProfile<'a, T, N, S>
 where
     T: AnyInt + SimdElement,
     LaneCount<N>: SupportedLaneCount,
@@ -189,7 +192,7 @@ where
     /// * [`QueryProfileError::BadGapWeights`] if `gap_extend` is less than
     ///   `gap_open`
     pub fn new<U>(
-        query: &[u8], matrix: &WeightMatrix<U, S>, gap_open: i8, gap_extend: i8,
+        query: &[u8], matrix: &WeightMatrix<'a, U, S>, gap_open: i8, gap_extend: i8,
     ) -> Result<Self, QueryProfileError>
     where
         T: FromSameSignedness<U> + AlignableIntWidth,
@@ -201,7 +204,7 @@ where
     /// Creates a new striped profile from a sequence and scoring matrix.
     ///
     /// See: [`WeightMatrix`]
-    pub(crate) fn new_unchecked<U>(query: &[u8], matrix: &WeightMatrix<U, S>, gap_open: i8, gap_extend: i8) -> Self
+    pub(crate) fn new_unchecked<U>(query: &[u8], matrix: &WeightMatrix<'a, U, S>, gap_open: i8, gap_extend: i8) -> Self
     where
         T: From<U>,
         U: AnyInt, {
@@ -347,7 +350,7 @@ where
     /// ## Example
     ///
     /// ```
-    /// # use zoe::{alignment::{StripedProfile, sw::sw_simd_score}, data::WeightMatrix};
+    /// # use zoe::{alignment::{StripedProfile, sw::sw_simd_score}, data::matrices::WeightMatrix};
     /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///
@@ -397,7 +400,10 @@ where
     /// ## Example
     ///
     /// ```
-    /// # use zoe::{alignment::{StripedProfile, sw::sw_simd_alignment}, data::WeightMatrix};
+    /// # use zoe::{
+    /// #     alignment::{StripedProfile, sw::sw_simd_score},
+    /// #     data::matrices::WeightMatrix
+    /// # };
     /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///
@@ -448,10 +454,10 @@ mod bench {
     extern crate test;
     use super::*;
     use crate::alignment::sw::test_data::{GAP_EXTEND, GAP_OPEN};
-    use crate::data::{constants::matrices::WeightMatrix, mappings::DNA_PROFILE_MAP};
+    use crate::data::{constants::mappings::DNA_PROFILE_MAP, matrices::WeightMatrix};
     pub(crate) static DATA: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/KJ907631.1.txt")); // H5 HA, complete CDS
     pub(crate) static MATRIX: WeightMatrix<u8, 5> =
-        WeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N')).into_biased_matrix();
+        WeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N')).to_biased_matrix();
 
     #[bench]
     fn build_profile_u8(b: &mut Bencher) {

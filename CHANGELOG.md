@@ -11,10 +11,19 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `sw_simd_score_ends` for getting the score _and end coordinates_ of the alignment
 - Added `score_from_path` for `LocalPhmm` (behind `dev-phmm` feature gate)
 - Added `dev-3pass` feature gate for additional alignment functions that return coordinates, as well as a three-pass alignment function with reduced memory usage
+- Added byte index map for amino acids, BLOSUM scoring matrices, and PAM scoring matrices
+- Added display implementation for `WeightMatrix`
+- Added `get_subset` to `WeightMatrix` for subsetting a weight matrix with a different alphabet
+- Added `parse_matrix` for parsing a `WeightMatrix` from a file at compile time
+- Added accessor `byte_keys()` for `ByteIndexMap`
 
 ### Changed
 
 - `MaybeAligned` now can hold other types besides `Alignment`, and score-only functions now return `MaybeAligned<u32>`
+- `into_biased_matrix` has been renamed to `to_biased_matrix` and takes `&self`
+- `WeightMatrix` is now imported under `data::matrices` instead of `data`
+- `WeightMatrix` now has an additional lifetime generic for the `ByteIndexMap`
+
 
 ## [0.0.20] - 2025-08-18
 

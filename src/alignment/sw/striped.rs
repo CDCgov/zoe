@@ -29,7 +29,7 @@ use std::simd::{LaneCount, SupportedLaneCount};
 /// ## Example
 ///
 /// ```
-/// # use zoe::{alignment::{StripedProfile, sw::sw_simd_score}, data::WeightMatrix};
+/// # use zoe::{alignment::{StripedProfile, sw::sw_simd_score}, data::matrices::WeightMatrix};
 /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
 /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
 ///
@@ -344,7 +344,7 @@ where
 /// ```
 /// # use zoe::{
 /// #     alignment::{Alignment, AlignmentStates, StripedProfile, sw::sw_simd_alignment},
-/// #     data::WeightMatrix,
+/// #     data::matrices::WeightMatrix,
 /// # };
 ///
 /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";

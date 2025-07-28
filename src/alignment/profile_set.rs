@@ -33,7 +33,7 @@ where
     LaneCount<N>: SupportedLaneCount,
     LaneCount<O>: SupportedLaneCount, {
     pub(crate) query:       &'a [u8],
-    pub(crate) matrix:      &'a WeightMatrix<i8, S>,
+    pub(crate) matrix:      &'a WeightMatrix<'a, i8, S>,
     pub(crate) gap_open:    i8,
     pub(crate) gap_extend:  i8,
     pub(crate) profile_i8:  OnceCell<StripedProfile<'a, i8, M, S>>,
@@ -63,7 +63,7 @@ where
     ///   `gap_open`
     #[inline]
     pub fn new<T: AsRef<[u8]> + ?Sized>(
-        query: &'a T, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
+        query: &'a T, matrix: &'a WeightMatrix<'a, i8, S>, gap_open: i8, gap_extend: i8,
     ) -> Result<Self, QueryProfileError> {
         validate_profile_args(query.as_ref(), gap_open, gap_extend)?;
 
@@ -116,7 +116,7 @@ where
     /// ## Example
     ///
     /// ```
-    /// # use zoe::{alignment::{LocalProfiles, sw::sw_simd_score}, data::WeightMatrix};
+    /// # use zoe::{alignment::{LocalProfiles, sw::sw_simd_score}, data::matrices::WeightMatrix};
     /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///
@@ -172,7 +172,10 @@ where
     /// ## Example
     ///
     /// ```
-    /// # use zoe::{alignment::{LocalProfiles, sw::sw_simd_score}, data::WeightMatrix};
+    /// # use zoe::{
+    /// #     alignment::{LocalProfiles, sw::sw_simd_score},
+    /// #     data::matrices::WeightMatrix
+    /// # };
     /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///
@@ -333,7 +336,7 @@ where
     LaneCount<N>: SupportedLaneCount,
     LaneCount<O>: SupportedLaneCount, {
     pub(crate) query:       Box<[u8]>,
-    pub(crate) matrix:      &'a WeightMatrix<i8, S>,
+    pub(crate) matrix:      &'a WeightMatrix<'a, i8, S>,
     pub(crate) gap_open:    i8,
     pub(crate) gap_extend:  i8,
     pub(crate) profile_i8:  OnceLock<StripedProfile<'a, i8, M, S>>,
@@ -363,7 +366,7 @@ where
     ///   `gap_open`
     #[inline]
     pub fn new(
-        query: Box<[u8]>, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
+        query: Box<[u8]>, matrix: &'a WeightMatrix<'a, i8, S>, gap_open: i8, gap_extend: i8,
     ) -> Result<Self, QueryProfileError> {
         validate_profile_args(&query, gap_open, gap_extend)?;
 
@@ -416,7 +419,10 @@ where
     /// ## Example
     ///
     /// ```
-    /// # use zoe::{alignment::{SharedProfiles, sw::sw_simd_score}, data::WeightMatrix};
+    /// # use zoe::{
+    /// #     alignment::{SharedProfiles, sw::sw_simd_score},
+    /// #     data::matrices::WeightMatrix
+    /// # };
     /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///
@@ -472,7 +478,10 @@ where
     /// ## Example
     ///
     /// ```
-    /// # use zoe::{alignment::{SharedProfiles, sw::sw_simd_score}, data::WeightMatrix};
+    /// # use zoe::{
+    /// #     alignment::{SharedProfiles, sw::sw_simd_score},
+    /// #     data::matrices::WeightMatrix
+    /// # };
     /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///

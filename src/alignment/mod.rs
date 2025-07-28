@@ -224,7 +224,7 @@ impl<T: Copy> Alignment<T> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{alignment::sw::sw_scalar_alignment, data::WeightMatrix, data::types::cigar::Cigar};
+    use crate::{alignment::sw::sw_scalar_alignment, data::matrices::WeightMatrix, data::types::cigar::Cigar};
 
     #[test]
     fn alignment_invert() {

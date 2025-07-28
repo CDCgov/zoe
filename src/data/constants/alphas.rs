@@ -21,6 +21,8 @@ pub(crate) const ENGLISH: &[u8; 52] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMN
 
 /// IUPAC Amino Acids in upper case.
 pub(crate) const AA_IUPAC_NO_GAPS_UC: &[u8; 20] = b"ACDEFGHIKLMNPQRSTVWY";
+/// IUPAC Amino Acids in upper case, with `X` for ambiguous/unknown residues.
+pub(crate) const AA_IUPAC_NO_GAPS_UC_X: &[u8; 21] = b"ACDEFGHIKLMNPQRSTVWYX";
 /// IUPAC Amino Acids + gaps and `X` for ambiguous codons.
 pub(crate) const AA_IUPAC_WITH_GAPS_X: &[u8; 42] = b"ACDEFGHIKLMNPQRSTVWYacdefghiklmnpqrstvwy-.";
 /// DAIS-Ribosome style amino acid codes: IUPAC + gaps + X + partial codons `~`.

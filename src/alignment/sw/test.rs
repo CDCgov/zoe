@@ -1,7 +1,7 @@
 use super::{test_data::*, *};
 use crate::alignment::profile::StripedProfile;
-use crate::data::constants::matrices::WeightMatrix;
 use crate::data::mappings::DNA_PROFILE_MAP;
+use crate::data::matrices::WeightMatrix;
 
 macro_rules! test_sw_simd_alignment {
     ($profile_seq:expr, $other_seq:expr, $int_type:ty, $uint_type:ty, $lanes:expr) => {{
@@ -18,7 +18,7 @@ macro_rules! test_sw_simd_alignment {
         assert_eq!(aln_scalar, aln_simd);
 
         let profile_simd =
-            StripedProfile::<$uint_type, $lanes, 5>::new($profile_seq, &weights.into_biased_matrix(), GAP_OPEN, GAP_EXTEND)
+            StripedProfile::<$uint_type, $lanes, 5>::new($profile_seq, &weights.to_biased_matrix(), GAP_OPEN, GAP_EXTEND)
                 .unwrap();
         let aln_simd = profile_simd.smith_waterman_alignment($other_seq).unwrap();
         assert_eq!(aln_scalar, aln_simd, "SIMD ALIGNMENT");
@@ -82,7 +82,7 @@ fn sw_t_u_check() {
 #[test]
 fn sw_simd() {
     let matrix_i = WeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N'));
-    let matrix_u = matrix_i.into_biased_matrix();
+    let matrix_u = matrix_i.to_biased_matrix();
 
     let profile = StripedProfile::<u8, 16, 5>::new(REFERENCE, &matrix_u, GAP_OPEN, GAP_EXTEND).unwrap();
     let score = profile.smith_waterman_score(QUERY);
@@ -182,7 +182,7 @@ fn sw_simd_locations() {
 
     let weights = WeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N'));
     let profile_scalar = ScalarProfile::new(query, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
-    let profile_simd = StripedProfile::<u8, 8, 5>::new(query, &weights.into_biased_matrix(), GAP_OPEN, GAP_EXTEND).unwrap();
+    let profile_simd = StripedProfile::<u8, 8, 5>::new(query, &weights.to_biased_matrix(), GAP_OPEN, GAP_EXTEND).unwrap();
 
     let aln_scalar = profile_scalar.smith_waterman_alignment(reference).unwrap();
     let (score, ref_end, query_end) = profile_simd.smith_waterman_score_ends(reference).unwrap();
@@ -194,7 +194,7 @@ fn sw_simd_locations() {
     let query_rev: Vec<u8> = query[..query_end].iter().copied().rev().collect();
 
     let profile_simd_rev =
-        StripedProfile::<u8, 8, 5>::new(&query_rev, &weights.into_biased_matrix(), GAP_OPEN, GAP_EXTEND).unwrap();
+        StripedProfile::<u8, 8, 5>::new(&query_rev, &weights.to_biased_matrix(), GAP_OPEN, GAP_EXTEND).unwrap();
 
     let (score2, ref_start, query_start) = profile_simd_rev
         .smith_waterman_score_ends_reverse(&reference[..ref_end])
@@ -219,7 +219,7 @@ fn sw_simd_ranges() {
 
     let weights = WeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N'));
     let profile_scalar = ScalarProfile::new(query, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
-    let profile_simd = StripedProfile::<u8, 8, 5>::new(query, &weights.into_biased_matrix(), GAP_OPEN, GAP_EXTEND).unwrap();
+    let profile_simd = StripedProfile::<u8, 8, 5>::new(query, &weights.to_biased_matrix(), GAP_OPEN, GAP_EXTEND).unwrap();
 
     let aln_scalar = profile_scalar.smith_waterman_alignment(reference).unwrap();
     let (score, ref_range, query_range) = profile_simd.smith_waterman_score_ranges(reference).unwrap();
@@ -232,7 +232,7 @@ fn sw_simd_ranges() {
 #[test]
 fn sw_simd_poly_a() {
     let v: Vec<_> = std::iter::repeat_n(b'A', 100).collect();
-    let matrix = WeightMatrix::new_dna_matrix(2, -5, Some(b'N')).into_biased_matrix();
+    let matrix = WeightMatrix::new_dna_matrix(2, -5, Some(b'N')).to_biased_matrix();
     let profile = StripedProfile::<u16, 16, 5>::new(&v, &matrix, GAP_OPEN, GAP_EXTEND).unwrap();
     let score = profile.smith_waterman_score(&v);
     assert_eq!(MaybeAligned::Some(200), score);
@@ -241,7 +241,7 @@ fn sw_simd_poly_a() {
 #[test]
 fn sw_simd_single() {
     let v: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/CY137594.txt"));
-    let matrix = WeightMatrix::<i8, 5>::new_dna_matrix(2, -5, Some(b'N')).into_biased_matrix();
+    let matrix = WeightMatrix::<i8, 5>::new_dna_matrix(2, -5, Some(b'N')).to_biased_matrix();
     let profile = StripedProfile::<u16, 16, 5>::new(v, &matrix, GAP_OPEN, GAP_EXTEND).unwrap();
     let score = profile.smith_waterman_score(v);
     assert_eq!(MaybeAligned::Some(3372), score);
@@ -251,7 +251,7 @@ fn sw_simd_single() {
 fn sw_simd_regression() {
     let query = b"AGA";
     let reference = b"AA";
-    let matrix = WeightMatrix::new(&DNA_PROFILE_MAP, 10, -10, Some(b'N')).into_biased_matrix();
+    let matrix = WeightMatrix::new(&DNA_PROFILE_MAP, 10, -10, Some(b'N')).to_biased_matrix();
     let profile = StripedProfile::<u16, 4, 5>::new(query, &matrix, -5, -5).unwrap();
     let score = profile.smith_waterman_score(reference);
     assert_eq!(MaybeAligned::Some(15), score);
@@ -262,7 +262,7 @@ fn sw_simd_overflow_check() {
     let query = b"AAAA";
     let reference = b"AAAA";
 
-    let matrix = WeightMatrix::new(&DNA_PROFILE_MAP, 127, 0, Some(b'N')).into_biased_matrix();
+    let matrix = WeightMatrix::new(&DNA_PROFILE_MAP, 127, 0, Some(b'N')).to_biased_matrix();
     let profile = StripedProfile::<u8, 8, 5>::new(query, &matrix, GAP_OPEN, GAP_EXTEND).unwrap();
     let score = profile.smith_waterman_score(reference);
     assert_eq!(score, MaybeAligned::Overflowed);

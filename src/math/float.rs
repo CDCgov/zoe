@@ -1,15 +1,14 @@
 #![allow(dead_code)]
 
+use crate::{
+    math::cast::{CastAsNumeric, CastFromNumeric},
+    private::Sealed,
+};
 use std::{
     fmt::{Debug, Display},
     ops::{Add, AddAssign, Div, DivAssign, Mul, Neg, Sub},
     simd::SimdElement,
     str::FromStr,
-};
-
-use crate::{
-    math::cast::{CastAsNumeric, CastFromNumeric},
-    private::Sealed,
 };
 
 /// Takes square root using the Babylonian Method using 40 iterations.

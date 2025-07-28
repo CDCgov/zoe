@@ -44,7 +44,7 @@
 //! ```
 //! # use zoe::{
 //! #     alignment::{Alignment, AlignmentStates, StripedProfile},
-//! #     data::WeightMatrix
+//! #     data::matrices::WeightMatrix
 //! # };
 //! let reference: &[u8] = b"GGCCACAGGATTGAG";
 //! let query: &[u8] = b"CTCAGATTG";
@@ -72,7 +72,7 @@
 //! ```
 //! # use zoe::{
 //! #     alignment::{Alignment, AlignmentStates, StripedProfile},
-//! #     data::{WeightMatrix, ByteIndexMap},
+//! #     data::{matrices::WeightMatrix, ByteIndexMap},
 //! # };
 //! let reference: &[u8] = b"BDAACAABDDDB";
 //! let query: &[u8] = b"AABDDAB";
@@ -118,7 +118,7 @@
 //! ```
 //! # use zoe::{
 //! #     alignment::{Alignment, AlignmentStates},
-//! #     data::WeightMatrix,
+//! #     data::matrices::WeightMatrix,
 //! #     prelude::Nucleotides
 //! # };
 //! let reference: &[u8] = b"GGCCACAGGATTGAG";
@@ -146,7 +146,7 @@
 //! ```
 //! # use zoe::{
 //! #     alignment::{Alignment, AlignmentStates, LocalProfiles},
-//! #     data::{WeightMatrix, ByteIndexMap},
+//! #     data::{matrices::WeightMatrix, ByteIndexMap},
 //! # };
 //! let reference: &[u8] = b"BDAACAABDDDB";
 //! let query: &[u8] = b"AABDDAB";
@@ -212,11 +212,10 @@
 //! [`sw_scalar_alignment`]: sw::sw_scalar_alignment
 //! [`sw_simd_alignment`]: sw::sw_simd_alignment
 //! [`ByteIndexMap::new`]: crate::data::ByteIndexMap::new
-//! [`WeightMatrix`]: crate::data::WeightMatrix
-//! [`WeightMatrix::new`]: crate::data::WeightMatrix::new
-//! [`into_biased_matrix`]: crate::data::WeightMatrix::into_biased_matrix
-//! [`new_biased_dna_matrix`]: crate::data::WeightMatrix::new_biased_dna_matrix
-//! [`new_dna_matrix`]: crate::data::WeightMatrix::new_dna_matrix
+//! [`WeightMatrix`]: crate::data::matrices::WeightMatrix
+//! [`WeightMatrix::new`]: crate::data::matrices::WeightMatrix::new
+//! [`new_biased_dna_matrix`]: crate::data::matrices::WeightMatrix::new_biased_dna_matrix
+//! [`new_dna_matrix`]: crate::data::matrices::WeightMatrix::new_dna_matrix
 //! [`QueryProfileError`]: crate::data::err::QueryProfileError
 //! [`Nucleotides::into_local_profile`]:
 //!     crate::data::types::nucleotides::Nucleotides::into_local_profile
@@ -312,14 +311,14 @@ pub fn sw_score_from_path<const S: usize>(
 #[cfg(test)]
 pub(crate) mod test_data {
     use super::ScalarProfile;
-    use crate::data::WeightMatrix;
+    use crate::data::matrices::WeightMatrix;
     use std::sync::LazyLock;
 
     pub(crate) static REFERENCE: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/NC_007362.1.txt")); // H5 HA
     pub(crate) static QUERY: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/NC_026433.1.txt")); // H1 HA1
 
     pub(crate) static WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(2, -5, Some(b'N'));
-    pub(crate) static BIASED_WEIGHTS: WeightMatrix<u8, 5> = WEIGHTS.into_biased_matrix();
+    pub(crate) static BIASED_WEIGHTS: WeightMatrix<u8, 5> = WEIGHTS.to_biased_matrix();
     pub(crate) static SCALAR_PROFILE: LazyLock<ScalarProfile<5>> =
         LazyLock::new(|| ScalarProfile::new(QUERY, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap());
 

@@ -270,6 +270,13 @@ impl<const S: usize> ByteIndexMap<S> {
         S
     }
 
+    /// Gets the byte keys for this mapping.
+    #[inline]
+    #[must_use]
+    pub const fn byte_keys(&self) -> &[u8; S] {
+        &self.byte_keys
+    }
+
     // TODO: Consider using const fn in trait when this becomes available
     /// Converts a byte `b` into an index.
     #[inline]

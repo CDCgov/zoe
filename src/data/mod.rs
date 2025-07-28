@@ -6,6 +6,22 @@
 //! definitions](https://www.bioinformatics.org/sms/iupac.html) that include
 //! ambiguous base calls.
 //!
+//! For amino acid scoring matrices, the following ambiguous amino acids are
+//! also included:
+//! - `B`, which can be either `D` or `N` (Aspartic acid or Asparagine
+//!   respectively)
+//! - `Z`, which can be either `E` or `Q` (Glutamic acid or Glutamine
+//!   respectively)
+//! - `J`, which can be either `I` or `L` (Isoleucine or Leucine respectively)
+//! - `X`, which represents an unknown position
+//!
+//! `B` and `Z` are common due to the pairs sharing the same carbon backbone,
+//! and since a deamidation reaction may occur during sequencing which cause
+//! ambiguity (see [here](https://biology.stackexchange.com/a/41350)). `J` is
+//! common because the pair are constitutional isomers and have similar mass
+//! spectrums, which can make them difficult to distinguish in some cases (e.g.,
+//! [this paper](https://pubs.acs.org/doi/10.1021/ac020422m#)).
+//!
 //! ## Views
 //!
 //! Many of the data type provided by *Zoe* have versions holding owned data as
@@ -84,6 +100,7 @@
 pub mod arbitrary;
 /// A module with error types and convenience traits for handling [`Result`].
 pub mod err;
+pub mod matrices;
 /// A module for records types--usually for I/O--that are structures of other
 /// more primitive types.
 pub mod records;
@@ -108,15 +125,15 @@ mod validation;
 /// [`impl_traits`]: crate::impl_traits
 mod whichever;
 
-pub use constants::{
-    mappings::{AA_UNAMBIG_PROFILE_MAP, ByteIndexMap, DNA_PROFILE_MAP, DNA_UNAMBIG_PROFILE_MAP, StdGeneticCode},
-    matrices::WeightMatrix,
+pub use constants::mappings::{
+    AA_ALL_AMBIG_PROFILE_MAP_WITH_STOP, AA_PROFILE_MAP, AA_UNAMBIG_PROFILE_MAP, ByteIndexMap, DNA_PROFILE_MAP,
+    DNA_UNAMBIG_PROFILE_MAP, StdGeneticCode,
 };
 pub use records::{fasta, fastq, sam};
 pub use types::{amino_acids, cigar, nucleotides, phred};
 pub use validation::{CheckSequence, Recode, RetainSequence, StdForSequences};
 
-pub(crate) use constants::{alphas, mappings, matrices};
+pub(crate) use constants::{alphas, mappings};
 pub(crate) use extension::{array_types, byte_types, id_types, vec_types};
 
 #[cfg(test)]
