@@ -1,4 +1,5 @@
 use crate::{
+    alignment::StatesSequence,
     data::{
         byte_types::IsBase,
         cigar::{Ciglet, ExpandedCigar},
@@ -279,7 +280,7 @@ impl SamData {
 
         let mut ciglets = self.cigar.iter();
 
-        let num_clipped_start = ciglets.remove_clipping();
+        let num_clipped_start = ciglets.remove_clipping_front();
         let num_clipped_end = ciglets.remove_clipping_back();
 
         for Ciglet { inc, op } in &self.cigar {

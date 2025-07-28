@@ -12,7 +12,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `new_with_w*` constructors for `SharedProfiles` and `LocalProfiles` for balanced profile creation for a segment width.
 - Added structs `CigarView` and `CigarViewMut`
 - Added `CorePhmm` struct storing PHMM layers (without other end modules or model information)
-- Added `IntoIterator` implementations for `AlignmentStates` as well as an `iter()` method
+- Added `IntoIterator` and `FromIterator` implementations for `AlignmentStates` as well as an `iter()` method
+- Added `StatesSequence` trait for working with slices/iterators of `Ciglet` elements
 - Added `PartialEq` between `Cigar` and `AlignmentStates` without allocating on the heap
 - Added `score_from_path` for `GlobalPhmm`
 - Added viterbi algorithm to `GlobalPhmm`

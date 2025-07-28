@@ -7,20 +7,151 @@ use crate::{
     private::Sealed,
 };
 
-/// A struct for storing alignment states and incrementally building a [`Cigar`]
-/// string.
+/// A trait representing a sequence of alignment states, where each element is
+/// represented as a [`Ciglet`].
+///
+/// This provides iterator-like functionality, allowing the [`Ciglet`] elements
+/// to be consumed (such as with [`next_ciglet`] and [`next_ciglet_back`]) or
+/// peeked at (such as with [`peek_op`] or [`peek_back_op`]).
+///
+/// [`next_ciglet`]: StatesSequence::next_ciglet
+/// [`next_ciglet_back`]: StatesSequence::next_ciglet_back
+/// [`peek_op`]: StatesSequence::peek_op
+/// [`peek_back_op`]: StatesSequence::peek_back_op
+pub trait StatesSequence {
+    /// Peeks at the operator for the next ciglet without consuming it.
+    #[must_use]
+    fn peek_op(&self) -> Option<u8>;
+
+    /// Peeks at the operator for the last ciglet without consuming it.
+    #[must_use]
+    fn peek_back_op(&self) -> Option<u8>;
+
+    /// Checks whether the sequence of alignment states is empty.
+    ///
+    /// This assumes that the states are valid and have a non-zero increment.
+    #[must_use]
+    fn is_empty(&self) -> bool;
+
+    /// Retrieves the next [`Ciglet`] and removes it from the
+    /// [`StatesSequence`], similar to [`Iterator::next`].
+    fn next_ciglet(&mut self) -> Option<Ciglet>;
+
+    /// Retrieves the next [`Ciglet`] from the end and removes it from the
+    /// [`StatesSequence`], similar to [`DoubleEndedIterator::next_back`].
+    fn next_ciglet_back(&mut self) -> Option<Ciglet>;
+
+    /// Gets the next ciglet if the operator meets the specified predicate,
+    /// otherwise the [`StatesSequence`] is not modified.
+    #[inline]
+    fn next_if_op(&mut self, f: impl FnOnce(u8) -> bool) -> Option<Ciglet> {
+        if f(self.peek_op()?) { self.next_ciglet() } else { None }
+    }
+
+    /// Gets the last ciglet if the operator meets the specified predicate,
+    /// otherwise the [`StatesSequence`] is not modified.
+    #[inline]
+    fn next_back_if_op(&mut self, f: impl FnOnce(u8) -> bool) -> Option<Ciglet> {
+        if f(self.peek_back_op()?) {
+            self.next_ciglet_back()
+        } else {
+            None
+        }
+    }
+
+    /// Removes clipping from the start of the iterator.
+    ///
+    /// First, a hard clipping ciglet is removed if present. Then a soft
+    /// clipping ciglet is removed if present. The total number of bases
+    /// clipping is returned.
+    #[inline]
+    fn remove_clipping_front(&mut self) -> usize {
+        if let Some(ciglet1) = self.next_if_op(|op| op == b'H' || op == b'S') {
+            if ciglet1.op == b'H'
+                && let Some(ciglet2) = self.next_if_op(|op| op == b'S')
+            {
+                ciglet1.inc + ciglet2.inc
+            } else {
+                ciglet1.inc
+            }
+        } else {
+            0
+        }
+    }
+
+    /// Removes clipping from the end of the iterator.
+    ///
+    /// First, a hard clipping ciglet is removed if present. Then a soft
+    /// clipping ciglet is removed if present. The total number of bases
+    /// clipping is returned.
+    #[inline]
+    fn remove_clipping_back(&mut self) -> usize {
+        if let Some(ciglet1) = self.next_back_if_op(|op| op == b'H' || op == b'S') {
+            if ciglet1.op == b'H'
+                && let Some(ciglet2) = self.next_back_if_op(|op| op == b'S')
+            {
+                ciglet1.inc + ciglet2.inc
+            } else {
+                ciglet1.inc
+            }
+        } else {
+            0
+        }
+    }
+}
+
+impl StatesSequence for &[Ciglet] {
+    #[inline]
+    fn peek_op(&self) -> Option<u8> {
+        self.first().map(|ciglet| ciglet.op)
+    }
+
+    #[inline]
+    fn peek_back_op(&self) -> Option<u8> {
+        self.last().map(|ciglet| ciglet.op)
+    }
+
+    #[inline]
+    fn is_empty(&self) -> bool {
+        (*self).is_empty()
+    }
+
+    #[inline]
+    fn next_ciglet(&mut self) -> Option<Ciglet> {
+        let (first, rest) = self.split_first()?;
+        *self = rest;
+        Some(*first)
+    }
+
+    #[inline]
+    fn next_ciglet_back(&mut self) -> Option<Ciglet> {
+        let (last, rest) = self.split_last()?;
+        *self = rest;
+        Some(*last)
+    }
+}
+
+/// A struct for storing alignment states, which can be converted into a
+/// [`Cigar`] string.
 #[derive(Clone, PartialEq, Eq)]
 pub struct AlignmentStates(pub(crate) Vec<Ciglet>);
 
 impl AlignmentStates {
-    /// Initializes an empty alignment
+    /// Initializes an empty alignment.
     #[inline]
     #[must_use]
     pub fn new() -> Self {
         AlignmentStates(Vec::new())
     }
 
-    /// Adds a state to the right end of the alignment
+    /// Returns the [`Ciglet`] elements as a slice.
+    #[inline]
+    #[must_use]
+    pub fn as_slice(&self) -> &[Ciglet] {
+        self.0.as_slice()
+    }
+
+    /// Adds a state to the right end of the alignment.
     pub fn add_state(&mut self, op: u8) {
         self.add_ciglet(Ciglet { inc: 1, op });
     }
@@ -48,7 +179,7 @@ impl AlignmentStates {
         self.0.extend(ciglets);
     }
 
-    /// Adds soft clipping `S` to the end of the alignment `inc` times
+    /// Adds soft clipping `S` to the end of the alignment `inc` times.
     pub fn soft_clip(&mut self, inc: usize) {
         if inc > 0 {
             if let Some(c) = self.0.last_mut()
@@ -68,20 +199,20 @@ impl AlignmentStates {
         Cigar::from_ciglets_unchecked(self.0.iter().copied())
     }
 
-    /// Reverses the order of the stored alignment states in-place
+    /// Reverses the order of the stored alignment states in-place.
     #[inline]
     pub fn make_reverse(&mut self) {
         self.0.reverse();
     }
 
-    /// Reverses the order of the stored alignment states in-place
+    /// Reverses the order of the stored alignment states in-place.
     #[inline]
     #[must_use]
     pub fn to_reverse(&self) -> Self {
-        // TODO: Switch to collect
-        Self(self.into_iter().rev().collect())
+        self.into_iter().rev().collect()
     }
 
+    /// Yields an iterator over the alignment states.
     #[inline]
     pub fn iter(&self) -> std::slice::Iter<'_, Ciglet> {
         self.0.iter()
@@ -96,6 +227,7 @@ impl Default for AlignmentStates {
 }
 
 impl PartialEq<Cigar> for AlignmentStates {
+    #[inline]
     fn eq(&self, other: &Cigar) -> bool {
         let mut o = other.iter();
         let matches = self.iter().copied().eq(o.by_ref());
@@ -120,6 +252,13 @@ impl IntoIterator for AlignmentStates {
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
+    }
+}
+
+impl FromIterator<Ciglet> for AlignmentStates {
+    #[inline]
+    fn from_iter<T: IntoIterator<Item = Ciglet>>(iter: T) -> Self {
+        AlignmentStates(iter.into_iter().collect::<Vec<_>>())
     }
 }
 
@@ -501,6 +640,89 @@ impl BacktrackMatrix {
 mod test {
     use super::*;
     use crate::data::types::cigar::Cigar;
+
+    #[test]
+    fn states_sequence() {
+        // The clipping is not valid here, but we are using it to exercise all
+        // options
+        let cigar = Cigar::try_from("3H4S4S3H10M9I3M1D5M3H5S10S1H").unwrap();
+        let alignment_states = cigar.iter().collect::<AlignmentStates>();
+        let mut cigar_slice = alignment_states.as_slice();
+        let mut ciglet_iterator = cigar.into_iter();
+
+        assert_eq!(cigar_slice.peek_op(), Some(b'H'));
+        assert_eq!(ciglet_iterator.peek_op(), Some(b'H'));
+        assert_eq!(cigar_slice.peek_back_op(), Some(b'H'));
+        assert_eq!(ciglet_iterator.peek_back_op(), Some(b'H'));
+
+        // Shouldn't have changed, since we didn't advance
+        assert_eq!(cigar_slice.peek_op(), Some(b'H'));
+        assert_eq!(ciglet_iterator.peek_op(), Some(b'H'));
+        assert_eq!(cigar_slice.peek_back_op(), Some(b'H'));
+        assert_eq!(ciglet_iterator.peek_back_op(), Some(b'H'));
+
+        assert_eq!(cigar_slice.remove_clipping_front(), 7);
+        assert_eq!(ciglet_iterator.remove_clipping_front(), 7);
+        assert_eq!(cigar_slice.remove_clipping_back(), 11);
+        assert_eq!(ciglet_iterator.remove_clipping_back(), 11);
+
+        assert_eq!(cigar_slice.peek_op(), Some(b'S'));
+        assert_eq!(ciglet_iterator.peek_op(), Some(b'S'));
+        assert_eq!(cigar_slice.peek_back_op(), Some(b'S'));
+        assert_eq!(ciglet_iterator.peek_back_op(), Some(b'S'));
+
+        assert_eq!(cigar_slice.remove_clipping_front(), 4);
+        assert_eq!(ciglet_iterator.remove_clipping_front(), 4);
+        assert_eq!(cigar_slice.remove_clipping_back(), 5);
+        assert_eq!(ciglet_iterator.remove_clipping_back(), 5);
+
+        assert_eq!(cigar_slice.remove_clipping_front(), 3);
+        assert_eq!(ciglet_iterator.remove_clipping_front(), 3);
+        assert_eq!(cigar_slice.remove_clipping_back(), 3);
+        assert_eq!(ciglet_iterator.remove_clipping_back(), 3);
+
+        assert_eq!(cigar_slice.remove_clipping_front(), 0);
+        assert_eq!(ciglet_iterator.remove_clipping_front(), 0);
+        assert_eq!(cigar_slice.remove_clipping_back(), 0);
+        assert_eq!(ciglet_iterator.remove_clipping_back(), 0);
+
+        assert_eq!(cigar_slice.next_if_op(|op| op == b'I'), None);
+        assert_eq!(ciglet_iterator.next_if_op(|op| op == b'I'), None);
+        assert_eq!(cigar_slice.next_back_if_op(|op| op == b'I'), None);
+        assert_eq!(ciglet_iterator.next_back_if_op(|op| op == b'I'), None);
+
+        assert_eq!(cigar_slice.next_if_op(|op| op == b'M'), Some(Ciglet { inc: 10, op: b'M' }));
+        assert_eq!(
+            ciglet_iterator.next_if_op(|op| op == b'M'),
+            Some(Ciglet { inc: 10, op: b'M' })
+        );
+        assert_eq!(
+            cigar_slice.next_back_if_op(|op| op == b'M'),
+            Some(Ciglet { inc: 5, op: b'M' })
+        );
+        assert_eq!(
+            ciglet_iterator.next_back_if_op(|op| op == b'M'),
+            Some(Ciglet { inc: 5, op: b'M' })
+        );
+
+        assert_eq!(cigar_slice.next_ciglet(), Some(Ciglet { inc: 9, op: b'I' }));
+        assert_eq!(ciglet_iterator.next_ciglet(), Some(Ciglet { inc: 9, op: b'I' }));
+        assert_eq!(cigar_slice.next_ciglet_back(), Some(Ciglet { inc: 1, op: b'D' }));
+        assert_eq!(ciglet_iterator.next_ciglet_back(), Some(Ciglet { inc: 1, op: b'D' }));
+
+        assert!(!cigar_slice.is_empty());
+        assert!(!ciglet_iterator.is_empty());
+
+        assert_eq!(cigar_slice.next_ciglet(), Some(Ciglet { inc: 3, op: b'M' }));
+        assert_eq!(ciglet_iterator.next_ciglet(), Some(Ciglet { inc: 3, op: b'M' }));
+        assert_eq!(cigar_slice.next_ciglet_back(), None);
+        assert_eq!(ciglet_iterator.next_ciglet_back(), None);
+        assert_eq!(cigar_slice.next_ciglet(), None);
+        assert_eq!(ciglet_iterator.next_ciglet(), None);
+
+        assert!(cigar_slice.is_empty());
+        assert!(ciglet_iterator.is_empty());
+    }
 
     #[test]
     fn align_with_cigar() {

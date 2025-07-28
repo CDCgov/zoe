@@ -1,4 +1,7 @@
-use crate::{alignment::AlignmentStates, data::mappings::IS_CIGAR};
+use crate::{
+    alignment::{AlignmentStates, StatesSequence},
+    data::mappings::IS_CIGAR,
+};
 
 #[cfg(test)]
 mod test;
@@ -289,76 +292,37 @@ impl<'a> CigletIterator<'a> {
         CigletIterator { buffer, valid: true }
     }
 
-    /// Peeks at the operator for the next ciglet without consuming it.
-    #[inline]
-    #[must_use]
-    pub fn peek_op(&self) -> Option<u8> {
-        self.buffer.iter().find(|x| !x.is_ascii_digit()).copied()
-    }
-
-    /// Peeks at the operator for the last ciglet without consuming it.
-    #[inline]
-    #[must_use]
-    pub fn peek_back_op(&self) -> Option<u8> {
-        self.buffer.last().copied()
-    }
-
-    /// Gets the next ciglet if the operator meets the specified predicate,
-    /// otherwise the iterator is not modified.
-    #[inline]
-    #[must_use]
-    pub fn next_if_op(&mut self, f: impl FnOnce(u8) -> bool) -> Option<Ciglet> {
-        if f(self.peek_op()?) { self.next() } else { None }
-    }
-
-    /// Gets the last ciglet if the operator meets the specified predicate,
-    /// otherwise the iterator is not modified.
-    #[inline]
-    #[must_use]
-    pub fn next_back_if_op(&mut self, f: impl FnOnce(u8) -> bool) -> Option<Ciglet> {
-        if f(self.peek_back_op()?) { self.next_back() } else { None }
-    }
-
-    /// Removes clipping from the start of the iterator. First, a hard clipping
-    /// ciglet is removed if present. Then a soft clipping ciglet is removed if
-    /// present. The total number of bases clipping is returned.
-    #[inline]
-    pub fn remove_clipping(&mut self) -> usize {
-        if let Some(ciglet1) = self.next_if_op(|op| op == b'H' || op == b'S') {
-            if ciglet1.op == b'H'
-                && let Some(ciglet2) = self.next_if_op(|op| op == b'S')
-            {
-                ciglet1.inc + ciglet2.inc
-            } else {
-                ciglet1.inc
-            }
-        } else {
-            0
-        }
-    }
-
-    /// Removes clipping from the end of the iterator. First, a hard clipping
-    /// ciglet is removed if present. Then a soft clipping ciglet is removed if
-    /// present. The total number of bases clipping is returned.
-    #[inline]
-    pub fn remove_clipping_back(&mut self) -> usize {
-        if let Some(ciglet1) = self.next_back_if_op(|op| op == b'H' || op == b'S') {
-            if ciglet1.op == b'H'
-                && let Some(ciglet2) = self.next_back_if_op(|op| op == b'S')
-            {
-                ciglet1.inc + ciglet2.inc
-            } else {
-                ciglet1.inc
-            }
-        } else {
-            0
-        }
-    }
-
     /// For internal `eq()` only
     #[inline]
     pub(crate) fn valid(&self) -> bool {
         self.valid
+    }
+}
+
+impl StatesSequence for CigletIterator<'_> {
+    #[inline]
+    fn peek_op(&self) -> Option<u8> {
+        self.buffer.iter().find(|x| !x.is_ascii_digit()).copied()
+    }
+
+    #[inline]
+    fn peek_back_op(&self) -> Option<u8> {
+        self.buffer.last().copied()
+    }
+
+    #[inline]
+    fn is_empty(&self) -> bool {
+        self.buffer.is_empty()
+    }
+
+    #[inline]
+    fn next_ciglet(&mut self) -> Option<Ciglet> {
+        self.next()
+    }
+
+    #[inline]
+    fn next_ciglet_back(&mut self) -> Option<Ciglet> {
+        self.next_back()
     }
 }
 
