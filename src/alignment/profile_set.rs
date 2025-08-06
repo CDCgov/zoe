@@ -23,15 +23,13 @@ use std::{
 /// * `M` - The number of SIMD lanes for i8 profiles
 /// * `N` - The number of SIMD lanes for i16 profiles
 /// * `O` - The number of SIMD lanes for i32 profiles
-/// * `P` - The number of SIMD lanes for i64 profiles
 /// * `S` - The size of the alphabet (usually 5 for DNA including *N*)
 #[derive(Debug, Clone)]
-pub struct LocalProfiles<'a, const M: usize, const N: usize, const O: usize, const P: usize, const S: usize>
+pub struct LocalProfiles<'a, const M: usize, const N: usize, const O: usize, const S: usize>
 where
     LaneCount<M>: SupportedLaneCount,
     LaneCount<N>: SupportedLaneCount,
-    LaneCount<O>: SupportedLaneCount,
-    LaneCount<P>: SupportedLaneCount, {
+    LaneCount<O>: SupportedLaneCount, {
     pub(crate) query:       &'a [u8],
     pub(crate) matrix:      &'a WeightMatrix<i8, S>,
     pub(crate) gap_open:    i8,
@@ -39,15 +37,13 @@ where
     pub(crate) profile_i8:  OnceCell<StripedProfile<'a, i8, M, S>>,
     pub(crate) profile_i16: OnceCell<StripedProfile<'a, i16, N, S>>,
     pub(crate) profile_i32: OnceCell<StripedProfile<'a, i32, O, S>>,
-    pub(crate) profile_i64: OnceCell<StripedProfile<'a, i64, P, S>>,
 }
 
-impl<'a, const M: usize, const N: usize, const O: usize, const P: usize, const S: usize> LocalProfiles<'a, M, N, O, P, S>
+impl<'a, const M: usize, const N: usize, const O: usize, const S: usize> LocalProfiles<'a, M, N, O, S>
 where
     LaneCount<M>: SupportedLaneCount,
     LaneCount<N>: SupportedLaneCount,
     LaneCount<O>: SupportedLaneCount,
-    LaneCount<P>: SupportedLaneCount,
 {
     /// Creates an empty [`LocalProfiles`]. Usually you want to use
     /// [`LocalProfiles::new_with_w256`] or [`LocalProfiles::new_with_w512`]
@@ -77,7 +73,6 @@ where
             profile_i8: OnceCell::new(),
             profile_i16: OnceCell::new(),
             profile_i32: OnceCell::new(),
-            profile_i64: OnceCell::new(),
         })
     }
 
@@ -111,19 +106,9 @@ where
         })
     }
 
-    /// Get or initialize [`StripedProfile`] with elements of `i64` and `P` SIMD
-    /// lanes and returns a reference to the field.
-    #[inline]
-    pub fn get_i64(&self) -> &StripedProfile<'_, i64, P, S> {
-        // We already validated profile
-        self.profile_i64.get_or_init(|| {
-            StripedProfile::<i64, P, S>::new_unchecked(self.query, self.matrix, self.gap_open, self.gap_extend)
-        })
-    }
-
     /// Lazily execute [`StripedProfile::smith_waterman_score`] starting with
     /// the `i8` profile. Lazily initializes the profiles and works its way up
-    /// to the `i64` profile. Execution stops when the score returned no longer
+    /// to the `i32` profile. Execution stops when the score returned no longer
     /// overflows the profile's integer range.
     ///
     /// ## Example
@@ -149,12 +134,11 @@ where
             .smith_waterman_score(query)
             .or_else(|| self.get_i16().smith_waterman_score(query))
             .or_else(|| self.get_i32().smith_waterman_score(query))
-            .or_else(|| self.get_i64().smith_waterman_score(query))
     }
 
     /// Lazily execute [`StripedProfile::smith_waterman_score`] starting with
     /// the `i16` profile, skipping the `i8` profile. Lazily initializes the
-    /// profiles and works its way up to the `i64` profile. Execution stops when
+    /// profiles and works its way up to the `i32` profile. Execution stops when
     /// the score returned no longer overflows the profile's integer range.
     ///
     /// See [`LocalProfiles::smith_waterman_score_from_i8`] for an example.
@@ -165,28 +149,22 @@ where
         self.get_i16()
             .smith_waterman_score(query)
             .or_else(|| self.get_i32().smith_waterman_score(query))
-            .or_else(|| self.get_i64().smith_waterman_score(query))
     }
 
-    /// Lazily execute [`StripedProfile::smith_waterman_score`] starting with
-    /// the `i32` profile, skipping the `i8` and `i16` profiles. Lazily
-    /// initializes the profiles and works its way up to the `i64` profile.
-    /// Execution stops when the score returned no longer overflows the
-    /// profile's integer range.
+    /// Execute [`StripedProfile::smith_waterman_score`] with the `i32` profile,
+    /// skipping the `i8` and `i16` profiles.
     ///
     /// See [`LocalProfiles::smith_waterman_score_from_i8`] for an example.
     #[inline]
     #[must_use]
     pub fn smith_waterman_score_from_i32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u64> {
         let query = query.as_ref();
-        self.get_i32()
-            .smith_waterman_score(query)
-            .or_else(|| self.get_i64().smith_waterman_score(query))
+        self.get_i32().smith_waterman_score(query)
     }
 
     /// Lazily execute [`StripedProfile::smith_waterman_alignment`] starting with
     /// the `i8` profile. Lazily initializes the profiles and works its way up
-    /// to the `i64` profile. Execution stops when the alignment returned no longer
+    /// to the `i32` profile. Execution stops when the alignment returned no longer
     /// overflows the profile's integer range.
     ///
     /// ## Example
@@ -211,12 +189,11 @@ where
             .smith_waterman_alignment(query)
             .or_else_overflowed(|| self.get_i16().smith_waterman_alignment(query))
             .or_else_overflowed(|| self.get_i32().smith_waterman_alignment(query))
-            .or_else_overflowed(|| self.get_i64().smith_waterman_alignment(query))
     }
 
     /// Lazily execute [`StripedProfile::smith_waterman_alignment`] starting with
     /// the `i16` profile, skipping the `i8` profile. Lazily initializes the
-    /// profiles and works its way up to the `i64` profile. Execution stops when
+    /// profiles and works its way up to the `i32` profile. Execution stops when
     /// the alignment returned no longer overflows the profile's integer range.
     ///
     /// See [`LocalProfiles::smith_waterman_alignment_from_i8`] for an example.
@@ -227,29 +204,23 @@ where
         self.get_i16()
             .smith_waterman_alignment(query)
             .or_else_overflowed(|| self.get_i32().smith_waterman_alignment(query))
-            .or_else_overflowed(|| self.get_i64().smith_waterman_alignment(query))
     }
 
-    /// Lazily execute [`StripedProfile::smith_waterman_alignment`] starting with
-    /// the `i32` profile, skipping the `i8` and `i16` profiles. Lazily
-    /// initializes the profiles and works its way up to the `i64` profile.
-    /// Execution stops when the alignment returned no longer overflows the
-    /// profile's integer range.
+    /// Execute [`StripedProfile::smith_waterman_alignment`] with the `i32`
+    /// profile, skipping the `i8` and `i16` profiles.
     ///
     /// See [`LocalProfiles::smith_waterman_alignment_from_i8`] for an example.
     #[inline]
     #[must_use]
     pub fn smith_waterman_alignment_from_i32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u64> {
         let query = query.as_ref();
-        self.get_i32()
-            .smith_waterman_alignment(query)
-            .or_else_overflowed(|| self.get_i64().smith_waterman_alignment(query))
+        self.get_i32().smith_waterman_alignment(query)
     }
 }
 
-impl<'a, const S: usize> LocalProfiles<'a, 16, 8, 4, 2, S> {
+impl<'a, const S: usize> LocalProfiles<'a, 16, 8, 4, S> {
     /// Creates an empty [`LocalProfiles`] optimized for 128-bit SIMD width.
-    /// Sets M=16, N=8, O=4, P=2 for i8, i16, i32, i64 profiles respectively.
+    /// Sets M=16, N=8, O=4 for i8, i16, i32 profiles respectively.
     ///
     /// ## Errors
     ///
@@ -257,7 +228,7 @@ impl<'a, const S: usize> LocalProfiles<'a, 16, 8, 4, 2, S> {
     #[inline]
     pub fn new_with_w128<T: AsRef<[u8]> + ?Sized>(
         query: &'a T, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
-    ) -> Result<LocalProfiles<'a, 16, 8, 4, 2, S>, QueryProfileError> {
+    ) -> Result<LocalProfiles<'a, 16, 8, 4, S>, QueryProfileError> {
         validate_profile_args(query.as_ref(), gap_open, gap_extend)?;
 
         Ok(LocalProfiles {
@@ -268,14 +239,13 @@ impl<'a, const S: usize> LocalProfiles<'a, 16, 8, 4, 2, S> {
             profile_i8: OnceCell::new(),
             profile_i16: OnceCell::new(),
             profile_i32: OnceCell::new(),
-            profile_i64: OnceCell::new(),
         })
     }
 }
 
-impl<'a, const S: usize> LocalProfiles<'a, 32, 16, 8, 4, S> {
+impl<'a, const S: usize> LocalProfiles<'a, 32, 16, 8, S> {
     /// Creates an empty [`LocalProfiles`] optimized for 256-bit SIMD width.
-    /// Sets M=32, N=16, O=8, P=4 for i8, i16, i32, i64 profiles respectively.
+    /// Sets M=32, N=16, O=8 for i8, i16, i32 profiles respectively.
     ///
     /// ## Errors
     ///
@@ -283,7 +253,7 @@ impl<'a, const S: usize> LocalProfiles<'a, 32, 16, 8, 4, S> {
     #[inline]
     pub fn new_with_w256<T: AsRef<[u8]> + ?Sized>(
         query: &'a T, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
-    ) -> Result<LocalProfiles<'a, 32, 16, 8, 4, S>, QueryProfileError> {
+    ) -> Result<LocalProfiles<'a, 32, 16, 8, S>, QueryProfileError> {
         validate_profile_args(query.as_ref(), gap_open, gap_extend)?;
 
         Ok(LocalProfiles {
@@ -294,14 +264,13 @@ impl<'a, const S: usize> LocalProfiles<'a, 32, 16, 8, 4, S> {
             profile_i8: OnceCell::new(),
             profile_i16: OnceCell::new(),
             profile_i32: OnceCell::new(),
-            profile_i64: OnceCell::new(),
         })
     }
 }
 
-impl<'a, const S: usize> LocalProfiles<'a, 64, 32, 16, 8, S> {
+impl<'a, const S: usize> LocalProfiles<'a, 64, 32, 16, S> {
     /// Creates an empty [`LocalProfiles`] optimized for 512-bit SIMD width.
-    /// Sets M=64, N=32, O=16, P=8 for i8, i16, i32, i64 profiles respectively.
+    /// Sets M=64, N=32, O=16 for i8, i16, i32 profiles respectively.
     ///
     /// ## Errors
     ///
@@ -309,7 +278,7 @@ impl<'a, const S: usize> LocalProfiles<'a, 64, 32, 16, 8, S> {
     #[inline]
     pub fn new_with_w512<T: AsRef<[u8]> + ?Sized>(
         query: &'a T, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
-    ) -> Result<LocalProfiles<'a, 64, 32, 16, 8, S>, QueryProfileError> {
+    ) -> Result<LocalProfiles<'a, 64, 32, 16, S>, QueryProfileError> {
         validate_profile_args(query.as_ref(), gap_open, gap_extend)?;
 
         Ok(LocalProfiles {
@@ -320,7 +289,6 @@ impl<'a, const S: usize> LocalProfiles<'a, 64, 32, 16, 8, S> {
             profile_i8: OnceCell::new(),
             profile_i16: OnceCell::new(),
             profile_i32: OnceCell::new(),
-            profile_i64: OnceCell::new(),
         })
     }
 }
@@ -339,15 +307,13 @@ impl<'a, const S: usize> LocalProfiles<'a, 64, 32, 16, 8, S> {
 /// * `M` - The number of SIMD lanes for i8 profiles
 /// * `N` - The number of SIMD lanes for i16 profiles
 /// * `O` - The number of SIMD lanes for i32 profiles
-/// * `P` - The number of SIMD lanes for i64 profiles
 /// * `S` - The size of the alphabet (usually 5 for DNA including *N*)
 #[derive(Debug, Clone)]
-pub struct SharedProfiles<'a, const M: usize, const N: usize, const O: usize, const P: usize, const S: usize>
+pub struct SharedProfiles<'a, const M: usize, const N: usize, const O: usize, const S: usize>
 where
     LaneCount<M>: SupportedLaneCount,
     LaneCount<N>: SupportedLaneCount,
-    LaneCount<O>: SupportedLaneCount,
-    LaneCount<P>: SupportedLaneCount, {
+    LaneCount<O>: SupportedLaneCount, {
     pub(crate) query:       Box<[u8]>,
     pub(crate) matrix:      &'a WeightMatrix<i8, S>,
     pub(crate) gap_open:    i8,
@@ -355,15 +321,13 @@ where
     pub(crate) profile_i8:  OnceLock<StripedProfile<'a, i8, M, S>>,
     pub(crate) profile_i16: OnceLock<StripedProfile<'a, i16, N, S>>,
     pub(crate) profile_i32: OnceLock<StripedProfile<'a, i32, O, S>>,
-    pub(crate) profile_i64: OnceLock<StripedProfile<'a, i64, P, S>>,
 }
 
-impl<'a, const M: usize, const N: usize, const O: usize, const P: usize, const S: usize> SharedProfiles<'a, M, N, O, P, S>
+impl<'a, const M: usize, const N: usize, const O: usize, const S: usize> SharedProfiles<'a, M, N, O, S>
 where
     LaneCount<M>: SupportedLaneCount,
     LaneCount<N>: SupportedLaneCount,
     LaneCount<O>: SupportedLaneCount,
-    LaneCount<P>: SupportedLaneCount,
 {
     /// Creates an empty [`SharedProfiles`]. Usually you want to use
     /// [`SharedProfiles::new_with_w256`] or [`SharedProfiles::new_with_w512`]
@@ -393,7 +357,6 @@ where
             profile_i8: OnceLock::new(),
             profile_i16: OnceLock::new(),
             profile_i32: OnceLock::new(),
-            profile_i64: OnceLock::new(),
         })
     }
 
@@ -427,19 +390,9 @@ where
         })
     }
 
-    /// Get or initialize [`StripedProfile`] with elements of `i64` and `P` SIMD
-    /// lanes and returns a reference to the field.
-    #[inline]
-    pub fn get_i64(&self) -> &StripedProfile<'_, i64, P, S> {
-        self.profile_i64.get_or_init(|| {
-            // We already validated profile
-            StripedProfile::<i64, P, S>::new_unchecked(&self.query, self.matrix, self.gap_open, self.gap_extend)
-        })
-    }
-
     /// Lazily execute [`StripedProfile::smith_waterman_score`] starting with
     /// the `i8` profile. Lazily initializes the profiles and works its way up
-    /// to the `i64` profile. Execution stops when the score returned no longer
+    /// to the `i32` profile. Execution stops when the score returned no longer
     /// overflows the profile's integer range.
     ///
     /// ## Example
@@ -465,12 +418,11 @@ where
             .smith_waterman_score(query)
             .or_else(|| self.get_i16().smith_waterman_score(query))
             .or_else(|| self.get_i32().smith_waterman_score(query))
-            .or_else(|| self.get_i64().smith_waterman_score(query))
     }
 
     /// Lazily execute [`StripedProfile::smith_waterman_score`] starting with
     /// the `i16` profile, skipping the `i8` profile. Lazily initializes the
-    /// profiles and works its way up to the `i64` profile. Execution stops when
+    /// profiles and works its way up to the `i32` profile. Execution stops when
     /// the score returned no longer overflows the profile's integer range.
     ///
     /// See [`SharedProfiles::smith_waterman_score_from_i8`] for an example.
@@ -481,28 +433,22 @@ where
         self.get_i16()
             .smith_waterman_score(query)
             .or_else(|| self.get_i32().smith_waterman_score(query))
-            .or_else(|| self.get_i64().smith_waterman_score(query))
     }
 
-    /// Lazily execute [`StripedProfile::smith_waterman_score`] starting with
-    /// the `i32` profile, skipping the `i8` and `i16` profiles. Lazily
-    /// initializes the profiles and works its way up to the `i64` profile.
-    /// Execution stops when the score returned no longer overflows the
-    /// profile's integer range.
+    /// Execute [`StripedProfile::smith_waterman_score`] with the `i32` profile,
+    /// skipping the `i8` and `i16` profiles.
     ///
     /// See [`SharedProfiles::smith_waterman_score_from_i8`] for an example.
     #[inline]
     #[must_use]
     pub fn smith_waterman_score_from_i32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u64> {
         let query = query.as_ref();
-        self.get_i32()
-            .smith_waterman_score(query)
-            .or_else(|| self.get_i64().smith_waterman_score(query))
+        self.get_i32().smith_waterman_score(query)
     }
 
     /// Lazily execute [`StripedProfile::smith_waterman_alignment`] starting with
     /// the `i8` profile. Lazily initializes the profiles and works its way up
-    /// to the `i64` profile. Execution stops when the alignment returned no longer
+    /// to the `i32` profile. Execution stops when the alignment returned no longer
     /// overflows the profile's integer range.
     ///
     /// ## Example
@@ -527,12 +473,11 @@ where
             .smith_waterman_alignment(query)
             .or_else_overflowed(|| self.get_i16().smith_waterman_alignment(query))
             .or_else_overflowed(|| self.get_i32().smith_waterman_alignment(query))
-            .or_else_overflowed(|| self.get_i64().smith_waterman_alignment(query))
     }
 
     /// Lazily execute [`StripedProfile::smith_waterman_alignment`] starting with
     /// the `i16` profile, skipping the `i8` profile. Lazily initializes the
-    /// profiles and works its way up to the `i64` profile. Execution stops when
+    /// profiles and works its way up to the `i32` profile. Execution stops when
     /// the alignment returned no longer overflows the profile's integer range.
     ///
     /// See [`SharedProfiles::smith_waterman_alignment_from_i8`] for an example.
@@ -543,29 +488,23 @@ where
         self.get_i16()
             .smith_waterman_alignment(query)
             .or_else_overflowed(|| self.get_i32().smith_waterman_alignment(query))
-            .or_else_overflowed(|| self.get_i64().smith_waterman_alignment(query))
     }
 
-    /// Lazily execute [`StripedProfile::smith_waterman_alignment`] starting with
-    /// the `i32` profile, skipping the `i8` and `i16` profiles. Lazily
-    /// initializes the profiles and works its way up to the `i64` profile.
-    /// Execution stops when the alignment returned no longer overflows the
-    /// profile's integer range.
+    /// Execute [`StripedProfile::smith_waterman_alignment`] with the `i32`
+    /// profile, skipping the `i8` and `i16` profiles.
     ///
     /// See [`SharedProfiles::smith_waterman_alignment_from_i8`] for an example.
     #[inline]
     #[must_use]
     pub fn smith_waterman_alignment_from_i32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u64> {
         let query = query.as_ref();
-        self.get_i32()
-            .smith_waterman_alignment(query)
-            .or_else_overflowed(|| self.get_i64().smith_waterman_alignment(query))
+        self.get_i32().smith_waterman_alignment(query)
     }
 }
 
-impl<'a, const S: usize> SharedProfiles<'a, 16, 8, 4, 2, S> {
+impl<'a, const S: usize> SharedProfiles<'a, 16, 8, 4, S> {
     /// Creates an empty [`SharedProfiles`] optimized for 128-bit SIMD width.
-    /// Sets M=16, N=8, O=4, P=2 for i8, i16, i32, i64 profiles respectively.
+    /// Sets M=16, N=8, O=4 for i8, i16, i32 profiles respectively.
     ///
     /// ## Errors
     ///
@@ -573,7 +512,7 @@ impl<'a, const S: usize> SharedProfiles<'a, 16, 8, 4, 2, S> {
     #[inline]
     pub fn new_with_w128(
         query: Box<[u8]>, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
-    ) -> Result<SharedProfiles<'a, 16, 8, 4, 2, S>, QueryProfileError> {
+    ) -> Result<SharedProfiles<'a, 16, 8, 4, S>, QueryProfileError> {
         validate_profile_args(&query, gap_open, gap_extend)?;
 
         Ok(SharedProfiles {
@@ -584,14 +523,13 @@ impl<'a, const S: usize> SharedProfiles<'a, 16, 8, 4, 2, S> {
             profile_i8: OnceLock::new(),
             profile_i16: OnceLock::new(),
             profile_i32: OnceLock::new(),
-            profile_i64: OnceLock::new(),
         })
     }
 }
 
-impl<'a, const S: usize> SharedProfiles<'a, 32, 16, 8, 4, S> {
+impl<'a, const S: usize> SharedProfiles<'a, 32, 16, 8, S> {
     /// Creates an empty [`SharedProfiles`] optimized for 256-bit SIMD width.
-    /// Sets M=32, N=16, O=8, P=4 for i8, i16, i32, i64 profiles respectively.
+    /// Sets M=32, N=16, O=8 for i8, i16, i32 profiles respectively.
     ///
     /// ## Errors
     ///
@@ -599,7 +537,7 @@ impl<'a, const S: usize> SharedProfiles<'a, 32, 16, 8, 4, S> {
     #[inline]
     pub fn new_with_w256(
         query: Box<[u8]>, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
-    ) -> Result<SharedProfiles<'a, 32, 16, 8, 4, S>, QueryProfileError> {
+    ) -> Result<SharedProfiles<'a, 32, 16, 8, S>, QueryProfileError> {
         validate_profile_args(&query, gap_open, gap_extend)?;
 
         Ok(SharedProfiles {
@@ -610,14 +548,13 @@ impl<'a, const S: usize> SharedProfiles<'a, 32, 16, 8, 4, S> {
             profile_i8: OnceLock::new(),
             profile_i16: OnceLock::new(),
             profile_i32: OnceLock::new(),
-            profile_i64: OnceLock::new(),
         })
     }
 }
 
-impl<'a, const S: usize> SharedProfiles<'a, 64, 32, 16, 8, S> {
+impl<'a, const S: usize> SharedProfiles<'a, 64, 32, 16, S> {
     /// Creates an empty [`SharedProfiles`] optimized for 512-bit SIMD width.
-    /// Sets M=64, N=32, O=16, P=8 for i8, i16, i32, i64 profiles respectively.
+    /// Sets M=64, N=32, O=16 for i8, i16, i32 profiles respectively.
     ///
     /// ## Errors
     ///
@@ -625,7 +562,7 @@ impl<'a, const S: usize> SharedProfiles<'a, 64, 32, 16, 8, S> {
     #[inline]
     pub fn new_with_w512(
         query: Box<[u8]>, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
-    ) -> Result<SharedProfiles<'a, 64, 32, 16, 8, S>, QueryProfileError> {
+    ) -> Result<SharedProfiles<'a, 64, 32, 16, S>, QueryProfileError> {
         validate_profile_args(&query, gap_open, gap_extend)?;
 
         Ok(SharedProfiles {
@@ -636,7 +573,6 @@ impl<'a, const S: usize> SharedProfiles<'a, 64, 32, 16, 8, S> {
             profile_i8: OnceLock::new(),
             profile_i16: OnceLock::new(),
             profile_i32: OnceLock::new(),
-            profile_i64: OnceLock::new(),
         })
     }
 }

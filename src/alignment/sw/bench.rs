@@ -159,46 +159,6 @@ mod int32 {
     }
 }
 
-mod int64 {
-    use super::*;
-
-    #[bench]
-    fn sw_simd_w0128n02i(b: &mut Bencher) {
-        let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-        b.iter(|| sw_simd_score::<i64, 2, 5>(QUERY, &query_profile));
-    }
-
-    #[bench]
-    fn sw_simd_w0256n04i(b: &mut Bencher) {
-        let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-        b.iter(|| sw_simd_score::<i64, 4, 5>(QUERY, &query_profile));
-    }
-
-    #[bench]
-    fn sw_simd_w0512n08i(b: &mut Bencher) {
-        let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-        b.iter(|| sw_simd_score::<i64, 8, 5>(QUERY, &query_profile));
-    }
-
-    #[bench]
-    fn sw_simd_w1024n16i(b: &mut Bencher) {
-        let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-        b.iter(|| sw_simd_score::<i64, 16, 5>(QUERY, &query_profile));
-    }
-
-    #[bench]
-    fn sw_simd_w2048n32i(b: &mut Bencher) {
-        let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-        b.iter(|| sw_simd_score::<i64, 32, 5>(QUERY, &query_profile));
-    }
-
-    #[bench]
-    fn sw_simd_w5012n64i(b: &mut Bencher) {
-        let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-        b.iter(|| sw_simd_score::<i64, 64, 5>(QUERY, &query_profile));
-    }
-}
-
 mod simd_aln {
     use super::*;
 

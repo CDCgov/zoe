@@ -4,13 +4,11 @@ use std::{
     simd::{LaneCount, SupportedLaneCount},
 };
 
-impl<const M: usize, const N: usize, const O: usize, const P: usize, const S: usize> PartialEq
-    for LocalProfiles<'_, M, N, O, P, S>
+impl<const M: usize, const N: usize, const O: usize, const S: usize> PartialEq for LocalProfiles<'_, M, N, O, S>
 where
     LaneCount<M>: SupportedLaneCount,
     LaneCount<N>: SupportedLaneCount,
     LaneCount<O>: SupportedLaneCount,
-    LaneCount<P>: SupportedLaneCount,
 {
     fn eq(&self, other: &Self) -> bool {
         (self.query == other.query)
@@ -20,22 +18,19 @@ where
     }
 }
 
-impl<const M: usize, const N: usize, const O: usize, const P: usize, const S: usize> Eq for LocalProfiles<'_, M, N, O, P, S>
+impl<const M: usize, const N: usize, const O: usize, const S: usize> Eq for LocalProfiles<'_, M, N, O, S>
 where
     LaneCount<M>: SupportedLaneCount,
     LaneCount<N>: SupportedLaneCount,
     LaneCount<O>: SupportedLaneCount,
-    LaneCount<P>: SupportedLaneCount,
 {
 }
 
-impl<const M: usize, const N: usize, const O: usize, const P: usize, const S: usize> Hash
-    for LocalProfiles<'_, M, N, O, P, S>
+impl<const M: usize, const N: usize, const O: usize, const S: usize> Hash for LocalProfiles<'_, M, N, O, S>
 where
     LaneCount<M>: SupportedLaneCount,
     LaneCount<N>: SupportedLaneCount,
     LaneCount<O>: SupportedLaneCount,
-    LaneCount<P>: SupportedLaneCount,
 {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.query.hash(state);
@@ -45,13 +40,11 @@ where
     }
 }
 
-impl<const M: usize, const N: usize, const O: usize, const P: usize, const S: usize> PartialEq
-    for SharedProfiles<'_, M, N, O, P, S>
+impl<const M: usize, const N: usize, const O: usize, const S: usize> PartialEq for SharedProfiles<'_, M, N, O, S>
 where
     LaneCount<M>: SupportedLaneCount,
     LaneCount<N>: SupportedLaneCount,
     LaneCount<O>: SupportedLaneCount,
-    LaneCount<P>: SupportedLaneCount,
 {
     fn eq(&self, other: &Self) -> bool {
         (self.query == other.query)
@@ -61,22 +54,19 @@ where
     }
 }
 
-impl<const M: usize, const N: usize, const O: usize, const P: usize, const S: usize> Eq for SharedProfiles<'_, M, N, O, P, S>
+impl<const M: usize, const N: usize, const O: usize, const S: usize> Eq for SharedProfiles<'_, M, N, O, S>
 where
     LaneCount<M>: SupportedLaneCount,
     LaneCount<N>: SupportedLaneCount,
     LaneCount<O>: SupportedLaneCount,
-    LaneCount<P>: SupportedLaneCount,
 {
 }
 
-impl<const M: usize, const N: usize, const O: usize, const P: usize, const S: usize> Hash
-    for SharedProfiles<'_, M, N, O, P, S>
+impl<const M: usize, const N: usize, const O: usize, const S: usize> Hash for SharedProfiles<'_, M, N, O, S>
 where
     LaneCount<M>: SupportedLaneCount,
     LaneCount<N>: SupportedLaneCount,
     LaneCount<O>: SupportedLaneCount,
-    LaneCount<P>: SupportedLaneCount,
 {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.query.hash(state);
