@@ -9,6 +9,7 @@ use crate::{
 };
 use std::{
     fmt::Write,
+    mem::MaybeUninit,
     simd::{LaneCount, SupportedLaneCount, prelude::*},
 };
 
@@ -580,7 +581,6 @@ impl BacktrackMatrix {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub(crate) struct BacktrackMatrixStriped<const N: usize>
 where
@@ -591,20 +591,29 @@ where
     curr_lane: usize,
 }
 
-#[allow(dead_code)]
 impl<const N: usize> BacktrackMatrixStriped<N>
 where
     LaneCount<N>: SupportedLaneCount,
 {
-    pub(crate) fn new(rows: usize, num_vecs: usize) -> Self {
+    #[must_use]
+    #[inline]
+    pub(crate) fn make_uninit_data(size: usize) -> Vec<MaybeUninit<Simd<u8, N>>> {
+        let mut data = Vec::with_capacity(size);
+        data.resize_with(size, MaybeUninit::uninit);
+        data
+    }
+
+    pub(crate) fn new(data: Vec<Simd<u8, N>>, num_vecs: usize) -> Self {
+        assert!(data.len().is_multiple_of(num_vecs));
         BacktrackMatrixStriped {
-            data: vec![Simd::splat(0); rows * num_vecs],
+            data,
             num_vecs,
             v_cursor: 0,
             curr_lane: 0,
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn debug_cell(&self, r: usize, c: usize) -> String {
         let v = c % self.num_vecs;
         let lane = (c - v) / self.num_vecs;
@@ -612,6 +621,7 @@ where
         v.debug_cell(lane)
     }
 
+    #[allow(dead_code)]
     pub(crate) fn print_row(&self, r: usize) {
         let mut bt = self.clone();
         let nc = self.num_vecs * N;

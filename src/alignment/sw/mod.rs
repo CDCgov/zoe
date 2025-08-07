@@ -461,7 +461,7 @@ where
     let mut best = min;
     let mut r_end = reference.len() - 1;
 
-    let mut backtrack = BacktrackMatrixStriped::new(reference.len(), num_vecs);
+    let mut backtrack = BacktrackMatrixStriped::make_uninit_data(reference.len() * num_vecs);
     let map = query.mapping;
 
     for (r, ref_index) in reference.iter().copied().map(|r| map.to_index(r)).enumerate() {
@@ -475,7 +475,7 @@ where
 
         // This statement helps with bounds checks.
         let scores_vec = &profile[(ref_index * num_vecs)..(ref_index * num_vecs + num_vecs)];
-        let backtrack_row = &mut backtrack.data[(r * num_vecs)..(r * num_vecs + num_vecs)];
+        let backtrack_row = &mut backtrack[(r * num_vecs)..(r * num_vecs + num_vecs)];
         let mut max_scores = minimums;
 
         for v in 0..num_vecs {
@@ -506,7 +506,7 @@ where
             flags.simd_left_extending(F.simd_gt(H).cast());
             flags.simd_stop(stopped);
 
-            backtrack_row[v] = flags;
+            backtrack_row[v].write(flags);
             e_scores[v] = E;
             H = load[v];
         }
@@ -522,7 +522,9 @@ where
         while mask.any() {
             H = H.simd_max(F);
             store[v] = H;
-            let mut flags = backtrack_row[v];
+
+            // SAFETY: we have initialized all members of the row in the full loop
+            let mut flags = unsafe { backtrack_row[v].assume_init() };
 
             let stopped = H.simd_eq(minimums);
 
@@ -533,7 +535,7 @@ where
 
             flags.simd_left_extending(F.simd_gt(H).cast());
             flags.simd_stop(stopped.cast());
-            backtrack_row[v] = flags;
+            backtrack_row[v].write(flags);
 
             v += 1;
             if v == num_vecs {
@@ -570,6 +572,15 @@ where
             break;
         }
     }
+
+    // SAFETY: we have initialized all members of the table in the main loop.
+    //
+    // Also, this should not re-allocate thanks to equivalent size and
+    // alignment: https://doc.rust-lang.org/nightly/src/alloc/vec/in_place_collect.rs.html
+    let mut backtrack = BacktrackMatrixStriped::new(
+        backtrack.into_iter().map(|uninit| unsafe { uninit.assume_init() }).collect(),
+        num_vecs,
+    );
 
     if T::SIGNED {
         // Map best score to an unsigned range. Note that: MAX+1 = abs(MIN). If
