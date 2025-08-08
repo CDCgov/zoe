@@ -1,11 +1,194 @@
-#![allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation, clippy::needless_range_loop)]
-// TODO: revisit truncation issues
+//! ## Smith-Waterman Alignment
+//!
+//! For generating the optimal, local score use [`sw_simd_score`] or a wrapper thereof.
+//! Likewise, for generating an optimal, local alignment use [`sw_simd_alignment`].
+//!
+//! ### Affine Gap Penalties
+//!
+//! We use the affine gap formula, $W(k) = u(k-1) + v$, where $k$ is the gap
+//! length, $u$ is the gap extend penalty, $v$ is the gap open penalty, and
+//! $W(k)$ is the total penalty for the gap. In order to use $W(k) = uk + v$,
+//! simply pass gap open as the gap open plus gap extension.
+//!
+//! ### Usage Note
+//!
+//! The following steps may be needed:
+//!
+//! 1. Choose an alphabet. *Zoe* provides an easy interface to work with DNA,
+//!    assuming the bases `ACGT` are case-insensitive and `N` is used as a
+//!    catch-all. Otherwise, you can define your own alphabet using
+//!    [`ByteIndexMap::new`].
+//!
+//! 2. Specify the [`WeightMatrix`] used for scoring matches and mismatches. For
+//!    DNA, [`new_dna_matrix`] is a convenient constructor.
+//!
+//! 3. Build the query profile with [`StripedProfile::new`]. This
+//!    step combines the query, matrix of weights, and gap open and gap extend
+//!    penalties. This step also performs some basic checks, and if any of the
+//!    inputs are invalid, a [`QueryProfileError`] is returned.
+//!
+//! 4. Use the query profile to align against any number of different
+//!    references. Simply call the [`StripedProfile::smith_waterman_score`]
+//!    method. The profile can be reused in multiple different calls.
+//!
+//! Below is an example using DNA. We use a match score of 4 and a mismatch
+//! score of -2, as defined in `WEIGHTS`. We also choose to use a
+//! `StripedProfile` (so that the SIMD algorithm is used) with integer type `i8`
+//! and 32 lanes.
+//!
+//! Note: Scalar versions ([`sw_scalar_score`], [`sw_scalar_alignment`], and
+//! [`ScalarProfile`]) are also available for fuzzing and testing purposes.
+//! ```
+//! # use zoe::{alignment::StripedProfile, data::WeightMatrix};
+//! let reference: &[u8] = b"GGCCACAGGATTGAG";
+//! let query: &[u8] = b"CTCAGATTG";
+//!
+//! const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
+//! const GAP_OPEN: i8 = -3;
+//! const GAP_EXTEND: i8 = -1;
+//!
+//! let profile = StripedProfile::<i8, 32, 5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+//! let score = profile.smith_waterman_score(reference).unwrap();
+//! assert_eq!(score, 27);
+//! ```
+//!
+//! Below is an example using a different alphabet. Matches are given a score of
+//! 1 and mismatches are given a score of -1.
+//! ```
+//! # use zoe::{
+//! #     alignment::StripedProfile,
+//! #     data::{WeightMatrix, ByteIndexMap},
+//! # };
+//! let reference: &[u8] = b"BDAACAABDDDB";
+//! let query: &[u8] = b"AABDDAB";
+//!
+//! const MAPPING: ByteIndexMap<4> = ByteIndexMap::new(*b"ABCD", b'A');
+//! const WEIGHTS: WeightMatrix<i8, 4> = WeightMatrix::new(&MAPPING, 1, -1, None);
+//! const GAP_OPEN: i8 = -4;
+//! const GAP_EXTEND: i8 = -2;
+//!
+//! let profile = StripedProfile::<i8, 32, 4>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+//! let score = profile.smith_waterman_score(reference).unwrap();
+//! assert_eq!(score, 5);
+//! ```
+//!
+//! When using the SIMD algorithm, you must specify the number of lanes `N` and
+//! integer type `T` (typically i8, i16, or i32). If the integer type has
+//! too small of a range, it is possible the alignment score will overflow (in
+//! which case `None` is returned). A higher-level abstraction to avoid this
+//! uses profile sets: [`LocalProfiles`] or [`SharedProfiles`].
+//!
+//! The former is designed for use within a single thread, while the latter
+//! allows multiple threads to access it. Both store a set of lazily-evaluated
+//! query profiles for `i8`, `i16`, and `i32`. To create one of these,
+//! you can call [`LocalProfiles::new_with_w256`],
+//! [`SharedProfiles::new_with_w256`], or one of the other constructors. Then,
+//! call [`LocalProfiles::smith_waterman_score_from_i8`],
+//! [`SharedProfiles::smith_waterman_score_from_i8`], or one of the other
+//! methods.
+//!
+//! When using DNA, you can also create a profile by using
+//! [`Nucleotides::into_local_profile`] or [`Nucleotides::into_shared_profile`].
+//!
+//! Below is the previous example using DNA, but with this higher-level API:
+//! ```
+//! # use zoe::{data::WeightMatrix, prelude::Nucleotides};
+//! let reference: &[u8] = b"GGCCACAGGATTGAG";
+//! let query: Nucleotides = b"CTCAGATTG".into();
+//!
+//! const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
+//! const GAP_OPEN: i8 = -3;
+//! const GAP_EXTEND: i8 = -1;
+//!
+//! let profile = query.into_local_profile(&WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+//! let score = profile.smith_waterman_score_from_i8(reference).unwrap();
+//! assert_eq!(score, 27);
+//! ```
+//!
+//! And similarly with the different alphabet:
+//! ```
+//! # use zoe::{
+//! #     alignment::LocalProfiles,
+//! #     data::{WeightMatrix, ByteIndexMap},
+//! # };
+//! let reference: &[u8] = b"BDAACAABDDDB";
+//! let query: &[u8] = b"AABDDAB";
+//!
+//! const MAPPING: ByteIndexMap<4> = ByteIndexMap::new(*b"ABCD", b'A');
+//! const WEIGHTS: WeightMatrix<i8, 4> = WeightMatrix::new(&MAPPING, 1, -1, None);
+//! const GAP_OPEN: i8 = -4;
+//! const GAP_EXTEND: i8 = -2;
+//!
+//! let profile = LocalProfiles::new_with_w256(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+//! let score = profile.smith_waterman_score_from_i8(reference).unwrap();
+//! assert_eq!(score, 5);
+//! ```
+//!
+//! ## Module Citations
+//!
+//! 1. Smith, Temple F. & Waterman, Michael S. (1981). "Identification of Common
+//!    Molecular Subsequences" (PDF). Journal of Molecular Biology. 147 (1):
+//!    195–197.
+//!
+//! 2. Osamu Gotoh (1982). "An improved algorithm for matching biological
+//!    sequences". Journal of Molecular Biology. 162 (3): 705–708.
+//!
+//! 3. Stephen F. Altschul & Bruce W. Erickson (1986). "Optimal sequence
+//!    alignment using affine gap costs". Bulletin of Mathematical Biology. 48
+//!    (5–6): 603–616.
+//!
+//! 4. Tomáš Flouri, Kassian Kobert, Torbjørn Rognes, Alexandros
+//!    Stamatakis(2015). "Are all global alignment algorithms and
+//!    implementations correct?" bioRxiv 031500. doi:
+//!    <https://doi.org/10.1101/031500>
+//!
+//! 5. Farrar, Michael (2006). "Striped Smith-Waterman speeds database searches
+//!    six times over other SIMD implementations". Bioinformatics, 23(2),
+//!    156-161. doi: <https://doi.org/10.1093/bioinformatics/btl582>
+//!
+//! 6. Szalkowski, Adam, Ledergerber, Christian, Krähenbühl, Philipp & Dessimoz,
+//!    Christophe (2008). "SWPS3 - fast multi-threaded vectorized
+//!    Smith-Waterman for IBM Cell/B.E. and x86/SSE2". BMC Research Notes. 1:
+//!    107. doi: <https://doi.org/10.1186/1756-0500-1-107>
+//!
+//! 7. Zhao, Mengyao, Lee, Wan-Ping, Garrison, Erik P. & Marth, Gabor T. (2013).
+//!    "SSW library: an SIMD Smith-Waterman C/C++ library for use in genomic
+//!    applications". `PLoS One`. 8(12): e82138. doi:
+//!    <https://doi.org/10.1371/journal.pone.0082138>
+//!
+//! 8. Daily, Jeff (2016). "Parasail: SIMD C library for global, semi-global,
+//!    and local pairwise sequence alignments". BMC Bioinformatics. 17: 81.
+//!    doi: <https://doi.org/10.1186/s12859-016-0930-z>
+//!
+//!
+//! [`sw_scalar_score`]: sw::sw_scalar_score
+//! [`sw_simd_score`]: sw::sw_simd_score
+//! [`sw_scalar_alignment`]: sw::sw_scalar_alignment
+//! [`sw_simd_alignment`]: sw::sw_simd_alignment
+//! [`ByteIndexMap::new`]: crate::data::ByteIndexMap::new
+//! [`WeightMatrix`]: crate::data::WeightMatrix
+//! [`WeightMatrix::new`]: crate::data::WeightMatrix::new
+//! [`into_biased_matrix`]: crate::data::WeightMatrix::into_biased_matrix
+//! [`new_biased_dna_matrix`]: crate::data::WeightMatrix::new_biased_dna_matrix
+//! [`new_dna_matrix`]: crate::data::WeightMatrix::new_dna_matrix
+//! [`QueryProfileError`]: crate::data::err::QueryProfileError
+//! [`Nucleotides::into_local_profile`]: crate::data::types::nucleotides::Nucleotides::into_local_profile
+//! [`Nucleotides::into_shared_profile`]: crate::data::types::nucleotides::Nucleotides::into_shared_profile
+//! [`ScalarProfile::new`]: ScalarProfile::new
+//! [`StripedProfile::new`]: StripedProfile::new
+//! [`ScalarProfile::smith_waterman_score`]: ScalarProfile::smith_waterman_score
+//! [`StripedProfile::smith_waterman_score`]: StripedProfile::smith_waterman_score
+//! [`LocalProfiles`]: LocalProfiles
+//! [`SharedProfiles`]: SharedProfiles
+//! [`LocalProfiles::smith_waterman_score_from_i8`]: LocalProfiles::smith_waterman_score_from_i8
+//! [`SharedProfiles::smith_waterman_score_from_i8`]: SharedProfiles::smith_waterman_score_from_i8
+
+#![allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
 use super::*;
-use crate::{data::cigar::Ciglet, math::AnyInt, simd::SimdAnyInt};
+use crate::data::cigar::Ciglet;
 use std::{
     cmp::Ordering::{Equal, Greater, Less},
-    ops::Add,
-    simd::{LaneCount, SimdElement, SupportedLaneCount, prelude::*},
+    simd::prelude::*,
 };
 
 /// Compute the Smith-Waterman score for the alignment given by `cigar` between
@@ -72,535 +255,6 @@ pub fn sw_score_from_path<const S: usize>(
     }
 }
 
-/// Smith-Waterman algorithm, yielding the optimal score.
-///
-/// Provides the locally optimal sequence alignment (1) using affine gap
-/// penalties (2). Our implementation adapts the algorithm provided by [*Flouri
-/// et al.*](https://cme.h-its.org/exelixis/web/software/alignment/correct.html)
-/// (3).
-///
-/// We use the affine gap formula, $W(k) = u(k-1) + v$, where $k$ is the gap
-/// length, $u$ is the gap extend penalty, $v$ is the gap open penalty, and
-/// $W(k)$ is the total penalty for the gap. In order to use $W(k) = uk + v$,
-/// simply pass gap open as the gap open plus gap extension.
-///
-/// ## Example
-///
-/// ```
-/// # use zoe::{alignment::{ScalarProfile, sw::sw_scalar_score}, data::WeightMatrix};
-/// let reference: &[u8] = b"GGCCACAGGATTGAG";
-/// let query: &[u8] = b"CTCAGATTG";
-///
-/// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
-/// const GAP_OPEN: i8 = -3;
-/// const GAP_EXTEND: i8 = -1;
-///
-/// let profile = ScalarProfile::<5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-/// let score = sw_scalar_score(&reference, &profile);
-/// assert_eq!(score, 27);
-/// ```
-///
-/// ## Complexity
-///
-/// Time: $O(mn)$
-///
-/// Space: $O(m)$ where $m$ is the length of the query
-///
-/// ## Citations
-///
-/// 1. Smith, Temple F. & Waterman, Michael S. (1981). "Identification of Common
-///    Molecular Subsequences" (PDF). Journal of Molecular Biology. 147 (1):
-///    195–197.
-///
-/// 2. Osamu Gotoh (1982). "An improved algorithm for matching biological
-///    sequences". Journal of Molecular Biology. 162 (3): 705–708.
-///
-/// 3. Tomáš Flouri, Kassian Kobert, Torbjørn Rognes, Alexandros
-///    Stamatakis(2015). "Are all global alignment algorithms and
-///    implementations correct?" bioRxiv 031500. doi:
-///    <https://doi.org/10.1101/031500>
-///
-#[must_use]
-#[allow(clippy::cast_sign_loss)]
-pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S>) -> u64 {
-    let mut best_score = 0;
-    let mut h_row = vec![0; query.seq.len()];
-    let mut e_row: Vec<i32> = vec![query.gap_open; query.seq.len()];
-
-    for reference_base in reference.iter().copied() {
-        let mut f = query.gap_open;
-        let mut h = 0;
-
-        for c in 0..query.seq.len() {
-            let match_score = i32::from(query.matrix.get_weight(reference_base, query.seq[c]));
-            h += match_score;
-
-            let mut e = e_row[c];
-            h = h.max(e).max(f).max(0);
-
-            best_score = best_score.max(h);
-
-            e = e.add(query.gap_extend).max(h + query.gap_open);
-            f = f.add(query.gap_extend).max(h + query.gap_open);
-
-            (h, h_row[c]) = (h_row[c], h);
-            e_row[c] = e;
-        }
-    }
-
-    // Score must be non-negative
-    best_score as u64
-}
-
-/// Perform a local Smith-Waterman alignment.
-///
-/// Provides the locally optimal sequence alignment (1) using affine gap
-/// penalties (2) with improvements and corrections by (3-4). Our implementation
-/// adapts the corrected algorithm provided by [*Flouri et
-/// al.*](https://cme.h-its.org/exelixis/web/software/alignment/correct.html)(4).
-///
-/// We use the affine gap formula, $W(k) = u(k-1) + v$, where $k$ is the gap
-/// length, $u$ is the gap extend penalty, $v$ is the gap open penalty, and
-/// $W(k)$ is the total penalty for the gap. In order to use $W(k) = uk + v$,
-/// simply pass gap open as the gap open plus gap extension.
-///
-/// ## Example
-///
-///  ```
-/// # use zoe::{alignment::{Alignment, ScalarProfile, sw::sw_scalar_alignment}, data::{WeightMatrix, cigar::Cigar}};
-/// let reference: &[u8] = b"GGCCACAGGATTGAG";
-/// let query: &[u8] = b"CTCAGATTG";
-///
-/// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
-/// const GAP_OPEN: i8 = -3;
-/// const GAP_EXTEND: i8 = -1;
-///
-/// let profile = ScalarProfile::<5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-/// let alignment = sw_scalar_alignment(&reference, &profile).unwrap();
-/// assert_eq!(alignment.ref_range.start, 3);
-/// assert_eq!(alignment.states, Cigar::from_slice_unchecked("5M1D4M"));
-/// assert_eq!(alignment.score, 27);
-/// ```
-///
-/// ## Complexity
-///
-/// Time: $O(mn)$
-///
-/// Space: $O(mn)$
-///
-/// ## Citations
-///
-/// 1. Smith, Temple F. & Waterman, Michael S. (1981). "Identification of Common
-///    Molecular Subsequences" (PDF). Journal of Molecular Biology. 147 (1):
-///    195–197.
-///
-/// 2. Osamu Gotoh (1982). "An improved algorithm for matching biological
-///    sequences". Journal of Molecular Biology. 162 (3): 705–708.
-///
-/// 3. Stephen F. Altschul & Bruce W. Erickson (1986). "Optimal sequence
-///    alignment using affine gap costs". Bulletin of Mathematical Biology. 48
-///    (5–6): 603–616.
-///
-/// 4. Tomáš Flouri, Kassian Kobert, Torbjørn Rognes, Alexandros
-///    Stamatakis(2015). "Are all global alignment algorithms and
-///    implementations correct?" bioRxiv 031500. doi:
-///    <https://doi.org/10.1101/031500>
-///
-#[must_use]
-pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfile<S>) -> MaybeAligned<i32> {
-    if reference.is_empty() {
-        return MaybeAligned::Unmapped;
-    }
-
-    let (mut best_score, mut r_end, mut c_end) = (0, 0, 0);
-    let mut h_row = vec![0; query.seq.len()];
-    let mut e_row = vec![query.gap_open; query.seq.len()];
-
-    let mut backtrack = BacktrackMatrix::new(reference.len(), query.seq.len());
-
-    for (r, reference_base) in reference.iter().copied().enumerate() {
-        let mut f = query.gap_open;
-        let mut h = 0;
-
-        for c in 0..query.seq.len() {
-            // matching is the default direction
-            backtrack.move_to(r, c);
-
-            let match_score = i32::from(query.matrix.get_weight(reference_base, query.seq[c]));
-            h += match_score;
-
-            let mut e = e_row[c];
-            h = h.max(e).max(f).max(0);
-
-            if h > best_score {
-                best_score = h;
-                r_end = r;
-                c_end = c;
-            }
-
-            if e == h {
-                backtrack.up();
-            }
-
-            if f == h {
-                backtrack.left();
-            }
-
-            if h == 0 {
-                backtrack.stop();
-            }
-
-            let next_diag = h_row[c];
-            h_row[c] = h;
-
-            h += query.gap_open;
-            e = e.add(query.gap_extend).max(h);
-            f = f.add(query.gap_extend).max(h);
-
-            if h != query.gap_open {
-                if e > h {
-                    backtrack.up_extending();
-                }
-
-                if f > h {
-                    backtrack.left_extending();
-                }
-            }
-
-            h = next_diag;
-            e_row[c] = e;
-        }
-    }
-
-    if best_score == 0 {
-        return MaybeAligned::Unmapped;
-    }
-
-    backtrack.to_alignment(best_score, r_end, c_end, reference.len(), query.seq.len())
-}
-
-/// Smith-Waterman algorithm (vectorized), yielding the optimal score.
-///
-/// Provides the locally optimal sequence alignment (1) using affine gap
-/// penalties (2). We adapt Farrar's striped SIMD implemention (3) for portable
-/// SIMD.
-///
-/// We use the affine gap formula, $W(k) = u(k-1) + v$, where $k$ is the gap
-/// length, $u$ is the gap extend penalty, $v$ is the gap open penalty, and
-/// $W(k)$ is the total penalty for the gap. In order to use $W(k) = uk + v$,
-/// simply pass gap open as the gap open plus gap extension.
-///
-/// ## Example
-///
-/// ```
-/// # use zoe::{alignment::{StripedProfile, sw::sw_simd_score}, data::WeightMatrix};
-/// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
-/// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
-///
-/// const WEIGHTS: WeightMatrix<u8, 5> = WeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
-/// const GAP_OPEN: i8 = -3;
-/// const GAP_EXTEND: i8 = -1;
-///
-/// let profile = StripedProfile::<u8, 32, 5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-/// let score = sw_simd_score(&reference, &profile).unwrap();
-/// assert_eq!(score, 26);
-/// ```
-///
-/// ## Complexity
-///
-/// Time: $O(mn)$, with the average case as $mn/N$ for $N$ SIMD lanes
-///
-/// Space: $O(n)$
-///
-/// ## Limitations
-///
-/// The SIMD algorithm used here may not perform as well when both the query and
-/// reference are short. If the query and reference are both shorter than 25
-/// bases, ensure that this algorithm is called with `N=16` or less. If the
-/// query and reference are both shorter than 10 bases, consider using the
-/// scalar algorithm [`sw_scalar_score`].
-///
-/// ## Citations
-///
-/// 1. Smith, Temple F. & Waterman, Michael S. (1981). "Identification of Common
-///    Molecular Subsequences" (PDF). Journal of Molecular Biology. 147 (1):
-///    195–197.
-///
-/// 2. Osamu Gotoh (1982). "An improved algorithm for matching biological
-///    sequences". Journal of Molecular Biology. 162 (3): 705–708.
-///
-/// 3. Farrar, Michael (2006). "Striped Smith-Waterman speeds database searches
-///    six times over other SIMD implementations". Bioinformatics, 23(2),
-///    156-161. doi: <https://doi.org/10.1093/bioinformatics/btl582>
-///
-#[allow(non_snake_case)]
-#[must_use]
-#[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
-pub fn sw_simd_score<T, const N: usize, const S: usize>(reference: &[u8], query: &StripedProfile<T, N, S>) -> Option<u64>
-where
-    T: AnyInt + SimdElement,
-    LaneCount<N>: SupportedLaneCount,
-    Simd<T, N>: SimdAnyInt<T, N>, {
-    let num_vecs = query.number_vectors();
-    let profile: &Vec<Simd<T, N>> = &query.profile;
-
-    let min = T::MIN;
-    let gap_opens = Simd::splat(query.gap_open);
-    let gap_extends = Simd::splat(query.gap_extend);
-    let minimums = Simd::splat(T::MIN);
-    let biases = Simd::splat(query.bias);
-
-    let mut load = vec![minimums; num_vecs];
-    let mut store = vec![minimums; num_vecs];
-    let mut e_scores = vec![minimums; num_vecs];
-    let mut max_scores = minimums; // Minimum value for unsigned
-
-    let map = query.mapping;
-
-    for ref_index in reference.iter().copied().map(|r| map.to_index(r)) {
-        let mut F = minimums;
-        let mut H = store[num_vecs - 1].shift_elements_right::<1>(min);
-
-        (load, store) = (store, load);
-
-        // This statement helps with bounds checks.
-        let scores_vec = &profile[(ref_index * num_vecs)..(ref_index * num_vecs + num_vecs)];
-
-        for j in 0..num_vecs {
-            let mut E = e_scores[j];
-
-            H = H.saturating_add(scores_vec[j]);
-            if !T::SIGNED {
-                H = H.saturating_sub(biases);
-            }
-
-            H = H.simd_max(E).simd_max(F);
-            max_scores = max_scores.simd_max(H);
-
-            store[j] = H;
-
-            H = H.saturating_sub(gap_opens);
-            E = E.saturating_sub(gap_extends).simd_max(H);
-            F = F.saturating_sub(gap_extends).simd_max(H);
-
-            // Store E; Load H
-            e_scores[j] = E;
-            H = load[j];
-        }
-
-        let mut j = 0;
-        H = store[j];
-        F = F.shift_elements_right::<1>(min);
-
-        // ¬∀x (F = (H - Go))
-        //  ∃x (F > (H - Go)), given 1-sided
-        let mut mask = F.simd_gt(H.saturating_sub(gap_opens));
-        while mask.any() {
-            // Update & save H
-            H = H.simd_max(F);
-            store[j] = H;
-
-            F = F.saturating_sub(gap_extends);
-
-            j += 1;
-            if j >= num_vecs {
-                j = 0;
-                F = F.shift_elements_right::<1>(min);
-            }
-
-            // New J here
-            H = store[j];
-
-            mask = F.simd_gt(H.saturating_sub(gap_opens));
-        }
-    }
-
-    let best = max_scores.reduce_max();
-
-    if T::SIGNED {
-        // Map best score to an unsigned range. Note that: MAX+1 = abs(MIN). If
-        // we would have overflowed (saturated), return None, otherwise return
-        // the best score.
-        (best < T::MAX).then(|| (T::MAX.cast_as::<u64>() + 1).wrapping_add_signed(best.cast_as::<i64>()))
-    } else {
-        // If we would have overflowed, return None, otherwise return the best
-        // score. We add one because we care if the value is equal to the MAX.
-        best.checked_add(query.bias + T::ONE).map(|_| best.cast_as::<u64>())
-    }
-}
-
-// TODO: documentation and bibliography
-#[allow(non_snake_case, clippy::too_many_lines)]
-#[must_use]
-#[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
-pub fn sw_simd_alignment<T, const N: usize, const S: usize>(
-    reference: &[u8], query: &StripedProfile<T, N, S>,
-) -> MaybeAligned<u64>
-where
-    T: AnyInt + SimdElement,
-    LaneCount<N>: SupportedLaneCount,
-    Simd<T, N>: SimdAnyInt<T, N>, {
-    if reference.is_empty() {
-        return MaybeAligned::Unmapped;
-    }
-
-    let num_vecs = query.number_vectors();
-    let profile: &Vec<Simd<T, N>> = &query.profile;
-
-    let min = T::MIN;
-    let gap_opens = Simd::splat(query.gap_open);
-    let gap_extends = Simd::splat(query.gap_extend);
-    let minimums = Simd::splat(T::MIN);
-    let biases = Simd::splat(query.bias);
-    // Any value strictly less than this threshold did not saturate
-    let saturating_threshold = if T::SIGNED { T::MAX } else { T::MAX - query.bias };
-
-    let mut load = vec![minimums; num_vecs];
-    let mut store = vec![minimums; num_vecs];
-    let mut e_scores = vec![minimums; num_vecs];
-    let mut max_row = vec![minimums; num_vecs];
-
-    let mut best = min;
-    let mut r_end = reference.len() - 1;
-
-    let mut backtrack = BacktrackMatrixStriped::make_uninit_data(reference.len() * num_vecs);
-    let map = query.mapping;
-
-    for (r, ref_index) in reference.iter().copied().map(|r| map.to_index(r)).enumerate() {
-        let mut F = minimums;
-        let mut H = store[num_vecs - 1].shift_elements_right::<1>(min);
-
-        if r > 1 && r_end == r - 2 {
-            (max_row, load) = (load, max_row);
-        }
-        (load, store) = (store, load);
-
-        // This statement helps with bounds checks.
-        let scores_vec = &profile[(ref_index * num_vecs)..(ref_index * num_vecs + num_vecs)];
-        let backtrack_row = &mut backtrack[(r * num_vecs)..(r * num_vecs + num_vecs)];
-        let mut max_scores = minimums;
-
-        for v in 0..num_vecs {
-            let mut E = e_scores[v];
-
-            H = H.saturating_add(scores_vec[v]);
-            if !T::SIGNED {
-                H = H.saturating_sub(biases);
-            }
-
-            H = H.simd_max(E).simd_max(F);
-
-            let mut flags = Simd::<u8, N>::simd_match();
-            max_scores = max_scores.simd_max(H);
-
-            flags.simd_up(E.simd_eq(H).cast());
-            flags.simd_left(F.simd_eq(H).cast());
-
-            let stopped = H.simd_eq(minimums).cast();
-
-            store[v] = H;
-
-            H = H.saturating_sub(gap_opens);
-            E = E.saturating_sub(gap_extends).simd_max(H);
-            F = F.saturating_sub(gap_extends).simd_max(H);
-
-            flags.simd_up_extending(E.simd_gt(H).cast());
-            flags.simd_left_extending(F.simd_gt(H).cast());
-            flags.simd_stop(stopped);
-
-            backtrack_row[v].write(flags);
-            e_scores[v] = E;
-            H = load[v];
-        }
-
-        // ¬∀x (F = (H - Go))
-        //  ∃x (F > (H - Go)), given 1-sided
-        'lazy_f: for _ in 0..N {
-            F = F.shift_elements_right::<1>(min);
-
-            for v in 0..num_vecs {
-                H = store[v];
-
-                if !F.simd_gt(H.saturating_sub(gap_opens)).any() {
-                    break 'lazy_f;
-                }
-
-                H = H.simd_max(F);
-                store[v] = H;
-                let mut flags = unsafe { backtrack_row[v].assume_init() };
-
-                let stopped = H.simd_eq(minimums);
-
-                flags.simd_correct_and_set_left(F.simd_eq(H).cast());
-
-                H = H.saturating_sub(gap_opens);
-                F = F.saturating_sub(gap_extends);
-                //let E = e_scores[v];
-
-                flags.simd_left_extending(F.simd_gt(H).cast());
-                //flags.simd_up_extending(E.simd_gt(H).cast());
-                flags.simd_stop(stopped.cast());
-                backtrack_row[v].write(flags);
-            }
-        }
-
-        let row_best = max_scores.reduce_max();
-        if row_best > best {
-            if row_best >= saturating_threshold {
-                return MaybeAligned::Overflowed;
-            }
-            best = row_best;
-            r_end = r;
-            //max_row.copy_from_slice(&store);
-        }
-    }
-
-    if r_end == reference.len() - 1 {
-        max_row = store;
-    } else if r_end == reference.len() - 2 {
-        max_row = load;
-    }
-
-    let mut c_end = query.seq_len - 1;
-
-    for ci in 0..query.seq_len {
-        let v = ci % num_vecs;
-        let lane = (ci - v) / num_vecs;
-
-        if max_row[v][lane] == best {
-            c_end = ci;
-            break;
-        }
-    }
-
-    // SAFETY: we have initialized all members of the table in the main loop.
-    //
-    // Also, this should not re-allocate thanks to equivalent size and
-    // alignment: https://doc.rust-lang.org/nightly/src/alloc/vec/in_place_collect.rs.html
-    let mut backtrack = BacktrackMatrixStriped::new(
-        backtrack.into_iter().map(|uninit| unsafe { uninit.assume_init() }).collect(),
-        num_vecs,
-    );
-
-    if T::SIGNED {
-        // Map best score to an unsigned range. Note that: MAX+1 = abs(MIN). If
-        // we would have overflowed (saturated), return None, otherwise return
-        // the best score.
-        (best < T::MAX).then(|| (T::MAX.cast_as::<u64>() + 1).wrapping_add_signed(best.cast_as::<i64>()))
-    } else {
-        // If we would have overflowed, return None, otherwise return the best
-        // score. We add one because we care if the value is equal to the MAX.
-        best.checked_add(query.bias + T::ONE).map(|_| best.cast_as::<u64>())
-    }
-    .map_or(MaybeAligned::Overflowed, |score| {
-        if score == 0 {
-            MaybeAligned::Unmapped
-        } else {
-            backtrack.to_alignment(score, r_end, c_end, reference.len(), query.seq_len)
-        }
-    })
-}
-
 #[cfg(test)]
 pub(crate) mod test_data {
     use super::ScalarProfile;
@@ -624,3 +278,9 @@ mod test;
 
 #[cfg(test)]
 mod bench;
+
+mod scalar;
+mod striped;
+
+pub use scalar::*;
+pub use striped::*;

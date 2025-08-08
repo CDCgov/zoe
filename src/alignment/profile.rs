@@ -4,7 +4,7 @@ use crate::{
         sw::{sw_scalar_alignment, sw_scalar_score, sw_simd_alignment, sw_simd_score},
     },
     data::{WeightMatrix, err::QueryProfileError, mappings::ByteIndexMap},
-    math::{AnyInt, FromSameSignedness},
+    math::{AlignableIntWidth, AnyInt, FromSameSignedness},
     simd::SimdAnyInt,
 };
 use std::{
@@ -190,7 +190,7 @@ where
         query: &[u8], matrix: &WeightMatrix<U, S>, gap_open: i8, gap_extend: i8,
     ) -> Result<Self, QueryProfileError>
     where
-        T: FromSameSignedness<U>,
+        T: FromSameSignedness<U> + AlignableIntWidth,
         U: AnyInt, {
         validate_profile_args(query, gap_open, gap_extend)?;
         Ok(Self::new_unchecked(query, matrix, gap_open, gap_extend))

@@ -8,6 +8,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ### Added
 
+- Added a portable, generic striped Smith-Waterman alignment function (full matrix version) and related convenience functions.
 - Added macros for easily implementing traits on enums and wrapper types (`define_whichever` and `impl_traits`)
 - Added `new_with_w*` constructors for `SharedProfiles` and `LocalProfiles` for balanced profile creation for a segment width.
 - Added structs `CigarView` and `CigarViewMut`
@@ -19,6 +20,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added viterbi algorithm to `GlobalPhmm`
 - Added `LocalPhmm` and structs towards supporting other alignment modes in pHMMs
 - Added `ref_len` and `query_len` fields to the `Alignment` struct, as well as `to_reverse` and `make_reverse` methods
+- Added `MaybeAligned` as the return type for alignments.
 
 ### Changed
 
@@ -32,10 +34,13 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Replace ad-hoc casting methods in `AnyInt` and `Float` with generic `cast_as` and `cast_from`
 - Implement `Ord` and `PartialOrd` for `Cigar` and `QualityScores`
 - Improved error messages for `ScoringError`
+- Scalar alignment functions return `MaybeAligned`
+- Improves performance of profile creation.
 
 ### Removed
 
 - Removed `new_with_i8()` and `new_with_i16()` from `SharedProfiles` and `LocalProfiles`
+- Removed `i64` profiles from `LocalProfiles` and `SharedProfiles`
 
 ### Fixed
 

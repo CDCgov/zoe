@@ -143,6 +143,10 @@ impl<const S: usize> WeightMatrix<i8, S> {
     ///
     /// [`new_dna_matrix`]: WeightMatrix::new_dna_matrix
     /// [`new_custom`]: WeightMatrix::new_custom
+    ///
+    /// ## Panics
+    ///
+    /// Panics if an invalid byte was specified for the `ignoring` field.
     #[must_use]
     pub const fn new(mapping: &'static ByteIndexMap<S>, matching: i8, mismatch: i8, ignoring: Option<u8>) -> Self {
         let mut weights = [[0i8; S]; S];

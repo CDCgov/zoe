@@ -146,3 +146,13 @@ impl_from_same_sign! {i16 => i16, i32, i64, i128}
 impl_from_same_sign! {i32 => i32, i64, i128}
 impl_from_same_sign! {i64 => i64, i128}
 impl_from_same_sign! {i128 => i128}
+
+/// Valid integer widths for sequence alignment scores.
+pub trait AlignableIntWidth: Sealed {}
+
+impl AlignableIntWidth for u8 {}
+impl AlignableIntWidth for u16 {}
+impl AlignableIntWidth for u32 {}
+impl AlignableIntWidth for i8 {}
+impl AlignableIntWidth for i16 {}
+impl AlignableIntWidth for i32 {}

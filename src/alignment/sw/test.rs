@@ -3,6 +3,28 @@ use crate::alignment::profile::StripedProfile;
 use crate::data::constants::matrices::WeightMatrix;
 use crate::data::mappings::DNA_PROFILE_MAP;
 
+macro_rules! test_sw_simd_alignment {
+    ($profile_seq:expr, $other_seq:expr, $int_type:ty, $uint_type:ty, $lanes:expr) => {{
+        let weights = WeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N'));
+        let profile_scalar = ScalarProfile::new($profile_seq, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
+        let profile_simd =
+            StripedProfile::<$int_type, $lanes, 5>::new($profile_seq, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
+
+        let score = profile_simd.smith_waterman_score($other_seq);
+        let aln_scalar = profile_scalar.smith_waterman_alignment($other_seq).unwrap().as_u64();
+        let aln_simd = profile_simd.smith_waterman_alignment($other_seq).unwrap();
+
+        assert_eq!(score, Some(aln_scalar.score));
+        assert_eq!(aln_scalar, aln_simd);
+
+        let profile_simd =
+            StripedProfile::<$uint_type, $lanes, 5>::new($profile_seq, &weights.into_biased_matrix(), GAP_OPEN, GAP_EXTEND)
+                .unwrap();
+        let aln_simd = profile_simd.smith_waterman_alignment($other_seq).unwrap();
+        assert_eq!(aln_scalar, aln_simd);
+    }};
+}
+
 #[test]
 #[allow(clippy::cast_sign_loss)]
 fn sw_verify_score_from_path() {
@@ -68,255 +90,83 @@ fn sw_simd() {
 
 #[test]
 fn sw_simd_aln() {
-    let weights = WeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N'));
-    let profile_scalar = ScalarProfile::new(REFERENCE, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
-    let profile_simd = StripedProfile::<i16, 8, 5>::new(REFERENCE, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
-
-    let score = profile_simd.smith_waterman_score(QUERY);
-
-    let aln_scalar = profile_scalar.smith_waterman_alignment(QUERY).unwrap().as_u64();
-    let aln_simd = profile_simd.smith_waterman_alignment(QUERY).unwrap();
-    assert_eq!(score, Some(aln_scalar.score));
-    assert_eq!(aln_scalar, aln_simd);
+    test_sw_simd_alignment!(REFERENCE, QUERY, i16, u16, 8);
 }
 
 #[test]
 fn sw_simd_aln2() {
     let reference = b"AAACTA";
     let query = b"TTTAG";
-
-    let weights = WeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N'));
-    let profile_scalar = ScalarProfile::new(query, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
-    let profile_simd = StripedProfile::<i8, 2, 5>::new(query, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
-
-    let score = profile_simd.smith_waterman_score(reference);
-
-    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).unwrap().as_u64();
-    let aln_simd = profile_simd.smith_waterman_alignment(reference).unwrap();
-    assert_eq!(score, Some(aln_scalar.score));
-    assert_eq!(aln_scalar, aln_simd);
+    test_sw_simd_alignment!(query, reference, i8, u8, 2);
 }
 
 #[test]
 fn sw_simd_aln3() {
     let reference = b"AAAAAAAAAA";
     let query = b"AAAAAATAAA";
-
-    let weights = WeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N'));
-    let profile_scalar = ScalarProfile::new(query, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
-    let profile_simd = StripedProfile::<i8, 4, 5>::new(query, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
-
-    let score = profile_simd.smith_waterman_score(reference);
-
-    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).unwrap().as_u64();
-    let aln_simd = profile_simd.smith_waterman_alignment(reference).unwrap();
-    assert_eq!(score, Some(aln_scalar.score));
-    assert_eq!(aln_scalar, aln_simd);
+    test_sw_simd_alignment!(query, reference, i8, u8, 4);
 }
 
 #[test]
 fn sw_simd_aln4() {
     let reference = b"TAAAA";
     let query = b"CCCCA";
-
-    let weights = WeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N'));
-    let profile_scalar = ScalarProfile::new(query, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
-    let profile_simd = StripedProfile::<i8, 4, 5>::new(query, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
-
-    let score = profile_simd.smith_waterman_score(reference);
-
-    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).unwrap().as_u64();
-    let aln_simd = profile_simd.smith_waterman_alignment(reference).unwrap();
-    assert_eq!(score, Some(aln_scalar.score));
-    assert_eq!(aln_scalar, aln_simd);
+    test_sw_simd_alignment!(query, reference, i8, u8, 4);
 }
 
 #[test]
 fn sw_simd_aln5() {
     let reference = b"TCCCC";
     let query = b"CCCCC";
-
-    let weights = WeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N'));
-    let profile_scalar = ScalarProfile::new(query, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
-    let profile_simd = StripedProfile::<i8, 4, 5>::new(query, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
-
-    let score = profile_simd.smith_waterman_score(reference);
-
-    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).unwrap().as_u64();
-    let aln_simd = profile_simd.smith_waterman_alignment(reference).unwrap();
-    assert_eq!(score, Some(aln_scalar.score));
-    assert_eq!(aln_scalar, aln_simd);
+    test_sw_simd_alignment!(query, reference, i8, u8, 4);
 }
 
 #[test]
 fn sw_simd_aln6() {
     let reference = b"GCTTTTC";
     let query = b"CCCCT";
-
-    let weights = WeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N'));
-    let profile_scalar = ScalarProfile::new(query, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
-    let profile_simd = StripedProfile::<i8, 4, 5>::new(query, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
-
-    let score = profile_simd.smith_waterman_score(reference);
-
-    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).unwrap().as_u64();
-    let aln_simd = profile_simd.smith_waterman_alignment(reference).unwrap();
-    assert_eq!(score, Some(aln_scalar.score));
-    assert_eq!(aln_scalar, aln_simd);
+    test_sw_simd_alignment!(query, reference, i8, u8, 4);
 }
 #[test]
 fn sw_simd_aln7() {
     let reference = b"TTGTTTTTTTTTGTT";
     let query = b"TTTTTGTTTTCTTTTTTGTTTA";
-
-    let weights = WeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N'));
-    let profile_scalar = ScalarProfile::new(query, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
-    let profile_simd = StripedProfile::<i8, 16, 5>::new(query, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
-
-    let score = profile_simd.smith_waterman_score(reference);
-
-    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).unwrap().as_u64();
-    let aln_simd = profile_simd.smith_waterman_alignment(reference).unwrap();
-    assert_eq!(score, Some(aln_scalar.score));
-
-    let recaculated_score = sw_score_from_path(&aln_simd.states, &reference[aln_simd.ref_range.clone()], &profile_scalar);
-    assert_eq!(Ok(score.unwrap()), recaculated_score, "for {aln_simd:?}",);
-    assert_eq!(aln_scalar, aln_simd);
+    test_sw_simd_alignment!(query, reference, i8, u8, 16);
 }
 
 #[test]
 fn sw_simd_aln8() {
     let reference = b"TTTTTGTTTGGGAAAAATTCTT";
     let query = b"TTGTTTTGGGGAAAAA";
-
-    let weights = WeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N'));
-    let profile_scalar = ScalarProfile::new(query, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
-    let profile_simd = StripedProfile::<u8, 8, 5>::new(query, &weights.into_biased_matrix(), GAP_OPEN, GAP_EXTEND).unwrap();
-
-    let score = profile_simd.smith_waterman_score(reference);
-
-    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).unwrap().as_u64();
-    let aln_simd = profile_simd.smith_waterman_alignment(reference).unwrap();
-    assert_eq!(score, Some(aln_scalar.score));
-
-    let recaculated_score = sw_score_from_path(&aln_simd.states, &reference[aln_simd.ref_range.clone()], &profile_scalar);
-    assert_eq!(
-        Ok(score.unwrap()),
-        recaculated_score,
-        "{aln_simd:?} (v {cigar})",
-        cigar = aln_scalar.states
-    );
-    assert_eq!(aln_scalar, aln_simd);
+    test_sw_simd_alignment!(query, reference, i8, u8, 8);
 }
-
-// F > H works for both, albeit it doesn't match the order of the scalar implementation.
-// F==H seemed to yield this monstrosity. Methinks to fix it you'd need to detect stops again.
-// E.g., F==H && !stopped. This is extra cycles though.
 
 #[test]
 fn sw_simd_aln9() {
     let reference = b"TTTTTGTTTTCTTGGT";
     let query = b"TTTTTTTCTTGTTTTTG";
-
-    let weights = WeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N'));
-    let profile_scalar = ScalarProfile::new(query, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
-    let profile_simd = StripedProfile::<u8, 16, 5>::new(query, &weights.into_biased_matrix(), GAP_OPEN, GAP_EXTEND).unwrap();
-
-    let score = profile_simd.smith_waterman_score(reference);
-
-    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).unwrap().as_u64();
-    let aln_simd = profile_simd.smith_waterman_alignment(reference).unwrap();
-    assert_eq!(score, Some(aln_scalar.score));
-
-    let recaculated_score = sw_score_from_path(&aln_simd.states, &reference[aln_simd.ref_range.clone()], &profile_scalar);
-    assert_eq!(
-        Ok(score.unwrap()),
-        recaculated_score,
-        "{aln_simd:?} (v {cigar})",
-        cigar = aln_scalar.states
-    );
-    assert_eq!(aln_scalar, aln_simd);
+    test_sw_simd_alignment!(query, reference, i8, u8, 16);
 }
 
 #[test]
 fn sw_simd_aln10() {
     let reference = b"TTTTTTTTTTTTAAAATTTGTAAACGTTTTGTTA";
     let query = b"TTTTTTTTACTATTTTTAAATTTATGTTTTGTTA";
-
-    let weights = WeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N'));
-    let profile_scalar = ScalarProfile::new(query, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
-    let profile_simd = StripedProfile::<u8, 8, 5>::new(query, &weights.into_biased_matrix(), GAP_OPEN, GAP_EXTEND).unwrap();
-
-    let score = profile_simd.smith_waterman_score(reference);
-
-    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).unwrap().as_u64();
-    let aln_simd = profile_simd.smith_waterman_alignment(reference).unwrap();
-    assert_eq!(score, Some(aln_scalar.score));
-
-    assert_eq!(aln_scalar.ref_range.end, aln_simd.ref_range.end);
-    assert_eq!(aln_scalar.query_range.end, aln_simd.query_range.end);
-    let recaculated_score = sw_score_from_path(&aln_simd.states, &reference[aln_simd.ref_range.clone()], &profile_scalar);
-    assert_eq!(
-        Ok(score.unwrap()),
-        recaculated_score,
-        "{aln_simd:?} (v {cigar})",
-        cigar = aln_scalar.states
-    );
-    assert_eq!(aln_scalar, aln_simd);
+    test_sw_simd_alignment!(query, reference, i8, u8, 8);
 }
 
 #[test]
 fn sw_simd_aln11() {
     let reference = b"TTTATTTTTTTTTTTTTTCCCCCCCTTTTTTTTTTTTTTTTTCCCCCCTTT";
     let query = b"TTTTTTTTTTTTTTTTTTTCCTTTTTTTTTTTTTTTTTTTTTTTTTTCCCCCCTTTA";
-
-    let weights = WeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N'));
-    let profile_scalar = ScalarProfile::new(query, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
-    let profile_simd = StripedProfile::<u8, 8, 5>::new(query, &weights.into_biased_matrix(), GAP_OPEN, GAP_EXTEND).unwrap();
-
-    let score = profile_simd.smith_waterman_score(reference);
-
-    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).unwrap().as_u64();
-    let aln_simd = profile_simd.smith_waterman_alignment(reference).unwrap();
-    assert_eq!(score, Some(aln_scalar.score));
-
-    assert_eq!(aln_scalar.ref_range.end, aln_simd.ref_range.end);
-    assert_eq!(aln_scalar.query_range.end, aln_simd.query_range.end);
-    let recaculated_score = sw_score_from_path(&aln_simd.states, &reference[aln_simd.ref_range.clone()], &profile_scalar);
-    assert_eq!(
-        Ok(score.unwrap()),
-        recaculated_score,
-        "{aln_simd:?} (v {cigar})",
-        cigar = aln_scalar.states
-    );
-    assert_eq!(aln_scalar, aln_simd);
+    test_sw_simd_alignment!(query, reference, i8, u8, 8);
 }
 
 #[test]
 fn sw_simd_aln12() {
     let reference = b"TTTTTTTTTTTTTTTCCCCCTTTTTTTTTTCCCCCCCCCTT";
     let query = b"TTTTTTTTTTTTTTTCCTTTTTTTTTTTTTTTTTTTCCCCCCCCCTA";
-
-    let weights = WeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N'));
-    let profile_scalar = ScalarProfile::new(query, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
-    let profile_simd = StripedProfile::<u8, 8, 5>::new(query, &weights.into_biased_matrix(), GAP_OPEN, GAP_EXTEND).unwrap();
-
-    let score = profile_simd.smith_waterman_score(reference);
-
-    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).unwrap().as_u64();
-    let aln_simd = profile_simd.smith_waterman_alignment(reference).unwrap();
-    assert_eq!(score, Some(aln_scalar.score));
-
-    assert_eq!(aln_scalar.ref_range.end, aln_simd.ref_range.end);
-    assert_eq!(aln_scalar.query_range.end, aln_simd.query_range.end);
-    let recaculated_score = sw_score_from_path(&aln_simd.states, &reference[aln_simd.ref_range.clone()], &profile_scalar);
-    assert_eq!(
-        Ok(score.unwrap()),
-        recaculated_score,
-        "{aln_simd:?} (v {cigar})",
-        cigar = aln_scalar.states
-    );
-    assert_eq!(aln_scalar, aln_simd);
+    test_sw_simd_alignment!(query, reference, i8, u8, 8);
 }
 
 #[test]
