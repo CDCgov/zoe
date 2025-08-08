@@ -19,18 +19,6 @@ mod int08 {
     use super::*;
 
     #[bench]
-    fn sw_simd_w0016n02i(b: &mut Bencher) {
-        let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-        b.iter(|| sw_simd_score::<i8, 2, 5>(QUERY, &query_profile));
-    }
-
-    #[bench]
-    fn sw_simd_w0032n04i(b: &mut Bencher) {
-        let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-        b.iter(|| sw_simd_score::<i8, 4, 5>(QUERY, &query_profile));
-    }
-
-    #[bench]
     fn sw_simd_w0064n08i(b: &mut Bencher) {
         let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
         b.iter(|| sw_simd_score::<i8, 8, 5>(QUERY, &query_profile));
@@ -71,12 +59,6 @@ mod int16 {
     use super::*;
 
     #[bench]
-    fn sw_simd_w0032n02i(b: &mut Bencher) {
-        let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-        b.iter(|| sw_simd_score::<i16, 2, 5>(QUERY, &query_profile));
-    }
-
-    #[bench]
     fn sw_simd_w0064n04i(b: &mut Bencher) {
         let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
         b.iter(|| sw_simd_score::<i16, 4, 5>(QUERY, &query_profile));
@@ -101,9 +83,21 @@ mod int16 {
     }
 
     #[bench]
+    fn sw_simd_w0256n16i_2(b: &mut Bencher) {
+        let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+        b.iter(|| sw_simd_score_ends::<i16, 16, 5>(QUERY, &query_profile));
+    }
+
+    #[bench]
     fn sw_simd_w0512n32u(b: &mut Bencher) {
         let query_profile = StripedProfile::new(REFERENCE, &BIASED_WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
         b.iter(|| sw_simd_score::<u16, 32, 5>(QUERY, &query_profile));
+    }
+
+    #[bench]
+    fn sw_simd_w0512n32i_2(b: &mut Bencher) {
+        let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+        b.iter(|| sw_simd_score_ends::<i16, 32, 5>(QUERY, &query_profile));
     }
 
     #[bench]

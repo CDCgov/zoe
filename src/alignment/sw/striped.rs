@@ -136,6 +136,136 @@ where
     }
 }
 
+/// Similar to [`sw_simd_score`] but also returns the reference and query end coordinates.
+/// This coordinate is equivalently:
+/// - The 1-based position of the last aligning character
+/// - The 0-based slice bound (exclusive) for the alignment range
+#[allow(non_snake_case, clippy::too_many_lines)]
+#[must_use]
+#[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
+pub fn sw_simd_score_ends<T, const N: usize, const S: usize>(
+    reference: &[u8], query: &StripedProfile<T, N, S>,
+) -> Option<(u32, usize, usize)>
+where
+    T: AlignableIntWidth,
+    LaneCount<N>: SupportedLaneCount,
+    Simd<T, N>: SimdAnyInt<T, N>, {
+    if reference.is_empty() {
+        return None;
+    }
+
+    let num_vecs = query.number_vectors();
+    let profile: &Vec<Simd<T, N>> = &query.profile;
+
+    let min = T::MIN;
+    let gap_opens = Simd::splat(query.gap_open);
+    let gap_extends = Simd::splat(query.gap_extend);
+    let minimums = Simd::splat(T::MIN);
+    let biases = Simd::splat(query.bias);
+
+    let saturating_threshold = if T::SIGNED { T::MAX } else { T::MAX - query.bias };
+
+    let mut load = vec![minimums; num_vecs];
+    let mut store = vec![minimums; num_vecs];
+    let mut e_scores = vec![minimums; num_vecs];
+    let mut max_row = vec![minimums; num_vecs];
+
+    let mut best = min;
+    let mut r_end = reference.len() - 1;
+
+    let map = query.mapping;
+
+    for (r, ref_index) in reference.iter().copied().map(|r| map.to_index(r)).enumerate() {
+        let mut F = minimums;
+        let mut H = store[num_vecs - 1].shift_elements_right::<1>(min);
+
+        if r > 1 && r_end == r - 2 {
+            (max_row, load) = (load, max_row);
+        }
+        (load, store) = (store, load);
+
+        // This statement helps with bounds checks.
+        let scores_vec = &profile[(ref_index * num_vecs)..(ref_index * num_vecs + num_vecs)];
+        let mut max_scores = minimums;
+
+        for v in 0..num_vecs {
+            let mut E = e_scores[v];
+
+            H = H.saturating_add(scores_vec[v]);
+            if !T::SIGNED {
+                H = H.saturating_sub(biases);
+            }
+
+            H = H.simd_max(E).simd_max(F);
+
+            max_scores = max_scores.simd_max(H);
+
+            store[v] = H;
+
+            H = H.saturating_sub(gap_opens);
+            E = E.saturating_sub(gap_extends).simd_max(H);
+            F = F.saturating_sub(gap_extends).simd_max(H);
+
+            e_scores[v] = E;
+            H = load[v];
+        }
+
+        'lazy_f: for _ in 0..N {
+            F = F.shift_elements_right::<1>(min);
+
+            for store_v in &mut store {
+                H = *store_v;
+
+                if !F.simd_gt(H.saturating_sub(gap_opens)).any() {
+                    break 'lazy_f;
+                }
+
+                H = H.simd_max(F);
+                *store_v = H;
+
+                F = F.saturating_sub(gap_extends);
+            }
+        }
+
+        let row_best = max_scores.reduce_max();
+        if row_best > best {
+            if row_best >= saturating_threshold {
+                return None;
+            }
+            best = row_best;
+            r_end = r;
+        }
+    }
+
+    if r_end == reference.len() - 1 {
+        max_row = store;
+    } else if r_end == reference.len() - 2 {
+        max_row = load;
+    }
+
+    let mut c_end = query.seq_len - 1;
+    for ci in 0..query.seq_len {
+        let v = ci % num_vecs;
+        let lane = (ci - v) / num_vecs;
+
+        if max_row[v][lane] == best {
+            c_end = ci;
+            break;
+        }
+    }
+
+    let best_score = if T::SIGNED {
+        (best < T::MAX).then(|| (T::MAX.cast_as::<u32>() + 1).wrapping_add_signed(best.cast_as::<i32>()))
+    } else {
+        best.checked_add(query.bias + T::ONE).map(|_| best.cast_as::<u32>())
+    }?;
+
+    r_end += 1;
+    c_end += 1;
+
+    Some((best_score, r_end, c_end))
+}
+
 /// Smith-Waterman algorithm (vectorized), yielding the optimal alignment.
 ///
 /// Provides the locally optimal sequence alignment (1) using affine gap

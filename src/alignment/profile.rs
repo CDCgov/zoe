@@ -1,7 +1,7 @@
 use crate::{
     alignment::{
         MaybeAligned,
-        sw::{sw_scalar_alignment, sw_scalar_score, sw_simd_alignment, sw_simd_score},
+        sw::{sw_scalar_alignment, sw_scalar_score, sw_simd_alignment, sw_simd_score, sw_simd_score_ends},
     },
     data::{WeightMatrix, err::QueryProfileError, mappings::ByteIndexMap},
     math::{AlignableIntWidth, AnyInt, FromSameSignedness},
@@ -299,6 +299,12 @@ where
     #[must_use]
     pub fn smith_waterman_alignment(&self, seq: &[u8]) -> MaybeAligned<u32> {
         sw_simd_alignment::<T, N, S>(seq, self)
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn smith_waterman_score_ends(&self, seq: &[u8]) -> Option<(u32, usize, usize)> {
+        sw_simd_score_ends::<T, N, S>(seq, self)
     }
 }
 

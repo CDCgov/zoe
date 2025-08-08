@@ -170,6 +170,22 @@ fn sw_simd_aln12() {
 }
 
 #[test]
+fn sw_simd_location() {
+    let reference = b"TTTTTTCCTTTTTTTTCCCCCTTTTT";
+    let query = b"GGGGGGGCCCCCA";
+
+    let weights = WeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N'));
+    let profile_scalar = ScalarProfile::new(query, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
+    let profile_simd = StripedProfile::<u8, 8, 5>::new(query, &weights.into_biased_matrix(), GAP_OPEN, GAP_EXTEND).unwrap();
+
+    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).unwrap();
+    let (score, ref_end, query_end) = profile_simd.smith_waterman_score_ends(reference).unwrap();
+    assert_eq!(score, aln_scalar.score);
+    assert_eq!(ref_end, aln_scalar.ref_range.end, "REFERENCE");
+    assert_eq!(query_end, aln_scalar.query_range.end, "QUERY");
+}
+
+#[test]
 fn sw_simd_poly_a() {
     let v: Vec<_> = std::iter::repeat_n(b'A', 100).collect();
     let matrix = WeightMatrix::new_dna_matrix(2, -5, Some(b'N')).into_biased_matrix();
