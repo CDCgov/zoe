@@ -11,24 +11,34 @@ pub mod fastq;
 /// special-case functions used by [IRMA](https://wonder.cdc.gov/amd/flu/irma/).
 pub mod sam;
 
+/// A wrapper around an error with a new message, and the original error
+/// accessible via [`Error::source`].
 #[derive(Debug)]
-struct RecordError {
+struct RecordErrorContext {
     description: String,
     source:      Box<dyn Error + Send + Sync>,
 }
 
-impl std::fmt::Display for RecordError {
+impl std::fmt::Display for RecordErrorContext {
+    #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.description)
     }
 }
 
-impl Error for RecordError {
+impl Error for RecordErrorContext {
+    #[inline]
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         Some(self.source.as_ref())
     }
 }
 
+/// A trait providing helper functions when implementing a reader for a record
+/// type (e.g., [`FastQReader`], [`FastaReader`], or [`SAMReader`]).
+///
+/// [`FastQReader`]: fastq::FastQReader
+/// [`FastaReader`]: fasta::FastaReader
+/// [`SAMReader`]: sam::SAMReader
 trait RecordReader {
     const RECORD_NAME: &str;
 
@@ -49,6 +59,13 @@ trait RecordReader {
         Ok(file)
     }
 
+    /// Creates a new [`std::io::Error`] with a particular [`ErrorKind`]. The
+    /// error message will contain a description, the name of the record
+    /// [`RECORD_NAME`], and the path to the file for which the error occurred.
+    ///
+    /// [`RECORD_NAME`]: RecordReader::RECORD_NAME
+    #[inline]
+    #[must_use]
     fn new_kind(description: &str, path: &Path, kind: ErrorKind) -> std::io::Error {
         std::io::Error::new(
             kind,
@@ -61,8 +78,20 @@ trait RecordReader {
         )
     }
 
+    /// Given a [`std::io::Error`], wrap it in another error with additional
+    /// context provided.
+    ///
+    /// Specifically, the original error `err` is first wrapped in a
+    /// [`RecordErrorContext`], with the `source` field pointing to the original error.
+    /// This is then put into an [`std::io::Error`], since this is the main
+    /// error type used by *Zoe*'s readers.
+    ///
+    /// The error message will contain a description, the name of the record
+    /// [`RECORD_NAME`], and the path to the file for which the error occurred.
+    ///
+    /// [`RECORD_NAME`]: RecordReader::RECORD_NAME
     fn new_wrapped(description: &str, path: &Path, err: std::io::Error) -> std::io::Error {
-        std::io::Error::other(RecordError {
+        std::io::Error::other(RecordErrorContext {
             description: format!(
                 "{desc} for {name}: '{path}'",
                 desc = description,

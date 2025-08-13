@@ -37,6 +37,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Scalar alignment functions return `MaybeAligned`
 - Smith-Waterman algorithms normalize to `u32` instead of `u64` for output score
 - Improves performance of profile creation.
+- Errors for FASTQ, FASTA, and SAM will save `PathBuf` information for display when opening a file.
 
 ### Removed
 
