@@ -10,10 +10,12 @@ use std::{
 };
 
 /// A lazily-evaluated set of striped alignment profiles for local
-/// (thread-specific) use. This is an abstraction around [`StripedProfile`],
-/// providing convenience methods for automatically increasing the integer width
-/// and rerunning the alignment when overflow occurs. This only supports the
-/// unsigned version of the algorithm.
+/// (thread-specific) use.
+///
+/// This is an abstraction around [`StripedProfile`], providing convenience
+/// methods for automatically increasing the integer width and rerunning the
+/// alignment when overflow occurs. This only supports the unsigned version of
+/// the algorithm.
 ///
 /// If it is necessary to share between multiple threads, consider using
 /// [`SharedProfiles`].
@@ -128,7 +130,7 @@ where
     /// ```
     #[inline]
     #[must_use]
-    pub fn smith_waterman_score_from_i8<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u64> {
+    pub fn smith_waterman_score_from_i8<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u32> {
         let query = query.as_ref();
         self.get_i8()
             .smith_waterman_score(query)
@@ -144,7 +146,7 @@ where
     /// See [`LocalProfiles::smith_waterman_score_from_i8`] for an example.
     #[inline]
     #[must_use]
-    pub fn smith_waterman_score_from_i16<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u64> {
+    pub fn smith_waterman_score_from_i16<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u32> {
         let query = query.as_ref();
         self.get_i16()
             .smith_waterman_score(query)
@@ -157,7 +159,7 @@ where
     /// See [`LocalProfiles::smith_waterman_score_from_i8`] for an example.
     #[inline]
     #[must_use]
-    pub fn smith_waterman_score_from_i32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u64> {
+    pub fn smith_waterman_score_from_i32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u32> {
         let query = query.as_ref();
         self.get_i32().smith_waterman_score(query)
     }
@@ -183,7 +185,7 @@ where
     /// ```
     #[inline]
     #[must_use]
-    pub fn smith_waterman_alignment_from_i8<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u64> {
+    pub fn smith_waterman_alignment_from_i8<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u32> {
         let query = query.as_ref();
         self.get_i8()
             .smith_waterman_alignment(query)
@@ -199,7 +201,7 @@ where
     /// See [`LocalProfiles::smith_waterman_alignment_from_i8`] for an example.
     #[inline]
     #[must_use]
-    pub fn smith_waterman_alignment_from_i16<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u64> {
+    pub fn smith_waterman_alignment_from_i16<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u32> {
         let query = query.as_ref();
         self.get_i16()
             .smith_waterman_alignment(query)
@@ -212,7 +214,7 @@ where
     /// See [`LocalProfiles::smith_waterman_alignment_from_i8`] for an example.
     #[inline]
     #[must_use]
-    pub fn smith_waterman_alignment_from_i32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u64> {
+    pub fn smith_waterman_alignment_from_i32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u32> {
         let query = query.as_ref();
         self.get_i32().smith_waterman_alignment(query)
     }
@@ -294,10 +296,12 @@ impl<'a, const S: usize> LocalProfiles<'a, 64, 32, 16, S> {
 }
 
 /// A lazily-evaluated set of striped alignment profiles which can be shared
-/// across threads. This is an abstraction around [`StripedProfile`], providing
-/// convenience methods for automatically increasing the integer width and
-/// rerunning the alignment when overflow occurs. This only supports the
-/// unsigned version of the algorithm.
+/// across threads.
+///
+/// This is an abstraction around [`StripedProfile`], providing convenience
+/// methods for automatically increasing the integer width and rerunning the
+/// alignment when overflow occurs. This only supports the unsigned version of
+/// the algorithm.
 ///
 /// When sharing between threads is not needed, consider using [`LocalProfiles`]
 /// instead.
@@ -412,7 +416,7 @@ where
     /// ```
     #[inline]
     #[must_use]
-    pub fn smith_waterman_score_from_i8<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u64> {
+    pub fn smith_waterman_score_from_i8<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u32> {
         let query = query.as_ref();
         self.get_i8()
             .smith_waterman_score(query)
@@ -428,7 +432,7 @@ where
     /// See [`SharedProfiles::smith_waterman_score_from_i8`] for an example.
     #[inline]
     #[must_use]
-    pub fn smith_waterman_score_from_i16<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u64> {
+    pub fn smith_waterman_score_from_i16<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u32> {
         let query = query.as_ref();
         self.get_i16()
             .smith_waterman_score(query)
@@ -441,7 +445,7 @@ where
     /// See [`SharedProfiles::smith_waterman_score_from_i8`] for an example.
     #[inline]
     #[must_use]
-    pub fn smith_waterman_score_from_i32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u64> {
+    pub fn smith_waterman_score_from_i32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u32> {
         let query = query.as_ref();
         self.get_i32().smith_waterman_score(query)
     }
@@ -467,7 +471,7 @@ where
     /// ```
     #[inline]
     #[must_use]
-    pub fn smith_waterman_alignment_from_i8<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u64> {
+    pub fn smith_waterman_alignment_from_i8<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u32> {
         let query = query.as_ref();
         self.get_i8()
             .smith_waterman_alignment(query)
@@ -483,7 +487,7 @@ where
     /// See [`SharedProfiles::smith_waterman_alignment_from_i8`] for an example.
     #[inline]
     #[must_use]
-    pub fn smith_waterman_alignment_from_i16<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u64> {
+    pub fn smith_waterman_alignment_from_i16<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u32> {
         let query = query.as_ref();
         self.get_i16()
             .smith_waterman_alignment(query)
@@ -496,7 +500,7 @@ where
     /// See [`SharedProfiles::smith_waterman_alignment_from_i8`] for an example.
     #[inline]
     #[must_use]
-    pub fn smith_waterman_alignment_from_i32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u64> {
+    pub fn smith_waterman_alignment_from_i32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u32> {
         let query = query.as_ref();
         self.get_i32().smith_waterman_alignment(query)
     }

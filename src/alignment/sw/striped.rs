@@ -1,6 +1,6 @@
 use super::*;
-use crate::{math::AnyInt, simd::SimdAnyInt};
-use std::simd::{LaneCount, SimdElement, SupportedLaneCount};
+use crate::{math::AlignableIntWidth, simd::SimdAnyInt};
+use std::simd::{LaneCount, SupportedLaneCount};
 
 /// Smith-Waterman algorithm (vectorized), yielding the optimal score.
 ///
@@ -12,9 +12,10 @@ use std::simd::{LaneCount, SimdElement, SupportedLaneCount};
 ///
 /// ## Complexity
 ///
-/// Time: $O(mn)$, with the average case as $mn/N$ for $N$ SIMD lanes
+/// For query length $m$, reference length $n$, and $N$ SIMD lanes:
 ///
-/// Space: $O(n)$
+/// - Time: $O(mn)$, with the average case as $O(mn/N)$
+/// - Space: $O(n)$
 ///
 /// ## Limitations
 ///
@@ -43,9 +44,9 @@ use std::simd::{LaneCount, SimdElement, SupportedLaneCount};
 #[allow(non_snake_case)]
 #[must_use]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
-pub fn sw_simd_score<T, const N: usize, const S: usize>(reference: &[u8], query: &StripedProfile<T, N, S>) -> Option<u64>
+pub fn sw_simd_score<T, const N: usize, const S: usize>(reference: &[u8], query: &StripedProfile<T, N, S>) -> Option<u32>
 where
-    T: AnyInt + SimdElement,
+    T: AlignableIntWidth,
     LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdAnyInt<T, N>, {
     let num_vecs = query.number_vectors();
@@ -125,12 +126,13 @@ where
     if T::SIGNED {
         // Map best score to an unsigned range. Note that: MAX+1 = abs(MIN). If
         // we would have overflowed (saturated), return None, otherwise return
-        // the best score.
-        (best < T::MAX).then(|| (T::MAX.cast_as::<u64>() + 1).wrapping_add_signed(best.cast_as::<i64>()))
+        // the best score. T is at most i32, so T::MAX + 1 fits in u32. Since
+        // best < i32::MAX, the wrapping add will never wrap
+        (best < T::MAX).then(|| (T::MAX.cast_as::<u32>() + 1).wrapping_add_signed(best.cast_as::<i32>()))
     } else {
         // If we would have overflowed, return None, otherwise return the best
         // score. We add one because we care if the value is equal to the MAX.
-        best.checked_add(query.bias + T::ONE).map(|_| best.cast_as::<u64>())
+        best.checked_add(query.bias + T::ONE).map(|_| best.cast_as::<u32>())
     }
 }
 
@@ -145,36 +147,41 @@ where
 ///
 /// ## Complexity
 ///
-/// Time: $O(mn)$, with the average case as $mn/V$ for $V$ SIMD lanes
+/// For query length $m$, reference length $n$, and $N$ SIMD lanes:
 ///
-/// Space: $O(mn)$
+/// - Time: $O(mn)$, with the average case as $O(mn/N)$
+/// - Space: $O(mn)$
 ///
 /// ## Limitations
 ///
-/// - This algorithm may not be suitable for large sequence pairs due to high memory usage.
+/// - This algorithm may not be suitable for large sequence pairs due to high
+///   memory usage.
 /// - For general use the `multiversion` feature is recommended.
 ///
 /// ## Example
 ///
 /// ```
-/// # use zoe::data::cigar::Cigar;
-/// # use zoe::{alignment::{Alignment, StripedProfile, sw::sw_simd_alignment}, data::WeightMatrix};
+/// # use zoe::{
+/// #     alignment::{Alignment, AlignmentStates, StripedProfile, sw::sw_simd_alignment},
+/// #     data::WeightMatrix,
+/// # };
+///
 /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
 /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
-///
 /// const WEIGHTS: WeightMatrix<u8, 5> = WeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
 /// const GAP_OPEN: i8 = -3;
 /// const GAP_EXTEND: i8 = -1;
-///
 /// let profile = StripedProfile::<u8, 8, 5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+/// let alignment = sw_simd_alignment(reference, &profile).unwrap();
+///
 /// let Alignment {
-///        score,
-///        ref_range: _,
-///        query_range:_,
-///        states,
-///        ..
-///    } = sw_simd_alignment(&reference, &profile).unwrap();
-/// assert_eq!(states, Cigar::from_slice_unchecked("6M2D9M3S"));
+///     score,
+///     ref_range,
+///     query_range,
+///     states,
+///     ..
+/// } = alignment;
+/// assert_eq!(states, AlignmentStates::try_from("6M2D9M3S").unwrap());
 /// assert_eq!(score, 26);
 /// ```
 #[allow(non_snake_case, clippy::too_many_lines)]
@@ -182,9 +189,9 @@ where
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
 pub fn sw_simd_alignment<T, const N: usize, const S: usize>(
     reference: &[u8], query: &StripedProfile<T, N, S>,
-) -> MaybeAligned<u64>
+) -> MaybeAligned<u32>
 where
-    T: AnyInt + SimdElement,
+    T: AlignableIntWidth,
     LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdAnyInt<T, N>, {
     if reference.is_empty() {
@@ -319,7 +326,8 @@ where
     // SAFETY: we have initialized all members of the table in the main loop.
     //
     // Also, this should not re-allocate thanks to equivalent size and
-    // alignment: https://doc.rust-lang.org/nightly/src/alloc/vec/in_place_collect.rs.html
+    // alignment:
+    // https://doc.rust-lang.org/nightly/src/alloc/vec/in_place_collect.rs.html
     let mut backtrack = BacktrackMatrixStriped::new(
         backtrack.into_iter().map(|uninit| unsafe { uninit.assume_init() }).collect(),
         num_vecs,
@@ -328,12 +336,14 @@ where
     if T::SIGNED {
         // Map best score to an unsigned range. Note that: MAX+1 = abs(MIN). If
         // we would have overflowed (saturated), return None, otherwise return
-        // the best score.
-        (best < T::MAX).then(|| (T::MAX.cast_as::<u64>() + 1).wrapping_add_signed(best.cast_as::<i64>()))
+        // the best score. T is at most i32, so T::MAX + 1 fits in u32. Since
+        // best < i32::MAX, the wrapping add will never wrap
+        (best < T::MAX).then(|| (T::MAX.cast_as::<u32>() + 1).wrapping_add_signed(best.cast_as::<i32>()))
     } else {
         // If we would have overflowed, return None, otherwise return the best
         // score. We add one because we care if the value is equal to the MAX.
-        best.checked_add(query.bias + T::ONE).map(|_| best.cast_as::<u64>())
+        // TODO: Justify safety
+        best.checked_add(query.bias + T::ONE).map(|_| best.cast_as::<u32>())
     }
     .map_or(MaybeAligned::Overflowed, |score| {
         if score == 0 {

@@ -11,7 +11,7 @@ macro_rules! test_sw_simd_alignment {
             StripedProfile::<$int_type, $lanes, 5>::new($profile_seq, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
 
         let score = profile_simd.smith_waterman_score($other_seq);
-        let aln_scalar = profile_scalar.smith_waterman_alignment($other_seq).unwrap().as_u64();
+        let aln_scalar = profile_scalar.smith_waterman_alignment($other_seq).unwrap().as_u32();
         let aln_simd = profile_simd.smith_waterman_alignment($other_seq).unwrap();
 
         assert_eq!(score, Some(aln_scalar.score));
@@ -40,7 +40,7 @@ fn sw_verify_score_from_path() {
         ..
     } = sw_scalar_alignment(reference, &profile).unwrap();
 
-    assert_eq!(Ok(score as u64), sw_score_from_path(&states, &reference[ref_range], &profile));
+    assert_eq!(Ok(score), sw_score_from_path(&states, &reference[ref_range], &profile));
 }
 
 #[test]
@@ -193,7 +193,7 @@ fn sw_simd_regression() {
     let reference = b"AA";
     let matrix = WeightMatrix::new(&DNA_PROFILE_MAP, 10, -10, Some(b'N')).into_biased_matrix();
     let profile = StripedProfile::<u16, 4, 5>::new(query, &matrix, -5, -5).unwrap();
-    let score: Option<u64> = profile.smith_waterman_score(reference);
+    let score = profile.smith_waterman_score(reference);
     assert_eq!(Some(15), score);
 }
 

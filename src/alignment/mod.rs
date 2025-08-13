@@ -3,7 +3,7 @@
 //! *Zoe* supports alignment for DNA, protein, or any other
 //! sequence data.
 //!
-//! - [Smith-Waterman] optimal, local alignment in the [sw] module.
+//! - [Smith-Waterman]: Optimal local alignment in the [`sw`] module.
 //!
 //! [Smith-Waterman]: https://en.wikipedia.org/wiki/Smith%E2%80%93Waterman_algorithm
 
@@ -134,16 +134,16 @@ impl<T> Alignment<T> {
         AlignmentIter::new(reference, query, &self.states, self.ref_range.start)
     }
 
-    // Convenience function for coercing scores to `u64` for fuzzing and
+    // Convenience function for coercing scores to `u32` for fuzzing and
     // testing.
     #[inline]
     #[must_use]
     #[cfg(any(feature = "fuzzing", test))]
-    pub fn as_u64(&self) -> Alignment<u64>
+    pub fn as_u32(&self) -> Alignment<u32>
     where
         T: crate::math::AnyInt, {
         Alignment {
-            score:       self.score.cast_as::<u64>(),
+            score:       self.score.cast_as::<u32>(),
             ref_range:   self.ref_range.clone(),
             query_range: self.query_range.clone(),
             states:      self.states.clone(),

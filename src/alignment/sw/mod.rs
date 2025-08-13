@@ -1,7 +1,8 @@
 //! ## Smith-Waterman Alignment
 //!
-//! For generating the optimal, local score use [`sw_simd_score`] or a wrapper thereof.
-//! Likewise, for generating an optimal, local alignment use [`sw_simd_alignment`].
+//! For generating the optimal, local score use [`sw_simd_score`] or a wrapper
+//! thereof. Likewise, for generating an optimal, local alignment use
+//! [`sw_simd_alignment`].
 //!
 //! ### Affine Gap Penalties
 //!
@@ -22,24 +23,29 @@
 //! 2. Specify the [`WeightMatrix`] used for scoring matches and mismatches. For
 //!    DNA, [`new_dna_matrix`] is a convenient constructor.
 //!
-//! 3. Build the query profile with [`StripedProfile::new`]. This
-//!    step combines the query, matrix of weights, and gap open and gap extend
-//!    penalties. This step also performs some basic checks, and if any of the
-//!    inputs are invalid, a [`QueryProfileError`] is returned.
+//! 3. Build the query profile with [`StripedProfile::new`]. This step combines
+//!    the query, matrix of weights, and gap open and gap extend penalties. This
+//!    step also performs some basic checks, and if any of the inputs are
+//!    invalid, a [`QueryProfileError`] is returned.
 //!
 //! 4. Use the query profile to align against any number of different
-//!    references. Simply call the [`StripedProfile::smith_waterman_score`]
-//!    method. The profile can be reused in multiple different calls.
+//!    references. For the score only, use
+//!    [`StripedProfile::smith_waterman_score`]. For the full alignment, use
+//!    [`StripedProfile::smith_waterman_alignment`].
+//!
+//! Note: Scalar versions ([`sw_scalar_score`], [`sw_scalar_alignment`], and
+//! [`ScalarProfile`]) are also available for fuzzing and testing purposes.
 //!
 //! Below is an example using DNA. We use a match score of 4 and a mismatch
 //! score of -2, as defined in `WEIGHTS`. We also choose to use a
 //! `StripedProfile` (so that the SIMD algorithm is used) with integer type `i8`
 //! and 32 lanes.
 //!
-//! Note: Scalar versions ([`sw_scalar_score`], [`sw_scalar_alignment`], and
-//! [`ScalarProfile`]) are also available for fuzzing and testing purposes.
 //! ```
-//! # use zoe::{alignment::StripedProfile, data::WeightMatrix};
+//! # use zoe::{
+//! #     alignment::{Alignment, AlignmentStates, StripedProfile},
+//! #     data::WeightMatrix
+//! # };
 //! let reference: &[u8] = b"GGCCACAGGATTGAG";
 //! let query: &[u8] = b"CTCAGATTG";
 //!
@@ -48,15 +54,24 @@
 //! const GAP_EXTEND: i8 = -1;
 //!
 //! let profile = StripedProfile::<i8, 32, 5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-//! let score = profile.smith_waterman_score(reference).unwrap();
+//! let alignment = profile.smith_waterman_alignment(reference).unwrap();
+//!
+//! let Alignment {
+//!     score,
+//!     ref_range,
+//!     query_range,
+//!     states,
+//!     ..
+//! } = alignment;
 //! assert_eq!(score, 27);
+//! assert_eq!(states, AlignmentStates::try_from(b"5M1D4M").unwrap());
 //! ```
 //!
 //! Below is an example using a different alphabet. Matches are given a score of
 //! 1 and mismatches are given a score of -1.
 //! ```
 //! # use zoe::{
-//! #     alignment::StripedProfile,
+//! #     alignment::{Alignment, AlignmentStates, StripedProfile},
 //! #     data::{WeightMatrix, ByteIndexMap},
 //! # };
 //! let reference: &[u8] = b"BDAACAABDDDB";
@@ -68,23 +83,32 @@
 //! const GAP_EXTEND: i8 = -2;
 //!
 //! let profile = StripedProfile::<i8, 32, 4>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-//! let score = profile.smith_waterman_score(reference).unwrap();
+//! let alignment = profile.smith_waterman_alignment(reference).unwrap();
+//!
+//! let Alignment {
+//!     score,
+//!     ref_range,
+//!     query_range,
+//!     states,
+//!     ..
+//! } = alignment;
 //! assert_eq!(score, 5);
+//! assert_eq!(states, AlignmentStates::try_from(b"5M2S").unwrap())
 //! ```
 //!
 //! When using the SIMD algorithm, you must specify the number of lanes `N` and
-//! integer type `T` (typically i8, i16, or i32). If the integer type has
-//! too small of a range, it is possible the alignment score will overflow (in
-//! which case `None` is returned). A higher-level abstraction to avoid this
-//! uses profile sets: [`LocalProfiles`] or [`SharedProfiles`].
+//! integer type `T` (typically i8, i16, or i32). If the integer type has too
+//! small of a range, it is possible the alignment score will overflow (in which
+//! case `None` is returned). A higher-level abstraction to avoid this uses
+//! profile sets: [`LocalProfiles`] or [`SharedProfiles`].
 //!
 //! The former is designed for use within a single thread, while the latter
 //! allows multiple threads to access it. Both store a set of lazily-evaluated
-//! query profiles for `i8`, `i16`, and `i32`. To create one of these,
-//! you can call [`LocalProfiles::new_with_w256`],
-//! [`SharedProfiles::new_with_w256`], or one of the other constructors. Then,
-//! call [`LocalProfiles::smith_waterman_score_from_i8`],
-//! [`SharedProfiles::smith_waterman_score_from_i8`], or one of the other
+//! query profiles for `i8`, `i16`, and `i32`. To create one of these, you can
+//! call [`LocalProfiles::new_with_w256`], [`SharedProfiles::new_with_w256`], or
+//! one of the other constructors. Then, call
+//! [`LocalProfiles::smith_waterman_alignment_from_i8`],
+//! [`SharedProfiles::smith_waterman_alignment_from_i8`], or one of the other
 //! methods.
 //!
 //! When using DNA, you can also create a profile by using
@@ -92,7 +116,11 @@
 //!
 //! Below is the previous example using DNA, but with this higher-level API:
 //! ```
-//! # use zoe::{data::WeightMatrix, prelude::Nucleotides};
+//! # use zoe::{
+//! #     alignment::{Alignment, AlignmentStates},
+//! #     data::WeightMatrix,
+//! #     prelude::Nucleotides
+//! # };
 //! let reference: &[u8] = b"GGCCACAGGATTGAG";
 //! let query: Nucleotides = b"CTCAGATTG".into();
 //!
@@ -101,14 +129,23 @@
 //! const GAP_EXTEND: i8 = -1;
 //!
 //! let profile = query.into_local_profile(&WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-//! let score = profile.smith_waterman_score_from_i8(reference).unwrap();
+//! let alignment = profile.smith_waterman_alignment_from_i8(reference).unwrap();
+//!
+//! let Alignment {
+//!     score,
+//!     ref_range,
+//!     query_range,
+//!     states,
+//!     ..
+//! } = alignment;
 //! assert_eq!(score, 27);
+//! assert_eq!(states, AlignmentStates::try_from(b"5M1D4M").unwrap());
 //! ```
 //!
 //! And similarly with the different alphabet:
 //! ```
 //! # use zoe::{
-//! #     alignment::LocalProfiles,
+//! #     alignment::{Alignment, AlignmentStates, LocalProfiles},
 //! #     data::{WeightMatrix, ByteIndexMap},
 //! # };
 //! let reference: &[u8] = b"BDAACAABDDDB";
@@ -120,8 +157,17 @@
 //! const GAP_EXTEND: i8 = -2;
 //!
 //! let profile = LocalProfiles::new_with_w256(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-//! let score = profile.smith_waterman_score_from_i8(reference).unwrap();
+//! let alignment = profile.smith_waterman_alignment_from_i8(reference).unwrap();
+//!
+//! let Alignment {
+//!     score,
+//!     ref_range,
+//!     query_range,
+//!     states,
+//!     ..
+//! } = alignment;
 //! assert_eq!(score, 5);
+//! assert_eq!(states, AlignmentStates::try_from(b"5M2S").unwrap());
 //! ```
 //!
 //! ## Module Citations
@@ -147,8 +193,8 @@
 //!    156-161. doi: <https://doi.org/10.1093/bioinformatics/btl582>
 //!
 //! 6. Szalkowski, Adam, Ledergerber, Christian, Krähenbühl, Philipp & Dessimoz,
-//!    Christophe (2008). "SWPS3 - fast multi-threaded vectorized
-//!    Smith-Waterman for IBM Cell/B.E. and x86/SSE2". BMC Research Notes. 1:
+//!    Christophe (2008). "SWPS3 - fast multi-threaded vectorized Smith-Waterman
+//!    for IBM Cell/B.E. and x86/SSE2". BMC Research Notes. 1:
 //!    107. doi: <https://doi.org/10.1186/1756-0500-1-107>
 //!
 //! 7. Zhao, Mengyao, Lee, Wan-Ping, Garrison, Erik P. & Marth, Gabor T. (2013).
@@ -157,8 +203,8 @@
 //!    <https://doi.org/10.1371/journal.pone.0082138>
 //!
 //! 8. Daily, Jeff (2016). "Parasail: SIMD C library for global, semi-global,
-//!    and local pairwise sequence alignments". BMC Bioinformatics. 17: 81.
-//!    doi: <https://doi.org/10.1186/s12859-016-0930-z>
+//!    and local pairwise sequence alignments". BMC Bioinformatics. 17: 81. doi:
+//!    <https://doi.org/10.1186/s12859-016-0930-z>
 //!
 //!
 //! [`sw_scalar_score`]: sw::sw_scalar_score
@@ -172,16 +218,21 @@
 //! [`new_biased_dna_matrix`]: crate::data::WeightMatrix::new_biased_dna_matrix
 //! [`new_dna_matrix`]: crate::data::WeightMatrix::new_dna_matrix
 //! [`QueryProfileError`]: crate::data::err::QueryProfileError
-//! [`Nucleotides::into_local_profile`]: crate::data::types::nucleotides::Nucleotides::into_local_profile
-//! [`Nucleotides::into_shared_profile`]: crate::data::types::nucleotides::Nucleotides::into_shared_profile
+//! [`Nucleotides::into_local_profile`]:
+//!     crate::data::types::nucleotides::Nucleotides::into_local_profile
+//! [`Nucleotides::into_shared_profile`]:
+//!     crate::data::types::nucleotides::Nucleotides::into_shared_profile
 //! [`ScalarProfile::new`]: ScalarProfile::new
 //! [`StripedProfile::new`]: StripedProfile::new
 //! [`ScalarProfile::smith_waterman_score`]: ScalarProfile::smith_waterman_score
-//! [`StripedProfile::smith_waterman_score`]: StripedProfile::smith_waterman_score
+//! [`StripedProfile::smith_waterman_score`]:
+//!     StripedProfile::smith_waterman_score
 //! [`LocalProfiles`]: LocalProfiles
 //! [`SharedProfiles`]: SharedProfiles
-//! [`LocalProfiles::smith_waterman_score_from_i8`]: LocalProfiles::smith_waterman_score_from_i8
-//! [`SharedProfiles::smith_waterman_score_from_i8`]: SharedProfiles::smith_waterman_score_from_i8
+//! [`LocalProfiles::smith_waterman_score_from_i8`]:
+//!     LocalProfiles::smith_waterman_score_from_i8
+//! [`SharedProfiles::smith_waterman_score_from_i8`]:
+//!     SharedProfiles::smith_waterman_score_from_i8
 
 #![allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
 use super::*;
@@ -191,20 +242,22 @@ use std::{
     simd::prelude::*,
 };
 
-/// Compute the Smith-Waterman score for the alignment given by `cigar` between
-/// `query` and the reference slice corresponding to the
-/// [`Alignment::ref_range`].
+/// Compute the Smith-Waterman score for a given alignment.
+///
+/// When scoring an alignment, this function expects the full `query` to be
+/// passed as a [`ScalarProfile`], as well as the slice of the reference which
+/// was aligned to (e.g., the indices in [`Alignment::ref_range`]).
 ///
 /// ## Errors
 ///
-/// - A `cigar` must be a valid CIGAR string
+/// - The `ciglets` must contain valid operations
 /// - All of `query`, `ref_in_alignment`, and `cigar` must be fully consumed
 /// - The final score should be nonnegative
 pub fn sw_score_from_path<const S: usize>(
     ciglets: impl IntoIterator<Item = Ciglet>, ref_in_alignment: &[u8], query: &ScalarProfile<S>,
-) -> Result<u64, ScoringError> {
+) -> Result<u32, ScoringError> {
     let mut score = 0;
-    let mut r: usize = 0;
+    let mut r = 0;
     let mut q = 0;
 
     for Ciglet { inc, op } in ciglets {
@@ -249,7 +302,8 @@ pub fn sw_score_from_path<const S: usize>(
         Equal => {}
     }
 
-    match u64::try_from(score) {
+    // score is i32, so this cast solely could fail due to it being negative
+    match u32::try_from(score) {
         Ok(score) => Ok(score),
         Err(_) => Err(ScoringError::NegativeScore(score)),
     }

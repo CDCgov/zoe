@@ -1,9 +1,12 @@
 use crate::{
     alignment::{Alignment, MaybeAligned},
-    data::types::{
-        amino_acids::AminoAcids,
-        cigar::{Cigar, Ciglet},
-        nucleotides::Nucleotides,
+    data::{
+        cigar::{CigarError, CigletIteratorChecked},
+        types::{
+            amino_acids::AminoAcids,
+            cigar::{Cigar, Ciglet},
+            nucleotides::Nucleotides,
+        },
     },
     private::Sealed,
 };
@@ -285,20 +288,97 @@ impl std::fmt::Display for AlignmentStates {
     }
 }
 
-/// Aligns two sequences using anything that can be converted to an iterator
-/// over [`Ciglet`], inserting gaps as needed. Also takes a reference sequence,
-/// query sequence, and a reference index, and returns two aligned sequences
-/// with gaps inserted according to the alignment state operations. The first
-/// output is the reference, and the second is the query.
+impl TryFrom<&[u8]> for AlignmentStates {
+    type Error = CigarError;
+
+    fn try_from(v: &[u8]) -> Result<Self, Self::Error> {
+        if v == b"*" {
+            Ok(AlignmentStates::new())
+        } else {
+            CigletIteratorChecked::new(v)
+                .collect::<Result<Vec<_>, _>>()
+                .map(AlignmentStates)
+        }
+    }
+}
+
+impl TryFrom<String> for AlignmentStates {
+    type Error = CigarError;
+
+    #[inline]
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        AlignmentStates::try_from(s.as_bytes())
+    }
+}
+
+impl TryFrom<Vec<u8>> for AlignmentStates {
+    type Error = CigarError;
+
+    #[inline]
+    fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
+        AlignmentStates::try_from(bytes.as_slice())
+    }
+}
+
+impl<const N: usize> TryFrom<[u8; N]> for AlignmentStates {
+    type Error = CigarError;
+
+    #[inline]
+    fn try_from(v: [u8; N]) -> Result<Self, Self::Error> {
+        AlignmentStates::try_from(v.as_slice())
+    }
+}
+
+impl TryFrom<&mut [u8]> for AlignmentStates {
+    type Error = CigarError;
+
+    #[inline]
+    fn try_from(v: &mut [u8]) -> Result<Self, Self::Error> {
+        AlignmentStates::try_from(&*v)
+    }
+}
+
+impl<const N: usize> TryFrom<&[u8; N]> for AlignmentStates {
+    type Error = CigarError;
+
+    #[inline]
+    fn try_from(v: &[u8; N]) -> Result<Self, Self::Error> {
+        AlignmentStates::try_from(v.as_slice())
+    }
+}
+
+impl<const N: usize> TryFrom<&mut [u8; N]> for AlignmentStates {
+    type Error = CigarError;
+
+    #[inline]
+    fn try_from(v: &mut [u8; N]) -> Result<Self, Self::Error> {
+        AlignmentStates::try_from(v.as_slice())
+    }
+}
+
+impl TryFrom<&str> for AlignmentStates {
+    type Error = CigarError;
+
+    #[inline]
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        AlignmentStates::try_from(s.as_bytes())
+    }
+}
+
+/// Produces aligned sequences using an iterator of [`Ciglet`] elements,
+/// inserting gaps as needed.
 ///
-/// Only the portion of the sequences corresponding to the [`Cigar`] /
-/// [`AlignmentStates`] are included in the output.
+/// This also takes a reference sequence, query sequence, and a reference index.
+/// The first output is the reference, and the second is the query.
+///
+/// Only the portion of the sequences corresponding to the ciglets are included
+/// in the output.
 ///
 /// ## Panics
 ///
 /// * All operations must be valid state, e.g, bytes in `MIDNSHP=X`.
-/// * The reference and query must be at least as long as the length implied
-///   by alignment operations.
+/// * The reference and query must be at least as long as the length implied by
+///   alignment operations.
 #[inline]
 #[must_use]
 pub fn pairwise_align_with(
@@ -405,8 +485,10 @@ impl PairwiseSequence for AminoAcids {
 }
 
 /// Iterator yielding the aligned bases as specified by the given alignment
-/// operations. The first base is from the reference, and the second base is
-/// from the query. Gaps are represented by `None`.
+/// operations.
+///
+/// The first base is from the reference, and the second base is from the query.
+/// Gaps are represented by `None`.
 pub struct AlignmentIter<'a, I>
 where
     I: Iterator<Item = Ciglet>, {

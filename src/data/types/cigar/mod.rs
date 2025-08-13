@@ -1,6 +1,6 @@
 use crate::{
     alignment::{AlignmentStates, StatesSequence},
-    data::mappings::IS_CIGAR,
+    unwrap_or_return_some_err,
 };
 
 #[cfg(test)]
@@ -29,6 +29,13 @@ const USIZE_WIDTH: usize = 10;
 const USIZE_WIDTH: usize = 20;
 
 impl Cigar {
+    /// Retrieves the underlying byte string from the CIGAR string
+    #[inline]
+    #[must_use]
+    pub fn as_bytes(&self) -> &[u8] {
+        self.0.as_slice()
+    }
+
     /// Creates a CIGAR string from a Vec of bytes without checking for validity
     #[inline]
     #[must_use]
@@ -113,38 +120,12 @@ impl Cigar {
     /// Checks for errors in the CIGAR string, returning the particular
     /// [`CigarError`] if one is present
     fn check_for_err(bytes: &[u8]) -> Result<(), CigarError> {
-        let mut num: usize = 0;
-        let mut has_number = false;
-
         if bytes == b"*" || bytes.is_empty() {
             return Ok(());
         }
-
-        for b in bytes {
-            if b.is_ascii_digit() {
-                num = num
-                    .checked_mul(10)
-                    .and_then(|n| n.checked_add((b - b'0') as usize))
-                    .ok_or(CigarError::IncOverflow)?;
-                has_number = true;
-            } else if IS_CIGAR[*b as usize] {
-                if !has_number {
-                    return Err(CigarError::MissingInc);
-                }
-                if num == 0 {
-                    return Err(CigarError::IncZero);
-                }
-                num = 0;
-                has_number = false;
-            } else {
-                return Err(CigarError::InvalidOperation);
-            }
+        for ciglet in CigletIteratorChecked::new(bytes) {
+            ciglet?;
         }
-
-        if has_number {
-            return Err(CigarError::MissingOp);
-        }
-
         Ok(())
     }
 }
@@ -475,6 +456,85 @@ impl FromIterator<Ciglet> for Result<Cigar, CigarError> {
         }
 
         Ok(Cigar(byte_string))
+    }
+}
+
+/// Similar to [`CigletIterator`], but performs checking to ensure eacg ciglet
+/// is valid during iteration.
+///
+/// Exhausting the iterator and checking for errors is equivalent to
+/// [`Cigar::is_valid`], except that `*` will not be considered valid by this
+/// method.
+pub(crate) struct CigletIteratorChecked<'a> {
+    buffer: &'a [u8],
+}
+
+impl<'a> CigletIteratorChecked<'a> {
+    pub(crate) fn new(bytes: &'a [u8]) -> CigletIteratorChecked<'a> {
+        Self { buffer: bytes }
+    }
+}
+
+impl Iterator for CigletIteratorChecked<'_> {
+    type Item = Result<Ciglet, CigarError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut num = 0;
+        let mut has_number = false;
+        let mut index = 0;
+        let limit = std::cmp::min(self.buffer.len(), USIZE_WIDTH - 1);
+        while index != limit {
+            let b = self.buffer[index];
+
+            if b.is_ascii_digit() {
+                num *= 10;
+                num += usize::from(b - b'0');
+                has_number = true;
+            } else if is_valid_op(b) {
+                if !has_number {
+                    return Some(Err(CigarError::MissingInc));
+                }
+                if num == 0 {
+                    return Some(Err(CigarError::IncZero));
+                }
+                self.buffer = &self.buffer[index + 1..];
+                return Some(Ok(Ciglet { inc: num, op: b }));
+            } else {
+                return Some(Err(CigarError::InvalidOperation));
+            }
+            index += 1;
+        }
+
+        while index != self.buffer.len() {
+            let b = self.buffer[index];
+
+            if b.is_ascii_digit() {
+                num = unwrap_or_return_some_err!(
+                    num.checked_mul(10)
+                        .and_then(|n| n.checked_add(usize::from(b - b'0')))
+                        .ok_or(CigarError::IncOverflow)
+                );
+                has_number = true;
+            } else if is_valid_op(b) {
+                if !has_number {
+                    return Some(Err(CigarError::MissingInc));
+                }
+                if num == 0 {
+                    return Some(Err(CigarError::IncZero));
+                }
+                self.buffer = &self.buffer[index + 1..];
+                return Some(Ok(Ciglet { inc: num, op: b }));
+            } else {
+                return Some(Err(CigarError::InvalidOperation));
+            }
+            index += 1;
+        }
+
+        if has_number {
+            return Some(Err(CigarError::MissingOp));
+        }
+
+        None
     }
 }
 

@@ -2,7 +2,7 @@
 use super::*;
 use std::ops::Add;
 
-/// Smith-Waterman algorithm, yielding the optimal score.
+/// Smith-Waterman algorithm (non-vectorized), yielding the optimal score.
 ///
 /// Provides the locally optimal sequence alignment score (1) using affine gap
 /// penalties (2). Our implementation adapts the algorithm provided by [*Flouri
@@ -13,9 +13,10 @@ use std::ops::Add;
 ///
 /// ## Complexity
 ///
-/// Time: $O(mn)$
+/// For query length $m$ and reference length $n$:
 ///
-/// Space: $O(m)$ where $m$ is the length of the query
+/// - Time: $O(mn)$
+/// - Space: $O(m)$
 ///
 /// ## Limitations
 ///
@@ -39,10 +40,10 @@ use std::ops::Add;
 /// ```
 #[must_use]
 #[allow(clippy::cast_sign_loss)]
-pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S>) -> u64 {
+pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S>) -> u32 {
     let mut best_score = 0;
     let mut h_row = vec![0; query.seq.len()];
-    let mut e_row: Vec<i32> = vec![query.gap_open; query.seq.len()];
+    let mut e_row = vec![query.gap_open; query.seq.len()];
 
     for reference_base in reference.iter().copied() {
         let mut f = query.gap_open;
@@ -65,11 +66,12 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
         }
     }
 
-    // Score must be non-negative
-    best_score as u64
+    // score is i32 and is non-negative due to this algorithm, so this is a
+    // valid cast
+    best_score as u32
 }
 
-/// Perform a local Smith-Waterman alignment.
+/// Smith-Waterman algorithm (non-vectorized), yielding the optimal alignment.
 ///
 /// Provides the locally optimal sequence alignment (1) using affine gap
 /// penalties (2) with improvements and corrections by (3-4). Our implementation
@@ -80,9 +82,10 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 ///
 /// ## Complexity
 ///
-/// Time: $O(mn)$
+/// For query length $m$ and reference length $n$:
 ///
-/// Space: $O(mn)$
+/// - Time: $O(mn)$
+/// - Space: $O(mn)$
 ///
 /// ## Limitations
 ///
@@ -108,7 +111,8 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 /// assert_eq!(alignment.score, 27);
 /// ```
 #[must_use]
-pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfile<S>) -> MaybeAligned<i32> {
+#[allow(clippy::cast_sign_loss)]
+pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfile<S>) -> MaybeAligned<u32> {
     if reference.is_empty() {
         return MaybeAligned::Unmapped;
     }
@@ -177,5 +181,7 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
         return MaybeAligned::Unmapped;
     }
 
-    backtrack.to_alignment(best_score, r_end, c_end, reference.len(), query.seq.len())
+    // score is i32 and is non-negative due to this algorithm, so this is a
+    // valid cast
+    backtrack.to_alignment(best_score as u32, r_end, c_end, reference.len(), query.seq.len())
 }

@@ -35,6 +35,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Implement `Ord` and `PartialOrd` for `Cigar` and `QualityScores`
 - Improved error messages for `ScoringError`
 - Scalar alignment functions return `MaybeAligned`
+- Smith-Waterman algorithms normalize to `u32` instead of `u64` for output score
 - Improves performance of profile creation.
 
 ### Removed

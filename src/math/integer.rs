@@ -2,6 +2,7 @@ use std::{
     fmt::Debug,
     hash::Hash,
     ops::{Add, AddAssign, BitAnd, BitOr, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign},
+    simd::SimdElement,
 };
 
 use crate::{
@@ -148,7 +149,7 @@ impl_from_same_sign! {i64 => i64, i128}
 impl_from_same_sign! {i128 => i128}
 
 /// Valid integer widths for sequence alignment scores.
-pub trait AlignableIntWidth: Sealed {}
+pub trait AlignableIntWidth: AnyInt + SimdElement + Sealed {}
 
 impl AlignableIntWidth for u8 {}
 impl AlignableIntWidth for u16 {}

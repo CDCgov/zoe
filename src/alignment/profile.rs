@@ -107,7 +107,7 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// ```
     #[inline]
     #[must_use]
-    pub fn smith_waterman_score(&self, seq: &[u8]) -> u64 {
+    pub fn smith_waterman_score(&self, seq: &[u8]) -> u32 {
         sw_scalar_score(seq, self)
     }
 
@@ -136,7 +136,7 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// ```
     #[inline]
     #[must_use]
-    pub fn smith_waterman_alignment(&self, seq: &[u8]) -> MaybeAligned<i32> {
+    pub fn smith_waterman_alignment(&self, seq: &[u8]) -> MaybeAligned<u32> {
         sw_scalar_alignment(seq, self)
     }
 }
@@ -245,7 +245,7 @@ where
 impl<T, const N: usize, const S: usize> StripedProfile<'_, T, N, S>
 where
     LaneCount<N>: SupportedLaneCount,
-    T: AnyInt + SimdElement,
+    T: AlignableIntWidth,
     Simd<T, N>: SimdAnyInt<T, N>,
 {
     /// Computes the Smith-Waterman local alignment score between the `u8`
@@ -270,7 +270,7 @@ where
     /// ```
     #[inline]
     #[must_use]
-    pub fn smith_waterman_score(&self, seq: &[u8]) -> Option<u64> {
+    pub fn smith_waterman_score(&self, seq: &[u8]) -> Option<u32> {
         sw_simd_score::<T, N, S>(seq, self)
     }
 
@@ -297,7 +297,7 @@ where
     /// ```
     #[inline]
     #[must_use]
-    pub fn smith_waterman_alignment(&self, seq: &[u8]) -> MaybeAligned<u64> {
+    pub fn smith_waterman_alignment(&self, seq: &[u8]) -> MaybeAligned<u32> {
         sw_simd_alignment::<T, N, S>(seq, self)
     }
 }

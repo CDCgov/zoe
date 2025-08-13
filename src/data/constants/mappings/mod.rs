@@ -11,9 +11,6 @@ pub use byte_index::*;
 pub use dna::*;
 pub use gc::*;
 
-/// A boolean mapping of possible CIGAR string characters (not counting `*`)
-pub(crate) const IS_CIGAR: [bool; 256] = make_is_alpha_mapping(b"MDNX=ISHP0123456789");
-
 /// Utility function for building *is alpha*-like maps
 const fn make_is_alpha_mapping<const N: usize>(alpha: &[u8; N]) -> [bool; 256] {
     let mut mapping = [false; 256];
