@@ -40,6 +40,7 @@ impl Error for RecordErrorContext {
 /// [`FastaReader`]: fasta::FastaReader
 /// [`SAMReader`]: sam::SAMReader
 trait RecordReader {
+    /// The name of the record type, for use in error messages.
     const RECORD_NAME: &str;
 
     /// Opens a file, checking to ensure that it is non-empty, and providing

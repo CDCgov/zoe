@@ -114,7 +114,7 @@ impl<T: Float> SemiLocalModule<T> {
         Self(vec![T::ZERO; core.num_pseudomatch()])
     }
 
-    /// Get the transition parameter stored within a [`SemiLocalModule`] for
+    /// Gets the transition parameter stored within a [`SemiLocalModule`] for
     /// transitioning from/to a given [`PhmmIndex`].
     #[inline]
     #[must_use]

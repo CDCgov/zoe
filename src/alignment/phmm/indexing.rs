@@ -8,12 +8,14 @@ use std::ops::{Bound, Range};
 /// pHMMs and modules.
 pub(crate) trait PhmmIndexable: Sized {
     /// Returns the number of pseudomatch states in the pHMM-related structure
-    /// (either a match state for the reference, or BEGIN or END)
+    /// (either a match state for the reference, or BEGIN or END).
     fn num_pseudomatch(&self) -> usize;
 
     /// Returns the length of the reference which the pHMM-related structure
-    /// represents. This is also the number of match states in the pHMM-related
-    /// structure, excluding BEGIN and END
+    /// represents.
+    ///
+    /// This is also the number of match states in the pHMM-related structure,
+    /// excluding BEGIN and END.
     #[inline]
     fn seq_len(&self) -> usize {
         self.num_pseudomatch() - 2
@@ -26,17 +28,19 @@ pub(crate) trait PhmmIndexable: Sized {
     }
 
     /// Returns the [`PhmmIndex`] as a sequence index (with respect to the
-    /// reference represented by the pHMM). If the index corresponds to the
-    /// BEGIN state, then `None` is returned since this does not correspond to a
-    /// position in the reference.
+    /// reference represented by the pHMM).
+    ///
+    /// If the index corresponds to the BEGIN state, then `None` is returned
+    /// since this does not correspond to a position in the reference.
     fn get_seq_index(&self, j: impl PhmmIndex) -> Option<usize> {
         self.get_dp_index(j).checked_sub(1)
     }
 
     /// Converts the [`PhmmIndex`] to a sequence index (with respect to the
-    /// reference represented by the pHMM). If the index corresponds to the
-    /// BEGIN state, then `None` is returned since this does not correspond to a
-    /// position in the reference.
+    /// reference represented by the pHMM).
+    ///
+    /// If the index corresponds to the BEGIN state, then `None` is returned
+    /// since this does not correspond to a position in the reference.
     fn to_seq_index(&self, j: impl PhmmIndex) -> Option<SeqIndex> {
         self.get_seq_index(j).map(SeqIndex)
     }
@@ -61,8 +65,10 @@ pub(crate) trait PhmmIndexable: Sized {
     }
 
     /// Returns a range of sequence indices from a start and end [`PhmmIndex`].
+    ///
+    ///
     /// If either index corresponds to the BEGIN state, then this will be mapped
-    /// to 0 (the same sequence index that [`FirstMatch`] corresponds to)
+    /// to 0 (the same sequence index that [`FirstMatch`] corresponds to).
     fn get_seq_range(&self, start: Bound<impl PhmmIndex>, end: Bound<impl PhmmIndex>) -> Range<usize> {
         // -1 for converting dynamic programming index to sequence index
         self.get_dp_range(start, end).saturating_sub(1)
@@ -76,7 +82,9 @@ pub(crate) trait QueryIndexable: Sized {
     fn seq_len(&self) -> usize;
 
     /// Returns the number of possible states that could be in when traversing
-    /// the query. Either none of the bases are consumed, or up to and including
+    /// the query.
+    ///
+    /// Either none of the bases are consumed, or up to and including
     /// `query_len` bases could be consumed.
     fn dp_len(&self) -> usize {
         self.seq_len() + 1
@@ -110,8 +118,9 @@ pub(crate) trait QueryIndexable: Sized {
     }
 
     /// Returns a range of sequence indices from a start and end [`QueryIndex`].
+    ///
     /// If either index corresponds [`NoBases`], then this will be mapped to 0
-    /// (the same sequence index that [`FirstBase`] corresponds to)
+    /// (the same sequence index that [`FirstBase`] corresponds to).
     fn get_seq_range(&self, start: Bound<impl QueryIndex>, end: Bound<impl QueryIndex>) -> Range<usize> {
         // -1 for converting dynamic programming index to sequence index
         self.get_dp_range(start, end).saturating_sub(1)
@@ -119,11 +128,13 @@ pub(crate) trait QueryIndexable: Sized {
 }
 
 /// A trait representing different ways to index into a pHMM-related data
-/// structure. By indexing data structures with a [`PhmmIndex`], it allows for
-/// better readability and correctness by requiring specification of the type of
-/// index (such as a dynamic programming index with [`DpIndex`] or a sequence
-/// index with [`SeqIndex`]). It also allows special elements to be accessed
-/// with [`Begin`], [`FirstMatch`], [`LastMatch`], and [`End`].
+/// structure.
+///
+/// By indexing data structures with a [`PhmmIndex`], it allows for better
+/// readability and correctness by requiring specification of the type of index
+/// (such as a dynamic programming index with [`DpIndex`] or a sequence index
+/// with [`SeqIndex`]). It also allows special elements to be accessed with
+/// [`Begin`], [`FirstMatch`], [`LastMatch`], and [`End`].
 pub(crate) trait PhmmIndex: IndexOffset {
     /// Helper function for [`PhmmIndexable::get_dp_index`], allowing each index
     /// type to control how it gets coverted to a dynamic programming index
@@ -140,32 +151,31 @@ pub(crate) trait PhmmIndex: IndexOffset {
 }
 
 /// A trait representing different ways to index into a query-related data
-/// structure. By indexing data structures with a [`QueryIndex`], it allows for
-/// better readability and correctness by requiring specification of the type of
-/// index (such as a dynamic programming index with [`DpIndex`] or a sequence
-/// index with [`SeqIndex`]). It also allows special elements to be accessed
-/// with [`NoBases`], [`FirstBase`], and [`LastBase`].
+/// structure.
+///
+/// By indexing data structures with a [`QueryIndex`], it allows for better
+/// readability and correctness by requiring specification of the type of index
+/// (such as a dynamic programming index with [`DpIndex`] or a sequence index
+/// with [`SeqIndex`]). It also allows special elements to be accessed with
+/// [`NoBases`], [`FirstBase`], and [`LastBase`].
 pub(crate) trait QueryIndex: IndexOffset {
     /// Helper function for [`QueryIndexable::get_dp_index`], allowing each
     /// index type to control how it gets converted to a dynamic programming
-    /// index
+    /// index.
     fn get_query_dp_index(&self, v: &impl QueryIndexable) -> usize;
-
-    #[inline]
-    fn to_query_dp_index(&self, v: &impl QueryIndexable) -> DpIndex {
-        DpIndex(self.get_query_dp_index(v))
-    }
 }
 
 /// A [`PhmmIndex`] or [`QueryIndex`] representing an index with respect to the
-/// sequence, rather than with respect to the dynamic programming tables. 0
-/// represents the first position in the sequence (reference or query).
+/// sequence, rather than with respect to the dynamic programming tables.
+///
+/// 0 represents the first position in the sequence (reference or query).
 #[repr(transparent)]
 #[derive(Clone, Copy)]
 pub(crate) struct SeqIndex(pub usize);
 
 /// A [`PhmmIndex`] or [`QueryIndex`] representing an index with respect to the
 /// dynamic programming tables, rather than with respect to the sequence itself.
+///
 /// 1 represents the first position in the sequence (reference or query), while
 /// 0 represents matching no bases or the BEGIN state of the pHMM.
 #[repr(transparent)]
@@ -179,11 +189,13 @@ pub(crate) struct DpIndex(pub(crate) usize);
 pub(crate) struct Begin;
 
 /// A [`PhmmIndex`] representing the first match state of the pHMM after BEGIN.
+///
 /// This corresponds to the first residue in the reference sequences.
 #[derive(Clone, Copy)]
 pub(crate) struct FirstMatch;
 
 /// A [`PhmmIndex`] representing the last match state of the pHMM before END.
+///
 /// This corresponds to the last residue in the reference sequences.
 #[derive(Clone, Copy)]
 pub(crate) struct LastMatch;

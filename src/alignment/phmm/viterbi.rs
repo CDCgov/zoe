@@ -293,31 +293,43 @@ impl<'a, T: Float, const S: usize> ViterbiSpecs<'a, T, S> for GlobalViterbiSpecs
 /// alignment. Four hooks are provided to allow the best score to update at
 /// various points in the Viterbi algorithm.
 pub(crate) trait BestScore<T, const S: usize> {
+    /// The [`ViterbiSpecs`] struct this [`BestScore`] type corresponds with.
     type Specs<'a>
     where
         T: 'a;
 
-    /// Retrieve the current best score
+    /// Retrieves the current best score.
     fn score(&self) -> T;
 
-    /// Update the best score before the end of the model and sequence.
+    /// Updates the best score before the end of the model and sequence.
     ///
-    /// Provided to the function is the current number of bases consumed `i`,
-    /// the current model layer `j`, and the current values for the delete,
-    /// match, and insert states `vals`.
+    /// ## Arguments
+    ///
+    /// * `specs`: the [`ViterbiSpecs`] struct this [`BestScore`] type
+    ///   corresponds with
+    /// * `vals`: the current values in the delete, match, and insert states
+    /// * `i`: The current number of bases consumed
+    /// * `j`: The current model layer
     fn update(&mut self, _specs: &Self::Specs<'_>, _vals: PhmmStateArray<T>, _i: impl QueryIndex, _j: impl PhmmIndex) {}
 
-    /// Update the best score before the end of the model but at the end of the
+    /// Updates the best score before the end of the model but at the end of the
     /// sequence.
     ///
-    /// Provided to the function is the current model layer `j` and the current
-    /// values for the delete, match, and insert states `vals`.
+    /// ## Arguments
+    ///
+    /// * `specs`: the [`ViterbiSpecs`] struct this [`BestScore`] type
+    ///   corresponds with
+    /// * `vals`: the current values in the delete, match, and insert states
+    /// * `j`: The current model layer
     fn update_seq_end(&mut self, _specs: &Self::Specs<'_>, _vals: PhmmStateArray<T>, _j: impl PhmmIndex) {}
 
-    /// Update the best score before the end of the sequence but at the end of
+    /// Updates the best score before the end of the sequence but at the end of
     /// the model.
     ///
     /// ## Arguments
+    ///
+    /// * `specs`: the [`ViterbiSpecs`] struct this [`BestScore`] type
+    ///   corresponds with
     /// * `layer`: the last layer, including transition probabilities into the
     ///   END state
     /// * `vals`: the values in the delete, match, and insert states of the
@@ -331,8 +343,13 @@ pub(crate) trait BestScore<T, const S: usize> {
 
     /// Update the best score at the end of the model and sequence.
     ///
-    /// Provided to the function is the last layer `layer` and the current
-    /// values for the delete, match, and insert states `vals`.
+    /// ## Arguments
+    ///
+    /// * `specs`: the [`ViterbiSpecs`] struct this [`BestScore`] type
+    ///   corresponds with
+    /// * `layer`: the last layer, including transition probabilities into the
+    ///   END state
+    /// * `vals`: the current values in the delete, match, and insert states
     fn update_seq_end_last_layer(&mut self, _specs: &Self::Specs<'_>, _layer: &LayerParams<T, S>, _vals: PhmmStateArray<T>) {
     }
 }

@@ -54,6 +54,9 @@
 ///
 /// ## Notes
 ///
+/// Any trait being implemented must be imported (no qualified paths are
+/// possible with this macro).
+///
 /// When implementing [`Iterator`], the generics `F`, `B`, `R`, `P`, `S`, and
 /// `K` are reserved. Also, the `try_trait_v2` feature must be enabled.
 ///
@@ -150,6 +153,9 @@ macro_rules! define_whichever {
 /// ```
 ///
 /// ## Notes
+///
+/// Any trait being implemented must be imported (no qualified paths are
+/// possible with this macro).
 ///
 /// When implementing [`Iterator`], the generics `F`, `B`, `R`, `P`, `S`, and
 /// `K` are reserved. Also, the `try_trait_v2` feature must be enabled.

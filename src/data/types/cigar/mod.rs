@@ -118,7 +118,7 @@ impl Cigar {
     }
 
     /// Checks for errors in the CIGAR string, returning the particular
-    /// [`CigarError`] if one is present
+    /// [`CigarError`] if one is present.
     fn check_for_err(bytes: &[u8]) -> Result<(), CigarError> {
         if bytes == b"*" || bytes.is_empty() {
             return Ok(());

@@ -5,8 +5,9 @@ use std::{
 
 use crate::alignment::phmm::PhmmError;
 
-/// An enum representing the three states within each layer of a pHMM. This is
-/// used for readability when indexing.
+/// An enum representing the three states within each layer of a pHMM.
+///
+/// This is used for readability when indexing.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PhmmState {
     Delete = 0,
@@ -15,7 +16,9 @@ pub enum PhmmState {
 }
 
 /// An enum representing the three states within each layer of a pHMM, in
-/// addition to `Enter`. This is useful for local pHMMs.
+/// addition to `Enter`.
+///
+/// This is useful for local pHMMs.
 #[derive(Clone, Copy, Debug)]
 pub enum PhmmStateOrEnter {
     Delete = 0,
@@ -54,6 +57,7 @@ impl From<PhmmStateOrEnter> for usize {
 }
 
 impl From<PhmmState> for PhmmStateOrEnter {
+    #[inline]
     fn from(value: PhmmState) -> Self {
         match value {
             PhmmState::Delete => PhmmStateOrEnter::Delete,
@@ -64,6 +68,10 @@ impl From<PhmmState> for PhmmStateOrEnter {
 }
 
 impl PhmmState {
+    /// Gets a [`PhmmState`] from a [`PhmmStateOrEnter`], returning `None` for
+    /// the [`Enter`] state.
+    ///
+    /// [`Enter`]: PhmmStateOrEnter::Enter
     #[inline]
     pub(crate) fn get_from(value: PhmmStateOrEnter) -> Option<PhmmState> {
         match value {
@@ -74,6 +82,7 @@ impl PhmmState {
         }
     }
 
+    /// Converts a [`PhmmState`] to a CIGAR-style operation.
     #[inline]
     pub(crate) fn to_op(self) -> u8 {
         match self {
@@ -83,6 +92,11 @@ impl PhmmState {
         }
     }
 
+    /// Converts a CIGAR-style operation to a [`PhmmState`].
+    ///
+    /// ## Errors
+    ///
+    /// The operation must be in `MDI=X`.
     #[inline]
     pub(crate) fn from_op(op: u8) -> Result<Self, PhmmError> {
         match op {
@@ -94,8 +108,7 @@ impl PhmmState {
     }
 }
 
-/// An array of type `[T; N]` indexed by an enum `E`. This is useful for
-/// readability.
+/// An array of type `[T; N]` indexed by an enum `E`, used for readability.
 #[derive(Clone, Copy)]
 pub(crate) struct EnumArray<T, E, const N: usize> {
     pub(crate) inner: [T; N],
@@ -115,7 +128,8 @@ impl<T, E, const N: usize> EnumArray<T, E, N> {
 }
 
 impl<T: PartialOrd + Copy, E: From<usize>, const N: usize> EnumArray<T, E, N> {
-    /// Locate the minimum value in the array and the corresponding enum variant
+    /// Locates the minimum value in the array and the corresponding enum
+    /// variant.
     pub(crate) fn locate_min(&self) -> (E, T) {
         let mut argmin = 0;
         let mut min = self.inner[0];
@@ -158,11 +172,11 @@ impl<T, E: Into<usize>, const N: usize> IndexMut<E> for EnumArray<T, E, N> {
 }
 
 /// An array holding values of type `T`, indexed by the variants in
-/// [`PhmmState`]
+/// [`PhmmState`].
 pub(crate) type PhmmStateArray<T> = EnumArray<T, PhmmState, 3>;
 
 /// An array holding values of type `T`, indexed by the variants in
-/// [`PhmmStateOrEnter`]
+/// [`PhmmStateOrEnter`].
 pub(crate) type PhmmStateOrEnterArray<T> = EnumArray<T, PhmmStateOrEnter, 4>;
 
 impl<T: Copy> PhmmStateArray<T> {
@@ -172,6 +186,6 @@ impl<T: Copy> PhmmStateArray<T> {
 }
 
 /// A trait for enums of which [`PhmmState`] is a subset (and which can be
-/// stored as usize)
+/// stored as usize).
 pub(crate) trait PhmmStateEnum: From<PhmmState> + Into<usize> + From<usize> {}
 impl<T: From<PhmmState> + Into<usize> + From<usize>> PhmmStateEnum for T {}

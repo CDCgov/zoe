@@ -231,6 +231,10 @@ pub enum LocalConfig<T, const S: usize> {
 }
 
 impl<T: Float, const S: usize> GlobalPhmm<T, S> {
+    /// Creates a [`LocalPhmm`] from a [`GlobalPhmm`].
+    ///
+    /// The method to use for defining the local alignment behavior is specified
+    /// with `config`.
     #[must_use]
     pub fn into_local_phmm(self, config: LocalConfig<T, S>) -> LocalPhmm<T, S> {
         let (begin, end) = match config {

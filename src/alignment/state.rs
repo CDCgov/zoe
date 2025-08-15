@@ -677,14 +677,22 @@ impl<const N: usize> BacktrackMatrixStriped<N>
 where
     LaneCount<N>: SupportedLaneCount,
 {
-    #[must_use]
+    /// Allocates lazily-initialized backtrack data which can later be converted
+    /// to a [`BacktrackMatrixStriped`].
+    ///
+    /// The total number of SIMD vectors is given by `size`.
     #[inline]
+    #[must_use]
     pub(crate) fn make_uninit_data(size: usize) -> Vec<MaybeUninit<Simd<u8, N>>> {
         let mut data = Vec::with_capacity(size);
         data.resize_with(size, MaybeUninit::uninit);
         data
     }
 
+    /// Wraps a vector of SIMD vectors in a [`BacktrackMatrixStriped`] to
+    /// facilitate backtracking.
+    #[inline]
+    #[must_use]
     pub(crate) fn new(data: Vec<Simd<u8, N>>, num_vecs: usize) -> Self {
         assert!(data.len().is_multiple_of(num_vecs));
         BacktrackMatrixStriped {

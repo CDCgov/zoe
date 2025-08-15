@@ -10,6 +10,10 @@ use crate::{
     private::Sealed,
 };
 
+/// A trait for providing generic functionality over integer numbers.
+///
+/// These can be signed or unsigned. For more specific traits, consider [`Int`]
+/// for signed integers and [`Uint`] for unsigned integers.
 pub trait AnyInt:
     CastAsNumeric
     + CastFromNumeric
@@ -34,9 +38,27 @@ pub trait AnyInt:
     + ShlAssign<usize>
     + TryInto<usize>
     + Sealed {
+    /// The constant zero.
     const ZERO: Self;
+
+    /// The constant one.
     const ONE: Self;
 
+    /// The largest value that can be represented by this integer type.
+    const MAX: Self;
+
+    /// The smallest value that can be represented by this integer type.
+    const MIN: Self;
+
+    /// The size of this integer type in bits.
+    const BITS: u32;
+
+    /// Whether or not this integer type is signed.
+    const SIGNED: bool;
+
+    /// Converts a literal number to this type via repeated addition.
+    ///
+    /// The compiler will often optimize this away.
     fn from_literal<T: Int>(num: T) -> Self {
         let mut out = Self::ZERO;
         let mut i = T::ZERO;
@@ -47,28 +69,51 @@ pub trait AnyInt:
         out
     }
 
+    /// Checked integer addition. Computes `self + rhs`, returning `None` if
+    /// overflow occurred.
     fn checked_add(self, other: Self) -> Option<Self>;
+
+    /// Returns the number of trailing zeros in the binary representation of
+    /// `self`.
     fn trailing_zeros(self) -> u32;
+
+    /// Returns the number of ones in the binary representation of `self`.
     fn count_ones(self) -> u32;
 
+    /// Panic-free bitwise shift-left; yields `self << mask(rhs)`, where `mask`
+    /// removes any high-order bits of `rhs` that would cause the shift to
+    /// exceed the bitwidth of the type.
+    ///
+    /// See [`u64::wrapping_shl`] for more details.
     #[must_use]
     fn wrapping_shl(self, rhs: u32) -> Self;
 
+    /// Shifts the bits to the left by a specified amount, `n`, wrapping the
+    /// truncated bits to the end of the resulting integer.
+    ///
+    /// [`u64::rotate_left`] for more details.
     #[must_use]
     fn rotate_left(self, n: u32) -> Self;
 
+    /// Shifts the bits to the right by a specified amount, n, wrapping the
+    /// truncated bits to the beginning of the resulting integer.
+    ///
+    /// [`u64::rotate_right`] for more details.
     #[must_use]
     fn rotate_right(self, n: u32) -> Self;
-
-    const MAX: Self;
-    const MIN: Self;
-    const BITS: u32;
-    const SIGNED: bool;
 }
 
+/// A trait for providing generic functionality over unsigned integer numbers.
+///
+/// See [`AnyInt`] for more details.
 pub trait Uint: AnyInt + From<u8> {}
+
+/// A trait for providing generic functionality over signed integer numbers.
+///
+/// See [`AnyInt`] for more details.
 pub trait Int: AnyInt + From<i8> {}
 
+/// A macro for implementing [`AnyInt`] on primitives.
 macro_rules! impl_int {
     { $($ty:ty),* } => {
         $(
@@ -115,6 +160,7 @@ macro_rules! impl_int {
      }
 }
 
+/// A macro for implementing [`Uint`] and [`Int`] on primitives.
 macro_rules! impl_xint {
     ($tr:ty; $($ty:ty),*) => {
         $( impl $tr for $ty {} )*
@@ -126,8 +172,10 @@ impl_int!(i8, i16, i32, i64, isize, i128, u8, u16, u32, u64, usize, u128);
 impl_xint!(Uint; u8, u16, u32, u64, usize, u128);
 impl_xint!(Int; i8, i16, i32, i64, isize, i128);
 
+/// A marker trait for integer types fo the same sign.
 pub trait FromSameSignedness<T>: From<T> + Sealed {}
 
+/// A macro for implementing [`FromSameSignedness`] on primitive types.
 macro_rules! impl_from_same_sign {
     ($smaller:ty => $($bigger:ty),*) => {
         $(

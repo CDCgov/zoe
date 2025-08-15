@@ -134,8 +134,8 @@ impl<T: Float, const S: usize> GlobalPhmm<T, S> {
     /// Get the score for a particular path.
     ///
     /// This is designed to give the exact same score as [`viterbi`] when the
-    /// best `path` is passed, performing all arithmetic operations in the same
-    /// order so as not to change the floating point error.
+    /// best `alignment` is passed, performing all arithmetic operations in the
+    /// same order so as not to change the floating point error.
     ///
     /// ## Errors
     ///

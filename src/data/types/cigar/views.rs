@@ -19,14 +19,14 @@ pub struct CigarView<'a>(&'a [u8]);
 pub struct CigarViewMut<'a>(&'a mut [u8]);
 
 impl<'a> CigarView<'a> {
-    /// Creates a new [`CigarView`] from `v` without checking for validity
+    /// Creates a new [`CigarView`] from `v` without checking for validity.
     #[inline]
     #[must_use]
     pub fn from_slice_unchecked(v: &'a [u8]) -> Self {
         Self(v)
     }
 
-    /// Creates a new empty [`CigarView`]
+    /// Creates a new empty [`CigarView`].
     #[inline]
     #[must_use]
     pub fn new() -> Self {
@@ -35,7 +35,7 @@ impl<'a> CigarView<'a> {
 }
 
 impl<'a> CigarViewMut<'a> {
-    /// Creates a new [`CigarViewMut`] from `v` without checking for validity
+    /// Creates a new [`CigarViewMut`] from `v` without checking for validity.
     #[inline]
     #[must_use]
     pub fn from_slice_unchecked(v: &'a mut [u8]) -> Self {

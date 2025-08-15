@@ -55,13 +55,18 @@ mod private {
         bool => bool, u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize;
     }
 
-    /// A helper trait for [`CastAsFixed`]. In order to the trait bounds to be
-    /// elaborated (meaning that where clauses for [`CastPair`] do not need to
-    /// be added any time we cast types), the trait bounds must be bounds on
-    /// `Self`. This trait changes the first generic in [`CastPair`] to `Self`,
-    /// and uses associated type `P` along with the equality constraint in
-    /// [`CastAsFixed`] to ensure [`CastPair`] is implemented for `()`.
+    /// A helper trait for [`CastAsFixed`].
+    ///
+    /// In order to the trait bounds to be elaborated (meaning that where
+    /// clauses for [`CastPair`] do not need to be added any time we cast
+    /// types), the trait bounds must be bounds on `Self`. This trait changes
+    /// the first generic in [`CastPair`] to `Self`, and uses associated type
+    /// `P` along with the equality constraint in [`CastAsFixed`] to ensure
+    /// [`CastPair`] is implemented for `()`.
     pub trait CastAsHelper<S>: Sized {
+        /// A type implementing [`CastPair`], namely, `()`.
+        ///
+        /// See [`CastAsHelper`] for more details on why this is necessary.
         type P: CastPair<Self, S>;
 
         /// Casts `self` to the type `S` specified in the trait.
@@ -77,9 +82,10 @@ mod private {
         type P = ();
     }
 
-    /// A trait allowing casting of `Self` into `S`. Adding this trait as a
-    /// bound on another trait ensures that [`CastAs`] can be used on types
-    /// implementing that trait.
+    /// A trait allowing casting of `Self` into `S`.
+    ///
+    /// Adding this trait as a bound on another trait ensures that [`CastAs`]
+    /// can be used on types implementing that trait.
     ///
     /// [`CastAs`]: super::CastAs
     pub trait CastAsFixed<S>: CastAsHelper<S, P = ()> {
@@ -91,13 +97,17 @@ mod private {
 
     impl<T: CastAsHelper<S, P = ()>, S> CastAsFixed<S> for T {}
 
-    /// A helper trait for [`CastFromFixed`]. In order to the trait bounds to be
-    /// elaborated (meaning that where clauses for [`CastPair`] do not need to
-    /// be added any time we cast types), the trait bounds must be bounds on
-    /// `Self`. This trait changes the first generic in [`CastPair`] to `Self`,
-    /// and uses associated type `P` along with the equality constraint in
-    /// [`CastFromFixed`] to ensure [`CastPair`] is implemented for `()`.
+    /// A helper trait for [`CastFromFixed`].
+    ///
+    /// In order to the trait bounds to be elaborated (meaning that where
+    /// clauses for [`CastPair`] do not need to be added any time we cast
+    /// types), the trait bounds must be bounds on `Self`. This trait changes
+    /// the first generic in [`CastPair`] to `Self`, and uses associated type
+    /// `P` along with the equality constraint in [`CastFromFixed`] to ensure
+    /// [`CastPair`] is implemented for `()`.
     pub trait CastFromHelper<T>: Sized {
+        /// A type implementing [`CastPair`]. This will always be `()`, but
+        /// facilitates equality constraints.
         type P: CastPair<T, Self>;
 
         /// Casts `val` from the type `T` specified in the trait to `Self`.
@@ -113,9 +123,10 @@ mod private {
         type P = ();
     }
 
-    /// A trait allowing casting of `T` into `Self`. Adding this trait as a
-    /// bound on another trait ensures that [`CastFrom`] can be used on types
-    /// implementing that trait.
+    /// A trait allowing casting of `T` into `Self`.
+    ///
+    /// Adding this trait as a bound on another trait ensures that [`CastFrom`]
+    /// can be used on types implementing that trait.
     ///
     /// [`CastFrom`]: super::CastFrom
     pub trait CastFromFixed<T>: CastFromHelper<T, P = ()> {

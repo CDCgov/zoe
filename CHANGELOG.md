@@ -4,45 +4,43 @@ All notable changes to this project will be documented in this file. The format
 is roughly based on [Keep a Changelog], and this project tries to adheres to
 [Semantic Versioning].
 
-## [0.0.20] - TBD
+## [0.0.20] - 8/18/2025
 
 ### Added
 
 - Added a portable, generic striped Smith-Waterman alignment function (full matrix version) and related convenience functions.
-- Added macros for easily implementing traits on enums and wrapper types (`define_whichever` and `impl_traits`)
-- Added `new_with_w*` constructors for `SharedProfiles` and `LocalProfiles` for balanced profile creation for a segment width.
-- Added structs `CigarView` and `CigarViewMut`
-- Added `CorePhmm` struct storing PHMM layers (without other end modules or model information)
-- Added `IntoIterator` and `FromIterator` implementations for `AlignmentStates` as well as an `iter()` method
-- Added `StatesSequence` trait for working with slices/iterators of `Ciglet` elements
-- Added `PartialEq` between `Cigar` and `AlignmentStates` without allocating on the heap
-- Added `score_from_path` for `GlobalPhmm`
-- Added viterbi algorithm to `GlobalPhmm`
-- Added `LocalPhmm` and structs towards supporting other alignment modes in pHMMs
-- Added `ref_len` and `query_len` fields to the `Alignment` struct, as well as `to_reverse` and `make_reverse` methods
 - Added `MaybeAligned` as the return type for alignments.
+- Added `new_with_w*` constructors for `SharedProfiles` and `LocalProfiles` for balanced profile creation for a segment width.
+- Added `ref_len` and `query_len` fields to the `Alignment` struct, as well as `to_reverse` and `make_reverse` methods.
+- Added `IntoIterator` and `FromIterator` implementations for `AlignmentStates` as well as an `iter()` method.
+- Added `StatesSequence` trait for working with slices/iterators of `Ciglet` elements.
+- Added `PartialEq` between `Cigar` and `AlignmentStates` without allocating on the heap.
+- Added structs `CigarView` and `CigarViewMut`.
+- Added macros for easily implementing traits on enums and wrapper types (`define_whichever` and `impl_traits`).
+- Added `score_from_path` and the Viterbi algorithm for `GlobalPhmm`.
+- Added `CorePhmm` struct storing PHMM layers (without other end modules or model information).
+- Added `LocalPhmm` and structs towards supporting other alignment modes in pHMMs.
+
 
 ### Changed
 
-- Moved `clear` and `restrict` methods for views into a separate `Restrict` trait
+- `Alignment` now uses `AlignmentStates` instead of `Cigar`, and alignment algorithms return `MaybeAligned` with scores as `u32` instead of `u64`.
+- Modified `ScalarProfile` for alignments to hold a reference to the weight matrix.
 - Methods `into_*_profile()` for `Nucleotides` now returns balanced profiles for register widths of 256.
-- Removes an extra allocation when calling `Cigar::is_valid`
-- Extend the lifetimes returned by `as_bytes` and other methods for non-mutable views
-- `Alignment` now uses `AlignmentStates` instead of `Cigar`
-- Changed the `Debug` format for `AlignmentStates`, and converted `AlignmentStates::reverse()` to `make_reverse` and `to_reverse`
-- Modified `ScalarProfile` for alignment to hold a reference to the weight matrix
-- Replace ad-hoc casting methods in `AnyInt` and `Float` with generic `cast_as` and `cast_from`
-- Implement `Ord` and `PartialOrd` for `Cigar` and `QualityScores`
-- Improved error messages for `ScoringError`
-- Scalar alignment functions return `MaybeAligned`
-- Smith-Waterman algorithms normalize to `u32` instead of `u64` for output score
-- Improves performance of profile creation.
+- Improved performance of profile creation.
+- Moved `clear` and `restrict` methods for views into a separate `Restrict` trait.
+- Extend the lifetimes returned by `as_bytes` and other methods for non-mutable views.
+- Changed the `Debug` format for `AlignmentStates`, and converted `AlignmentStates::reverse()` to `make_reverse` and `to_reverse`.
+- Replace ad-hoc casting methods in `AnyInt` and `Float` with generic `cast_as` and `cast_from`.
+- Improved error messages for `ScoringError`.
 - Errors for FASTQ, FASTA, and SAM will save `PathBuf` information for display when opening a file.
+- Implement `Ord` and `PartialOrd` for `Cigar` and `QualityScores`.
+- Removes an extra allocation when calling `Cigar::is_valid`.
 
 ### Removed
 
-- Removed `new_with_i8()` and `new_with_i16()` from `SharedProfiles` and `LocalProfiles`
-- Removed `i64` profiles from `LocalProfiles` and `SharedProfiles`
+- Removed `new_with_i8()` and `new_with_i16()` from `SharedProfiles` and `LocalProfiles`.
+- Removed `i64` profiles from `LocalProfiles` and `SharedProfiles`.
 
 ### Fixed
 
