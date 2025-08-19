@@ -11,7 +11,7 @@ macro_rules! test_sw_simd_alignment {
             StripedProfile::<$int_type, $lanes, 5>::new($profile_seq, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
 
         let score = profile_simd.smith_waterman_score($other_seq);
-        let aln_scalar = profile_scalar.smith_waterman_alignment($other_seq).unwrap().as_u32();
+        let aln_scalar = profile_scalar.smith_waterman_alignment($other_seq).unwrap();
         let aln_simd = profile_simd.smith_waterman_alignment($other_seq).unwrap();
 
         assert_eq!(score, Some(aln_scalar.score));
