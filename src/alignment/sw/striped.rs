@@ -124,6 +124,12 @@ where
     score_to_maybe_aligned(best, query.bias, |score| score)
 }
 
+/// Similar to [`sw_simd_score`] but also returns the coordinates of the end of
+/// the alignment within the reference and query.
+///
+/// The end coordinate is equivalently:
+/// - The 1-based position of the last aligning character
+/// - The 0-based exclusive end for the alignment range
 #[inline]
 #[must_use]
 pub fn sw_simd_score_ends<T, const N: usize, const S: usize>(
@@ -136,6 +142,10 @@ where
     sw_simd_score_ends_dir::<T, N, S, true>(reference, query)
 }
 
+/// Similar to [`sw_simd_score`] but also returns the coordinates of the start
+/// of the alignment within the reference and query.
+///
+/// The start coordinate is the 0-based inclusive start for the alignment range.
 #[inline]
 #[must_use]
 pub fn sw_simd_score_ends_reverse<T, const N: usize, const S: usize>(
@@ -148,7 +158,8 @@ where
     sw_simd_score_ends_dir::<T, N, S, false>(reference, query)
 }
 
-/// Similar to [`sw_simd_score`] but also returns the reference and query end or start coordinates.
+/// Similar to [`sw_simd_score`] but also returns the reference and query end or
+/// start coordinates.
 ///
 /// In the forward direction, the end coordinate is equivalently:
 /// - The 1-based position of the last aligning character
@@ -506,6 +517,14 @@ where
     })
 }
 
+/// Converts a the `best` score seen so far by a Striped Smith Waterman
+/// algorithm to [`MaybeAligned`].
+///
+/// Given `best` and the corresponding `bias` used by the algorithm, convert
+/// `best` to an unbiased `u32` score, then potentially return
+/// [`MaybeAligned::Overflowed`] or [`MaybeAligned::Unmapped`]. If neither of
+/// those are returned, call `f` to convert the `u32` score into the desired
+/// output type `R`.
 #[inline]
 #[must_use]
 fn score_to_maybe_aligned<T, F, R>(best: T, bias: T, f: F) -> MaybeAligned<R>

@@ -9,6 +9,8 @@ use std::ops::Add;
 /// et al.*](https://cme.h-its.org/exelixis/web/software/alignment/correct.html)
 /// (4).
 ///
+/// This implementation will not return [`MaybeAligned::Overflowed`].
+///
 /// See **[module citations](crate::alignment::sw#module-citations)**.
 ///
 /// ## Complexity
@@ -35,12 +37,12 @@ use std::ops::Add;
 /// const GAP_EXTEND: i8 = -1;
 ///
 /// let profile = ScalarProfile::<5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-/// let score = sw_scalar_score(&reference, &profile);
+/// let score = sw_scalar_score(&reference, &profile).unwrap();
 /// assert_eq!(score, 27);
 /// ```
 #[must_use]
 #[allow(clippy::cast_sign_loss)]
-pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S>) -> u32 {
+pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S>) -> MaybeAligned<u32> {
     let mut best_score = 0;
     let mut h_row = vec![0; query.seq.len()];
     let mut e_row = vec![query.gap_open; query.seq.len()];
@@ -68,7 +70,12 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 
     // score is i32 and is non-negative due to this algorithm, so this is a
     // valid cast
-    best_score as u32
+    let best_score = best_score as u32;
+    if best_score > 0 {
+        MaybeAligned::Some(best_score)
+    } else {
+        MaybeAligned::Unmapped
+    }
 }
 
 /// Smith-Waterman algorithm (non-vectorized), yielding the optimal alignment.
@@ -77,6 +84,8 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 /// penalties (2) with improvements and corrections by (3-4). Our implementation
 /// adapts the corrected algorithm provided by [*Flouri et
 /// al.*](https://cme.h-its.org/exelixis/web/software/alignment/correct.html)(4).
+///
+/// This implementation will not return [`MaybeAligned::Overflowed`].
 ///
 /// See **[module citations](crate::alignment::sw#module-citations)**.
 ///

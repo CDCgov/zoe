@@ -50,12 +50,12 @@ fn sw() {
     let Alignment { score, ref_range, .. } = sw_scalar_alignment(REFERENCE, &profile).unwrap();
     assert_eq!((336, 37), (ref_range.start, score));
 
-    let score = sw_scalar_score(REFERENCE, &profile);
+    let score = sw_scalar_score(REFERENCE, &profile).unwrap();
     assert_eq!(37, score);
 
     let v: Vec<_> = std::iter::repeat_n(b'A', 100).collect();
     let profile = ScalarProfile::new(&v, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
-    let score = sw_scalar_score(&v, &profile);
+    let score = sw_scalar_score(&v, &profile).unwrap();
     assert_eq!(200, score);
 }
 
@@ -63,7 +63,7 @@ fn sw() {
 fn sw_t_u_check() {
     let profile = ScalarProfile::new(b"ACGTUNacgtun", &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
     let score = sw_scalar_score(b"ACGTTNACGTTN", &profile);
-    assert_eq!(score, 20);
+    assert_eq!(score, MaybeAligned::Some(20));
 
     let profile = StripedProfile::<u16, 16, 5>::new(b"ACGTUNacgtun", &BIASED_WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
     let score = sw_simd_score(b"ACGTTNACGTTN", &profile);

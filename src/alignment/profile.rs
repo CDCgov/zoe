@@ -106,12 +106,12 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// const GAP_EXTEND: i8 = -1;
     ///
     /// let profile = ScalarProfile::<5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-    /// let score = profile.smith_waterman_score(reference);
+    /// let score = profile.smith_waterman_score(reference).unwrap();
     /// assert_eq!(score, 27);
     /// ```
     #[inline]
     #[must_use]
-    pub fn smith_waterman_score(&self, seq: &[u8]) -> u32 {
+    pub fn smith_waterman_score(&self, seq: &[u8]) -> MaybeAligned<u32> {
         sw_scalar_score(seq, self)
     }
 
