@@ -61,11 +61,9 @@ where
     let mut load = vec![minimums; num_vecs];
     let mut store = vec![minimums; num_vecs];
     let mut e_scores = vec![minimums; num_vecs];
-    let mut max_scores = minimums; // Minimum value for unsigned
+    let mut max_scores = minimums;
 
-    let map = query.mapping;
-
-    for ref_index in reference.iter().copied().map(|r| map.to_index(r)) {
+    for ref_index in reference.iter().copied().map(|r| query.mapping.to_index(r)) {
         let mut F = minimums;
         let mut H = store[num_vecs - 1].shift_elements_right::<1>(min);
 
@@ -91,7 +89,6 @@ where
             E = E.saturating_sub(gap_extends).simd_max(H);
             F = F.saturating_sub(gap_extends).simd_max(H);
 
-            // Store E; Load H
             e_scores[j] = E;
             H = load[j];
         }
@@ -136,14 +133,42 @@ where
     }
 }
 
-/// Similar to [`sw_simd_score`] but also returns the reference and query end coordinates.
-/// This coordinate is equivalently:
+#[inline]
+#[must_use]
+pub fn sw_simd_score_ends<T, const N: usize, const S: usize>(
+    reference: &[u8], query: &StripedProfile<T, N, S>,
+) -> Option<(u32, usize, usize)>
+where
+    T: AlignableIntWidth,
+    LaneCount<N>: SupportedLaneCount,
+    Simd<T, N>: SimdAnyInt<T, N>, {
+    sw_simd_score_ends_dir::<T, N, S, true>(reference, query)
+}
+
+#[inline]
+#[must_use]
+pub fn sw_simd_score_ends_reverse<T, const N: usize, const S: usize>(
+    reference: &[u8], query: &StripedProfile<T, N, S>,
+) -> Option<(u32, usize, usize)>
+where
+    T: AlignableIntWidth,
+    LaneCount<N>: SupportedLaneCount,
+    Simd<T, N>: SimdAnyInt<T, N>, {
+    sw_simd_score_ends_dir::<T, N, S, false>(reference, query)
+}
+
+/// Similar to [`sw_simd_score`] but also returns the reference and query end or start coordinates.
+///
+/// In the forward direction, the end coordinate is equivalently:
 /// - The 1-based position of the last aligning character
-/// - The 0-based slice bound (exclusive) for the alignment range
+/// - The 0-based exclusive end for the alignment range
+///
+/// For reverse, the start coordinate is:
+/// - The 0-based inclusive start for the alignment range
 #[allow(non_snake_case, clippy::too_many_lines)]
 #[must_use]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
-pub fn sw_simd_score_ends<T, const N: usize, const S: usize>(
+pub fn sw_simd_score_ends_dir<T, const N: usize, const S: usize, const FORWARD: bool>(
     reference: &[u8], query: &StripedProfile<T, N, S>,
 ) -> Option<(u32, usize, usize)>
 where
@@ -173,9 +198,9 @@ where
     let mut best = min;
     let mut r_end = reference.len() - 1;
 
-    let map = query.mapping;
-
-    for (r, ref_index) in reference.iter().copied().map(|r| map.to_index(r)).enumerate() {
+    let len = reference.len();
+    for r in 0..len {
+        let ref_index = query.mapping.to_index(reference[if FORWARD { r } else { len - 1 - r }]);
         let mut F = minimums;
         let mut H = store[num_vecs - 1].shift_elements_right::<1>(min);
 
@@ -260,10 +285,41 @@ where
         best.checked_add(query.bias + T::ONE).map(|_| best.cast_as::<u32>())
     }?;
 
-    r_end += 1;
-    c_end += 1;
+    if FORWARD {
+        r_end += 1;
+        c_end += 1;
+    } else {
+        r_end = reference.len() - 1 - r_end;
+        c_end = query.seq_len - 1 - c_end;
+    }
 
     Some((best_score, r_end, c_end))
+}
+
+/// Similar to [`sw_simd_score`] but also returns the reference and query
+/// alignment ranges for 0-based slicing. The algorithm performs a truncated two
+/// pass approach.
+///
+/// ## Panics
+///
+/// Panics if scores for the two passes are not equal.
+#[inline]
+#[must_use]
+pub fn sw_simd_score_ranges<T, const N: usize, const S: usize>(
+    reference: &[u8], query: &StripedProfile<T, N, S>,
+) -> Option<(u32, Range<usize>, Range<usize>)>
+where
+    T: AlignableIntWidth,
+    LaneCount<N>: SupportedLaneCount,
+    Simd<T, N>: SimdAnyInt<T, N>, {
+    let (score, ref_end, query_end) = sw_simd_score_ends_dir::<T, N, S, true>(reference, query)?;
+
+    let query_rev = query.reverse_from_forward(query_end);
+    let (score2, ref_start, query_start) = sw_simd_score_ends_dir::<T, N, S, false>(reference, &query_rev)?;
+
+    assert_eq!(score, score2);
+
+    Some((score, ref_start..ref_end, query_start..query_end))
 }
 
 /// Smith-Waterman algorithm (vectorized), yielding the optimal alignment.
@@ -349,9 +405,8 @@ where
     let mut r_end = reference.len() - 1;
 
     let mut backtrack = BacktrackMatrixStriped::make_uninit_data(reference.len() * num_vecs);
-    let map = query.mapping;
 
-    for (r, ref_index) in reference.iter().copied().map(|r| map.to_index(r)).enumerate() {
+    for (r, ref_index) in reference.iter().copied().map(|r| query.mapping.to_index(r)).enumerate() {
         let mut F = minimums;
         let mut H = store[num_vecs - 1].shift_elements_right::<1>(min);
 

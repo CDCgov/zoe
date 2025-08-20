@@ -172,7 +172,7 @@ fn sw_simd_aln12() {
 #[test]
 fn sw_simd_location() {
     let reference = b"TTTTTTCCTTTTTTTTCCCCCTTTTT";
-    let query = b"GGGGGGGCCCCCA";
+    let query = b"GGGGGGGCCCCCAAAA";
 
     let weights = WeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N'));
     let profile_scalar = ScalarProfile::new(query, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
@@ -180,9 +180,40 @@ fn sw_simd_location() {
 
     let aln_scalar = profile_scalar.smith_waterman_alignment(reference).unwrap();
     let (score, ref_end, query_end) = profile_simd.smith_waterman_score_ends(reference).unwrap();
+
+    let query_rev: Vec<u8> = query[..query_end].iter().copied().rev().collect();
+
+    let profile_simd_rev =
+        StripedProfile::<u8, 8, 5>::new(&query_rev, &weights.into_biased_matrix(), GAP_OPEN, GAP_EXTEND).unwrap();
+    let profile_simd_rev2 = profile_simd.reverse_from_forward(query_end);
+
+    assert_eq!(profile_simd_rev.seq_len, profile_simd_rev2.seq_len);
+
+    let (score2, ref_start, query_start) = profile_simd_rev
+        .smith_waterman_score_ends_reverse(&reference[..ref_end])
+        .unwrap();
+
+    assert_eq!(score, score2);
     assert_eq!(score, aln_scalar.score);
-    assert_eq!(ref_end, aln_scalar.ref_range.end, "REFERENCE");
-    assert_eq!(query_end, aln_scalar.query_range.end, "QUERY");
+    assert_eq!(ref_start..ref_end, aln_scalar.ref_range, "REFERENCE");
+    assert_eq!(query_start..query_end, aln_scalar.query_range, "QUERY");
+}
+
+#[test]
+fn sw_simd_ranges() {
+    let reference = b"TTTTTTCCTTTTTTTTCCCCCTTTTT";
+    let query = b"GGGGGGGCCCCCAAAA";
+
+    let weights = WeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N'));
+    let profile_scalar = ScalarProfile::new(query, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
+    let profile_simd = StripedProfile::<u8, 8, 5>::new(query, &weights.into_biased_matrix(), GAP_OPEN, GAP_EXTEND).unwrap();
+
+    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).unwrap();
+    let (score, ref_range, query_range) = profile_simd.smith_waterman_score_ranges(reference).unwrap();
+
+    assert_eq!(score, aln_scalar.score);
+    assert_eq!(ref_range, aln_scalar.ref_range, "REFERENCE");
+    assert_eq!(query_range, aln_scalar.query_range, "QUERY");
 }
 
 #[test]

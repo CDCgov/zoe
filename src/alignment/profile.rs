@@ -1,7 +1,10 @@
 use crate::{
     alignment::{
         MaybeAligned,
-        sw::{sw_scalar_alignment, sw_scalar_score, sw_simd_alignment, sw_simd_score, sw_simd_score_ends},
+        sw::{
+            sw_scalar_alignment, sw_scalar_score, sw_simd_alignment, sw_simd_score, sw_simd_score_ends,
+            sw_simd_score_ends_reverse, sw_simd_score_ranges,
+        },
     },
     data::{WeightMatrix, err::QueryProfileError, mappings::ByteIndexMap},
     math::{AlignableIntWidth, AnyInt, FromSameSignedness},
@@ -9,6 +12,7 @@ use crate::{
 };
 use std::{
     convert::Into,
+    ops::Range,
     simd::{LaneCount, SimdElement, SupportedLaneCount, prelude::*},
     vec,
 };
@@ -234,6 +238,41 @@ where
         }
     }
 
+    #[must_use]
+    pub fn reverse_from_forward(&self, seq_end: usize) -> Self {
+        let number_vectors = seq_end.div_ceil(N);
+        let number_vecs_old = self.number_vectors();
+        let total_lanes = N * number_vectors;
+
+        let biases = Simd::splat(self.bias);
+        let mut profile = vec![biases; S * number_vectors];
+
+        for v in 0..number_vectors {
+            for ref_index in 0..self.mapping.len() {
+                let mut vector = biases;
+                for (i, q) in (v..total_lanes).step_by(number_vectors).enumerate() {
+                    if q < seq_end {
+                        let q_old = seq_end - 1 - q;
+                        let v_old = q_old % number_vecs_old;
+                        let lane_old = (q_old - v_old) / number_vecs_old;
+
+                        vector[i] = self.profile[ref_index * number_vecs_old + v_old][lane_old];
+                    }
+                }
+                profile[ref_index * number_vectors + v] = vector;
+            }
+        }
+
+        StripedProfile {
+            profile,
+            gap_open: self.gap_open,
+            gap_extend: self.gap_extend,
+            bias: self.bias,
+            mapping: self.mapping,
+            seq_len: seq_end,
+        }
+    }
+
     /// Returns the number of SIMD vectors in the profile.
     #[inline]
     #[must_use]
@@ -306,6 +345,18 @@ where
     pub fn smith_waterman_score_ends(&self, seq: &[u8]) -> Option<(u32, usize, usize)> {
         sw_simd_score_ends::<T, N, S>(seq, self)
     }
+
+    #[inline]
+    #[must_use]
+    pub fn smith_waterman_score_ends_reverse(&self, seq: &[u8]) -> Option<(u32, usize, usize)> {
+        sw_simd_score_ends_reverse::<T, N, S>(seq, self)
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn smith_waterman_score_ranges(&self, seq: &[u8]) -> Option<(u32, Range<usize>, Range<usize>)> {
+        sw_simd_score_ranges::<T, N, S>(seq, self)
+    }
 }
 
 #[cfg(test)]
@@ -321,6 +372,21 @@ mod bench {
 
     #[bench]
     fn build_profile_u8(b: &mut Bencher) {
-        b.iter(|| StripedProfile::<u8, 32, 5>::new(DATA, &MATRIX, GAP_OPEN, GAP_EXTEND));
+        b.iter(|| std::hint::black_box(StripedProfile::<u8, 32, 5>::new(DATA, &MATRIX, GAP_OPEN, GAP_EXTEND)));
+    }
+
+    #[bench]
+    fn build_profile_u8_rev_half_recreate(b: &mut Bencher) {
+        b.iter(|| {
+            let data_rev: Vec<u8> = DATA[..DATA.len() / 2].iter().copied().rev().collect();
+            std::hint::black_box(StripedProfile::<u8, 32, 5>::new(&data_rev, &MATRIX, GAP_OPEN, GAP_EXTEND))
+        });
+    }
+
+    #[bench]
+    fn build_profile_u8_rev_half_mapping(b: &mut Bencher) {
+        let prof = StripedProfile::<u8, 32, 5>::new(DATA, &MATRIX, GAP_OPEN, GAP_EXTEND).unwrap();
+
+        b.iter(|| std::hint::black_box(prof.reverse_from_forward(DATA.len() / 2)));
     }
 }
