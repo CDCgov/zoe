@@ -112,7 +112,7 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 /// ```
 #[must_use]
 #[allow(clippy::cast_sign_loss)]
-pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfile<S>) -> MaybeAligned<u32> {
+pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfile<S>) -> MaybeAligned<Alignment<u32>> {
     if reference.is_empty() {
         return MaybeAligned::Unmapped;
     }
@@ -178,10 +178,10 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
     }
 
     if best_score == 0 {
-        return MaybeAligned::Unmapped;
+        MaybeAligned::Unmapped
+    } else {
+        // score is i32 and is non-negative due to this algorithm, so this is a
+        // valid cast
+        MaybeAligned::Some(backtrack.to_alignment(best_score as u32, r_end, c_end, reference.len(), query.seq.len()))
     }
-
-    // score is i32 and is non-negative due to this algorithm, so this is a
-    // valid cast
-    backtrack.to_alignment(best_score as u32, r_end, c_end, reference.len(), query.seq.len())
 }

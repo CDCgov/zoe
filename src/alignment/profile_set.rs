@@ -1,6 +1,6 @@
 use super::{StripedProfile, validate_profile_args};
 use crate::{
-    alignment::MaybeAligned,
+    alignment::{Alignment, MaybeAligned},
     data::{err::QueryProfileError, matrices::WeightMatrix},
 };
 use std::{
@@ -130,12 +130,12 @@ where
     /// ```
     #[inline]
     #[must_use]
-    pub fn smith_waterman_score_from_i8<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u32> {
+    pub fn smith_waterman_score_from_i8<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u32> {
         let query = query.as_ref();
         self.get_i8()
             .smith_waterman_score(query)
-            .or_else(|| self.get_i16().smith_waterman_score(query))
-            .or_else(|| self.get_i32().smith_waterman_score(query))
+            .or_else_overflowed(|| self.get_i16().smith_waterman_score(query))
+            .or_else_overflowed(|| self.get_i32().smith_waterman_score(query))
     }
 
     /// Lazily execute [`StripedProfile::smith_waterman_score`] starting with
@@ -146,11 +146,11 @@ where
     /// See [`LocalProfiles::smith_waterman_score_from_i8`] for an example.
     #[inline]
     #[must_use]
-    pub fn smith_waterman_score_from_i16<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u32> {
+    pub fn smith_waterman_score_from_i16<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u32> {
         let query = query.as_ref();
         self.get_i16()
             .smith_waterman_score(query)
-            .or_else(|| self.get_i32().smith_waterman_score(query))
+            .or_else_overflowed(|| self.get_i32().smith_waterman_score(query))
     }
 
     /// Execute [`StripedProfile::smith_waterman_score`] with the `i32` profile,
@@ -159,7 +159,7 @@ where
     /// See [`LocalProfiles::smith_waterman_score_from_i8`] for an example.
     #[inline]
     #[must_use]
-    pub fn smith_waterman_score_from_i32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u32> {
+    pub fn smith_waterman_score_from_i32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u32> {
         let query = query.as_ref();
         self.get_i32().smith_waterman_score(query)
     }
@@ -185,7 +185,7 @@ where
     /// ```
     #[inline]
     #[must_use]
-    pub fn smith_waterman_alignment_from_i8<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u32> {
+    pub fn smith_waterman_alignment_from_i8<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<Alignment<u32>> {
         let query = query.as_ref();
         self.get_i8()
             .smith_waterman_alignment(query)
@@ -201,7 +201,7 @@ where
     /// See [`LocalProfiles::smith_waterman_alignment_from_i8`] for an example.
     #[inline]
     #[must_use]
-    pub fn smith_waterman_alignment_from_i16<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u32> {
+    pub fn smith_waterman_alignment_from_i16<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<Alignment<u32>> {
         let query = query.as_ref();
         self.get_i16()
             .smith_waterman_alignment(query)
@@ -214,7 +214,7 @@ where
     /// See [`LocalProfiles::smith_waterman_alignment_from_i8`] for an example.
     #[inline]
     #[must_use]
-    pub fn smith_waterman_alignment_from_i32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u32> {
+    pub fn smith_waterman_alignment_from_i32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<Alignment<u32>> {
         let query = query.as_ref();
         self.get_i32().smith_waterman_alignment(query)
     }
@@ -416,12 +416,12 @@ where
     /// ```
     #[inline]
     #[must_use]
-    pub fn smith_waterman_score_from_i8<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u32> {
+    pub fn smith_waterman_score_from_i8<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u32> {
         let query = query.as_ref();
         self.get_i8()
             .smith_waterman_score(query)
-            .or_else(|| self.get_i16().smith_waterman_score(query))
-            .or_else(|| self.get_i32().smith_waterman_score(query))
+            .or_else_overflowed(|| self.get_i16().smith_waterman_score(query))
+            .or_else_overflowed(|| self.get_i32().smith_waterman_score(query))
     }
 
     /// Lazily execute [`StripedProfile::smith_waterman_score`] starting with
@@ -432,11 +432,11 @@ where
     /// See [`SharedProfiles::smith_waterman_score_from_i8`] for an example.
     #[inline]
     #[must_use]
-    pub fn smith_waterman_score_from_i16<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u32> {
+    pub fn smith_waterman_score_from_i16<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u32> {
         let query = query.as_ref();
         self.get_i16()
             .smith_waterman_score(query)
-            .or_else(|| self.get_i32().smith_waterman_score(query))
+            .or_else_overflowed(|| self.get_i32().smith_waterman_score(query))
     }
 
     /// Execute [`StripedProfile::smith_waterman_score`] with the `i32` profile,
@@ -445,7 +445,7 @@ where
     /// See [`SharedProfiles::smith_waterman_score_from_i8`] for an example.
     #[inline]
     #[must_use]
-    pub fn smith_waterman_score_from_i32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> Option<u32> {
+    pub fn smith_waterman_score_from_i32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u32> {
         let query = query.as_ref();
         self.get_i32().smith_waterman_score(query)
     }
@@ -471,7 +471,7 @@ where
     /// ```
     #[inline]
     #[must_use]
-    pub fn smith_waterman_alignment_from_i8<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u32> {
+    pub fn smith_waterman_alignment_from_i8<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<Alignment<u32>> {
         let query = query.as_ref();
         self.get_i8()
             .smith_waterman_alignment(query)
@@ -487,7 +487,7 @@ where
     /// See [`SharedProfiles::smith_waterman_alignment_from_i8`] for an example.
     #[inline]
     #[must_use]
-    pub fn smith_waterman_alignment_from_i16<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u32> {
+    pub fn smith_waterman_alignment_from_i16<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<Alignment<u32>> {
         let query = query.as_ref();
         self.get_i16()
             .smith_waterman_alignment(query)
@@ -500,7 +500,7 @@ where
     /// See [`SharedProfiles::smith_waterman_alignment_from_i8`] for an example.
     #[inline]
     #[must_use]
-    pub fn smith_waterman_alignment_from_i32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u32> {
+    pub fn smith_waterman_alignment_from_i32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<Alignment<u32>> {
         let query = query.as_ref();
         self.get_i32().smith_waterman_alignment(query)
     }

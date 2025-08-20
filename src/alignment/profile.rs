@@ -1,6 +1,6 @@
 use crate::{
     alignment::{
-        MaybeAligned,
+        Alignment, MaybeAligned,
         sw::{
             sw_scalar_alignment, sw_scalar_score, sw_simd_alignment, sw_simd_score, sw_simd_score_ends,
             sw_simd_score_ends_reverse, sw_simd_score_ranges,
@@ -140,7 +140,7 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// ```
     #[inline]
     #[must_use]
-    pub fn smith_waterman_alignment(&self, seq: &[u8]) -> MaybeAligned<u32> {
+    pub fn smith_waterman_alignment(&self, seq: &[u8]) -> MaybeAligned<Alignment<u32>> {
         sw_scalar_alignment(seq, self)
     }
 }
@@ -309,7 +309,7 @@ where
     /// ```
     #[inline]
     #[must_use]
-    pub fn smith_waterman_score(&self, seq: &[u8]) -> Option<u32> {
+    pub fn smith_waterman_score(&self, seq: &[u8]) -> MaybeAligned<u32> {
         sw_simd_score::<T, N, S>(seq, self)
     }
 
@@ -336,25 +336,25 @@ where
     /// ```
     #[inline]
     #[must_use]
-    pub fn smith_waterman_alignment(&self, seq: &[u8]) -> MaybeAligned<u32> {
+    pub fn smith_waterman_alignment(&self, seq: &[u8]) -> MaybeAligned<Alignment<u32>> {
         sw_simd_alignment::<T, N, S>(seq, self)
     }
 
     #[inline]
     #[must_use]
-    pub fn smith_waterman_score_ends(&self, seq: &[u8]) -> Option<(u32, usize, usize)> {
+    pub fn smith_waterman_score_ends(&self, seq: &[u8]) -> MaybeAligned<(u32, usize, usize)> {
         sw_simd_score_ends::<T, N, S>(seq, self)
     }
 
     #[inline]
     #[must_use]
-    pub fn smith_waterman_score_ends_reverse(&self, seq: &[u8]) -> Option<(u32, usize, usize)> {
+    pub fn smith_waterman_score_ends_reverse(&self, seq: &[u8]) -> MaybeAligned<(u32, usize, usize)> {
         sw_simd_score_ends_reverse::<T, N, S>(seq, self)
     }
 
     #[inline]
     #[must_use]
-    pub fn smith_waterman_score_ranges(&self, seq: &[u8]) -> Option<(u32, Range<usize>, Range<usize>)> {
+    pub fn smith_waterman_score_ranges(&self, seq: &[u8]) -> MaybeAligned<(u32, Range<usize>, Range<usize>)> {
         sw_simd_score_ranges::<T, N, S>(seq, self)
     }
 }

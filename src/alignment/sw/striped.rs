@@ -44,7 +44,9 @@ use std::simd::{LaneCount, SupportedLaneCount};
 #[allow(non_snake_case)]
 #[must_use]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
-pub fn sw_simd_score<T, const N: usize, const S: usize>(reference: &[u8], query: &StripedProfile<T, N, S>) -> Option<u32>
+pub fn sw_simd_score<T, const N: usize, const S: usize>(
+    reference: &[u8], query: &StripedProfile<T, N, S>,
+) -> MaybeAligned<u32>
 where
     T: AlignableIntWidth,
     LaneCount<N>: SupportedLaneCount,
@@ -119,25 +121,14 @@ where
     }
 
     let best = max_scores.reduce_max();
-
-    if T::SIGNED {
-        // Map best score to an unsigned range. Note that: MAX+1 = abs(MIN). If
-        // we would have overflowed (saturated), return None, otherwise return
-        // the best score. T is at most i32, so T::MAX + 1 fits in u32. Since
-        // best < i32::MAX, the wrapping add will never wrap
-        (best < T::MAX).then(|| (T::MAX.cast_as::<u32>() + 1).wrapping_add_signed(best.cast_as::<i32>()))
-    } else {
-        // If we would have overflowed, return None, otherwise return the best
-        // score. We add one because we care if the value is equal to the MAX.
-        best.checked_add(query.bias + T::ONE).map(|_| best.cast_as::<u32>())
-    }
+    score_to_maybe_aligned(best, query.bias, |score| score)
 }
 
 #[inline]
 #[must_use]
 pub fn sw_simd_score_ends<T, const N: usize, const S: usize>(
     reference: &[u8], query: &StripedProfile<T, N, S>,
-) -> Option<(u32, usize, usize)>
+) -> MaybeAligned<(u32, usize, usize)>
 where
     T: AlignableIntWidth,
     LaneCount<N>: SupportedLaneCount,
@@ -149,7 +140,7 @@ where
 #[must_use]
 pub fn sw_simd_score_ends_reverse<T, const N: usize, const S: usize>(
     reference: &[u8], query: &StripedProfile<T, N, S>,
-) -> Option<(u32, usize, usize)>
+) -> MaybeAligned<(u32, usize, usize)>
 where
     T: AlignableIntWidth,
     LaneCount<N>: SupportedLaneCount,
@@ -170,13 +161,13 @@ where
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
 pub fn sw_simd_score_ends_dir<T, const N: usize, const S: usize, const FORWARD: bool>(
     reference: &[u8], query: &StripedProfile<T, N, S>,
-) -> Option<(u32, usize, usize)>
+) -> MaybeAligned<(u32, usize, usize)>
 where
     T: AlignableIntWidth,
     LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdAnyInt<T, N>, {
     if reference.is_empty() {
-        return None;
+        return MaybeAligned::Unmapped;
     }
 
     let num_vecs = query.number_vectors();
@@ -255,7 +246,7 @@ where
         let row_best = max_scores.reduce_max();
         if row_best > best {
             if row_best >= saturating_threshold {
-                return None;
+                return MaybeAligned::Overflowed;
             }
             best = row_best;
             r_end = r;
@@ -278,13 +269,6 @@ where
             break;
         }
     }
-
-    let best_score = if T::SIGNED {
-        (best < T::MAX).then(|| (T::MAX.cast_as::<u32>() + 1).wrapping_add_signed(best.cast_as::<i32>()))
-    } else {
-        best.checked_add(query.bias + T::ONE).map(|_| best.cast_as::<u32>())
-    }?;
-
     if FORWARD {
         r_end += 1;
         c_end += 1;
@@ -293,7 +277,7 @@ where
         c_end = query.seq_len - 1 - c_end;
     }
 
-    Some((best_score, r_end, c_end))
+    score_to_maybe_aligned(best, query.bias, |score| (score, r_end, c_end))
 }
 
 /// Similar to [`sw_simd_score`] but also returns the reference and query
@@ -307,19 +291,18 @@ where
 #[must_use]
 pub fn sw_simd_score_ranges<T, const N: usize, const S: usize>(
     reference: &[u8], query: &StripedProfile<T, N, S>,
-) -> Option<(u32, Range<usize>, Range<usize>)>
+) -> MaybeAligned<(u32, Range<usize>, Range<usize>)>
 where
     T: AlignableIntWidth,
     LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdAnyInt<T, N>, {
-    let (score, ref_end, query_end) = sw_simd_score_ends_dir::<T, N, S, true>(reference, query)?;
-
-    let query_rev = query.reverse_from_forward(query_end);
-    let (score2, ref_start, query_start) = sw_simd_score_ends_dir::<T, N, S, false>(reference, &query_rev)?;
-
-    assert_eq!(score, score2);
-
-    Some((score, ref_start..ref_end, query_start..query_end))
+    sw_simd_score_ends_dir::<T, N, S, true>(reference, query).and_then(|(score, ref_end, query_end)| {
+        let query_rev = query.reverse_from_forward(query_end);
+        sw_simd_score_ends_dir::<T, N, S, false>(reference, &query_rev).map(|(score2, ref_start, query_start)| {
+            assert_eq!(score, score2);
+            (score, ref_start..ref_end, query_start..query_end)
+        })
+    })
 }
 
 /// Smith-Waterman algorithm (vectorized), yielding the optimal alignment.
@@ -375,7 +358,7 @@ where
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
 pub fn sw_simd_alignment<T, const N: usize, const S: usize>(
     reference: &[u8], query: &StripedProfile<T, N, S>,
-) -> MaybeAligned<u32>
+) -> MaybeAligned<Alignment<u32>>
 where
     T: AlignableIntWidth,
     LaneCount<N>: SupportedLaneCount,
@@ -518,6 +501,17 @@ where
         num_vecs,
     );
 
+    score_to_maybe_aligned(best, query.bias, |score| {
+        backtrack.to_alignment(score, r_end, c_end, reference.len(), query.seq_len)
+    })
+}
+
+#[inline]
+#[must_use]
+fn score_to_maybe_aligned<T, F, R>(best: T, bias: T, f: F) -> MaybeAligned<R>
+where
+    T: AlignableIntWidth,
+    F: FnOnce(u32) -> R, {
     if T::SIGNED {
         // Map best score to an unsigned range. Note that: MAX+1 = abs(MIN). If
         // we would have overflowed (saturated), return None, otherwise return
@@ -528,13 +522,13 @@ where
         // If we would have overflowed, return None, otherwise return the best
         // score. We add one because we care if the value is equal to the MAX.
         // TODO: Justify safety
-        best.checked_add(query.bias + T::ONE).map(|_| best.cast_as::<u32>())
+        best.checked_add(bias + T::ONE).map(|_| best.cast_as::<u32>())
     }
     .map_or(MaybeAligned::Overflowed, |score| {
         if score == 0 {
             MaybeAligned::Unmapped
         } else {
-            backtrack.to_alignment(score, r_end, c_end, reference.len(), query.seq_len)
+            MaybeAligned::Some(f(score))
         }
     })
 }

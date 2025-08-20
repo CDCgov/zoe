@@ -37,7 +37,7 @@ use std::ops::Range;
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum MaybeAligned<T> {
     /// Contains a successful alignment result
-    Some(Alignment<T>),
+    Some(T),
     /// Indicates the alignment score overflowed the numeric type
     Overflowed,
     /// Indicates the sequence could not be mapped/aligned
@@ -54,7 +54,7 @@ impl<T> MaybeAligned<T> {
     /// [`MaybeAligned::Unmapped`].
     #[inline]
     #[must_use]
-    pub fn unwrap(self) -> Alignment<T> {
+    pub fn unwrap(self) -> T {
         match self {
             MaybeAligned::Some(aln) => aln,
             MaybeAligned::Overflowed => panic!("Alignment score overflowed!"),
@@ -65,7 +65,7 @@ impl<T> MaybeAligned<T> {
     /// Gets the contained [`Alignment`] as an [`Option`].
     #[inline]
     #[must_use]
-    pub fn get(self) -> Option<Alignment<T>> {
+    pub fn get(self) -> Option<T> {
         match self {
             MaybeAligned::Some(aln) => Some(aln),
             _ => None,
@@ -76,8 +76,35 @@ impl<T> MaybeAligned<T> {
     /// returns the result.
     #[inline]
     #[must_use]
-    pub fn or_else_overflowed(self, f: impl FnOnce() -> MaybeAligned<T>) -> MaybeAligned<T> {
+    pub fn or_else_overflowed(self, f: impl FnOnce() -> Self) -> Self {
         if let MaybeAligned::Overflowed = self { f() } else { self }
+    }
+
+    /// Maps a `MaybeAligned<T>` to `MaybeAligned<U>` by applying a function to the contained value.
+    /// Leaves `Overflowed` and `Unmapped` variants unchanged.
+    #[inline]
+    #[must_use]
+    pub fn map<U>(self, f: impl FnOnce(T) -> U) -> MaybeAligned<U> {
+        match self {
+            MaybeAligned::Some(value) => MaybeAligned::Some(f(value)),
+            MaybeAligned::Overflowed => MaybeAligned::Overflowed,
+            MaybeAligned::Unmapped => MaybeAligned::Unmapped,
+        }
+    }
+
+    /// Returns `Unmapped` if the `MaybeAligned` is `Unmapped`, `Overflowed` if it is
+    /// `Overflowed`, otherwise calls `f` with the wrapped value and returns the
+    /// result.
+    #[inline]
+    #[must_use]
+    pub fn and_then<U, F>(self, f: F) -> MaybeAligned<U>
+    where
+        F: FnOnce(T) -> MaybeAligned<U>, {
+        match self {
+            MaybeAligned::Some(x) => f(x),
+            MaybeAligned::Overflowed => MaybeAligned::Overflowed,
+            MaybeAligned::Unmapped => MaybeAligned::Unmapped,
+        }
     }
 }
 
