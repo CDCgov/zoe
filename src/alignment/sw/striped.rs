@@ -124,12 +124,10 @@ where
     score_to_maybe_aligned(best, query.bias, |score| score)
 }
 
-/// Similar to [`sw_simd_score`] but also returns the coordinates of the end of
-/// the alignment within the reference and query.
+/// Similar to [`sw_simd_score`] but includes reference and query 0-based,
+/// exclusive end indices.
 ///
-/// The end coordinate is equivalently:
-/// - The 1-based position of the last aligning character
-/// - The 0-based exclusive end for the alignment range
+/// Note: these coordinates are equivalent to the 1-based end positions.
 #[inline]
 #[must_use]
 pub fn sw_simd_score_ends<T, const N: usize, const S: usize>(
@@ -142,13 +140,14 @@ where
     sw_simd_score_ends_dir::<T, N, S, true>(reference, query)
 }
 
-/// Similar to [`sw_simd_score`] but also returns the coordinates of the start
-/// of the alignment within the reference and query.
+#[cfg(feature = "dev-3pass")]
+/// Similar to [`sw_simd_score`], but includes the reference and query
+/// inclusive start index (0-based).
 ///
-/// The start coordinate is the 0-based inclusive start for the alignment range.
+/// Important: the query profile should also be in reverse orientation.
 #[inline]
 #[must_use]
-pub fn sw_simd_score_ends_reverse<T, const N: usize, const S: usize>(
+pub(crate) fn sw_simd_score_ends_reverse<T, const N: usize, const S: usize>(
     reference: &[u8], query: &StripedProfile<T, N, S>,
 ) -> MaybeAligned<(u32, usize, usize)>
 where
@@ -170,7 +169,7 @@ where
 #[allow(non_snake_case, clippy::too_many_lines)]
 #[must_use]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
-pub fn sw_simd_score_ends_dir<T, const N: usize, const S: usize, const FORWARD: bool>(
+fn sw_simd_score_ends_dir<T, const N: usize, const S: usize, const FORWARD: bool>(
     reference: &[u8], query: &StripedProfile<T, N, S>,
 ) -> MaybeAligned<(u32, usize, usize)>
 where
@@ -280,6 +279,7 @@ where
             break;
         }
     }
+
     if FORWARD {
         r_end += 1;
         c_end += 1;
@@ -293,11 +293,14 @@ where
 
 /// Similar to [`sw_simd_score`] but also returns the reference and query
 /// alignment ranges for 0-based slicing. The algorithm performs a truncated two
-/// pass approach.
+/// pass approach. This approach was inspired by (7).
+///
+/// See **[module citations](crate::alignment::sw#module-citations)**.
 ///
 /// ## Panics
 ///
 /// Panics if scores for the two passes are not equal.
+#[cfg(feature = "dev-3pass")]
 #[inline]
 #[must_use]
 pub fn sw_simd_score_ranges<T, const N: usize, const S: usize>(
@@ -307,9 +310,11 @@ where
     T: AlignableIntWidth,
     LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdAnyInt<T, N>, {
-    sw_simd_score_ends_dir::<T, N, S, true>(reference, query).and_then(|(score, ref_end, query_end)| {
-        let query_rev = query.reverse_from_forward(query_end);
-        sw_simd_score_ends_dir::<T, N, S, false>(reference, &query_rev).map(|(score2, ref_start, query_start)| {
+    sw_simd_score_ends::<T, N, S>(reference, query).and_then(|(score, ref_end, query_end)| {
+        let Some(query_rev) = query.reverse_from_forward(query_end) else {
+            return MaybeAligned::Unmapped;
+        };
+        sw_simd_score_ends_reverse::<T, N, S>(&reference[..ref_end], &query_rev).map(|(score2, ref_start, query_start)| {
             assert_eq!(score, score2);
             (score, ref_start..ref_end, query_start..query_end)
         })
@@ -514,6 +519,39 @@ where
 
     score_to_maybe_aligned(best, query.bias, |score| {
         backtrack.to_alignment(score, r_end, c_end, reference.len(), query.seq_len)
+    })
+}
+
+/// For test purposes only
+/// This approach was inspired by (7), albeit this implementation is for large
+/// reference / small query because banded is not used.
+///
+/// See **[module citations](crate::alignment::sw#module-citations)**.
+#[must_use]
+#[cfg(feature = "dev-3pass")]
+pub fn sw_simd_alignment_3pass<T, const N: usize, const S: usize>(
+    reference: &[u8], query: &StripedProfile<T, N, S>,
+) -> MaybeAligned<Alignment<u32>>
+where
+    T: AlignableIntWidth,
+    LaneCount<N>: SupportedLaneCount,
+    Simd<T, N>: SimdAnyInt<T, N>, {
+    sw_simd_score_ranges::<T, N, S>(reference, query).and_then(|(score, ref_range, query_range)| {
+        let Some(query_new_) = query.new_with_range(query_range.clone()) else {
+            return MaybeAligned::Unmapped;
+        };
+        sw_simd_alignment(&reference[ref_range.clone()], &query_new_).map(|mut alignment| {
+            alignment.states.prepend_soft_clip(query_range.start);
+            alignment.states.soft_clip(query.seq_len - query_range.end);
+            Alignment {
+                score,
+                ref_range,
+                query_range,
+                states: alignment.states,
+                ref_len: reference.len(),
+                query_len: query.seq_len,
+            }
+        })
     })
 }
 

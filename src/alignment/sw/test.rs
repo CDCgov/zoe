@@ -21,7 +21,12 @@ macro_rules! test_sw_simd_alignment {
             StripedProfile::<$uint_type, $lanes, 5>::new($profile_seq, &weights.into_biased_matrix(), GAP_OPEN, GAP_EXTEND)
                 .unwrap();
         let aln_simd = profile_simd.smith_waterman_alignment($other_seq).unwrap();
-        assert_eq!(aln_scalar, aln_simd);
+        assert_eq!(aln_scalar, aln_simd, "SIMD ALIGNMENT");
+
+        let (score, ref_end, query_end) = profile_simd.smith_waterman_score_ends($other_seq).unwrap();
+        assert_eq!(score, aln_scalar.score);
+        assert_eq!(aln_scalar.ref_range.end, ref_end, "REFERENCE END");
+        assert_eq!(aln_scalar.query_range.end, query_end, "QUERY END");
     }};
 }
 
@@ -169,8 +174,9 @@ fn sw_simd_aln12() {
     test_sw_simd_alignment!(query, reference, i8, u8, 8);
 }
 
+#[cfg(feature = "dev-3pass")]
 #[test]
-fn sw_simd_location() {
+fn sw_simd_locations() {
     let reference = b"TTTTTTCCTTTTTTTTCCCCCTTTTT";
     let query = b"GGGGGGGCCCCCAAAA";
 
@@ -181,28 +187,35 @@ fn sw_simd_location() {
     let aln_scalar = profile_scalar.smith_waterman_alignment(reference).unwrap();
     let (score, ref_end, query_end) = profile_simd.smith_waterman_score_ends(reference).unwrap();
 
+    assert_eq!(score, aln_scalar.score);
+    assert_eq!(aln_scalar.ref_range.end, ref_end, "REFERENCE END");
+    assert_eq!(aln_scalar.query_range.end, query_end, "QUERY END");
+
     let query_rev: Vec<u8> = query[..query_end].iter().copied().rev().collect();
 
     let profile_simd_rev =
         StripedProfile::<u8, 8, 5>::new(&query_rev, &weights.into_biased_matrix(), GAP_OPEN, GAP_EXTEND).unwrap();
-    let profile_simd_rev2 = profile_simd.reverse_from_forward(query_end);
-
-    assert_eq!(profile_simd_rev.seq_len, profile_simd_rev2.seq_len);
 
     let (score2, ref_start, query_start) = profile_simd_rev
         .smith_waterman_score_ends_reverse(&reference[..ref_end])
         .unwrap();
-
     assert_eq!(score, score2);
-    assert_eq!(score, aln_scalar.score);
     assert_eq!(ref_start..ref_end, aln_scalar.ref_range, "REFERENCE");
     assert_eq!(query_start..query_end, aln_scalar.query_range, "QUERY");
+
+    let profile_simd_rev2 = profile_simd.reverse_from_forward(query_end).unwrap();
+    assert_eq!(profile_simd_rev, profile_simd_rev2);
+
+    let (_, ref_range, query_range) = profile_simd.smith_waterman_score_ranges(reference).unwrap();
+    assert_eq!(query_range, aln_scalar.query_range, "3pass QUERY RANGE");
+    assert_eq!(ref_range, aln_scalar.ref_range, "3pass REFERENCE RANGE");
 }
 
+#[cfg(feature = "dev-3pass")]
 #[test]
 fn sw_simd_ranges() {
-    let reference = b"TTTTTTCCTTTTTTTTCCCCCTTTTT";
-    let query = b"GGGGGGGCCCCCAAAA";
+    let reference = b"TAAAA";
+    let query = b"CCCCA";
 
     let weights = WeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N'));
     let profile_scalar = ScalarProfile::new(query, &weights, GAP_OPEN, GAP_EXTEND).unwrap();

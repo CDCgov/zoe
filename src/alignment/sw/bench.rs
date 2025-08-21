@@ -88,6 +88,7 @@ mod int16 {
         b.iter(|| sw_simd_score_ends::<i16, 16, 5>(QUERY, &query_profile));
     }
 
+    #[cfg(feature = "dev-3pass")]
     #[bench]
     fn sw_simd_w0256n16i_3(b: &mut Bencher) {
         let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
@@ -106,6 +107,7 @@ mod int16 {
         b.iter(|| sw_simd_score_ends::<i16, 32, 5>(QUERY, &query_profile));
     }
 
+    #[cfg(feature = "dev-3pass")]
     #[bench]
     fn sw_simd_w0512n32i_3(b: &mut Bencher) {
         let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();

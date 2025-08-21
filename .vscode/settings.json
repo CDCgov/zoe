@@ -16,4 +16,5 @@
     ],
     "rust-analyzer.checkOnSave": true,
     "rust-analyzer.check.command": "clippy",
+    "rust-analyzer.cargo.features": "all",
 }

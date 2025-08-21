@@ -193,6 +193,20 @@ where
             .or_else_overflowed(|| self.get_i32().smith_waterman_alignment(query))
     }
 
+    #[cfg(feature = "dev-3pass")]
+    #[inline]
+    #[must_use]
+    // TODO: we will add dispatching instead if the method needs to be hybrid based on size considerations
+    pub fn smith_waterman_alignment_from_i8_3pass<T: AsRef<[u8]> + ?Sized>(
+        &self, query: &T,
+    ) -> MaybeAligned<Alignment<u32>> {
+        let query = query.as_ref();
+        self.get_i8()
+            .smith_waterman_alignment_3pass(query)
+            .or_else_overflowed(|| self.get_i16().smith_waterman_alignment_3pass(query))
+            .or_else_overflowed(|| self.get_i32().smith_waterman_alignment_3pass(query))
+    }
+
     /// Lazily execute [`StripedProfile::smith_waterman_alignment`] starting with
     /// the `i16` profile, skipping the `i8` profile. Lazily initializes the
     /// profiles and works its way up to the `i32` profile. Execution stops when
@@ -477,6 +491,20 @@ where
             .smith_waterman_alignment(query)
             .or_else_overflowed(|| self.get_i16().smith_waterman_alignment(query))
             .or_else_overflowed(|| self.get_i32().smith_waterman_alignment(query))
+    }
+
+    #[cfg(feature = "dev-3pass")]
+    #[inline]
+    #[must_use]
+    // TODO: we will add dispatching instead if the method needs to be hybrid based on size considerations
+    pub fn smith_waterman_alignment_from_i8_3pass<T: AsRef<[u8]> + ?Sized>(
+        &self, query: &T,
+    ) -> MaybeAligned<Alignment<u32>> {
+        let query = query.as_ref();
+        self.get_i8()
+            .smith_waterman_alignment_3pass(query)
+            .or_else_overflowed(|| self.get_i16().smith_waterman_alignment_3pass(query))
+            .or_else_overflowed(|| self.get_i32().smith_waterman_alignment_3pass(query))
     }
 
     /// Lazily execute [`StripedProfile::smith_waterman_alignment`] starting with

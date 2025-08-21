@@ -1,10 +1,9 @@
+#[cfg(feature = "dev-3pass")]
+use crate::alignment::sw::sw_simd_score_ranges;
 use crate::{
     alignment::{
         Alignment, MaybeAligned,
-        sw::{
-            sw_scalar_alignment, sw_scalar_score, sw_simd_alignment, sw_simd_score, sw_simd_score_ends,
-            sw_simd_score_ends_reverse, sw_simd_score_ranges,
-        },
+        sw::{sw_scalar_alignment, sw_scalar_score, sw_simd_alignment, sw_simd_score, sw_simd_score_ends},
     },
     data::{WeightMatrix, err::QueryProfileError, mappings::ByteIndexMap},
     math::{AlignableIntWidth, AnyInt, FromSameSignedness},
@@ -12,7 +11,6 @@ use crate::{
 };
 use std::{
     convert::Into,
-    ops::Range,
     simd::{LaneCount, SimdElement, SupportedLaneCount, prelude::*},
     vec,
 };
@@ -238,8 +236,15 @@ where
         }
     }
 
+    #[cfg(feature = "dev-3pass")]
+    /// Returns a reversed profile from the forward profile given the end of the
+    /// query sequence, otherwise returns none if the bound is invalid.
     #[must_use]
-    pub fn reverse_from_forward(&self, seq_end: usize) -> Self {
+    pub fn reverse_from_forward(&self, seq_end: usize) -> Option<Self> {
+        if seq_end == 0 || seq_end > self.seq_len {
+            return None;
+        }
+
         let number_vectors = seq_end.div_ceil(N);
         let number_vecs_old = self.number_vectors();
         let total_lanes = N * number_vectors;
@@ -263,14 +268,57 @@ where
             }
         }
 
-        StripedProfile {
+        Some(StripedProfile {
             profile,
             gap_open: self.gap_open,
             gap_extend: self.gap_extend,
             bias: self.bias,
             mapping: self.mapping,
             seq_len: seq_end,
+        })
+    }
+
+    #[cfg(feature = "dev-3pass")]
+    /// Returns a sub-profile for a specific range of the query sequence,
+    /// otherwise we return `None` if the range is invalid.
+    #[must_use]
+    pub fn new_with_range(&self, range: std::ops::Range<usize>) -> Option<Self> {
+        if range.is_empty() || range.end > self.seq_len {
+            return None;
         }
+
+        let new_len = range.end - range.start;
+        let number_vectors = new_len.div_ceil(N);
+        let number_vecs_old = self.number_vectors();
+        let total_lanes = N * number_vectors;
+
+        let biases = Simd::splat(self.bias);
+        let mut profile = vec![biases; S * number_vectors];
+
+        for v in 0..number_vectors {
+            for ref_index in 0..self.mapping.len() {
+                let mut vector = biases;
+                for (i, q) in (v..total_lanes).step_by(number_vectors).enumerate() {
+                    if q < new_len {
+                        let q_old = range.start + q;
+                        let v_old = q_old % number_vecs_old;
+                        let lane_old = (q_old - v_old) / number_vecs_old;
+
+                        vector[i] = self.profile[ref_index * number_vecs_old + v_old][lane_old];
+                    }
+                }
+                profile[ref_index * number_vectors + v] = vector;
+            }
+        }
+
+        Some(StripedProfile {
+            profile,
+            gap_open: self.gap_open,
+            gap_extend: self.gap_extend,
+            bias: self.bias,
+            mapping: self.mapping,
+            seq_len: new_len,
+        })
     }
 
     /// Returns the number of SIMD vectors in the profile.
@@ -313,6 +361,29 @@ where
         sw_simd_score::<T, N, S>(seq, self)
     }
 
+    /// Similar to [`smith_waterman_score`] but includes reference and query
+    /// 0-based, exclusive end indices.
+    ///
+    /// Note: these coordinates are equivalent to the 1-based end positions.
+    ///
+    /// [`smith_waterman_score`]: Self::smith_waterman_score
+    #[inline]
+    #[must_use]
+    pub fn smith_waterman_score_ends(&self, seq: &[u8]) -> MaybeAligned<(u32, usize, usize)> {
+        sw_simd_score_ends::<T, N, S>(seq, self)
+    }
+
+    #[cfg(all(test, feature = "dev-3pass"))]
+    /// Similar to [`sw_simd_score`], but includes the reference and query
+    /// inclusive start index (0-based).
+    ///
+    /// Important: the query profile should also be in reverse orientation.
+    #[inline]
+    #[must_use]
+    pub(crate) fn smith_waterman_score_ends_reverse(&self, seq: &[u8]) -> MaybeAligned<(u32, usize, usize)> {
+        crate::alignment::sw::sw_simd_score_ends_reverse::<T, N, S>(seq, self)
+    }
+
     /// Computes the Smith-Waterman local alignment between the profile and a
     /// passed sequence, yielding the reference starting position, cigar, and
     /// optimal score. Returns [`None`] if the score overflowed.
@@ -340,22 +411,29 @@ where
         sw_simd_alignment::<T, N, S>(seq, self)
     }
 
+    #[cfg(feature = "dev-3pass")]
+    /// Similar to [`smith_waterman_score`] but includes the reference and query
+    /// alignment ranges. These are standard 0-based, half-open ranges for slicing.
+    ///
+    /// [`smith_waterman_score`]: Self::smith_waterman_score
     #[inline]
     #[must_use]
-    pub fn smith_waterman_score_ends(&self, seq: &[u8]) -> MaybeAligned<(u32, usize, usize)> {
-        sw_simd_score_ends::<T, N, S>(seq, self)
-    }
-
-    #[inline]
-    #[must_use]
-    pub fn smith_waterman_score_ends_reverse(&self, seq: &[u8]) -> MaybeAligned<(u32, usize, usize)> {
-        sw_simd_score_ends_reverse::<T, N, S>(seq, self)
-    }
-
-    #[inline]
-    #[must_use]
-    pub fn smith_waterman_score_ranges(&self, seq: &[u8]) -> MaybeAligned<(u32, Range<usize>, Range<usize>)> {
+    pub fn smith_waterman_score_ranges(
+        &self, seq: &[u8],
+    ) -> MaybeAligned<(u32, std::ops::Range<usize>, std::ops::Range<usize>)> {
         sw_simd_score_ranges::<T, N, S>(seq, self)
+    }
+
+    #[cfg(feature = "dev-3pass")]
+    /// Similar to [`smith_waterman_alignment`] but calculates the alignment
+    /// bounding box first. For large references (>2kbp) and small queries (<1kbp) this could be
+    /// more efficient.
+    ///
+    /// [`smith_waterman_alignment`]: Self::smith_waterman_alignment
+    #[inline]
+    #[must_use]
+    pub fn smith_waterman_alignment_3pass(&self, seq: &[u8]) -> MaybeAligned<Alignment<u32>> {
+        crate::alignment::sw::sw_simd_alignment_3pass::<T, N, S>(seq, self)
     }
 }
 
@@ -383,6 +461,7 @@ mod bench {
         });
     }
 
+    #[cfg(feature = "dev-3pass")]
     #[bench]
     fn build_profile_u8_rev_half_mapping(b: &mut Bencher) {
         let prof = StripedProfile::<u8, 32, 5>::new(DATA, &MATRIX, GAP_OPEN, GAP_EXTEND).unwrap();

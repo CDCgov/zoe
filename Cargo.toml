@@ -43,9 +43,15 @@ multiversion = ["dep:multiversion"]
 # Arbitrary implementations
 fuzzing = ["dep:arbitrary"]
 
+# Note: development features may be removed at any time.
+
 # An optional feature enabling pHMM functionality which is currently in
 # development
 dev-phmm = []
+
+# An optional feature enabling 3-pass alignment which is currently in
+# development
+dev-3pass = []
 
 [dependencies]
 arbitrary = { version = "1", optional = true, features = ["derive"] }
@@ -58,5 +64,5 @@ strip = true
 lto = "thin"
 
 [package.metadata.docs.rs]
-features = ["rand", "fuzzing", "dev-phmm"]
+features = ["rand", "fuzzing", "dev-phmm", "dev-3pass"]
 rustdoc-args = ["--html-in-header", "./assets/docs-header.html"]

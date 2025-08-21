@@ -201,6 +201,19 @@ impl AlignmentStates {
         }
     }
 
+    /// Adds soft clipping `S` to the start of the alignment `inc` times.
+    pub fn prepend_soft_clip(&mut self, inc: usize) {
+        if inc > 0 {
+            if let Some(c) = self.0.first_mut()
+                && c.op == b'S'
+            {
+                c.inc += inc;
+            } else {
+                self.0.insert(0, Ciglet { inc, op: b'S' });
+            }
+        }
+    }
+
     /// Converts the [`AlignmentStates`] struct to a [`Cigar`] string. All
     /// operations should be valid for a CIGAR string.
     #[must_use]
