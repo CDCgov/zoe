@@ -878,7 +878,7 @@ pub(crate) trait BackTrackable {
     /// Checks if the current cell is in the **stop** state
     fn is_stop(&self) -> bool;
 
-    /// Create an [`Alignment`] from a backtrack matrix and other information.
+    /// Creates an [`Alignment`] from a backtrack matrix and other information.
     fn to_alignment<T>(
         &mut self, score: T, mut r_end: usize, mut c_end: usize, ref_len: usize, query_len: usize,
     ) -> Alignment<T> {

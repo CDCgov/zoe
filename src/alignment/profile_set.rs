@@ -193,9 +193,9 @@ where
             .or_else_overflowed(|| self.get_i32().smith_waterman_alignment(query))
     }
 
-    #[cfg(feature = "dev-3pass")]
     #[inline]
     #[must_use]
+    #[cfg(feature = "dev-3pass")]
     // TODO: we will add dispatching instead if the method needs to be hybrid based on size considerations
     pub fn smith_waterman_alignment_from_i8_3pass<T: AsRef<[u8]> + ?Sized>(
         &self, query: &T,
@@ -493,9 +493,9 @@ where
             .or_else_overflowed(|| self.get_i32().smith_waterman_alignment(query))
     }
 
-    #[cfg(feature = "dev-3pass")]
     #[inline]
     #[must_use]
+    #[cfg(feature = "dev-3pass")]
     // TODO: we will add dispatching instead if the method needs to be hybrid based on size considerations
     pub fn smith_waterman_alignment_from_i8_3pass<T: AsRef<[u8]> + ?Sized>(
         &self, query: &T,

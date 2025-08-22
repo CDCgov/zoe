@@ -140,13 +140,13 @@ where
     sw_simd_score_ends_dir::<T, N, S, true>(reference, query)
 }
 
-#[cfg(feature = "dev-3pass")]
 /// Similar to [`sw_simd_score`], but includes the reference and query
 /// inclusive start index (0-based).
 ///
 /// Important: the query profile should also be in reverse orientation.
 #[inline]
 #[must_use]
+#[cfg(feature = "dev-3pass")]
 pub(crate) fn sw_simd_score_ends_reverse<T, const N: usize, const S: usize>(
     reference: &[u8], query: &StripedProfile<T, N, S>,
 ) -> MaybeAligned<(u32, usize, usize)>
@@ -166,7 +166,7 @@ where
 ///
 /// For reverse, the start coordinate is:
 /// - The 0-based inclusive start for the alignment range
-#[allow(non_snake_case, clippy::too_many_lines)]
+#[allow(non_snake_case)]
 #[must_use]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
 fn sw_simd_score_ends_dir<T, const N: usize, const S: usize, const FORWARD: bool>(
@@ -272,7 +272,7 @@ where
     let mut c_end = query.seq_len - 1;
     for ci in 0..query.seq_len {
         let v = ci % num_vecs;
-        let lane = (ci - v) / num_vecs;
+        let lane = ci / num_vecs;
 
         if max_row[v][lane] == best {
             c_end = ci;
@@ -296,10 +296,6 @@ where
 /// pass approach. This approach was inspired by (7).
 ///
 /// See **[module citations](crate::alignment::sw#module-citations)**.
-///
-/// ## Panics
-///
-/// Panics if scores for the two passes are not equal.
 #[cfg(feature = "dev-3pass")]
 #[inline]
 #[must_use]
@@ -315,7 +311,7 @@ where
             return MaybeAligned::Unmapped;
         };
         sw_simd_score_ends_reverse::<T, N, S>(&reference[..ref_end], &query_rev).map(|(score2, ref_start, query_start)| {
-            assert_eq!(score, score2);
+            debug_assert_eq!(score, score2);
             (score, ref_start..ref_end, query_start..query_end)
         })
     })
@@ -499,7 +495,9 @@ where
 
     for ci in 0..query.seq_len {
         let v = ci % num_vecs;
-        let lane = (ci - v) / num_vecs;
+        // Also equal to (ci - v) / num_vecs. Subtracting the division remainder
+        // before dividing is equivalent to integer (truncating) division.
+        let lane = ci / num_vecs;
 
         if max_row[v][lane] == best {
             c_end = ci;
@@ -537,10 +535,14 @@ where
     LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdAnyInt<T, N>, {
     sw_simd_score_ranges::<T, N, S>(reference, query).and_then(|(score, ref_range, query_range)| {
-        let Some(query_new_) = query.new_with_range(query_range.clone()) else {
+        let Some(query_new) = query.new_with_range(query_range.clone()) else {
             return MaybeAligned::Unmapped;
         };
-        sw_simd_alignment(&reference[ref_range.clone()], &query_new_).map(|mut alignment| {
+        let reference_new = &reference[ref_range.clone()];
+        sw_simd_alignment(reference_new, &query_new).map(|mut alignment| {
+            debug_assert_eq!(alignment.score, score);
+            debug_assert_eq!(alignment.ref_range, 0..reference_new.len());
+            debug_assert_eq!(alignment.query_range, 0..query_new.seq_len);
             alignment.states.prepend_soft_clip(query_range.start);
             alignment.states.soft_clip(query.seq_len - query_range.end);
             Alignment {

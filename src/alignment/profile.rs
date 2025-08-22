@@ -236,10 +236,13 @@ where
         }
     }
 
-    #[cfg(feature = "dev-3pass")]
     /// Returns a reversed profile from the forward profile given the end of the
-    /// query sequence, otherwise returns none if the bound is invalid.
+    /// query sequence.
+    ///
+    /// `seq_end` represents the 0-based exclusive-end index. `None` is returned
+    /// if the bound is invalid.
     #[must_use]
+    #[cfg(feature = "dev-3pass")]
     pub fn reverse_from_forward(&self, seq_end: usize) -> Option<Self> {
         if seq_end == 0 || seq_end > self.seq_len {
             return None;
@@ -259,7 +262,7 @@ where
                     if q < seq_end {
                         let q_old = seq_end - 1 - q;
                         let v_old = q_old % number_vecs_old;
-                        let lane_old = (q_old - v_old) / number_vecs_old;
+                        let lane_old = q_old / number_vecs_old;
 
                         vector[i] = self.profile[ref_index * number_vecs_old + v_old][lane_old];
                     }
@@ -278,10 +281,11 @@ where
         })
     }
 
-    #[cfg(feature = "dev-3pass")]
-    /// Returns a sub-profile for a specific range of the query sequence,
-    /// otherwise we return `None` if the range is invalid.
+    /// Returns a sub-profile for a specific range of the query sequence.
+    ///
+    /// `None` is returned if the bound is invalid.
     #[must_use]
+    #[cfg(feature = "dev-3pass")]
     pub fn new_with_range(&self, range: std::ops::Range<usize>) -> Option<Self> {
         if range.is_empty() || range.end > self.seq_len {
             return None;
@@ -302,7 +306,7 @@ where
                     if q < new_len {
                         let q_old = range.start + q;
                         let v_old = q_old % number_vecs_old;
-                        let lane_old = (q_old - v_old) / number_vecs_old;
+                        let lane_old = q_old / number_vecs_old;
 
                         vector[i] = self.profile[ref_index * number_vecs_old + v_old][lane_old];
                     }
@@ -373,13 +377,13 @@ where
         sw_simd_score_ends::<T, N, S>(seq, self)
     }
 
-    #[cfg(all(test, feature = "dev-3pass"))]
     /// Similar to [`sw_simd_score`], but includes the reference and query
     /// inclusive start index (0-based).
     ///
     /// Important: the query profile should also be in reverse orientation.
     #[inline]
     #[must_use]
+    #[cfg(all(test, feature = "dev-3pass"))]
     pub(crate) fn smith_waterman_score_ends_reverse(&self, seq: &[u8]) -> MaybeAligned<(u32, usize, usize)> {
         crate::alignment::sw::sw_simd_score_ends_reverse::<T, N, S>(seq, self)
     }
@@ -411,27 +415,28 @@ where
         sw_simd_alignment::<T, N, S>(seq, self)
     }
 
-    #[cfg(feature = "dev-3pass")]
     /// Similar to [`smith_waterman_score`] but includes the reference and query
-    /// alignment ranges. These are standard 0-based, half-open ranges for slicing.
+    /// alignment ranges. These are standard 0-based, half-open ranges for
+    /// slicing.
     ///
     /// [`smith_waterman_score`]: Self::smith_waterman_score
     #[inline]
     #[must_use]
+    #[cfg(feature = "dev-3pass")]
     pub fn smith_waterman_score_ranges(
         &self, seq: &[u8],
     ) -> MaybeAligned<(u32, std::ops::Range<usize>, std::ops::Range<usize>)> {
         sw_simd_score_ranges::<T, N, S>(seq, self)
     }
 
-    #[cfg(feature = "dev-3pass")]
     /// Similar to [`smith_waterman_alignment`] but calculates the alignment
-    /// bounding box first. For large references (>2kbp) and small queries (<1kbp) this could be
-    /// more efficient.
+    /// bounding box first. For large references (>2kbp) and small queries
+    /// (<1kbp) this could be more efficient.
     ///
     /// [`smith_waterman_alignment`]: Self::smith_waterman_alignment
     #[inline]
     #[must_use]
+    #[cfg(feature = "dev-3pass")]
     pub fn smith_waterman_alignment_3pass(&self, seq: &[u8]) -> MaybeAligned<Alignment<u32>> {
         crate::alignment::sw::sw_simd_alignment_3pass::<T, N, S>(seq, self)
     }

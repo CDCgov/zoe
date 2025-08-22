@@ -8,7 +8,13 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ### Added
 
+- Added `sw_simd_score_ends` for getting the score _and end coordinates_ of the alignment
 - Added `score_from_path` for `LocalPhmm` (behind `dev-phmm` feature gate)
+- Added `dev-3pass` feature gate for additional alignment functions that return coordinates, as well as a three-pass alignment function with reduced memory usage
+
+### Changed
+
+- `MaybeAligned` now can hold other types besides `Alignment`, and score-only functions now return `MaybeAligned<u32>`
 
 ## [0.0.20] - 2025-08-18
 
