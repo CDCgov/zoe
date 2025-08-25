@@ -24,6 +24,10 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - `WeightMatrix` is now imported under `data::matrices` in addition to `data`
 - `WeightMatrix` now has an additional lifetime generic for the `ByteIndexMap`
 
+### Fixes
+
+- Fixes a bug in `AlignmentStates::add_ciglet()` for `inc` > 1
+
 ## [0.0.20] - 2025-08-18
 
 ### Added

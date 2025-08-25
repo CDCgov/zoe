@@ -153,6 +153,13 @@ impl AlignmentStates {
         AlignmentStates(Vec::new())
     }
 
+    /// Initializes the states with capacity for `n` (inc, op) pairs.
+    #[inline]
+    #[must_use]
+    pub fn with_capacity(n: usize) -> Self {
+        AlignmentStates(Vec::with_capacity(n))
+    }
+
     /// Returns the [`Ciglet`] elements as a slice.
     #[inline]
     #[must_use]
@@ -168,17 +175,36 @@ impl AlignmentStates {
     /// Adds a ciglet to the right end of the alignment. If the operation is the
     /// same as the rightmost operation, the ciglet is merged with the last one.
     pub fn add_ciglet(&mut self, ciglet: Ciglet) {
-        if let Some(c) = self.0.last_mut()
-            && c.op == ciglet.op
-        {
-            c.inc += 1;
-        } else {
-            self.0.push(ciglet);
+        if ciglet.inc > 0 {
+            if let Some(c) = self.0.last_mut()
+                && c.op == ciglet.op
+            {
+                c.inc += ciglet.inc;
+            } else {
+                self.0.push(ciglet);
+            }
         }
     }
 
-    /// Adds ciglets to the alignment. It is assumed that consecutive ciglets
-    /// have different operations.
+    /// Adds an alignment `op` of size `inc`.
+    #[inline]
+    pub fn add_inc_op(&mut self, inc: usize, op: u8) {
+        self.add_ciglet(Ciglet { inc, op });
+    }
+
+    /// Creates an alignment consisting only of `M` (match states) without any
+    /// gaps for the reference or query. Soft clipping is added as needed. Match
+    /// states may include mismatches.
+    #[cfg(feature = "dev-3pass")]
+    pub(crate) fn new_no_gaps(aligned_range: std::ops::Range<usize>, query_len: usize) -> Self {
+        let mut states = AlignmentStates::with_capacity(3);
+
+        states.soft_clip(aligned_range.start);
+        states.add_inc_op(aligned_range.end - aligned_range.start, b'M');
+        states.soft_clip(query_len - aligned_range.end);
+        states
+    }
+
     pub(crate) fn extend_from_ciglets<I>(&mut self, ciglets: I)
     where
         I: IntoIterator<Item = Ciglet>, {
