@@ -21,9 +21,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 - `MaybeAligned` now can hold other types besides `Alignment`, and score-only functions now return `MaybeAligned<u32>`
 - `into_biased_matrix` has been renamed to `to_biased_matrix` and takes `&self`
-- `WeightMatrix` is now imported under `data::matrices` instead of `data`
+- `WeightMatrix` is now imported under `data::matrices` in addition to `data`
 - `WeightMatrix` now has an additional lifetime generic for the `ByteIndexMap`
-
 
 ## [0.0.20] - 2025-08-18
 

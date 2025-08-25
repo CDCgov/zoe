@@ -129,6 +129,7 @@ pub use constants::mappings::{
     AA_ALL_AMBIG_PROFILE_MAP_WITH_STOP, AA_PROFILE_MAP, AA_UNAMBIG_PROFILE_MAP, ByteIndexMap, DNA_PROFILE_MAP,
     DNA_UNAMBIG_PROFILE_MAP, StdGeneticCode,
 };
+pub use matrices::WeightMatrix;
 pub use records::{fasta, fastq, sam};
 pub use types::{amino_acids, cigar, nucleotides, phred};
 pub use validation::{CheckSequence, Recode, RetainSequence, StdForSequences};
