@@ -435,16 +435,68 @@ where
         sw_simd_score_ranges::<T, N, S>(seq, self)
     }
 
-    /// Similar to [`smith_waterman_alignment`] but calculates the alignment
-    /// bounding box first. For large references (>2kbp) and small queries
-    /// (<1kbp) this could be more efficient.
+    /// Similar to [`smith_waterman_alignment`] but Computes the Smith-Waterman
+    /// local alignment using a 3-pass algorithm.
+    ///
+    /// This approach was inspired by (7), albeit this implementation is for
+    /// large reference / small query because banded is not used.
+    ///
+    /// See **[module citations](crate::alignment::sw#module-citations)**.
     ///
     /// [`smith_waterman_alignment`]: Self::smith_waterman_alignment
     #[inline]
     #[must_use]
     #[cfg(feature = "dev-3pass")]
-    pub fn smith_waterman_alignment_3pass(&self, seq: &[u8]) -> MaybeAligned<Alignment<u32>> {
-        crate::alignment::sw::sw_simd_alignment_3pass::<T, N, S>(seq, self)
+    pub fn smith_waterman_alignment_3pass<U>(
+        &self, reference: &[u8], original_query: &[u8], matrix: &WeightMatrix<U, S>, gap_open: i8, gap_extend: i8,
+    ) -> MaybeAligned<Alignment<u32>>
+    where
+        U: AnyInt,
+        T: From<U>, {
+        sw_simd_score_ranges::<T, N, S>(reference, self).and_then(|(score, ref_range, query_range)| {
+            if query_range.is_empty() {
+                return MaybeAligned::Unmapped;
+            } else if query_range.len() == ref_range.len()
+            // TODO: this incantation can likely be done better
+                && reference[ref_range.clone()]
+                    .iter()
+                    .zip(original_query[query_range.clone()].iter())
+                    .map(|(&r, &q)| matrix.get_weight(r, q).cast_as::<i32>())
+                    .sum::<i32>()
+                    .try_into()
+                    .unwrap_or(0)
+                    == score
+            {
+                let states = super::AlignmentStates::new_no_gaps(query_range.clone(), original_query.len());
+                return MaybeAligned::Some(Alignment {
+                    score,
+                    ref_range,
+                    query_range,
+                    states,
+                    ref_len: reference.len(),
+                    query_len: original_query.len(),
+                });
+            }
+
+            let query_new =
+                StripedProfile::<T, N, S>::new_unchecked(&original_query[query_range.clone()], matrix, gap_open, gap_extend);
+            let reference_new = &reference[ref_range.clone()];
+            super::sw::sw_simd_alignment(reference_new, &query_new).map(|mut alignment| {
+                debug_assert_eq!(alignment.score, score);
+                debug_assert_eq!(alignment.ref_range, 0..reference_new.len());
+                debug_assert_eq!(alignment.query_range, 0..query_new.seq_len);
+                alignment.states.prepend_soft_clip(query_range.start);
+                alignment.states.soft_clip(original_query.len() - query_range.end);
+                Alignment {
+                    score,
+                    ref_range,
+                    query_range,
+                    states: alignment.states,
+                    ref_len: reference.len(),
+                    query_len: original_query.len(),
+                }
+            })
+        })
     }
 }
 

@@ -520,43 +520,6 @@ where
     })
 }
 
-/// For test purposes only
-/// This approach was inspired by (7), albeit this implementation is for large
-/// reference / small query because banded is not used.
-///
-/// See **[module citations](crate::alignment::sw#module-citations)**.
-#[must_use]
-#[cfg(feature = "dev-3pass")]
-pub fn sw_simd_alignment_3pass<T, const N: usize, const S: usize>(
-    reference: &[u8], query: &StripedProfile<T, N, S>,
-) -> MaybeAligned<Alignment<u32>>
-where
-    T: AlignableIntWidth,
-    LaneCount<N>: SupportedLaneCount,
-    Simd<T, N>: SimdAnyInt<T, N>, {
-    sw_simd_score_ranges::<T, N, S>(reference, query).and_then(|(score, ref_range, query_range)| {
-        let Some(query_new) = query.new_with_range(query_range.clone()) else {
-            return MaybeAligned::Unmapped;
-        };
-        let reference_new = &reference[ref_range.clone()];
-        sw_simd_alignment(reference_new, &query_new).map(|mut alignment| {
-            debug_assert_eq!(alignment.score, score);
-            debug_assert_eq!(alignment.ref_range, 0..reference_new.len());
-            debug_assert_eq!(alignment.query_range, 0..query_new.seq_len);
-            alignment.states.prepend_soft_clip(query_range.start);
-            alignment.states.soft_clip(query.seq_len - query_range.end);
-            Alignment {
-                score,
-                ref_range,
-                query_range,
-                states: alignment.states,
-                ref_len: reference.len(),
-                query_len: query.seq_len,
-            }
-        })
-    })
-}
-
 /// Converts a the `best` score seen so far by a Striped Smith Waterman
 /// algorithm to [`MaybeAligned`].
 ///
