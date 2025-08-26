@@ -15,6 +15,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `get_subset` to `WeightMatrix` for subsetting a weight matrix with a different alphabet
 - Added `parse_matrix` for parsing a `WeightMatrix` from a file at compile time
 - Added accessor `byte_keys()` for `ByteIndexMap`
+- Added unchecked constructors for `ScalarProfile` and `StripedProfile`
 - Added `score_from_path` and `viterbi` for `LocalPhmm` (behind `dev-phmm` feature gate)
 - Added `DomainPhmm` (behind `dev-phmm` feature gate)
 

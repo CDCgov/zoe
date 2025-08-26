@@ -62,7 +62,7 @@ pub struct ScalarProfile<'a, const S: usize> {
 }
 
 impl<'a, const S: usize> ScalarProfile<'a, S> {
-    /// Create a new profile for use with the scalar alignment algorithm.
+    /// Creates a new profile for use with the scalar alignment algorithm.
     ///
     /// ## Errors
     ///
@@ -78,13 +78,27 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
         query: &'a Q, matrix: &'a WeightMatrix<'a, i8, S>, gap_open: i8, gap_extend: i8,
     ) -> Result<Self, QueryProfileError> {
         validate_profile_args(query, gap_open, gap_extend)?;
+        // Validity: validate_profile_args has checked our assumptions
+        Ok(Self::new_unchecked(query, matrix, gap_open, gap_extend))
+    }
 
-        Ok(ScalarProfile {
+    /// Creates a new profile for use with the scalar alignment algorithm
+    /// without checking for validity of the arguments.
+    ///
+    /// ## Validity
+    ///
+    /// The query must be non-empty, `gap_open` and `gap_extend` must be in the
+    /// range `-127..=0`, and `gap_extend` must be greater than or equal to
+    /// `gap_open` (`gap_open` must be a worse penalty).
+    pub fn new_unchecked<Q: AsRef<[u8]> + ?Sized>(
+        query: &'a Q, matrix: &'a WeightMatrix<'a, i8, S>, gap_open: i8, gap_extend: i8,
+    ) -> Self {
+        ScalarProfile {
             seq: query.as_ref(),
             matrix,
             gap_open: i32::from(gap_open),
             gap_extend: i32::from(gap_extend),
-        })
+        }
     }
 
     /// Computes the Smith-Waterman local alignment score between the profile
@@ -198,13 +212,21 @@ where
         T: FromSameSignedness<U> + AlignableIntWidth,
         U: AnyInt, {
         validate_profile_args(query, gap_open, gap_extend)?;
+        // Validity: we validated the required assumptions with
+        // validate_profile_args
         Ok(Self::new_unchecked(query, matrix, gap_open, gap_extend))
     }
 
     /// Creates a new striped profile from a sequence and scoring matrix.
     ///
     /// See: [`WeightMatrix`]
-    pub(crate) fn new_unchecked<U>(query: &[u8], matrix: &WeightMatrix<'a, U, S>, gap_open: i8, gap_extend: i8) -> Self
+    ///
+    /// ## Validity
+    ///
+    /// The query must be non-empty, `gap_open` and `gap_extend` must be in the
+    /// range `-127..=0`, and `gap_extend` must be greater than or equal to
+    /// `gap_open` (`gap_open` must be a worse penalty).
+    pub fn new_unchecked<U>(query: &[u8], matrix: &WeightMatrix<'a, U, S>, gap_open: i8, gap_extend: i8) -> Self
     where
         T: From<U>,
         U: AnyInt, {
@@ -478,6 +500,8 @@ where
                 });
             }
 
+            // Validity: we already checked scoring and that query_range is
+            // non-empty
             let query_new =
                 StripedProfile::<T, N, S>::new_unchecked(&original_query[query_range.clone()], matrix, gap_open, gap_extend);
             let reference_new = &reference[ref_range.clone()];

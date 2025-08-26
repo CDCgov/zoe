@@ -82,7 +82,7 @@ where
     /// lanes and returns a reference to the field.
     #[inline]
     pub fn get_i8(&self) -> &StripedProfile<'_, i8, M, S> {
-        // We already validated profile, and i8 is 32-bit or less
+        // Validity: We already validated profile
         self.profile_i8.get_or_init(|| {
             StripedProfile::<i8, M, S>::new_unchecked(self.query, self.matrix, self.gap_open, self.gap_extend)
         })
@@ -92,7 +92,7 @@ where
     /// lanes and returns a reference to the field.
     #[inline]
     pub fn get_i16(&self) -> &StripedProfile<'_, i16, N, S> {
-        // We already validated profile, and i16 is 32-bit or less
+        // Validity: We already validated profile
         self.profile_i16.get_or_init(|| {
             StripedProfile::<i16, N, S>::new_unchecked(self.query, self.matrix, self.gap_open, self.gap_extend)
         })
@@ -102,7 +102,7 @@ where
     /// lanes and returns a reference to the field.
     #[inline]
     pub fn get_i32(&self) -> &StripedProfile<'_, i32, O, S> {
-        // We already validated profile, and i32 is 32-bit or less
+        // Validity: We already validated profile
         self.profile_i32.get_or_init(|| {
             StripedProfile::<i32, O, S>::new_unchecked(self.query, self.matrix, self.gap_open, self.gap_extend)
         })
@@ -400,7 +400,7 @@ where
     /// lanes and returns a reference to the field.
     #[inline]
     pub fn get_i8(&self) -> &StripedProfile<'_, i8, M, S> {
-        // We already validated profile, and i8 is 32-bit or less
+        // Validity: We already validated profile
         self.profile_i8.get_or_init(|| {
             StripedProfile::<i8, M, S>::new_unchecked(&self.query, self.matrix, self.gap_open, self.gap_extend)
         })
@@ -410,8 +410,8 @@ where
     /// lanes and returns a reference to the field.
     #[inline]
     pub fn get_i16(&self) -> &StripedProfile<'_, i16, N, S> {
+        // Validity: We already validated profile
         self.profile_i16.get_or_init(|| {
-            // We already validated profile, and i16 is 32-bit or less
             StripedProfile::<i16, N, S>::new_unchecked(&self.query, self.matrix, self.gap_open, self.gap_extend)
         })
     }
@@ -420,8 +420,8 @@ where
     /// lanes and returns a reference to the field.
     #[inline]
     pub fn get_i32(&self) -> &StripedProfile<'_, i32, O, S> {
+        // Validity: We already validated profile
         self.profile_i32.get_or_init(|| {
-            // We already validated profile, and i32 is 32-bit or less
             StripedProfile::<i32, O, S>::new_unchecked(&self.query, self.matrix, self.gap_open, self.gap_extend)
         })
     }
