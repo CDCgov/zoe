@@ -29,6 +29,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - `WeightMatrix` is now imported under `data::matrices` in addition to `data`
 - `WeightMatrix` now has an additional lifetime generic for the `ByteIndexMap`
 - The `@` symbol is no longer included at the beginning of a header in a `FastQ` record (the reader strips it, and the display implementation re-adds it)
+- Added `tags` field to `SamData`, as well as the ability to opt out of storing the tags in `SamReader`
 - Updated traceback in `viterbi` to not use nested vecs
 - Changed `Debug` impl of `CigarViewMut` and derived more traits
 

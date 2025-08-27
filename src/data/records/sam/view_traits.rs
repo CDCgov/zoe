@@ -103,9 +103,9 @@ impl<'b> DataViewMut<'b> for SamDataViewMut<'b> {
     #[inline]
     fn to_owned_data(&self) -> Self::Owned {
         SamData::new(
-            (*self.qname).to_string(),
+            (*self.qname).clone(),
             self.flag,
-            (*self.rname).to_string(),
+            (*self.rname).clone(),
             self.pos,
             self.mapq,
             self.cigar.to_owned_data(),
