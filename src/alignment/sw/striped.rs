@@ -1,6 +1,10 @@
 use super::*;
 use crate::{math::AlignableIntWidth, simd::SimdAnyInt};
+
 use std::simd::{LaneCount, SupportedLaneCount};
+
+#[cfg(feature = "dev-3pass")]
+use std::ops::Range;
 
 /// Smith-Waterman algorithm (vectorized), yielding the optimal score.
 ///
