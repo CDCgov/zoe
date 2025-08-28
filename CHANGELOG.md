@@ -25,6 +25,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - `into_biased_matrix` has been renamed to `to_biased_matrix` and takes `&self`
 - `WeightMatrix` is now imported under `data::matrices` in addition to `data`
 - `WeightMatrix` now has an additional lifetime generic for the `ByteIndexMap`
+- The `@` symbol is no longer included at the beginning of a header in a `FastQ` record (the reader strips it, and the display implementation re-adds it)
 - Updated traceback in `viterbi` to not use nested vecs
 
 ### Fixes

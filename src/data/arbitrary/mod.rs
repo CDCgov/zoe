@@ -122,7 +122,6 @@ impl<'a> Arbitrary<'a> for FastQ {
 /// A wrapper around [`FastQ`] such that the implementation of
 /// [`Arbitrary`](https://docs.rs/arbitrary/latest/arbitrary/trait.Arbitrary.html)
 /// only generates valid FASTQ records. This means:
-/// * The header must begin with `@`
 /// * The header can only contain graphic ASCII or spaces
 /// * The sequence must be graphic ASCII in the range `!`..=`~`
 /// * The sequence and quality scores must be the same length
@@ -133,7 +132,7 @@ impl_deref! {FastQValid, FastQ}
 
 impl<'a> Arbitrary<'a> for FastQValid {
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        let header = "@".to_string() + &StringAsciiGraphicOrSpace::arbitrary(u)?;
+        let header = StringAsciiGraphicOrSpace::arbitrary(u)?.0;
         let mut sequence = NucleotidesAsciiGraphic::arbitrary(u)?.0;
         let mut quality = QualityScores::arbitrary(u)?;
         let min_len = sequence.len().min(quality.len());

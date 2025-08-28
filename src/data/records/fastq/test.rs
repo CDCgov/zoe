@@ -57,7 +57,7 @@ fn empty_sequence_first_record() {
     let Some(Err(e)) = reader.next() else {
         panic!("Should throw error")
     };
-    assert_eq!(e.to_string(), "Missing FASTQ sequence! See header: @seq1");
+    assert_eq!(e.to_string(), "Missing FASTQ sequence! See header: seq1");
     // Ensure iterator terminates
     assert!(reader.count() < 100);
 }
@@ -70,7 +70,7 @@ fn missing_plus_line_first_record() {
     };
     assert_eq!(
         e.to_string(),
-        "Missing '+' line! Ensure that the FASTQ file is not multi-line. See header: @seq1"
+        "Missing '+' line! Ensure that the FASTQ file is not multi-line. See header: seq1"
     );
     // Ensure iterator terminates
     assert!(reader.count() < 100);
@@ -81,7 +81,7 @@ fn missing_plus_line_first_record() {
     };
     assert_eq!(
         e.to_string(),
-        "Missing '+' line! Ensure that the FASTQ file is not multi-line. See header: @seq1"
+        "Missing '+' line! Ensure that the FASTQ file is not multi-line. See header: seq1"
     );
     // Ensure iterator terminates
     assert!(reader.count() < 100);
@@ -93,7 +93,7 @@ fn empty_quality_first_record() {
     let Some(Err(e)) = reader.next() else {
         panic!("Should throw error")
     };
-    assert_eq!(e.to_string(), "Missing FASTQ quality scores! See header: @seq1");
+    assert_eq!(e.to_string(), "Missing FASTQ quality scores! See header: seq1");
     // Ensure iterator terminates
     assert!(reader.count() < 100);
 
@@ -101,7 +101,7 @@ fn empty_quality_first_record() {
     let Some(Err(e)) = reader.next() else {
         panic!("Should throw error")
     };
-    assert_eq!(e.to_string(), "Missing FASTQ quality scores! See header: @seq1");
+    assert_eq!(e.to_string(), "Missing FASTQ quality scores! See header: seq1");
     // Ensure iterator terminates
     assert!(reader.count() < 100);
 }
@@ -112,10 +112,7 @@ fn mismatch_lengths_first_record() {
     let Some(Err(e)) = reader.next() else {
         panic!("Should throw error")
     };
-    assert_eq!(
-        e.to_string(),
-        "Sequence and quality score length mismatch (4 ≠ 3)! See: @seq1"
-    );
+    assert_eq!(e.to_string(), "Sequence and quality score length mismatch (4 ≠ 3)! See: seq1");
     // Ensure iterator terminates
     assert!(reader.count() < 100);
 }
@@ -131,7 +128,7 @@ fn missing_at_sign_second_record() {
     else {
         panic!("Should parse correctly")
     };
-    assert_eq!(header, "@seq1");
+    assert_eq!(header, "seq1");
     assert_eq!(sequence, Nucleotides::from_vec_unchecked(b"ATGC".into()));
     assert_eq!(quality, QualityScores::try_from(b"IIII".to_vec()).unwrap());
 
@@ -157,7 +154,7 @@ fn empty_header_second_record() {
     else {
         panic!("Should parse correctly")
     };
-    assert_eq!(header, "@seq1");
+    assert_eq!(header, "seq1");
     assert_eq!(sequence, Nucleotides::from_vec_unchecked(b"ATGC".into()));
     assert_eq!(quality, QualityScores::try_from(b"IIII".to_vec()).unwrap());
 
@@ -180,14 +177,14 @@ fn empty_sequence_second_record() {
     else {
         panic!("Should parse correctly")
     };
-    assert_eq!(header, "@seq1");
+    assert_eq!(header, "seq1");
     assert_eq!(sequence, Nucleotides::from_vec_unchecked(b"ATGC".into()));
     assert_eq!(quality, QualityScores::try_from(b"IIII".to_vec()).unwrap());
 
     let Some(Err(e)) = reader.next() else {
         panic!("Should throw error")
     };
-    assert_eq!(e.to_string(), "Missing FASTQ sequence! See header: @seq2");
+    assert_eq!(e.to_string(), "Missing FASTQ sequence! See header: seq2");
     // Ensure iterator terminates
     assert!(reader.count() < 100);
 }
@@ -203,7 +200,7 @@ fn missing_plus_line_second_record() {
     else {
         panic!("Should parse correctly")
     };
-    assert_eq!(header, "@seq1");
+    assert_eq!(header, "seq1");
     assert_eq!(sequence, Nucleotides::from_vec_unchecked(b"ATGC".into()));
     assert_eq!(quality, QualityScores::try_from(b"IIII".to_vec()).unwrap());
 
@@ -212,7 +209,7 @@ fn missing_plus_line_second_record() {
     };
     assert_eq!(
         e.to_string(),
-        "Missing '+' line! Ensure that the FASTQ file is not multi-line. See header: @seq2"
+        "Missing '+' line! Ensure that the FASTQ file is not multi-line. See header: seq2"
     );
     // Ensure iterator terminates
     assert!(reader.count() < 100);
@@ -226,7 +223,7 @@ fn missing_plus_line_second_record() {
     else {
         panic!("Should parse correctly")
     };
-    assert_eq!(header, "@seq1");
+    assert_eq!(header, "seq1");
     assert_eq!(sequence, Nucleotides::from_vec_unchecked(b"ATGC".into()));
     assert_eq!(quality, QualityScores::try_from(b"IIII".to_vec()).unwrap());
 
@@ -235,7 +232,7 @@ fn missing_plus_line_second_record() {
     };
     assert_eq!(
         e.to_string(),
-        "Missing '+' line! Ensure that the FASTQ file is not multi-line. See header: @seq2"
+        "Missing '+' line! Ensure that the FASTQ file is not multi-line. See header: seq2"
     );
     // Ensure iterator terminates
     assert!(reader.count() < 100);
@@ -252,14 +249,14 @@ fn empty_quality_second_record() {
     else {
         panic!("Should parse correctly")
     };
-    assert_eq!(header, "@seq1");
+    assert_eq!(header, "seq1");
     assert_eq!(sequence, Nucleotides::from_vec_unchecked(b"ATGC".into()));
     assert_eq!(quality, QualityScores::try_from(b"IIII".to_vec()).unwrap());
 
     let Some(Err(e)) = reader.next() else {
         panic!("Should throw error")
     };
-    assert_eq!(e.to_string(), "Missing FASTQ quality scores! See header: @seq2");
+    assert_eq!(e.to_string(), "Missing FASTQ quality scores! See header: seq2");
     // Ensure iterator terminates
     assert!(reader.count() < 100);
 
@@ -272,14 +269,14 @@ fn empty_quality_second_record() {
     else {
         panic!("Should parse correctly")
     };
-    assert_eq!(header, "@seq1");
+    assert_eq!(header, "seq1");
     assert_eq!(sequence, Nucleotides::from_vec_unchecked(b"ATGC".into()));
     assert_eq!(quality, QualityScores::try_from(b"IIII".to_vec()).unwrap());
 
     let Some(Err(e)) = reader.next() else {
         panic!("Should throw error")
     };
-    assert_eq!(e.to_string(), "Missing FASTQ quality scores! See header: @seq2");
+    assert_eq!(e.to_string(), "Missing FASTQ quality scores! See header: seq2");
     // Ensure iterator terminates
     assert!(reader.count() < 100);
 }
@@ -295,17 +292,14 @@ fn mismatch_lengths_second_record() {
     else {
         panic!("Should parse correctly")
     };
-    assert_eq!(header, "@seq1");
+    assert_eq!(header, "seq1");
     assert_eq!(sequence, Nucleotides::from_vec_unchecked(b"ATGC".into()));
     assert_eq!(quality, QualityScores::try_from(b"IIII".to_vec()).unwrap());
 
     let Some(Err(e)) = reader.next() else {
         panic!("Should throw error")
     };
-    assert_eq!(
-        e.to_string(),
-        "Sequence and quality score length mismatch (4 ≠ 3)! See: @seq2"
-    );
+    assert_eq!(e.to_string(), "Sequence and quality score length mismatch (4 ≠ 3)! See: seq2");
     // Ensure iterator terminates
     assert!(reader.count() < 100);
 }

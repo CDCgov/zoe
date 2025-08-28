@@ -97,21 +97,20 @@ impl<R: std::io::Read> Iterator for FastQReader<R> {
             Err(e) => return Some(Err(e)),
         }
 
-        if !self.fastq_buffer.starts_with(b"@") {
+        let Some(mut header) = self.fastq_buffer.strip_prefix(b"@") else {
             return Some(Err(IOError::new(
                 ErrorKind::InvalidData,
                 "Missing '@' symbol at header line beginning! Ensure that the FASTQ file is not multi-line.",
             )));
-        }
+        };
 
-        self.fastq_buffer.chop_line_break();
+        header.chop_line_break();
 
-        // Since '@' is in the header, header must be > 1 in length
-        if self.fastq_buffer.len() <= 1 {
+        if header.is_empty() {
             return Some(Err(IOError::new(ErrorKind::InvalidData, "Missing FASTQ header!")));
         }
 
-        let header = match String::from_utf8(self.fastq_buffer.clone()) {
+        let header = match String::from_utf8(header.to_vec()) {
             Ok(s) => s,
             Err(e) => return Some(Err(IOError::new(ErrorKind::InvalidData, e))),
         };

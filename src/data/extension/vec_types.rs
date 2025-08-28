@@ -16,6 +16,19 @@ impl ChopLineBreak for Vec<u8> {
     }
 }
 
+impl ChopLineBreak for &[u8] {
+    #[inline]
+    fn chop_line_break(&mut self) {
+        if self.ends_with(b"\n") {
+            *self = &self[0..self.len() - 1];
+
+            if self.ends_with(b"\r") {
+                *self = &self[0..self.len() - 1];
+            }
+        }
+    }
+}
+
 pub(crate) trait StripLineBreak {
     /// Returns a new slice without a trailing `\n` or `\r\n`
     fn strip_line_break(&self) -> Self;
