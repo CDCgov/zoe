@@ -8,7 +8,7 @@ use crate::data::{
 /// See [Views](crate::data#views) for more details. This struct is still in
 /// development; it currently only supports parsing and displaying, and not all
 /// the other operations that [`Cigar`] supports.
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, Eq, PartialEq, Hash)]
 pub struct CigarView<'a>(&'a [u8]);
 
 /// A mutable view of a [`Cigar`] string.
@@ -16,6 +16,7 @@ pub struct CigarView<'a>(&'a [u8]);
 /// See [Views](crate::data#views) for more details. This struct is still in
 /// development; it currently only supports parsing and displaying, and not all
 /// the other operations that [`Cigar`] supports.
+#[derive(Eq, PartialEq, Hash)]
 pub struct CigarViewMut<'a>(&'a mut [u8]);
 
 impl<'a> CigarView<'a> {
@@ -68,6 +69,27 @@ impl std::fmt::Debug for CigarView<'_> {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "CigarView({})", String::from_utf8_lossy(self.0))
+    }
+}
+
+impl std::fmt::Display for CigarViewMut<'_> {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        if self.0.is_empty() || self.0 == b"*" {
+            write!(f, "*")
+        } else if self.0.is_ascii() {
+            // SAFETY: we just checked it is ASCII and ASCII is valid UTF8.
+            f.write_str(unsafe { std::str::from_utf8_unchecked(self.0) })
+        } else {
+            f.write_str(&String::from_utf8_lossy(self.0))
+        }
+    }
+}
+
+impl std::fmt::Debug for CigarViewMut<'_> {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "CigarViewMut({})", String::from_utf8_lossy(self.0))
     }
 }
 

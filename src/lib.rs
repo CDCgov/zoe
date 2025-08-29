@@ -64,14 +64,16 @@ pub mod prelude {
 pub(crate) use crate::data::extension::simd;
 
 mod private {
+    use crate::{
+        data::{
+            cigar::{Cigar, CigarView, CigarViewMut},
+            sam::{SamData, SamDataView, SamDataViewMut},
+        },
+        prelude::*,
+    };
     use std::{
         hash::BuildHasher,
         simd::{LaneCount, Simd, SimdElement, SupportedLaneCount},
-    };
-
-    use crate::{
-        data::cigar::{Cigar, CigarView, CigarViewMut},
-        prelude::*,
     };
 
     macro_rules! sealed {
@@ -105,6 +107,9 @@ mod private {
         Cigar,
         CigarView<'_>,
         CigarViewMut<'_>,
+        SamData,
+        SamDataView<'_>,
+        SamDataViewMut<'_>,
     );
     sealed!(f32, f64, u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
 }

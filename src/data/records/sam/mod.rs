@@ -1,12 +1,19 @@
-use crate::{alignment::Alignment, data::types::cigar::Cigar, prelude::*};
+use crate::{
+    alignment::Alignment,
+    data::types::cigar::{Cigar, CigarView, CigarViewMut},
+    prelude::*,
+};
 
 mod merge_pairs;
 mod reader;
-#[cfg(test)]
-mod test;
+mod std_traits;
+mod view_traits;
 
 pub use merge_pairs::*;
 pub use reader::*;
+
+#[cfg(test)]
+mod test;
 
 // # NOTICE
 // We define `index` to be 1-based and `position` to be 0-based to avoid
@@ -43,6 +50,78 @@ pub struct SamData {
     pub seq:   Nucleotides,
     /// Query quality scores in ASCII-encoded format with Phred Quality of +33.
     pub qual:  QualityScores,
+}
+
+/// A view of a [`SamData`] record, where sequence and string types are views
+/// (and primitive types are copied).
+///
+/// See [Views](crate::data#views) for more details. This struct is primarily
+/// used for displaying SAM data without requiring ownership.
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+pub struct SamDataView<'a> {
+    /// Query name.
+    pub qname: &'a str,
+    /// SAM flag: strandedness, etc.
+    pub flag:  u16,
+    /// Reference name.
+    pub rname: &'a str,
+    /// The 1-based position in the reference to which the start of the query
+    /// aligns. This excludes clipped bases.
+    pub pos:   usize,
+    /// Mystical map quality value.
+    pub mapq:  u8,
+    /// Old style cigar format that does not include match and mismatch as
+    /// separate values.
+    pub cigar: CigarView<'a>,
+    /// Reference name of the mate / next read. Currently not implemented and
+    /// set to `*`.
+    rnext:     char,
+    /// Position of the mate / next read. Currently not implemented and set to
+    /// `0`.
+    pnext:     u32,
+    /// So-called "observed template length." Currently not implemented and
+    /// always set to `0`.
+    tlen:      i32,
+    /// Query sequence.
+    pub seq:   NucleotidesView<'a>,
+    /// Query quality scores in ASCII-encoded format with Phred Quality of +33.
+    pub qual:  QualityScoresView<'a>,
+}
+
+/// A mutable view of a [`SamData`] record, where sequence and string types are
+/// views (and primitive types are copied).
+///
+/// See [Views](crate::data#views) for more details. This struct is primarily
+/// used for displaying SAM data without requiring ownership.
+#[derive(Eq, PartialEq, Hash, Debug)]
+pub struct SamDataViewMut<'a> {
+    /// Query name.
+    pub qname: &'a mut String,
+    /// SAM flag: strandedness, etc.
+    pub flag:  u16,
+    /// Reference name.
+    pub rname: &'a mut String,
+    /// The 1-based position in the reference to which the start of the query
+    /// aligns. This excludes clipped bases.
+    pub pos:   usize,
+    /// Mystical map quality value.
+    pub mapq:  u8,
+    /// Old style cigar format that does not include match and mismatch as
+    /// separate values.
+    pub cigar: CigarViewMut<'a>,
+    /// Reference name of the mate / next read. Currently not implemented and
+    /// set to `*`.
+    rnext:     char,
+    /// Position of the mate / next read. Currently not implemented and set to
+    /// `0`.
+    pnext:     u32,
+    /// So-called "observed template length." Currently not implemented and
+    /// always set to `0`.
+    tlen:      i32,
+    /// Query sequence.
+    pub seq:   NucleotidesViewMut<'a>,
+    /// Query quality scores in ASCII-encoded format with Phred Quality of +33.
+    pub qual:  QualityScoresViewMut<'a>,
 }
 
 impl SamData {
@@ -116,26 +195,66 @@ impl SamData {
     }
 }
 
-impl std::fmt::Display for SamData {
-    #[inline]
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let SamData {
+impl<'a> SamDataView<'a> {
+    /// Constructs a new [`SamDataView`] record from the corresponding fields.
+    #[allow(clippy::too_many_arguments)]
+    #[must_use]
+    pub fn new(
+        qname: &'a str, flag: u16, rname: &'a str, pos: usize, mapq: u8, cigar: CigarView<'a>, seq: NucleotidesView<'a>,
+        qual: QualityScoresView<'a>,
+    ) -> Self {
+        SamDataView {
             qname,
             flag,
             rname,
             pos,
             mapq,
             cigar,
-            rnext,
-            pnext,
-            tlen,
+            rnext: '*',
+            pnext: 0,
+            tlen: 0,
             seq,
             qual,
-        } = self;
+        }
+    }
 
-        write!(
-            f,
-            "{qname}\t{flag}\t{rname}\t{pos}\t{mapq}\t{cigar}\t{rnext}\t{pnext}\t{tlen}\t{seq}\t{qual}"
-        )
+    /// Creates a new unmapped [`SamDataView`] record.
+    ///
+    /// The sequence and quality fields are set to `*`, `POS` is set to 0,
+    /// `MAPQ` is set to 255, and the CIGAR string is empty.
+    #[inline]
+    #[must_use]
+    pub fn unmapped(qname: &'a str, rname: &'a str) -> Self {
+        // In the context of an unmapped `SamData` record, this should not be
+        // misinterpreted
+        let seq = NucleotidesView::from(b"*");
+        // Safety: * is graphic ascii
+        let qual = unsafe { QualityScoresView::from_bytes_unchecked(b"*") };
+        Self::new(qname, 4, rname, 0, 255, CigarView::new(), seq, qual)
+    }
+}
+
+impl<'a> SamDataViewMut<'a> {
+    /// Constructs a new [`SamDataViewMut`] record from the corresponding
+    /// fields.
+    #[allow(clippy::too_many_arguments)]
+    #[must_use]
+    pub fn new(
+        qname: &'a mut String, flag: u16, rname: &'a mut String, pos: usize, mapq: u8, cigar: CigarViewMut<'a>,
+        seq: NucleotidesViewMut<'a>, qual: QualityScoresViewMut<'a>,
+    ) -> Self {
+        SamDataViewMut {
+            qname,
+            flag,
+            rname,
+            pos,
+            mapq,
+            cigar,
+            rnext: '*',
+            pnext: 0,
+            tlen: 0,
+            seq,
+            qual,
+        }
     }
 }

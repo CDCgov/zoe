@@ -16,6 +16,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `parse_matrix` for parsing a `WeightMatrix` from a file at compile time
 - Added accessor `byte_keys()` for `ByteIndexMap`
 - Added unchecked constructors for `ScalarProfile` and `StripedProfile`
+- Added `SamDataView` and `SamDataViewMut`
 - Added `score_from_path` and `viterbi` for `LocalPhmm` (behind `dev-phmm` feature gate)
 - Added `DomainPhmm`, along with `score_from_path` for it (behind `dev-phmm` feature gate)
 
@@ -27,6 +28,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - `WeightMatrix` now has an additional lifetime generic for the `ByteIndexMap`
 - The `@` symbol is no longer included at the beginning of a header in a `FastQ` record (the reader strips it, and the display implementation re-adds it)
 - Updated traceback in `viterbi` to not use nested vecs
+- Changed `Debug` impl of `CigarViewMut` and derived more traits
 
 ### Fixes
 

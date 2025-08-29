@@ -24,6 +24,7 @@ mod kmer;
 mod math;
 mod nucleotides;
 mod phmm;
+mod sam;
 mod string;
 mod vec;
 
