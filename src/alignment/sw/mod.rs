@@ -117,7 +117,7 @@
 //! Below is the previous example using DNA, but with this higher-level API:
 //! ```
 //! # use zoe::{
-//! #     alignment::{Alignment, AlignmentStates},
+//! #     alignment::{Alignment, AlignmentStates, ProfileSets},
 //! #     data::matrices::WeightMatrix,
 //! #     prelude::Nucleotides
 //! # };
@@ -145,7 +145,7 @@
 //! And similarly with the different alphabet:
 //! ```
 //! # use zoe::{
-//! #     alignment::{Alignment, AlignmentStates, LocalProfiles},
+//! #     alignment::{Alignment, AlignmentStates, LocalProfiles, ProfileSets},
 //! #     data::{matrices::WeightMatrix, ByteIndexMap},
 //! # };
 //! let reference: &[u8] = b"BDAACAABDDDB";

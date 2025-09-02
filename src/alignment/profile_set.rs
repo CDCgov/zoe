@@ -9,16 +9,11 @@ use std::{
     sync::OnceLock,
 };
 
-/// A lazily-evaluated set of striped alignment profiles for local
-/// (thread-specific) use.
+/// A trait supporting sets of striped alignment profiles.
 ///
-/// This is an abstraction around [`StripedProfile`], providing convenience
-/// methods for automatically increasing the integer width and rerunning the
-/// alignment when overflow occurs. This only supports the unsigned version of
-/// the algorithm.
-///
-/// If it is necessary to share between multiple threads, consider using
-/// [`SharedProfiles`].
+/// `ProfileSets` offer an abstraction around [`StripedProfile`], providing
+/// convenience methods for automatically increasing the integer width and
+/// rerunning the alignment when overflow occurs.
 ///
 /// ## Type Parameters
 ///
@@ -26,19 +21,178 @@ use std::{
 /// * `N` - The number of SIMD lanes for i16 profiles
 /// * `O` - The number of SIMD lanes for i32 profiles
 /// * `S` - The size of the alphabet (usually 5 for DNA including *N*)
-#[derive(Debug, Clone)]
-pub struct LocalProfiles<'a, const M: usize, const N: usize, const O: usize, const S: usize>
+pub trait ProfileSets<'a, const M: usize, const N: usize, const O: usize, const S: usize>: Sized
 where
     LaneCount<M>: SupportedLaneCount,
     LaneCount<N>: SupportedLaneCount,
     LaneCount<O>: SupportedLaneCount, {
-    pub(crate) query:       &'a [u8],
-    pub(crate) matrix:      &'a WeightMatrix<'a, i8, S>,
-    pub(crate) gap_open:    i8,
-    pub(crate) gap_extend:  i8,
-    pub(crate) profile_i8:  OnceCell<StripedProfile<'a, i8, M, S>>,
-    pub(crate) profile_i16: OnceCell<StripedProfile<'a, i16, N, S>>,
-    pub(crate) profile_i32: OnceCell<StripedProfile<'a, i32, O, S>>,
+    /// Gets or initializes [`StripedProfile`] with elements of `i8` and `M`
+    /// SIMD lanes and returns a reference to the field.
+    fn get_i8(&self) -> &StripedProfile<'a, i8, M, S>;
+
+    /// Gets or initializes [`StripedProfile`] with elements of `i16` and `N`
+    /// SIMD lanes and returns a reference to the field.
+    fn get_i16(&self) -> &StripedProfile<'a, i16, N, S>;
+
+    /// Gets or initializes [`StripedProfile`] with elements of `i32` and `O`
+    /// SIMD lanes and returns a reference to the field.
+    fn get_i32(&self) -> &StripedProfile<'a, i32, O, S>;
+
+    /// Retrieves the query corresponding to the [`ProfileSets`].
+    fn query(&self) -> &[u8];
+
+    /// Retrieves the gap open score being used.
+    fn gap_open(&self) -> i8;
+
+    /// Retrieves the gap extend score being used.
+    fn gap_extend(&self) -> i8;
+
+    /// Retrieves the weight matrix being used.
+    fn matrix(&self) -> &WeightMatrix<'a, i8, S>;
+
+    /// Lazily execute [`StripedProfile::smith_waterman_score`] starting with
+    /// the `i8` profile. Lazily initializes the profiles and works its way up
+    /// to the `i32` profile. Execution stops when the score returned no longer
+    /// overflows the profile's integer range.
+    ///
+    /// ## Example
+    ///
+    /// ```
+    /// # use zoe::{alignment::{LocalProfiles, ProfileSets, sw::sw_simd_score}, data::matrices::WeightMatrix};
+    /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
+    /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
+    ///
+    /// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
+    /// const GAP_OPEN: i8 = -3;
+    /// const GAP_EXTEND: i8 = -1;
+    ///
+    /// let profile = LocalProfiles::new_with_w256(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+    /// let score = profile.smith_waterman_score_from_i8(reference).unwrap();
+    /// assert_eq!(score, 26);
+    /// ```
+    #[inline]
+    #[must_use]
+    fn smith_waterman_score_from_i8<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u32> {
+        let query = query.as_ref();
+        self.get_i8()
+            .smith_waterman_score(query)
+            .or_else_overflowed(|| self.get_i16().smith_waterman_score(query))
+            .or_else_overflowed(|| self.get_i32().smith_waterman_score(query))
+    }
+
+    /// Lazily execute [`StripedProfile::smith_waterman_score`] starting with
+    /// the `i16` profile, skipping the `i8` profile. Lazily initializes the
+    /// profiles and works its way up to the `i32` profile. Execution stops when
+    /// the score returned no longer overflows the profile's integer range.
+    ///
+    /// See [`LocalProfiles::smith_waterman_score_from_i8`] for an example.
+    #[inline]
+    #[must_use]
+    fn smith_waterman_score_from_i16<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u32> {
+        let query = query.as_ref();
+        self.get_i16()
+            .smith_waterman_score(query)
+            .or_else_overflowed(|| self.get_i32().smith_waterman_score(query))
+    }
+
+    /// Execute [`StripedProfile::smith_waterman_score`] with the `i32` profile,
+    /// skipping the `i8` and `i16` profiles.
+    ///
+    /// See [`LocalProfiles::smith_waterman_score_from_i8`] for an example.
+    #[inline]
+    #[must_use]
+    fn smith_waterman_score_from_i32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u32> {
+        let query = query.as_ref();
+        self.get_i32().smith_waterman_score(query)
+    }
+
+    /// Lazily execute [`StripedProfile::smith_waterman_alignment`] starting with
+    /// the `i8` profile. Lazily initializes the profiles and works its way up
+    /// to the `i32` profile. Execution stops when the alignment returned no longer
+    /// overflows the profile's integer range.
+    ///
+    /// ## Example
+    ///
+    /// ```
+    /// # use zoe::{
+    /// #     alignment::{LocalProfiles, ProfileSets, sw::sw_simd_score},
+    /// #     data::matrices::WeightMatrix
+    /// # };
+    /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
+    /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
+    ///
+    /// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
+    /// const GAP_OPEN: i8 = -3;
+    /// const GAP_EXTEND: i8 = -1;
+    ///
+    /// let profile = LocalProfiles::new_with_w256(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+    /// let alignment = profile.smith_waterman_alignment_from_i8(reference).unwrap();
+    /// ```
+    #[inline]
+    #[must_use]
+    fn smith_waterman_alignment_from_i8<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<Alignment<u32>> {
+        let query = query.as_ref();
+        self.get_i8()
+            .smith_waterman_alignment(query)
+            .or_else_overflowed(|| self.get_i16().smith_waterman_alignment(query))
+            .or_else_overflowed(|| self.get_i32().smith_waterman_alignment(query))
+    }
+
+    #[inline]
+    #[must_use]
+    #[cfg(feature = "dev-3pass")]
+    // TODO: we will add dispatching instead if the method needs to be hybrid based on size considerations
+    fn smith_waterman_alignment_from_i8_3pass<T: AsRef<[u8]> + ?Sized>(
+        &self, reference: &T,
+    ) -> MaybeAligned<Alignment<u32>> {
+        let reference = reference.as_ref();
+        self.get_i8()
+            .smith_waterman_alignment_3pass(reference, self.query(), self.matrix(), self.gap_open(), self.gap_extend())
+            .or_else_overflowed(|| {
+                self.get_i16().smith_waterman_alignment_3pass(
+                    reference,
+                    self.query(),
+                    self.matrix(),
+                    self.gap_open(),
+                    self.gap_extend(),
+                )
+            })
+            .or_else_overflowed(|| {
+                self.get_i32().smith_waterman_alignment_3pass(
+                    reference,
+                    self.query(),
+                    self.matrix(),
+                    self.gap_open(),
+                    self.gap_extend(),
+                )
+            })
+    }
+
+    /// Lazily execute [`StripedProfile::smith_waterman_alignment`] starting with
+    /// the `i16` profile, skipping the `i8` profile. Lazily initializes the
+    /// profiles and works its way up to the `i32` profile. Execution stops when
+    /// the alignment returned no longer overflows the profile's integer range.
+    ///
+    /// See [`LocalProfiles::smith_waterman_alignment_from_i8`] for an example.
+    #[inline]
+    #[must_use]
+    fn smith_waterman_alignment_from_i16<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<Alignment<u32>> {
+        let query = query.as_ref();
+        self.get_i16()
+            .smith_waterman_alignment(query)
+            .or_else_overflowed(|| self.get_i32().smith_waterman_alignment(query))
+    }
+
+    /// Execute [`StripedProfile::smith_waterman_alignment`] with the `i32`
+    /// profile, skipping the `i8` and `i16` profiles.
+    ///
+    /// See [`LocalProfiles::smith_waterman_alignment_from_i8`] for an example.
+    #[inline]
+    #[must_use]
+    fn smith_waterman_alignment_from_i32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<Alignment<u32>> {
+        let query = query.as_ref();
+        self.get_i32().smith_waterman_alignment(query)
+    }
 }
 
 impl<'a, const M: usize, const N: usize, const O: usize, const S: usize> LocalProfiles<'a, M, N, O, S>
@@ -77,179 +231,6 @@ where
             profile_i32: OnceCell::new(),
         })
     }
-
-    /// Get or initialize [`StripedProfile`] with elements of `i8` and `M` SIMD
-    /// lanes and returns a reference to the field.
-    #[inline]
-    pub fn get_i8(&self) -> &StripedProfile<'_, i8, M, S> {
-        // Validity: We already validated profile
-        self.profile_i8.get_or_init(|| {
-            StripedProfile::<i8, M, S>::new_unchecked(self.query, self.matrix, self.gap_open, self.gap_extend)
-        })
-    }
-
-    /// Get or initialize [`StripedProfile`] with elements of `i16` and `N` SIMD
-    /// lanes and returns a reference to the field.
-    #[inline]
-    pub fn get_i16(&self) -> &StripedProfile<'_, i16, N, S> {
-        // Validity: We already validated profile
-        self.profile_i16.get_or_init(|| {
-            StripedProfile::<i16, N, S>::new_unchecked(self.query, self.matrix, self.gap_open, self.gap_extend)
-        })
-    }
-
-    /// Get or initialize [`StripedProfile`] with elements of `i32` and `O` SIMD
-    /// lanes and returns a reference to the field.
-    #[inline]
-    pub fn get_i32(&self) -> &StripedProfile<'_, i32, O, S> {
-        // Validity: We already validated profile
-        self.profile_i32.get_or_init(|| {
-            StripedProfile::<i32, O, S>::new_unchecked(self.query, self.matrix, self.gap_open, self.gap_extend)
-        })
-    }
-
-    /// Lazily execute [`StripedProfile::smith_waterman_score`] starting with
-    /// the `i8` profile. Lazily initializes the profiles and works its way up
-    /// to the `i32` profile. Execution stops when the score returned no longer
-    /// overflows the profile's integer range.
-    ///
-    /// ## Example
-    ///
-    /// ```
-    /// # use zoe::{alignment::{LocalProfiles, sw::sw_simd_score}, data::matrices::WeightMatrix};
-    /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
-    /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
-    ///
-    /// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
-    /// const GAP_OPEN: i8 = -3;
-    /// const GAP_EXTEND: i8 = -1;
-    ///
-    /// let profile = LocalProfiles::new_with_w256(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-    /// let score = profile.smith_waterman_score_from_i8(reference).unwrap();
-    /// assert_eq!(score, 26);
-    /// ```
-    #[inline]
-    #[must_use]
-    pub fn smith_waterman_score_from_i8<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u32> {
-        let query = query.as_ref();
-        self.get_i8()
-            .smith_waterman_score(query)
-            .or_else_overflowed(|| self.get_i16().smith_waterman_score(query))
-            .or_else_overflowed(|| self.get_i32().smith_waterman_score(query))
-    }
-
-    /// Lazily execute [`StripedProfile::smith_waterman_score`] starting with
-    /// the `i16` profile, skipping the `i8` profile. Lazily initializes the
-    /// profiles and works its way up to the `i32` profile. Execution stops when
-    /// the score returned no longer overflows the profile's integer range.
-    ///
-    /// See [`LocalProfiles::smith_waterman_score_from_i8`] for an example.
-    #[inline]
-    #[must_use]
-    pub fn smith_waterman_score_from_i16<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u32> {
-        let query = query.as_ref();
-        self.get_i16()
-            .smith_waterman_score(query)
-            .or_else_overflowed(|| self.get_i32().smith_waterman_score(query))
-    }
-
-    /// Execute [`StripedProfile::smith_waterman_score`] with the `i32` profile,
-    /// skipping the `i8` and `i16` profiles.
-    ///
-    /// See [`LocalProfiles::smith_waterman_score_from_i8`] for an example.
-    #[inline]
-    #[must_use]
-    pub fn smith_waterman_score_from_i32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u32> {
-        let query = query.as_ref();
-        self.get_i32().smith_waterman_score(query)
-    }
-
-    /// Lazily execute [`StripedProfile::smith_waterman_alignment`] starting with
-    /// the `i8` profile. Lazily initializes the profiles and works its way up
-    /// to the `i32` profile. Execution stops when the alignment returned no longer
-    /// overflows the profile's integer range.
-    ///
-    /// ## Example
-    ///
-    /// ```
-    /// # use zoe::{
-    /// #     alignment::{LocalProfiles, sw::sw_simd_score},
-    /// #     data::matrices::WeightMatrix
-    /// # };
-    /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
-    /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
-    ///
-    /// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
-    /// const GAP_OPEN: i8 = -3;
-    /// const GAP_EXTEND: i8 = -1;
-    ///
-    /// let profile = LocalProfiles::new_with_w256(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-    /// let alignment = profile.smith_waterman_alignment_from_i8(reference).unwrap();
-    /// ```
-    #[inline]
-    #[must_use]
-    pub fn smith_waterman_alignment_from_i8<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<Alignment<u32>> {
-        let query = query.as_ref();
-        self.get_i8()
-            .smith_waterman_alignment(query)
-            .or_else_overflowed(|| self.get_i16().smith_waterman_alignment(query))
-            .or_else_overflowed(|| self.get_i32().smith_waterman_alignment(query))
-    }
-
-    #[inline]
-    #[must_use]
-    #[cfg(feature = "dev-3pass")]
-    // TODO: we will add dispatching instead if the method needs to be hybrid based on size considerations
-    pub fn smith_waterman_alignment_from_i8_3pass<T: AsRef<[u8]> + ?Sized>(
-        &self, reference: &T,
-    ) -> MaybeAligned<Alignment<u32>> {
-        let reference = reference.as_ref();
-        self.get_i8()
-            .smith_waterman_alignment_3pass(reference, self.query, self.matrix, self.gap_open, self.gap_extend)
-            .or_else_overflowed(|| {
-                self.get_i16().smith_waterman_alignment_3pass(
-                    reference,
-                    self.query,
-                    self.matrix,
-                    self.gap_open,
-                    self.gap_extend,
-                )
-            })
-            .or_else_overflowed(|| {
-                self.get_i32().smith_waterman_alignment_3pass(
-                    reference,
-                    self.query,
-                    self.matrix,
-                    self.gap_open,
-                    self.gap_extend,
-                )
-            })
-    }
-    /// Lazily execute [`StripedProfile::smith_waterman_alignment`] starting with
-    /// the `i16` profile, skipping the `i8` profile. Lazily initializes the
-    /// profiles and works its way up to the `i32` profile. Execution stops when
-    /// the alignment returned no longer overflows the profile's integer range.
-    ///
-    /// See [`LocalProfiles::smith_waterman_alignment_from_i8`] for an example.
-    #[inline]
-    #[must_use]
-    pub fn smith_waterman_alignment_from_i16<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<Alignment<u32>> {
-        let query = query.as_ref();
-        self.get_i16()
-            .smith_waterman_alignment(query)
-            .or_else_overflowed(|| self.get_i32().smith_waterman_alignment(query))
-    }
-
-    /// Execute [`StripedProfile::smith_waterman_alignment`] with the `i32`
-    /// profile, skipping the `i8` and `i16` profiles.
-    ///
-    /// See [`LocalProfiles::smith_waterman_alignment_from_i8`] for an example.
-    #[inline]
-    #[must_use]
-    pub fn smith_waterman_alignment_from_i32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<Alignment<u32>> {
-        let query = query.as_ref();
-        self.get_i32().smith_waterman_alignment(query)
-    }
 }
 
 impl<'a, const S: usize> LocalProfiles<'a, 16, 8, 4, S> {
@@ -263,18 +244,40 @@ impl<'a, const S: usize> LocalProfiles<'a, 16, 8, 4, S> {
     pub fn new_with_w128<T: AsRef<[u8]> + ?Sized>(
         query: &'a T, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
     ) -> Result<LocalProfiles<'a, 16, 8, 4, S>, QueryProfileError> {
-        validate_profile_args(query.as_ref(), gap_open, gap_extend)?;
-
-        Ok(LocalProfiles {
-            query: query.as_ref(),
-            matrix,
-            gap_open,
-            gap_extend,
-            profile_i8: OnceCell::new(),
-            profile_i16: OnceCell::new(),
-            profile_i32: OnceCell::new(),
-        })
+        Self::new(query, matrix, gap_open, gap_extend)
     }
+}
+
+/// A lazily-evaluated set of striped alignment profiles for local
+/// (thread-specific) use.
+///
+/// This is an abstraction around [`StripedProfile`], providing convenience
+/// methods for automatically increasing the integer width and rerunning the
+/// alignment when overflow occurs. This only supports the unsigned version of
+/// the algorithm.
+///
+/// If it is necessary to share between multiple threads, consider using
+/// [`SharedProfiles`].
+///
+/// ## Type Parameters
+///
+/// * `M` - The number of SIMD lanes for i8 profiles
+/// * `N` - The number of SIMD lanes for i16 profiles
+/// * `O` - The number of SIMD lanes for i32 profiles
+/// * `S` - The size of the alphabet (usually 5 for DNA including *N*)
+#[derive(Debug, Clone)]
+pub struct LocalProfiles<'a, const M: usize, const N: usize, const O: usize, const S: usize>
+where
+    LaneCount<M>: SupportedLaneCount,
+    LaneCount<N>: SupportedLaneCount,
+    LaneCount<O>: SupportedLaneCount, {
+    pub(crate) query:       &'a [u8],
+    pub(crate) matrix:      &'a WeightMatrix<'a, i8, S>,
+    pub(crate) gap_open:    i8,
+    pub(crate) gap_extend:  i8,
+    pub(crate) profile_i8:  OnceCell<StripedProfile<'a, i8, M, S>>,
+    pub(crate) profile_i16: OnceCell<StripedProfile<'a, i16, N, S>>,
+    pub(crate) profile_i32: OnceCell<StripedProfile<'a, i32, O, S>>,
 }
 
 impl<'a, const S: usize> LocalProfiles<'a, 32, 16, 8, S> {
@@ -288,17 +291,7 @@ impl<'a, const S: usize> LocalProfiles<'a, 32, 16, 8, S> {
     pub fn new_with_w256<T: AsRef<[u8]> + ?Sized>(
         query: &'a T, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
     ) -> Result<LocalProfiles<'a, 32, 16, 8, S>, QueryProfileError> {
-        validate_profile_args(query.as_ref(), gap_open, gap_extend)?;
-
-        Ok(LocalProfiles {
-            query: query.as_ref(),
-            matrix,
-            gap_open,
-            gap_extend,
-            profile_i8: OnceCell::new(),
-            profile_i16: OnceCell::new(),
-            profile_i32: OnceCell::new(),
-        })
+        Self::new(query, matrix, gap_open, gap_extend)
     }
 }
 
@@ -313,17 +306,59 @@ impl<'a, const S: usize> LocalProfiles<'a, 64, 32, 16, S> {
     pub fn new_with_w512<T: AsRef<[u8]> + ?Sized>(
         query: &'a T, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
     ) -> Result<LocalProfiles<'a, 64, 32, 16, S>, QueryProfileError> {
-        validate_profile_args(query.as_ref(), gap_open, gap_extend)?;
+        Self::new(query, matrix, gap_open, gap_extend)
+    }
+}
 
-        Ok(LocalProfiles {
-            query: query.as_ref(),
-            matrix,
-            gap_open,
-            gap_extend,
-            profile_i8: OnceCell::new(),
-            profile_i16: OnceCell::new(),
-            profile_i32: OnceCell::new(),
+impl<'a, const M: usize, const N: usize, const O: usize, const S: usize> ProfileSets<'a, M, N, O, S>
+    for LocalProfiles<'a, M, N, O, S>
+where
+    LaneCount<M>: SupportedLaneCount,
+    LaneCount<N>: SupportedLaneCount,
+    LaneCount<O>: SupportedLaneCount,
+{
+    #[inline]
+    fn get_i8(&self) -> &StripedProfile<'a, i8, M, S> {
+        // Validity: We already validated profile
+        self.profile_i8.get_or_init(|| {
+            StripedProfile::<i8, M, S>::new_unchecked(self.query, self.matrix, self.gap_open, self.gap_extend)
         })
+    }
+
+    #[inline]
+    fn get_i16(&self) -> &StripedProfile<'a, i16, N, S> {
+        // Validity: We already validated profile
+        self.profile_i16.get_or_init(|| {
+            StripedProfile::<i16, N, S>::new_unchecked(self.query, self.matrix, self.gap_open, self.gap_extend)
+        })
+    }
+
+    #[inline]
+    fn get_i32(&self) -> &StripedProfile<'a, i32, O, S> {
+        // Validity: We already validated profile
+        self.profile_i32.get_or_init(|| {
+            StripedProfile::<i32, O, S>::new_unchecked(self.query, self.matrix, self.gap_open, self.gap_extend)
+        })
+    }
+
+    #[inline]
+    fn query(&self) -> &[u8] {
+        self.query
+    }
+
+    #[inline]
+    fn gap_open(&self) -> i8 {
+        self.gap_open
+    }
+
+    #[inline]
+    fn gap_extend(&self) -> i8 {
+        self.gap_extend
+    }
+
+    #[inline]
+    fn matrix(&self) -> &WeightMatrix<'a, i8, S> {
+        self.matrix
     }
 }
 
@@ -395,183 +430,6 @@ where
             profile_i32: OnceLock::new(),
         })
     }
-
-    /// Get or initialize [`StripedProfile`] with elements of `i8` and `M` SIMD
-    /// lanes and returns a reference to the field.
-    #[inline]
-    pub fn get_i8(&self) -> &StripedProfile<'_, i8, M, S> {
-        // Validity: We already validated profile
-        self.profile_i8.get_or_init(|| {
-            StripedProfile::<i8, M, S>::new_unchecked(&self.query, self.matrix, self.gap_open, self.gap_extend)
-        })
-    }
-
-    /// Get or initialize [`StripedProfile`] with elements of `i16` and `N` SIMD
-    /// lanes and returns a reference to the field.
-    #[inline]
-    pub fn get_i16(&self) -> &StripedProfile<'_, i16, N, S> {
-        // Validity: We already validated profile
-        self.profile_i16.get_or_init(|| {
-            StripedProfile::<i16, N, S>::new_unchecked(&self.query, self.matrix, self.gap_open, self.gap_extend)
-        })
-    }
-
-    /// Get or initialize [`StripedProfile`] with elements of `i32` and `O` SIMD
-    /// lanes and returns a reference to the field.
-    #[inline]
-    pub fn get_i32(&self) -> &StripedProfile<'_, i32, O, S> {
-        // Validity: We already validated profile
-        self.profile_i32.get_or_init(|| {
-            StripedProfile::<i32, O, S>::new_unchecked(&self.query, self.matrix, self.gap_open, self.gap_extend)
-        })
-    }
-
-    /// Lazily execute [`StripedProfile::smith_waterman_score`] starting with
-    /// the `i8` profile. Lazily initializes the profiles and works its way up
-    /// to the `i32` profile. Execution stops when the score returned no longer
-    /// overflows the profile's integer range.
-    ///
-    /// ## Example
-    ///
-    /// ```
-    /// # use zoe::{
-    /// #     alignment::{SharedProfiles, sw::sw_simd_score},
-    /// #     data::matrices::WeightMatrix
-    /// # };
-    /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
-    /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
-    ///
-    /// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
-    /// const GAP_OPEN: i8 = -3;
-    /// const GAP_EXTEND: i8 = -1;
-    ///
-    /// let profile = SharedProfiles::new_with_w256(query.into(), &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-    /// let score = profile.smith_waterman_score_from_i8(reference).unwrap();
-    /// assert_eq!(score, 26);
-    /// ```
-    #[inline]
-    #[must_use]
-    pub fn smith_waterman_score_from_i8<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u32> {
-        let query = query.as_ref();
-        self.get_i8()
-            .smith_waterman_score(query)
-            .or_else_overflowed(|| self.get_i16().smith_waterman_score(query))
-            .or_else_overflowed(|| self.get_i32().smith_waterman_score(query))
-    }
-
-    /// Lazily execute [`StripedProfile::smith_waterman_score`] starting with
-    /// the `i16` profile, skipping the `i8` profile. Lazily initializes the
-    /// profiles and works its way up to the `i32` profile. Execution stops when
-    /// the score returned no longer overflows the profile's integer range.
-    ///
-    /// See [`SharedProfiles::smith_waterman_score_from_i8`] for an example.
-    #[inline]
-    #[must_use]
-    pub fn smith_waterman_score_from_i16<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u32> {
-        let query = query.as_ref();
-        self.get_i16()
-            .smith_waterman_score(query)
-            .or_else_overflowed(|| self.get_i32().smith_waterman_score(query))
-    }
-
-    /// Execute [`StripedProfile::smith_waterman_score`] with the `i32` profile,
-    /// skipping the `i8` and `i16` profiles.
-    ///
-    /// See [`SharedProfiles::smith_waterman_score_from_i8`] for an example.
-    #[inline]
-    #[must_use]
-    pub fn smith_waterman_score_from_i32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<u32> {
-        let query = query.as_ref();
-        self.get_i32().smith_waterman_score(query)
-    }
-
-    /// Lazily execute [`StripedProfile::smith_waterman_alignment`] starting with
-    /// the `i8` profile. Lazily initializes the profiles and works its way up
-    /// to the `i32` profile. Execution stops when the alignment returned no longer
-    /// overflows the profile's integer range.
-    ///
-    /// ## Example
-    ///
-    /// ```
-    /// # use zoe::{
-    /// #     alignment::{SharedProfiles, sw::sw_simd_score},
-    /// #     data::matrices::WeightMatrix
-    /// # };
-    /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
-    /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
-    ///
-    /// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
-    /// const GAP_OPEN: i8 = -3;
-    /// const GAP_EXTEND: i8 = -1;
-    ///
-    /// let profile = SharedProfiles::new_with_w256(query.into(), &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-    /// let alignment = profile.smith_waterman_alignment_from_i8(reference).unwrap();
-    /// ```
-    #[inline]
-    #[must_use]
-    pub fn smith_waterman_alignment_from_i8<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<Alignment<u32>> {
-        let query = query.as_ref();
-        self.get_i8()
-            .smith_waterman_alignment(query)
-            .or_else_overflowed(|| self.get_i16().smith_waterman_alignment(query))
-            .or_else_overflowed(|| self.get_i32().smith_waterman_alignment(query))
-    }
-
-    #[inline]
-    #[must_use]
-    #[cfg(feature = "dev-3pass")]
-    // TODO: we will add dispatching instead if the method needs to be hybrid based on size considerations
-    pub fn smith_waterman_alignment_from_i8_3pass<T: AsRef<[u8]> + ?Sized>(
-        &self, reference: &T,
-    ) -> MaybeAligned<Alignment<u32>> {
-        let reference = reference.as_ref();
-        self.get_i8()
-            .smith_waterman_alignment_3pass(reference, &self.query, self.matrix, self.gap_open, self.gap_extend)
-            .or_else_overflowed(|| {
-                self.get_i16().smith_waterman_alignment_3pass(
-                    reference,
-                    &self.query,
-                    self.matrix,
-                    self.gap_open,
-                    self.gap_extend,
-                )
-            })
-            .or_else_overflowed(|| {
-                self.get_i32().smith_waterman_alignment_3pass(
-                    reference,
-                    &self.query,
-                    self.matrix,
-                    self.gap_open,
-                    self.gap_extend,
-                )
-            })
-    }
-
-    /// Lazily execute [`StripedProfile::smith_waterman_alignment`] starting with
-    /// the `i16` profile, skipping the `i8` profile. Lazily initializes the
-    /// profiles and works its way up to the `i32` profile. Execution stops when
-    /// the alignment returned no longer overflows the profile's integer range.
-    ///
-    /// See [`SharedProfiles::smith_waterman_alignment_from_i8`] for an example.
-    #[inline]
-    #[must_use]
-    pub fn smith_waterman_alignment_from_i16<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<Alignment<u32>> {
-        let query = query.as_ref();
-        self.get_i16()
-            .smith_waterman_alignment(query)
-            .or_else_overflowed(|| self.get_i32().smith_waterman_alignment(query))
-    }
-
-    /// Execute [`StripedProfile::smith_waterman_alignment`] with the `i32`
-    /// profile, skipping the `i8` and `i16` profiles.
-    ///
-    /// See [`SharedProfiles::smith_waterman_alignment_from_i8`] for an example.
-    #[inline]
-    #[must_use]
-    pub fn smith_waterman_alignment_from_i32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<Alignment<u32>> {
-        let query = query.as_ref();
-        self.get_i32().smith_waterman_alignment(query)
-    }
 }
 
 impl<'a, const S: usize> SharedProfiles<'a, 16, 8, 4, S> {
@@ -585,17 +443,7 @@ impl<'a, const S: usize> SharedProfiles<'a, 16, 8, 4, S> {
     pub fn new_with_w128(
         query: Box<[u8]>, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
     ) -> Result<SharedProfiles<'a, 16, 8, 4, S>, QueryProfileError> {
-        validate_profile_args(&query, gap_open, gap_extend)?;
-
-        Ok(SharedProfiles {
-            query,
-            matrix,
-            gap_open,
-            gap_extend,
-            profile_i8: OnceLock::new(),
-            profile_i16: OnceLock::new(),
-            profile_i32: OnceLock::new(),
-        })
+        Self::new(query, matrix, gap_open, gap_extend)
     }
 }
 
@@ -610,17 +458,7 @@ impl<'a, const S: usize> SharedProfiles<'a, 32, 16, 8, S> {
     pub fn new_with_w256(
         query: Box<[u8]>, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
     ) -> Result<SharedProfiles<'a, 32, 16, 8, S>, QueryProfileError> {
-        validate_profile_args(&query, gap_open, gap_extend)?;
-
-        Ok(SharedProfiles {
-            query,
-            matrix,
-            gap_open,
-            gap_extend,
-            profile_i8: OnceLock::new(),
-            profile_i16: OnceLock::new(),
-            profile_i32: OnceLock::new(),
-        })
+        Self::new(query, matrix, gap_open, gap_extend)
     }
 }
 
@@ -635,17 +473,59 @@ impl<'a, const S: usize> SharedProfiles<'a, 64, 32, 16, S> {
     pub fn new_with_w512(
         query: Box<[u8]>, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
     ) -> Result<SharedProfiles<'a, 64, 32, 16, S>, QueryProfileError> {
-        validate_profile_args(&query, gap_open, gap_extend)?;
+        Self::new(query, matrix, gap_open, gap_extend)
+    }
+}
 
-        Ok(SharedProfiles {
-            query,
-            matrix,
-            gap_open,
-            gap_extend,
-            profile_i8: OnceLock::new(),
-            profile_i16: OnceLock::new(),
-            profile_i32: OnceLock::new(),
+impl<'a, const M: usize, const N: usize, const O: usize, const S: usize> ProfileSets<'a, M, N, O, S>
+    for SharedProfiles<'a, M, N, O, S>
+where
+    LaneCount<M>: SupportedLaneCount,
+    LaneCount<N>: SupportedLaneCount,
+    LaneCount<O>: SupportedLaneCount,
+{
+    #[inline]
+    fn get_i8(&self) -> &StripedProfile<'a, i8, M, S> {
+        // Validity: We already validated profile
+        self.profile_i8.get_or_init(|| {
+            StripedProfile::<i8, M, S>::new_unchecked(&self.query, self.matrix, self.gap_open, self.gap_extend)
         })
+    }
+
+    #[inline]
+    fn get_i16(&self) -> &StripedProfile<'a, i16, N, S> {
+        // Validity: We already validated profile
+        self.profile_i16.get_or_init(|| {
+            StripedProfile::<i16, N, S>::new_unchecked(&self.query, self.matrix, self.gap_open, self.gap_extend)
+        })
+    }
+
+    #[inline]
+    fn get_i32(&self) -> &StripedProfile<'a, i32, O, S> {
+        // Validity: We already validated profile
+        self.profile_i32.get_or_init(|| {
+            StripedProfile::<i32, O, S>::new_unchecked(&self.query, self.matrix, self.gap_open, self.gap_extend)
+        })
+    }
+
+    #[inline]
+    fn query(&self) -> &[u8] {
+        &self.query
+    }
+
+    #[inline]
+    fn gap_open(&self) -> i8 {
+        self.gap_open
+    }
+
+    #[inline]
+    fn gap_extend(&self) -> i8 {
+        self.gap_extend
+    }
+
+    #[inline]
+    fn matrix(&self) -> &WeightMatrix<'a, i8, S> {
+        self.matrix
     }
 }
 

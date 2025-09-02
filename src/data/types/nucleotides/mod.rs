@@ -152,7 +152,7 @@ impl Nucleotides {
     /// ## Example
     ///
     /// ```
-    /// # use zoe::{data::matrices::WeightMatrix, prelude::Nucleotides};
+    /// # use zoe::{alignment::ProfileSets, data::matrices::WeightMatrix, prelude::Nucleotides};
     /// let reference: &[u8] = b"GGCCACAGGATTGAG";
     /// let query: Nucleotides = b"CTCAGATTG".into();
     ///
@@ -183,7 +183,7 @@ impl Nucleotides {
     /// ## Example
     ///
     /// ```
-    /// # use zoe::{data::matrices::WeightMatrix, prelude::Nucleotides};
+    /// # use zoe::{alignment::ProfileSets, data::matrices::WeightMatrix, prelude::Nucleotides};
     /// let reference: &[u8] = b"GGCCACAGGATTGAG";
     /// let query: Nucleotides = b"CTCAGATTG".into();
     ///

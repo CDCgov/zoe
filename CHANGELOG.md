@@ -32,6 +32,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `tags` field to `SamData`, as well as the ability to opt out of storing the tags in `SamReader`
 - Updated traceback in `viterbi` to not use nested vecs
 - Changed `Debug` impl of `CigarViewMut` and derived more traits
+- Various Smith-Waterman profile set methods have been moved to trait methods
+  for `ProfileSets`.
 
 ### Fixes
 
