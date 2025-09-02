@@ -84,7 +84,7 @@ impl<'b> DataViewMut<'b> for FastQViewMut<'b> {
     #[inline]
     fn to_owned_data(&self) -> FastQ {
         FastQ {
-            header:   (*self.header).to_string(),
+            header:   (*self.header).clone(),
             sequence: self.sequence.to_owned_data(),
             quality:  self.quality.to_owned_data(),
         }

@@ -149,7 +149,7 @@ impl FastQViewMut<'_> {
     #[must_use]
     pub fn to_reverse_complement(&self) -> FastQ {
         FastQ {
-            header:   (*self.header).to_string(),
+            header:   (*self.header).clone(),
             sequence: self.sequence.to_reverse_complement(),
             quality:  self.quality.to_reverse(),
         }
