@@ -10,5 +10,7 @@ pub const AA_UNAMBIG_PROFILE_MAP: ByteIndexMap<20> = ByteIndexMap::new_ignoring_
 
 /// Conversion from IUPAC amino acids, stop codons `*`, and ambiguous amino
 /// acids `BJZ` to indices, including `X` as a catch-all.
+///
+/// See [IUPAC Standards](crate::data#iupac-standards) for more discussion.
 pub const AA_ALL_AMBIG_PROFILE_MAP_WITH_STOP: ByteIndexMap<25> =
     ByteIndexMap::new_ignoring_case(*b"ACDEFGHIKLMNPQRSTVWY*BJZX", b'X');

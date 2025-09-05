@@ -72,14 +72,25 @@ fn update_delete<T: Float, const S: usize>(layer: &LayerParams<T, S>, mut vals: 
     vals.locate_min()
 }
 
-// TODO: Docs
+/// A traceback matrix for Viterbi alignment.
+///
+/// The data is arranged with the query residues as the columns and the PHMM
+/// layers as the rows, and then row-major order is used.
+///
+/// The number of columns is one more than the query length (to allow the
+/// condition of no bases in the query being matched to be represented). The
+/// number of rows is one more than the number of PHMM match states (i.e., the
+/// number of match states along with the BEGIN state).
 pub struct ViterbiTraceback<T> {
     data: Vec<T>,
     cols: usize,
 }
 
 impl<T: Clone> ViterbiTraceback<T> {
-    // TODO: Docs
+    /// Creates a new [`ViterbiTraceback`] from the given query length and the
+    /// layer length.
+    ///
+    /// The layer length is the number of match states excluding BEGIN and END.
     #[inline]
     #[must_use]
     fn new(default: T, query_len: usize, layers_len: usize) -> Self {
@@ -91,18 +102,41 @@ impl<T: Clone> ViterbiTraceback<T> {
 }
 
 impl<T> ViterbiTraceback<T> {
+    /// Retrieves the state stored in the traceback given the dynamic
+    /// programming index.
+    ///
+    /// `i` is the dynamic programming query index, so that `0` corresponds to
+    /// matching no residues, `1` corresponds to the first residue in the query,
+    /// and so on.
+    ///
+    /// `j` is the dynamic programming layer index, so that `0` corresponds to
+    /// the BEGIN state, `1` corresponds to the first layer, and so on.
     #[inline]
     #[must_use]
     pub fn get(&self, i: usize, j: usize) -> &T {
         &self.data[self.cols * j + i]
     }
 
+    /// Retrieves a mutable reference to the state stored in the traceback given
+    /// the dynamic programming index.
+    ///
+    /// `i` is the dynamic programming query index, so that `0` corresponds to
+    /// matching no residues, `1` corresponds to the first residue in the query,
+    /// and so on.
+    ///
+    /// `j` is the dynamic programming layer index, so that `0` corresponds to
+    /// the BEGIN state, `1` corresponds to the first layer, and so on.
     #[inline]
     #[must_use]
     pub fn get_mut(&mut self, i: usize, j: usize) -> &mut T {
         &mut self.data[self.cols * j + i]
     }
 
+    /// Retrieves a mutable reference to a row stored in the traceback given the
+    /// dynamic programming index of the pHMM layer.
+    ///
+    /// `0` corresponds to the BEGIN state, `1` corresponds to the first layer,
+    /// and so on.
     #[inline]
     #[must_use]
     pub fn get_rows_mut(&mut self, j: usize) -> (&mut [T], &mut [T]) {
@@ -125,7 +159,7 @@ pub(crate) trait ViterbiStrategy<'a, T: Float + 'a, const S: usize>: Sized {
     /// The type used for tracking the best score and end of the alignment.
     type BestScore: Default + BestScore<T, S, Specs<'a> = Self>;
 
-    // TODO docs
+    /// The default value to initialize the traceback matrix with.
     const TRACEBACK_DEFAULT: PhmmStateArray<Self::TracebackState>;
 
     /// Retrieves the underlying core pHMM.

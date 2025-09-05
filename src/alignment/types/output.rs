@@ -3,7 +3,8 @@ use crate::alignment::{AlignmentIter, AlignmentStates};
 use crate::data::cigar::Ciglet;
 use std::ops::Range;
 
-/// The output of an alignment algorithm.
+/// The output of an alignment algorithm, allowing unmapped and overflowed
+/// alignments to be represented.
 ///
 /// Often this is some [`Alignment`], but if no portion of the query mapped to
 /// the reference, [`Unmapped`] is used. [`Overflowed`] is used when the score
@@ -23,8 +24,8 @@ pub enum MaybeAligned<T> {
 }
 
 impl<T> MaybeAligned<T> {
-    /// Unwraps the alignment, consuming the [`MaybeAligned<T>`] and returning the
-    /// contained [`Alignment<T>`].
+    /// Unwraps the alignment, consuming the [`MaybeAligned<T>`] and returning
+    /// the contained [`Alignment<T>`].
     ///
     /// # Panics
     ///
@@ -58,8 +59,12 @@ impl<T> MaybeAligned<T> {
         if let MaybeAligned::Overflowed = self { f() } else { self }
     }
 
-    /// Maps a `MaybeAligned<T>` to `MaybeAligned<U>` by applying a function to the contained value.
-    /// Leaves `Overflowed` and `Unmapped` variants unchanged.
+    /// Maps a [`MaybeAligned<T>`] to [`MaybeAligned<U>`] by applying a function
+    /// to the contained value. Leaves [`Overflowed`] and [`Unmapped`] variants
+    /// unchanged.
+    ///
+    /// [`Overflowed`]: MaybeAligned::Overflowed
+    /// [`Unmapped`]: MaybeAligned::Unmapped
     #[inline]
     #[must_use]
     pub fn map<U>(self, f: impl FnOnce(T) -> U) -> MaybeAligned<U> {
@@ -70,9 +75,12 @@ impl<T> MaybeAligned<T> {
         }
     }
 
-    /// Returns `Unmapped` if the `MaybeAligned` is `Unmapped`, `Overflowed` if it is
-    /// `Overflowed`, otherwise calls `f` with the wrapped value and returns the
-    /// result.
+    /// Returns [`Unmapped`] if the [`MaybeAligned`] is [`Unmapped`],
+    /// [`Overflowed`] if it is [`Overflowed`], otherwise calls `f` with the
+    /// wrapped value and returns the result.
+    ///
+    /// [`Overflowed`]: MaybeAligned::Overflowed
+    /// [`Unmapped`]: MaybeAligned::Unmapped
     #[inline]
     #[must_use]
     pub fn and_then<U, F>(self, f: F) -> MaybeAligned<U>
@@ -114,8 +122,9 @@ pub struct Alignment<T> {
 
 impl<T> Alignment<T> {
     /// Given the output of an alignment algorithm, generate the aligned
-    /// sequences, using `-` as a gap character. The first output is the
-    /// reference, and the second is the query.
+    /// sequences, using `-` as a gap character.
+    ///
+    /// The first output is the reference, and the second is the query.
     #[inline]
     #[must_use]
     pub fn get_aligned_seqs(&self, reference: &[u8], query: &[u8]) -> (Vec<u8>, Vec<u8>) {

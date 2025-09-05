@@ -127,7 +127,7 @@ mod parse;
 pub use aa::*;
 pub use parse::*;
 
-/// Physiochemical distance matrix using the euclidean distance between all
+/// Physiochemical distance matrix using the Euclidean distance between all
 /// amino acid factors.
 pub(crate) static PHYSIOCHEMICAL_FACTORS: [[Option<f32>; 256]; 256] = {
     const AA: [u8; 43] = [
@@ -268,11 +268,12 @@ impl<T: AnyInt, const S: usize> WeightMatrix<'_, T, S> {
         };
         let mut i = 0;
         while i < L {
-            let reference_base = subset.byte_keys[i];
+            let reference_residue = subset.byte_keys[i];
             let mut j = 0;
             while j < L {
-                let query_base = subset.byte_keys[j];
-                *weights.get_weight_mut(reference_base, query_base) = self.get_weight(reference_base, query_base);
+                let query_residue = subset.byte_keys[j];
+                *weights.get_weight_mut(reference_residue, query_residue) =
+                    self.get_weight(reference_residue, query_residue);
                 j += 1;
             }
             i += 1;
@@ -282,9 +283,12 @@ impl<T: AnyInt, const S: usize> WeightMatrix<'_, T, S> {
 }
 
 impl WeightMatrix<'_, u8, 5> {
-    /// Creates a new [`WeightMatrix`] with a fixed `matching` score,
-    /// `mismatch` score, and optionally ignoring a base. A pair of bases where
-    /// either is the ignored base will always have a score of 0.
+    /// Creates a new [`WeightMatrix`] with a fixed `matching` score, `mismatch`
+    /// score, and optionally ignoring a base.
+    ///
+    /// A pair of bases where either is the ignored base will always have a
+    /// score of 0. Note that this method uses the [`DNA_PROFILE_MAP`] mapping,
+    /// which includes `N`.
     #[inline]
     #[must_use]
     pub const fn new_biased_dna_matrix(matching: i8, mismatch: i8, ignoring: Option<u8>) -> Self {
@@ -339,18 +343,20 @@ impl<const S: usize> WeightMatrix<'_, u8, S> {
 impl<'a, const S: usize> WeightMatrix<'a, i8, S> {
     /// Creates a new, signed [`WeightMatrix`] with a given alphabet represented
     /// by `mapping`, a fixed `matching` score and `mismatch` score, and an
-    /// optionally ignored base. A pair of bases where either is the ignored
-    /// base will always have a score of 0.
+    /// optionally ignored residue.
+    ///
+    /// A pair of residues where either is the ignored residue will always have
+    /// a score of 0.
     ///
     /// If working with DNA, consider using [`new_dna_matrix`]. For more
     /// flexibility, use [`new_custom`].
     ///
-    /// [`new_dna_matrix`]: WeightMatrix::new_dna_matrix
-    /// [`new_custom`]: WeightMatrix::new_custom
-    ///
     /// ## Panics
     ///
     /// Panics if an invalid byte was specified for the `ignoring` field.
+    ///
+    /// [`new_dna_matrix`]: WeightMatrix::new_dna_matrix
+    /// [`new_custom`]: WeightMatrix::new_custom
     #[must_use]
     pub const fn new(mapping: &'a ByteIndexMap<S>, matching: i8, mismatch: i8, ignoring: Option<u8>) -> Self {
         let mut weights = [[0i8; S]; S];
@@ -396,11 +402,11 @@ impl<'a, const S: usize> WeightMatrix<'a, i8, S> {
     }
 
     /// Creates a new, signed [`WeightMatrix`] with a given alphabet represented
-    /// by `mapping` and a custom weight matrix (where the rows represent the
-    /// reference residue, and the columns represent the query residue).
+    /// by `mapping` and a custom weight matrix.
     ///
-    /// For simpler weight matrices depending only on matches/mismatches,
-    /// consider using [`new`].
+    /// The rows of `weights` represent the reference residue, and the columns
+    /// represent the query residue. For simpler weight matrices depending only
+    /// on matches/mismatches, consider using [`new`].
     ///
     /// [`new`]: WeightMatrix::new
     #[must_use]
@@ -448,9 +454,9 @@ impl<'a, const S: usize> WeightMatrix<'a, i8, S> {
         min
     }
 
-    /// Converts the signed [`WeightMatrix`] to an unsigned, biased matrix.
-    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    /// Generates an unsigned, biased [`WeightMatrix`] from the signed matrix.
     #[must_use]
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     pub const fn to_biased_matrix(&self) -> WeightMatrix<'a, u8, S> {
         let bias = self.get_bias();
         let mut weights = [[0u8; S]; S];
@@ -485,8 +491,11 @@ impl<'a, const S: usize> WeightMatrix<'a, i8, S> {
 
 impl WeightMatrix<'_, i8, 5> {
     /// Creates a new signed [`WeightMatrix`] with a fixed `matching` score,
-    /// `mismatch` score, and optionally ignoring a base. A pair of bases where
-    /// either is the ignored base will always have a score of 0.
+    /// `mismatch` score, and optionally ignoring a base.
+    ///
+    /// A pair of bases where either is the ignored base will always have a
+    /// score of 0. Note that this method uses the [`DNA_PROFILE_MAP`] mapping,
+    /// which includes `N`.
     #[must_use]
     pub const fn new_dna_matrix(matching: i8, mismatch: i8, ignoring: Option<u8>) -> Self {
         WeightMatrix::new(&DNA_PROFILE_MAP, matching, mismatch, ignoring)

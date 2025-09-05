@@ -51,9 +51,11 @@ where
     fn matrix(&self) -> &WeightMatrix<'a, i8, S>;
 
     /// Lazily execute [`StripedProfile::smith_waterman_score`] starting with
-    /// the `i8` profile. Lazily initializes the profiles and works its way up
-    /// to the `i32` profile. Execution stops when the score returned no longer
-    /// overflows the profile's integer range.
+    /// the `i8` profile.
+    ///
+    /// Lazily initializes the profiles and works its way up to the `i32`
+    /// profile. Execution stops when the score returned no longer overflows the
+    /// profile's integer range.
     ///
     /// ## Example
     ///
@@ -81,9 +83,11 @@ where
     }
 
     /// Lazily execute [`StripedProfile::smith_waterman_score`] starting with
-    /// the `i16` profile, skipping the `i8` profile. Lazily initializes the
-    /// profiles and works its way up to the `i32` profile. Execution stops when
-    /// the score returned no longer overflows the profile's integer range.
+    /// the `i16` profile, skipping the `i8` profile.
+    ///
+    /// Lazily initializes the profiles and works its way up to the `i32`
+    /// profile. Execution stops when the score returned no longer overflows the
+    /// profile's integer range.
     ///
     /// See [`LocalProfiles::smith_waterman_score_from_i8`] for an example.
     #[inline]
@@ -106,10 +110,12 @@ where
         self.get_i32().smith_waterman_score(query)
     }
 
-    /// Lazily execute [`StripedProfile::smith_waterman_alignment`] starting with
-    /// the `i8` profile. Lazily initializes the profiles and works its way up
-    /// to the `i32` profile. Execution stops when the alignment returned no longer
-    /// overflows the profile's integer range.
+    /// Lazily execute [`StripedProfile::smith_waterman_alignment`] starting
+    /// with the `i8` profile.
+    ///
+    /// Lazily initializes the profiles and works its way up to the `i32`
+    /// profile. Execution stops when the alignment returned no longer overflows
+    /// the profile's integer range.
     ///
     /// ## Example
     ///
@@ -142,6 +148,28 @@ where
     #[must_use]
     #[cfg(feature = "dev-3pass")]
     // TODO: we will add dispatching instead if the method needs to be hybrid based on size considerations
+    /// Lazily execute [`StripedProfile::smith_waterman_alignment_3pass`]
+    /// starting with the `i8` profile.
+    ///
+    /// Lazily initializes the profiles and works its way up to the `i32`
+    /// profile. Execution stops when the score returned no longer overflows the
+    /// profile's integer range.
+    ///
+    /// ## Example
+    ///
+    /// ```
+    /// # use zoe::{alignment::{LocalProfiles, sw::sw_simd_score}, data::matrices::WeightMatrix};
+    /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
+    /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
+    ///
+    /// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
+    /// const GAP_OPEN: i8 = -3;
+    /// const GAP_EXTEND: i8 = -1;
+    ///
+    /// let profile = LocalProfiles::new_with_w256(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+    /// let score = profile.smith_waterman_alignment_from_i8_3pass(reference).unwrap();
+    /// assert_eq!(score, 26);
+    /// ```
     fn smith_waterman_alignment_from_i8_3pass<T: AsRef<[u8]> + ?Sized>(
         &self, reference: &T,
     ) -> MaybeAligned<Alignment<u32>> {
@@ -168,10 +196,12 @@ where
             })
     }
 
-    /// Lazily execute [`StripedProfile::smith_waterman_alignment`] starting with
-    /// the `i16` profile, skipping the `i8` profile. Lazily initializes the
-    /// profiles and works its way up to the `i32` profile. Execution stops when
-    /// the alignment returned no longer overflows the profile's integer range.
+    /// Lazily execute [`StripedProfile::smith_waterman_alignment`] starting
+    /// with the `i16` profile, skipping the `i8` profile.
+    ///
+    /// Lazily initializes the profiles and works its way up to the `i32`
+    /// profile. Execution stops when the alignment returned no longer overflows
+    /// the profile's integer range.
     ///
     /// See [`LocalProfiles::smith_waterman_alignment_from_i8`] for an example.
     #[inline]
@@ -235,7 +265,9 @@ where
 
 impl<'a, const S: usize> LocalProfiles<'a, 16, 8, 4, S> {
     /// Creates an empty [`LocalProfiles`] optimized for 128-bit SIMD width.
-    /// Sets M=16, N=8, O=4 for i8, i16, i32 profiles respectively.
+    ///
+    /// This sets `M=16`, `N=8`, and `O=4` for `i8`, `i16`, and `i32` profiles
+    /// respectively.
     ///
     /// ## Errors
     ///
@@ -282,7 +314,9 @@ where
 
 impl<'a, const S: usize> LocalProfiles<'a, 32, 16, 8, S> {
     /// Creates an empty [`LocalProfiles`] optimized for 256-bit SIMD width.
-    /// Sets M=32, N=16, O=8 for i8, i16, i32 profiles respectively.
+    ///
+    /// This sets `M=32`, `N=16`, and `O=8` for `i8`, `i16`, and `i32` profiles
+    /// respectively.
     ///
     /// ## Errors
     ///
@@ -297,7 +331,9 @@ impl<'a, const S: usize> LocalProfiles<'a, 32, 16, 8, S> {
 
 impl<'a, const S: usize> LocalProfiles<'a, 64, 32, 16, S> {
     /// Creates an empty [`LocalProfiles`] optimized for 512-bit SIMD width.
-    /// Sets M=64, N=32, O=16 for i8, i16, i32 profiles respectively.
+    ///
+    /// This sets `M=64`, `N=32`, and `O=16` for `i8`, `i16`, and `i32` profiles
+    /// respectively.
     ///
     /// ## Errors
     ///
@@ -434,7 +470,9 @@ where
 
 impl<'a, const S: usize> SharedProfiles<'a, 16, 8, 4, S> {
     /// Creates an empty [`SharedProfiles`] optimized for 128-bit SIMD width.
-    /// Sets M=16, N=8, O=4 for i8, i16, i32 profiles respectively.
+    ///
+    /// This sets `M=16`, `N=8`, and `O=4` for `i8`, `i16`, and `i32` profiles
+    /// respectively.
     ///
     /// ## Errors
     ///
@@ -449,7 +487,9 @@ impl<'a, const S: usize> SharedProfiles<'a, 16, 8, 4, S> {
 
 impl<'a, const S: usize> SharedProfiles<'a, 32, 16, 8, S> {
     /// Creates an empty [`SharedProfiles`] optimized for 256-bit SIMD width.
-    /// Sets M=32, N=16, O=8 for i8, i16, i32 profiles respectively.
+    ///
+    /// This sets `M=32`, `N=16`, and `O=8` for `i8`, `i16`, and `i32` profiles
+    /// respectively.
     ///
     /// ## Errors
     ///
@@ -464,7 +504,9 @@ impl<'a, const S: usize> SharedProfiles<'a, 32, 16, 8, S> {
 
 impl<'a, const S: usize> SharedProfiles<'a, 64, 32, 16, S> {
     /// Creates an empty [`SharedProfiles`] optimized for 512-bit SIMD width.
-    /// Sets M=64, N=32, O=16 for i8, i16, i32 profiles respectively.
+    ///
+    /// This sets `M=64`, `N=32`, and `O=16` for `i8`, `i16`, and `i32` profiles
+    /// respectively.
     ///
     /// ## Errors
     ///

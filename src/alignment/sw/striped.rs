@@ -147,7 +147,16 @@ where
 /// Similar to [`sw_simd_score`], but includes the reference and query
 /// inclusive start index (0-based).
 ///
-/// Important: the query profile should also be in reverse orientation.
+/// <div class="warning important">
+///
+/// **Important**
+///
+/// The query profile should also be in reverse orientation, such as using
+/// [`reverse_from_forward`].
+///
+/// </div>
+///
+/// [`reverse_from_forward`]: StripedProfile::reverse_from_forward
 #[inline]
 #[must_use]
 #[cfg(feature = "dev-3pass")]
@@ -170,6 +179,17 @@ where
 ///
 /// For reverse, the start coordinate is:
 /// - The 0-based inclusive start for the alignment range
+///
+/// <div class="warning important">
+///
+/// **Important**
+///
+/// When `FORWARD` is false, the query profile should also be in reverse
+/// orientation, such as using [`reverse_from_forward`].
+///
+/// </div>
+///
+/// [`reverse_from_forward`]: StripedProfile::reverse_from_forward
 #[allow(non_snake_case)]
 #[must_use]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
@@ -314,10 +334,12 @@ where
         let Some(query_rev) = query.reverse_from_forward(query_end) else {
             return MaybeAligned::Unmapped;
         };
-        sw_simd_score_ends_reverse::<T, N, S>(&reference[..ref_end], &query_rev).map(|(score2, ref_start, query_start)| {
-            debug_assert_eq!(score, score2);
-            (score, ref_start..ref_end, query_start..query_end)
-        })
+        query_rev
+            .smith_waterman_score_ends_reverse(&reference[..ref_end])
+            .map(|(score2, ref_start, query_start)| {
+                debug_assert_eq!(score, score2);
+                (score, ref_start..ref_end, query_start..query_end)
+            })
     })
 }
 

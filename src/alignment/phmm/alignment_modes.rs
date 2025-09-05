@@ -160,8 +160,10 @@ impl<T: Float, const S: usize> DomainModule<T, S> {
 pub(crate) struct PrecomputedDomainModule<T, const S: usize>(pub(crate) Vec<T>);
 
 impl<T: Copy, const S: usize> PrecomputedDomainModule<T, S> {
-    /// Gets the score for skipping `i` bases in the query (either at the
-    /// beginning or end, depending on where the module is placed).
+    /// Gets the score for skipping the first `i` residues in the query (when
+    /// this module is placed at the beginning of the [`CorePhmm`]) or skipping
+    /// the last `i` residues in the query (when this module is placed at the
+    /// end of the [`CorePhmm`]).
     fn get_score(&self, i: impl QueryIndex) -> T {
         self.0[self.get_dp_index(i)]
     }
@@ -233,6 +235,16 @@ impl<T: Float, const S: usize> LocalModule<T, S> {
 }
 
 impl<T: Float, const S: usize> PrecomputedLocalModule<'_, T, S> {
+    /// Gets the score for skipping `i` residues in the query and
+    /// entering/exiting layer `j`.
+    ///
+    /// Specifically, the score is for:
+    ///
+    /// - Skipping the first `i` residues in the query and then entering
+    ///   directly into layer `j` (when this module is placed at the beginning
+    ///   of the [`CorePhmm`])
+    /// - Exiting early from layer `j` then skipping the last `i` residues in
+    ///   the query (when this module is placed at the end of the [`CorePhmm`])
     pub(crate) fn get_score(&self, i: impl QueryIndex, j: impl PhmmIndex) -> T {
         self.internal_params.get_score(i) + self.external_params.get_score(j)
     }
@@ -271,11 +283,12 @@ impl<T: Float> SemiLocalModule<T> {
         Self(vec![T::ZERO; core.num_pseudomatch()])
     }
 
-    /// Gets the transition parameter stored within a [`SemiLocalModule`] for
-    /// transitioning from/to a given [`PhmmIndex`].
+    /// Gets the score for entering directly into layer `j` (when this module is
+    /// placed at the beginning of the [`CorePhmm`] or exiting early from layer
+    /// `j` (when this module is placed at the end of the [`CorePhmm`]).
     #[inline]
     #[must_use]
-    pub(crate) fn get_score(&self, index: impl PhmmIndex) -> T {
-        self.0[index.get_phmm_dp_index(self)]
+    pub(crate) fn get_score(&self, j: impl PhmmIndex) -> T {
+        self.0[self.get_dp_index(j)]
     }
 }

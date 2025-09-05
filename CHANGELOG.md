@@ -4,12 +4,11 @@ All notable changes to this project will be documented in this file. The format
 is roughly based on [Keep a Changelog], and this project tries to adheres to
 [Semantic Versioning].
 
-## [0.0.21] - TBD
+## [0.0.21] - 2025-09-05
 
 ### Added
 
 - Added `sw_simd_score_ends` for getting the score _and end coordinates_ of the alignment
-- Added `dev-3pass` feature gate for additional alignment functions that return coordinates, as well as a three-pass alignment function with reduced memory usage
 - Added byte index map for amino acids, BLOSUM scoring matrices, and PAM scoring matrices
 - Added display implementation for `WeightMatrix`
 - Added `get_subset` to `WeightMatrix` for subsetting a weight matrix with a different alphabet
@@ -18,6 +17,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added unchecked constructors for `ScalarProfile` and `StripedProfile`
 - Added `SamDataView` and `SamDataViewMut`
 - Added `map` attribute syntax to `define_whichever` and `impl_traits`, so that a map can be applied when implementing iterator
+- Added `dev-3pass` feature gate for additional alignment functions that return coordinates, as well as a three-pass alignment function with reduced memory usage
 - Added `score_from_path` and `viterbi` for `LocalPhmm` (behind `dev-phmm` feature gate)
 - Added `DomainPhmm`, along with `score_from_path` for it (behind `dev-phmm` feature gate)
 - Added `SemiLocalPhmm`, along with `score_from_path` and `viterbi` for it (behind `dev-phmm` feature gate)
@@ -28,12 +28,14 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - `into_biased_matrix` has been renamed to `to_biased_matrix` and takes `&self`
 - `WeightMatrix` is now imported under `data::matrices` in addition to `data`
 - `WeightMatrix` now has an additional lifetime generic for the `ByteIndexMap`
+- `WeightMatrix` no longer implements `Copy`
 - The `@` symbol is no longer included at the beginning of a header in a `FastQ` record (the reader strips it, and the display implementation re-adds it)
 - Added `tags` field to `SamData`, as well as the ability to opt out of storing the tags in `SamReader`
-- Updated traceback in `viterbi` to not use nested vecs
 - Changed `Debug` impl of `CigarViewMut` and derived more traits
 - Various Smith-Waterman profile set methods have been moved to trait methods
   for `ProfileSets`.
+- Updated traceback in `viterbi` to not use nested vecs (behind `dev-phmm` feature gate)
+- Removed `as_u32` from `Alignment`, since the integer type for scores has been standardized
 
 ### Fixes
 

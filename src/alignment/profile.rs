@@ -261,8 +261,8 @@ where
         }
     }
 
-    /// Returns a reversed profile from the forward profile given the end of the
-    /// query sequence.
+    /// Given a profile for a forward sequence, returns a reversed profile of a
+    /// subsequence ending at the given index.
     ///
     /// `seq_end` represents the 0-based exclusive-end index. `None` is returned
     /// if the bound is invalid.
@@ -365,7 +365,10 @@ where
     Simd<T, N>: SimdAnyInt<T, N>,
 {
     /// Computes the Smith-Waterman local alignment score between the `u8`
-    /// profile and a passed sequence. Returns [`None`] if the score overflowed.
+    /// profile and a passed sequence.
+    ///
+    /// Returns [`Overflowed`] if the score overflowed and [`Unmapped`] if no
+    /// portion of the query mapped to the reference.
     ///
     /// For more info, see: [`sw_simd_score`].
     ///
@@ -384,6 +387,9 @@ where
     /// let score = profile.smith_waterman_score(reference).unwrap();
     /// assert_eq!(score, 26);
     /// ```
+    ///
+    /// [`Overflowed`]: MaybeAligned::Overflowed
+    /// [`Unmapped`]: MaybeAligned::Unmapped
     #[inline]
     #[must_use]
     pub fn smith_waterman_score(&self, seq: &[u8]) -> MaybeAligned<u32> {
@@ -405,17 +411,29 @@ where
     /// Similar to [`sw_simd_score`], but includes the reference and query
     /// inclusive start index (0-based).
     ///
-    /// Important: the query profile should also be in reverse orientation.
+    /// <div class="warning important">
+    ///
+    /// **Important**
+    ///
+    /// The query profile should also be in reverse orientation, such as using
+    /// [`reverse_from_forward`].
+    ///
+    /// </div>
+    ///
+    /// [`reverse_from_forward`]: StripedProfile::reverse_from_forward
     #[inline]
     #[must_use]
-    #[cfg(all(test, feature = "dev-3pass"))]
+    #[cfg(feature = "dev-3pass")]
     pub(crate) fn smith_waterman_score_ends_reverse(&self, seq: &[u8]) -> MaybeAligned<(u32, usize, usize)> {
         crate::alignment::sw::sw_simd_score_ends_reverse::<T, N, S>(seq, self)
     }
 
     /// Computes the Smith-Waterman local alignment between the profile and a
     /// passed sequence, yielding the reference starting position, cigar, and
-    /// optimal score. Returns [`None`] if the score overflowed.
+    /// optimal score.
+    ///
+    /// Returns [`Overflowed`] if the score overflowed and [`Unmapped`] if no
+    /// portion of the query mapped to the reference.
     ///
     /// For more info, see: [`sw_simd_alignment`].
     ///
@@ -437,6 +455,9 @@ where
     /// let alignment = profile.smith_waterman_alignment(reference).unwrap();
     /// // alignment contains ref_range, states (cigar), and score
     /// ```
+    ///
+    /// [`Overflowed`]: MaybeAligned::Overflowed
+    /// [`Unmapped`]: MaybeAligned::Unmapped
     #[inline]
     #[must_use]
     pub fn smith_waterman_alignment(&self, seq: &[u8]) -> MaybeAligned<Alignment<u32>> {
@@ -444,8 +465,9 @@ where
     }
 
     /// Similar to [`smith_waterman_score`] but includes the reference and query
-    /// alignment ranges. These are standard 0-based, half-open ranges for
-    /// slicing.
+    /// alignment ranges.
+    ///
+    /// These are standard 0-based, half-open ranges for slicing.
     ///
     /// [`smith_waterman_score`]: Self::smith_waterman_score
     #[inline]
@@ -457,7 +479,7 @@ where
         sw_simd_score_ranges::<T, N, S>(seq, self)
     }
 
-    /// Similar to [`smith_waterman_alignment`] but Computes the Smith-Waterman
+    /// Similar to [`smith_waterman_alignment`] but computes the Smith-Waterman
     /// local alignment using a 3-pass algorithm.
     ///
     /// This approach was inspired by (7), albeit this implementation is for

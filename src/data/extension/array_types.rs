@@ -3,6 +3,8 @@
 
 use crate::math::AnyInt;
 
+/// Converts all bytes in an array to ASCII uppercase using
+/// [`u8::to_ascii_uppercase`].
 pub(crate) const fn make_uppercase<const N: usize>(a: &[u8; N]) -> [u8; N] {
     let mut b = [0; N];
     let mut i = 0;
@@ -13,6 +15,7 @@ pub(crate) const fn make_uppercase<const N: usize>(a: &[u8; N]) -> [u8; N] {
     b
 }
 
+/// Identifies the first index of `needle` in `a`.
 pub(crate) const fn position<const N: usize>(a: &[u8; N], needle: u8) -> Option<usize> {
     let mut i = 0;
     while i < a.len() {
@@ -24,6 +27,7 @@ pub(crate) const fn position<const N: usize>(a: &[u8; N], needle: u8) -> Option<
     None
 }
 
+/// Returns whether all elements in `a` are unique.
 pub(crate) const fn is_unique<const N: usize>(a: &[u8; N]) -> bool {
     let mut i = 0;
     while i < a.len() {

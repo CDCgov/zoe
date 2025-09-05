@@ -72,6 +72,9 @@ impl<'a, T: Arbitrary<'a>, const S: usize> Arbitrary<'a> for LocalModule<T, S> {
     }
 }
 
+/// A wrapper type for [`EmissionParams`] offering more flexibility on the
+/// [`Arbitrary`] implementation.
+///
 /// ## Parameters:
 ///
 /// * `T`: The floating point type for the parameters
@@ -96,6 +99,9 @@ where
     }
 }
 
+/// A wrapper type for [`TransitionParams`] offering more flexibility on the
+/// [`Arbitrary`] implementation.
+///
 /// ## Parameters:
 ///
 /// * `T`: The floating point type for the parameters
@@ -119,6 +125,9 @@ where
     }
 }
 
+/// A wrapper type for [`LayerParams`] offering more flexibility on the
+/// [`Arbitrary`] implementation.
+///
 /// ## Parameters:
 ///
 /// * `T`: The floating point type for the parameters
@@ -147,11 +156,15 @@ where
     }
 }
 
+/// A wrapper type for [`CorePhmm`] offering more flexibility on the
+/// [`Arbitrary`] implementation.
+///
 /// Parameters:
 ///
 /// * `T`: The floating point type for the parameters
 /// * `F`: The floating point type or arbitrary wrapper for generating the
 ///   parameters
+/// * `S`: The size of the pHMM alphabet
 /// * `R`: If true, ensure invalid transitions are set to infinity
 #[derive(Debug)]
 pub struct CorePhmmArbitrary<T, F, const S: usize, const R: bool>(pub CorePhmm<T, S>, PhantomData<F>);
@@ -201,10 +214,13 @@ where
     }
 }
 
+/// A wrapper type for [`SemiLocalModule`] offering more flexibility on the
+/// [`Arbitrary`] implementation.
+///
 /// ## Parameters:
 ///
-/// * T: The floating point type for the parameters
-/// * F: The floating point type or arbitrary wrapper for generating the
+/// * `T`: The floating point type for the parameters
+/// * `F`: The floating point type or arbitrary wrapper for generating the
 ///   parameters
 pub struct SemiLocalModuleArbitrary<T, F>(SemiLocalModule<T>, PhantomData<F>);
 
@@ -233,6 +249,8 @@ where
     T: Arbitrary<'a>,
     F: Into<T> + Arbitrary<'a>,
 {
+    /// Generates an arbitrary [`SemiLocalModule`] which is compatible with
+    /// `core` (there are the correct number of pseudomatch states).
     #[allow(clippy::missing_errors_doc)]
     pub fn arbitrary_compatible<const S: usize>(u: &mut Unstructured<'a>, core: &CorePhmm<T, S>) -> Result<Self>
     where
@@ -248,11 +266,15 @@ where
     }
 }
 
+/// A wrapper type for [`DomainModule`] offering more flexibility on the
+/// [`Arbitrary`] implementation.
+///
 /// ## Parameters:
 ///
-/// * T: The floating point type for the parameters
-/// * F: The floating point type or arbitrary wrapper for generating the
+/// * `T`: The floating point type for the parameters
+/// * `F`: The floating point type or arbitrary wrapper for generating the
 ///   parameters
+/// * `S`: The size of the pHMM alphabet
 pub struct DomainModuleArbitrary<T, F, const S: usize>(DomainModule<T, S>, PhantomData<F>);
 
 impl_deref! {DomainModuleArbitrary<T, F, S>, DomainModule<T, S>, <T, F, const S: usize>}
@@ -276,11 +298,15 @@ where
     }
 }
 
+/// A wrapper type for [`LocalModule`] offering more flexibility on the
+/// [`Arbitrary`] implementation.
+///
 /// ## Parameters:
 ///
-/// * T: The floating point type for the parameters
-/// * F: The floating point type or arbitrary wrapper for generating the
+/// * `T`: The floating point type for the parameters
+/// * `F`: The floating point type or arbitrary wrapper for generating the
 ///   parameters
+/// * `S`: The size of the pHMM alphabet
 pub struct LocalModuleArbitrary<T, F, const S: usize>(LocalModule<T, S>, PhantomData<F>);
 
 impl_deref! {LocalModuleArbitrary<T, F, S>, LocalModule<T, S>, <T, F, const S: usize>}
@@ -306,6 +332,8 @@ where
     T: Arbitrary<'a>,
     F: Into<T> + Arbitrary<'a>,
 {
+    /// Generates an arbitrary [`SemiLocalModule`] which is compatible with
+    /// `core` (there are the correct number of pseudomatch states).
     #[allow(clippy::missing_errors_doc)]
     pub fn arbitrary_compatible(u: &mut Unstructured<'a>, core: &CorePhmm<T, S>) -> Result<Self>
     where
@@ -320,6 +348,9 @@ where
     }
 }
 
+/// A wrapper type for [`GlobalPhmm`] using a DNA alphabet and offering more
+/// flexibility on the [`Arbitrary`] implementation.
+///
 /// Parameters:
 ///
 /// * `T`: The floating point type for the parameters
@@ -347,12 +378,16 @@ where
     }
 }
 
+/// A wrapper type for [`LocalPhmm`] using a DNA alphabet and offering more
+/// flexibility on the [`Arbitrary`] implementation.
+///
 /// Parameters:
-/// * F: The floating point type or arbitrary wrapper for generating the
+/// * `T`: The floating point type for the parameters
+/// * `F`: The floating point type or arbitrary wrapper for generating the
 ///   parameters
-/// * M: If true, ensure there are the [`LocalModule`]s are compatible with the
-///   pHMM
-/// * R: If true, ensure invalid transitions are set to infinity
+/// * `M`: If true, ensure there are the [`LocalModule`]s are compatible with
+///   the pHMM
+/// * `R`: If true, ensure invalid transitions are set to infinity
 #[derive(Debug)]
 pub struct DnaLocalPhmm<T, F, const M: bool, const R: bool>(pub LocalPhmm<T, 4>, pub PhantomData<F>);
 
