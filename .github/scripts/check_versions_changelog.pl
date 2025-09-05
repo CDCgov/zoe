@@ -1,6 +1,6 @@
 #!/usr/bin/env perl
 use English qw(-no_match_vars);
-use Carp qw(croak);
+use Carp    qw(croak);
 use strict;
 use warnings;
 
@@ -12,6 +12,13 @@ close $fh or croak "Can't close CHANGELOG.md: $OS_ERROR";
 local $RS = "\n";
 my $toml_version = ( split '#', qx(cargo pkgid) )[1];
 chomp($toml_version);
+
+if ( defined $ARGV[0] ) {
+    my $tag = $ARGV[0];
+    if ( $tag ne "v$toml_version" ) {
+        die "For publishing, '$tag' should match the Cargo.toml (v$toml_version)\n";
+    }
+}
 
 if ( $changelog =~ /^## \[(.*?)\] - (\S+?)$/sm ) {
     my ( $version, $date ) = ( $1, $2 );
