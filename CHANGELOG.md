@@ -14,6 +14,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 ### Fixes
 
 - `ProfileSets` is re-exported in the prelude
+- Fixed the initialization of the first match score for the semilocal Viterbi algorithm (behind `dev-phmm` feature gate)
+- Fixed the calculation of the end score for semilocal Viterbi algorithm to allow passing through the END state (behind `dev-phmm` feature gate)
 
 ## [0.0.21] - 2025-09-05
 

@@ -2,7 +2,7 @@ use crate::{
     alignment::{
         Alignment, AlignmentStates,
         phmm::{
-            BestScore, CorePhmm, DpIndex, End, LastBase, LayerParams, NoBases, PhmmError, PhmmState, PhmmStateArray,
+            Begin, BestScore, CorePhmm, DpIndex, End, LayerParams, NoBases, PhmmError, PhmmState, PhmmStateArray,
             PhmmStateOrEnter, QueryIndex, QueryIndexable, SemiLocalModule, SemiLocalPhmm, ViterbiStrategy, ViterbiTraceback,
             indexing::{LastMatch, PhmmIndex, PhmmIndexable},
             viterbi::{ExitLocation, update_match},
@@ -73,7 +73,7 @@ impl<'a, T: Float, const S: usize> ViterbiStrategy<'a, T, S> for SemiLocalViterb
     #[inline]
     fn fill_vm(&self, v_m: &mut [T]) {
         v_m.fill(T::INFINITY);
-        v_m[0] = T::ZERO;
+        v_m[0] = self.begin.get_score(Begin);
     }
 
     fn update_match_score(
@@ -220,8 +220,32 @@ impl<T: Float, const S: usize> BestScore<T, S> for SemiLocalBestScore<T> {
     }
 
     #[inline]
-    fn update_seq_end_last_layer(&mut self, specs: &Self::Specs<'_>, layer: &LayerParams<T, S>, vals: PhmmStateArray<T>) {
-        self.update_last_layer(specs, layer, vals, LastBase);
+    fn update_seq_end_last_layer(
+        &mut self, specs: &Self::Specs<'_>, layer: &LayerParams<T, S>, mut vals: PhmmStateArray<T>,
+    ) {
+        use crate::alignment::phmm::PhmmState::*;
+
+        // Option 1: Early exit from this layer
+        self.update_seq_end(specs, vals, LastMatch);
+
+        // Option 2: Go through END state
+        vals[Delete] += layer.transition[(Delete, Match)];
+        vals[Match] += layer.transition[(Match, Match)];
+        vals[Insert] += layer.transition[(Insert, Match)];
+
+        let (ptr, mut score) = if specs.query.is_empty() {
+            vals.with_enter(specs.begin.get_score(End)).locate_min()
+        } else {
+            let (ptr, score) = vals.locate_min();
+            (PhmmStateOrEnter::from(ptr), score)
+        };
+
+        score += specs.end.get_score(End);
+
+        if score < self.score {
+            self.score = score;
+            self.loc = ExitLocation::End(ptr);
+        }
     }
 }
 
