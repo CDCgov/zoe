@@ -6,6 +6,10 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ## [0.0.22] - TBD
 
+### Added
+
+- Added `HeaderReadable` getter trait for record types
+
 ### Fixes
 
 - `ProfileSets` is re-exported in the prelude

@@ -1,5 +1,10 @@
 use std::{error::Error, fs::File, io::ErrorKind, path::Path};
 
+use crate::{
+    data::fasta::{FastaAA, FastaNT, FastaNTAnnot, FastaSeq},
+    prelude::{FastQ, FastQView, FastQViewMut},
+};
+
 /// A module for reading and manipulating
 /// [FASTA](https://en.wikipedia.org/wiki/FASTA_format) files.
 pub mod fasta;
@@ -101,5 +106,61 @@ trait RecordReader {
             ),
             source:      Box::new(err),
         })
+    }
+}
+
+/// Getter trait for structures providing read access to a header/name
+pub trait HeaderReadable {
+    /// Gets the header from the record.
+    #[must_use]
+    fn header(&self) -> &str;
+}
+
+impl HeaderReadable for FastQ {
+    #[inline]
+    fn header(&self) -> &str {
+        &self.header
+    }
+}
+
+impl HeaderReadable for FastQView<'_> {
+    #[inline]
+    fn header(&self) -> &str {
+        self.header
+    }
+}
+
+impl HeaderReadable for FastQViewMut<'_> {
+    #[inline]
+    fn header(&self) -> &str {
+        self.header
+    }
+}
+
+impl HeaderReadable for FastaSeq {
+    #[inline]
+    fn header(&self) -> &str {
+        &self.name
+    }
+}
+
+impl HeaderReadable for FastaNT {
+    #[inline]
+    fn header(&self) -> &str {
+        &self.name
+    }
+}
+
+impl HeaderReadable for FastaAA {
+    #[inline]
+    fn header(&self) -> &str {
+        &self.name
+    }
+}
+
+impl HeaderReadable for FastaNTAnnot {
+    #[inline]
+    fn header(&self) -> &str {
+        &self.name
     }
 }
