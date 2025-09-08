@@ -36,7 +36,7 @@ pub(crate) mod iter_utils;
 
 /// Common structures and traits re-exported
 pub mod prelude {
-    pub use crate::alignment::PairwiseSequence;
+    pub use crate::alignment::{PairwiseSequence, ProfileSets};
     pub use crate::composition::{AlignmentComposition, CreateConsensus, GcContent, NucleotideCounts, ToBaseCounts};
     pub use crate::data::{
         StdForSequences,
