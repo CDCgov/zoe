@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file. The format
 is roughly based on [Keep a Changelog], and this project tries to adheres to
 [Semantic Versioning].
 
+## [0.0.23] - TBD
+
+### Changed
+
+- Modified Viterbi algorithm to use compact bit representation instead of array (behind `dev-phmm` feature gate)
+
 ## [0.0.22] - 2025-09-25
 
 ### Added
@@ -321,6 +327,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - **Added**: Initial internal release. Provides various readers and types for bioinformatics data manipulation.
 
 <!-- Versions -->
+[0.0.23]: https://github.com/CDCgov/zoe/compare/v0.0.22...v0.0.23
 [0.0.22]: https://github.com/CDCgov/zoe/compare/v0.0.21...v0.0.22
 [0.0.21]: https://github.com/CDCgov/zoe/compare/v0.0.20...v0.0.21
 [0.0.20]: https://github.com/CDCgov/zoe/compare/v0.0.19...v0.0.20

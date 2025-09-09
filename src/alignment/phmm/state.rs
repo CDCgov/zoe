@@ -1,17 +1,13 @@
-use std::{
-    marker::PhantomData,
-    ops::{Index, IndexMut},
-};
-
-use crate::alignment::phmm::PhmmError;
+use crate::alignment::phmm::{PhmmError, PhmmNumber};
 
 /// An enum representing the three states within each layer of a pHMM.
 ///
 /// This is used for readability when indexing.
+#[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PhmmState {
-    Delete = 0,
-    Match  = 1,
+    Match  = 0,
+    Delete = 1,
     Insert = 2,
 }
 
@@ -19,19 +15,26 @@ pub enum PhmmState {
 /// addition to `Enter`.
 ///
 /// This is useful for local pHMMs.
+#[repr(u8)]
 #[derive(Clone, Copy, Debug)]
 pub enum PhmmStateOrEnter {
-    Delete = 0,
-    Match  = 1,
+    Match  = 0,
+    Delete = 1,
     Insert = 2,
     Enter  = 3,
 }
 
-impl From<usize> for PhmmState {
+impl From<PhmmState> for u8 {
     #[inline]
-    fn from(value: usize) -> Self {
-        // WARNING: enum order must be maintained
-        [Self::Delete, Self::Match, Self::Insert][value]
+    fn from(value: PhmmState) -> Self {
+        value as u8
+    }
+}
+
+impl From<PhmmStateOrEnter> for u8 {
+    #[inline]
+    fn from(value: PhmmStateOrEnter) -> Self {
+        value as u8
     }
 }
 
@@ -39,13 +42,6 @@ impl From<PhmmState> for usize {
     #[inline]
     fn from(value: PhmmState) -> Self {
         value as usize
-    }
-}
-
-impl From<usize> for PhmmStateOrEnter {
-    fn from(value: usize) -> Self {
-        // WARNING: enum order must be maintained
-        [Self::Delete, Self::Match, Self::Insert, Self::Enter][value]
     }
 }
 
@@ -60,8 +56,8 @@ impl From<PhmmState> for PhmmStateOrEnter {
     #[inline]
     fn from(value: PhmmState) -> Self {
         match value {
-            PhmmState::Delete => PhmmStateOrEnter::Delete,
             PhmmState::Match => PhmmStateOrEnter::Match,
+            PhmmState::Delete => PhmmStateOrEnter::Delete,
             PhmmState::Insert => PhmmStateOrEnter::Insert,
         }
     }
@@ -75,20 +71,10 @@ impl PhmmState {
     #[inline]
     pub(crate) fn get_from(value: PhmmStateOrEnter) -> Option<PhmmState> {
         match value {
-            PhmmStateOrEnter::Delete => Some(PhmmState::Delete),
             PhmmStateOrEnter::Match => Some(PhmmState::Match),
+            PhmmStateOrEnter::Delete => Some(PhmmState::Delete),
             PhmmStateOrEnter::Insert => Some(PhmmState::Insert),
             PhmmStateOrEnter::Enter => None,
-        }
-    }
-
-    /// Converts a [`PhmmState`] to a CIGAR-style operation.
-    #[inline]
-    pub(crate) fn to_op(self) -> u8 {
-        match self {
-            PhmmState::Delete => b'D',
-            PhmmState::Match => b'M',
-            PhmmState::Insert => b'I',
         }
     }
 
@@ -100,92 +86,175 @@ impl PhmmState {
     #[inline]
     pub(crate) fn from_op(op: u8) -> Result<Self, PhmmError> {
         match op {
-            b'D' => Ok(PhmmState::Delete),
             b'M' | b'=' | b'X' => Ok(PhmmState::Match),
+            b'D' => Ok(PhmmState::Delete),
             b'I' => Ok(PhmmState::Insert),
             _ => Err(PhmmError::InvalidCigarOp),
         }
     }
 }
 
-/// An array of type `[T; N]` indexed by an enum `E`, used for readability.
-#[derive(Clone, Copy)]
-pub(crate) struct EnumArray<T, E, const N: usize> {
-    pub(crate) inner: [T; N],
-    phantom:          PhantomData<E>,
+/// A [`PhmmState`] or [`PhmmStateOrEnter`] represented as a u8.
+///
+/// `Match` corresponds to 0, `Delete` corresponds to 1, `Insert` corresponds to
+/// 2, and `Enter` corresponds to 3.
+#[repr(transparent)]
+#[derive(Copy, Clone)]
+pub struct PhmmTracebackState(u8);
+
+impl PhmmTracebackState {
+    /// Returns whether the stored state is `Match`.
+    #[inline]
+    pub fn is_match(self) -> bool {
+        self.0 == 0
+    }
+
+    /// Returns whether the stored state is `Delete`.
+    #[inline]
+    pub fn is_delete(self) -> bool {
+        self.0 == 1
+    }
+
+    /// Returns whether the stored state is `Insert`.
+    #[inline]
+    pub fn is_insert(self) -> bool {
+        self.0 == 2
+    }
+
+    /// Returns whether the stored state is `Enter`.
+    #[inline]
+    pub fn is_enter(self) -> bool {
+        self.0 == 3
+    }
 }
 
-impl<T, E, const N: usize> EnumArray<T, E, N> {
-    /// Create a new array of type `[T; N]` indexed by enum `E`.
+impl From<PhmmState> for PhmmTracebackState {
+    #[inline]
+    fn from(value: PhmmState) -> Self {
+        PhmmTracebackState(value as u8)
+    }
+}
+
+impl From<PhmmStateOrEnter> for PhmmTracebackState {
+    #[inline]
+    fn from(value: PhmmStateOrEnter) -> Self {
+        PhmmTracebackState(value as u8)
+    }
+}
+
+/// A set of flags for storing the traceback information for a particular layer
+/// in a pHMM.
+///
+/// Three values are stored: the previous state used to reach the match state,
+/// the previous state used to reach the insert state, and the previous state
+/// used to reach the delete state. Specifically, this is three
+/// [`PhmmTracebackState`] values packed into a single `u8`.
+#[repr(transparent)]
+#[derive(Copy, Clone)]
+pub struct PhmmBacktrackFlags(u8);
+
+impl PhmmBacktrackFlags {
+    /// Creates a new [`PhmmBacktrackFlags`] object with all the previous states
+    /// set to `Match`.
+    pub fn new() -> Self {
+        Self(0)
+    }
+
+    /// Sets the previous state for `Match` to `prev_state`.
+    ///
+    /// This function can only be called once on a given [`PhmmBacktrackFlags`],
+    /// otherwise erroneous behavior could occur.
+    #[inline]
+    #[allow(clippy::verbose_bit_mask)]
+    pub fn set_match(&mut self, prev_state: impl Into<PhmmTracebackState>) {
+        let prev_state = prev_state.into();
+
+        debug_assert!(prev_state.0 < 4);
+        debug_assert!(self.0 & 0b00_00_00_11 == 0);
+
+        self.0 |= prev_state.0;
+    }
+
+    /// Sets the previous state for `Delete` to `prev_state`.
+    ///
+    /// This function can only be called once on a given [`PhmmBacktrackFlags`],
+    /// otherwise erroneous behavior could occur.
+    #[inline]
+    pub fn set_delete(&mut self, prev_state: impl Into<PhmmTracebackState>) {
+        let prev_state = prev_state.into();
+
+        debug_assert!(prev_state.0 < 4);
+        debug_assert!(self.0 & 0b00_00_11_00 == 0);
+
+        self.0 |= prev_state.0.wrapping_shl(2);
+    }
+
+    /// Sets the previous state for `Insert` to `prev_state`.
+    ///
+    /// This function can only be called once on a given [`PhmmBacktrackFlags`],
+    /// otherwise erroneous behavior could occur.
+    #[inline]
+    pub fn set_insert(&mut self, prev_state: impl Into<PhmmTracebackState>) {
+        let prev_state = prev_state.into();
+
+        debug_assert!(prev_state.0 < 4);
+        debug_assert!(self.0 & 0b00_11_00_00 == 0);
+
+        self.0 |= prev_state.0.wrapping_shl(4);
+    }
+
+    /// Gets the stored previous state for the given `current_state`.
     #[inline]
     #[must_use]
-    pub(crate) const fn new(inner: [T; N]) -> Self {
-        Self {
-            inner,
-            phantom: PhantomData,
+    pub fn get_prev_state(self, current_state: impl Into<PhmmTracebackState>) -> PhmmTracebackState {
+        let current_state = current_state.into();
+
+        // current_state is 0, 1, 2, or 3
+        debug_assert!(current_state.0 < 4);
+        // shift is 0, 2, 4, or 6 respectively
+        let shift = current_state.0.wrapping_mul(2);
+        // mask is 0b00000011, 0b00001100, 0b00110000, 0b11000000 respectively
+        let mask = 1u8.wrapping_shl(u32::from(shift)).wrapping_mul(3);
+        // Given self.flags as 0bABCDEFGH, the result is 0b000000GH, 0b000000EF,
+        // 0b000000CD, 0b000000AB respectively.
+        PhmmTracebackState((self.0 & mask) >> shift)
+    }
+}
+
+/// Identifies the minimum score among three values (corresponding to `Match`,
+/// `Delete`, and `Insert`) and returns the best state and score.
+pub(crate) fn best_state<T: PhmmNumber>(match_val: T, delete_val: T, insert_val: T) -> (PhmmState, T) {
+    use PhmmState::*;
+
+    let mut argmin = Match;
+    let mut min = match_val;
+
+    for (state, val) in [(Delete, delete_val), (Insert, insert_val)] {
+        if val < min {
+            argmin = state;
+            min = val;
         }
     }
+
+    (argmin, min)
 }
 
-impl<T: PartialOrd + Copy, E: From<usize>, const N: usize> EnumArray<T, E, N> {
-    /// Locates the minimum value in the array and the corresponding enum
-    /// variant.
-    pub(crate) fn locate_min(&self) -> (E, T) {
-        let mut argmin = 0;
-        let mut min = self.inner[0];
+/// Identifies the minimum score among four values (corresponding to `Match`,
+/// `Delete`, and `Insert`, and `Enter`) and returns the best state and score.
+pub(crate) fn best_state_or_enter<T: PhmmNumber>(
+    match_val: T, delete_val: T, insert_val: T, enter_val: T,
+) -> (PhmmStateOrEnter, T) {
+    use PhmmStateOrEnter::*;
 
-        for i in 1..N {
-            if self.inner[i] < min {
-                argmin = i;
-                min = self.inner[i];
-            }
-        }
+    let mut argmin = Match;
+    let mut min = match_val;
 
-        (E::from(argmin), min)
-    }
-}
-
-impl<T: Default + Copy, E, const N: usize> Default for EnumArray<T, E, N> {
-    #[inline]
-    fn default() -> Self {
-        Self {
-            inner:   [T::default(); N],
-            phantom: PhantomData,
+    for (state, val) in [(Delete, delete_val), (Insert, insert_val), (Enter, enter_val)] {
+        if val < min {
+            argmin = state;
+            min = val;
         }
     }
+
+    (argmin, min)
 }
-
-impl<T, E: Into<usize>, const N: usize> Index<E> for EnumArray<T, E, N> {
-    type Output = T;
-
-    #[inline]
-    fn index(&self, index: E) -> &Self::Output {
-        &self.inner[index.into()]
-    }
-}
-
-impl<T, E: Into<usize>, const N: usize> IndexMut<E> for EnumArray<T, E, N> {
-    #[inline]
-    fn index_mut(&mut self, index: E) -> &mut Self::Output {
-        &mut self.inner[index.into()]
-    }
-}
-
-/// An array holding values of type `T`, indexed by the variants in
-/// [`PhmmState`].
-pub(crate) type PhmmStateArray<T> = EnumArray<T, PhmmState, 3>;
-
-/// An array holding values of type `T`, indexed by the variants in
-/// [`PhmmStateOrEnter`].
-pub(crate) type PhmmStateOrEnterArray<T> = EnumArray<T, PhmmStateOrEnter, 4>;
-
-impl<T: Copy> PhmmStateArray<T> {
-    pub(crate) fn with_enter(self, enter: T) -> PhmmStateOrEnterArray<T> {
-        PhmmStateOrEnterArray::new([self.inner[0], self.inner[1], self.inner[2], enter])
-    }
-}
-
-/// A trait for enums of which [`PhmmState`] is a subset (and which can be
-/// stored as usize).
-pub(crate) trait PhmmStateEnum: From<PhmmState> + Into<usize> + From<usize> {}
-impl<T: From<PhmmState> + Into<usize> + From<usize>> PhmmStateEnum for T {}

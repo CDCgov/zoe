@@ -120,15 +120,19 @@ impl PhmmNumber for f64 {
 /// The transition probabilities for a layer of the pHMM.
 ///
 /// The parameters are converted to log space with $-\operatorname{ln}(\cdot)$.
-/// They are arranged in the same format as SAM: `[[dd, md, id], [dm, mm, im],
-/// [di, mi, ii]]`. This means the first element is the transition probabilities
-/// into the delete state, the second element is the probabilities into the
-/// match state, and the third element is the probabilities into the insert
-/// state.
+/// They are arranged in the format:
+/// ```text
+/// [[m->m, d->m, i->m]
+///  [m->d, d->d, i->d]
+///  [m->i, d->i, i->i]]
+/// ```
+/// This means the first element is the transition probabilities into the match
+/// state, the second element is the probabilities into the delete state, and
+/// the third element is the probabilities into the insert state.
 ///
-/// All parameters reflect the probability of transitioning from the
-/// previous layer into the current layer, except for transitions into the
-/// insert state, which are transitions within the same layer.
+/// All parameters reflect the probability of transitioning from the previous
+/// layer into the current layer, except for transitions into the insert state,
+/// which are transitions within the same layer.
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct TransitionParams<T>(pub(crate) [[T; 3]; 3]);
 

@@ -2,11 +2,11 @@ use crate::{
     alignment::{
         Alignment, AlignmentStates,
         phmm::{
-            Begin, BestScore, CorePhmm, DpIndex, End, LayerParams, NoBases, PhmmError, PhmmNumber, PhmmState,
-            PhmmStateArray, PhmmStateOrEnter, QueryIndex, QueryIndexable, SemiLocalModule, SemiLocalPhmm, ViterbiStrategy,
-            ViterbiTraceback,
+            Begin, BestScore, CorePhmm, DpIndex, End, LayerParams, NoBases, PhmmBacktrackFlags, PhmmError, PhmmNumber,
+            PhmmState, PhmmStateOrEnter, PhmmTracebackState, QueryIndex, QueryIndexable, SemiLocalModule, SemiLocalPhmm,
+            ViterbiStrategy, ViterbiTraceback, best_state, best_state_or_enter,
             indexing::{LastMatch, PhmmIndex, PhmmIndexable},
-            viterbi::{ExitLocation, update_match},
+            viterbi::ExitLocation,
         },
     },
     data::ByteIndexMap,
@@ -43,8 +43,6 @@ impl<'a, T: PhmmNumber, const S: usize> ViterbiStrategy<'a, T, S> for SemiLocalV
     type TracebackState = PhmmStateOrEnter;
     type BestScore = SemiLocalBestScore<T>;
 
-    const TRACEBACK_DEFAULT: PhmmStateArray<PhmmStateOrEnter> = PhmmStateArray::new([PhmmStateOrEnter::Enter; 3]);
-
     #[inline]
     fn core(&self) -> &CorePhmm<T, S> {
         self.core
@@ -77,29 +75,38 @@ impl<'a, T: PhmmNumber, const S: usize> ViterbiStrategy<'a, T, S> for SemiLocalV
     }
 
     fn update_match_score(
-        &self, layer: &LayerParams<T, S>, x_idx: usize, cur_vals: PhmmStateArray<T>, i: impl QueryIndex, j: impl PhmmIndex,
-    ) -> (PhmmStateOrEnter, T) {
+        &self, layer: &LayerParams<T, S>, x_idx: usize, mut match_val: T, mut delete_val: T, mut insert_val: T,
+        i: impl QueryIndex, j: impl PhmmIndex,
+    ) -> (Self::TracebackState, T) {
+        use crate::alignment::phmm::state::PhmmState::*;
+
+        match_val += layer.transition[(Match, Match)];
+        delete_val += layer.transition[(Delete, Match)];
+        insert_val += layer.transition[(Insert, Match)];
+
         // We are updating the match score of the layer after j after consuming
         // one more base after i. To reach this cell via entering, one must
         // consume all bases up to i in the begin module, then the (i+1)st is
         // consumed in this match state. The emission parameter is added within
         // `update_match`.
         if self.query.to_dp_index(i) == self.query.to_dp_index(NoBases) {
-            let enter_score = self.begin.get_score(j.next_index());
-            update_match(layer, x_idx, cur_vals.with_enter(enter_score))
+            let enter_val = self.begin.get_score(j.next_index());
+
+            let (state, best) = best_state_or_enter(match_val, delete_val, insert_val, enter_val);
+            (state, best + layer.emission_match[x_idx])
         } else {
-            let (state, score) = update_match(layer, x_idx, cur_vals);
-            (PhmmStateOrEnter::from(state), score)
+            let (state, best) = best_state(match_val, delete_val, insert_val);
+            (PhmmStateOrEnter::from(state), best + layer.emission_match[x_idx])
         }
     }
 
     fn perform_traceback(
-        self, best_score: SemiLocalBestScore<T>, traceback: ViterbiTraceback<PhmmStateArray<PhmmStateOrEnter>>,
+        self, best_score: SemiLocalBestScore<T>, traceback: ViterbiTraceback<PhmmBacktrackFlags>,
     ) -> Alignment<T> {
         use PhmmState::*;
 
         let SemiLocalBestScore { score, loc } = best_score;
-        let (mut state, end_j) = match loc {
+        let (state, end_j) = match loc {
             ExitLocation::Begin => {
                 let mut states = AlignmentStates::new();
                 states.soft_clip(self.query.len());
@@ -131,6 +138,7 @@ impl<'a, T: PhmmNumber, const S: usize> ViterbiStrategy<'a, T, S> for SemiLocalV
         };
         let end_i = self.query.len();
 
+        let mut state = PhmmTracebackState::from(state);
         let mut i = end_i;
         let mut j = end_j;
 
@@ -139,31 +147,25 @@ impl<'a, T: PhmmNumber, const S: usize> ViterbiStrategy<'a, T, S> for SemiLocalV
 
         // Continue traceback until BEGIN state is reached, or until Enter is
         // encountered (see break statement)
-        while j > 0 || state != Match {
-            states.add_state(state.to_op());
-            let next_ptr = traceback.get(i, j)[state];
+        while j > 0 || !state.is_match() {
+            let next_state = traceback.get(i, j).get_prev_state(state);
 
-            match state {
-                Match => {
-                    i -= 1;
-                    j -= 1;
-                }
-                Insert => {
-                    i -= 1;
-                }
-                Delete => {
-                    j -= 1;
-                }
+            if state.is_match() {
+                states.add_state(b'M');
+                i -= 1;
+                j -= 1;
+            } else if state.is_delete() {
+                states.add_state(b'D');
+                j -= 1;
+            } else {
+                states.add_state(b'I');
+                i -= 1;
             }
 
-            state = match next_ptr {
-                PhmmStateOrEnter::Delete => Delete,
-                PhmmStateOrEnter::Match => Match,
-                PhmmStateOrEnter::Insert => Insert,
-                PhmmStateOrEnter::Enter => {
-                    break;
-                }
-            };
+            if next_state.is_enter() {
+                break;
+            }
+            state = next_state;
         }
 
         states.soft_clip(i);
@@ -208,11 +210,13 @@ impl<T: PhmmNumber, const S: usize> BestScore<T, S> for SemiLocalBestScore<T> {
     }
 
     #[inline]
-    fn update_seq_end(&mut self, specs: &Self::Strategy<'_>, vals: PhmmStateArray<T>, j: impl PhmmIndex) {
-        let score = vals[PhmmState::Match] + specs.end.get_score(j);
+    fn update_seq_end(
+        &mut self, strategy: &Self::Strategy<'_>, match_val: T, _delete_val: T, _insert_val: T, j: impl PhmmIndex,
+    ) {
+        let score = match_val + strategy.end.get_score(j);
         if score < self.score {
             self.score = score;
-            self.loc = match specs.core.to_seq_index(j) {
+            self.loc = match strategy.core.to_seq_index(j) {
                 Some(loc) => ExitLocation::Match(loc),
                 None => ExitLocation::Begin,
             }
@@ -221,30 +225,32 @@ impl<T: PhmmNumber, const S: usize> BestScore<T, S> for SemiLocalBestScore<T> {
 
     #[inline]
     fn update_seq_end_last_layer(
-        &mut self, strategy: &Self::Strategy<'_>, layer: &LayerParams<T, S>, mut vals: PhmmStateArray<T>,
+        &mut self, strategy: &Self::Strategy<'_>, layer: &LayerParams<T, S>, mut match_val: T, mut delete_val: T,
+        mut insert_val: T,
     ) {
         use crate::alignment::phmm::PhmmState::*;
 
         // Option 1: Early exit from this layer
-        self.update_seq_end(strategy, vals, LastMatch);
+        self.update_seq_end(strategy, match_val, delete_val, insert_val, LastMatch);
 
         // Option 2: Go through END state
-        vals[Delete] += layer.transition[(Delete, Match)];
-        vals[Match] += layer.transition[(Match, Match)];
-        vals[Insert] += layer.transition[(Insert, Match)];
+        match_val += layer.transition[(Match, Match)];
+        delete_val += layer.transition[(Delete, Match)];
+        insert_val += layer.transition[(Insert, Match)];
 
-        let (ptr, mut score) = if strategy.query.is_empty() {
-            vals.with_enter(strategy.begin.get_score(End)).locate_min()
+        let (state, mut score) = if strategy.query.is_empty() {
+            let enter_val = strategy.begin.get_score(End);
+            best_state_or_enter(match_val, delete_val, insert_val, enter_val)
         } else {
-            let (ptr, score) = vals.locate_min();
-            (PhmmStateOrEnter::from(ptr), score)
+            let (state, score) = best_state(match_val, delete_val, insert_val);
+            (PhmmStateOrEnter::from(state), score)
         };
 
         score += strategy.end.get_score(End);
 
         if score < self.score {
             self.score = score;
-            self.loc = ExitLocation::End(ptr);
+            self.loc = ExitLocation::End(state);
         }
     }
 }

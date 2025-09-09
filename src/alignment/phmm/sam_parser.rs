@@ -362,10 +362,14 @@ impl SamHmmConfig<4, 17> for SupportedConfig {
 
     #[inline]
     fn group_params<T: PhmmNumber>(params: [T; 17]) -> LayerParams<T, 4> {
+        // SAM stores the transition probabilities as
+        // [[d->d, m->d, i->d]
+        //  [d->m, m->m, i->m]
+        //  [d->i, m->i, i->i]]
         let transition = TransitionParams([
-            [params[0], params[1], params[2]],
-            [params[3], params[4], params[5]],
-            [params[6], params[7], params[8]],
+            [params[4], params[3], params[5]],
+            [params[1], params[0], params[2]],
+            [params[7], params[6], params[8]],
         ]);
 
         let emission_match = EmissionParams([params[9], params[11], params[10], params[12]]);
@@ -380,19 +384,25 @@ impl SamHmmConfig<4, 17> for SupportedConfig {
 
     #[inline]
     fn ungroup_params<T: PhmmNumber>(params: &LayerParams<T, 4>) -> [T; 17] {
-        let mut out = [T::ZERO; 17];
-        out[0..3].copy_from_slice(&params.transition.0[0]);
-        out[3..6].copy_from_slice(&params.transition.0[1]);
-        out[6..9].copy_from_slice(&params.transition.0[2]);
-        out[9] = params.emission_match[0];
-        out[10] = params.emission_match[2];
-        out[11] = params.emission_match[1];
-        out[12] = params.emission_match[3];
-        out[13] = params.emission_insert[0];
-        out[14] = params.emission_insert[2];
-        out[15] = params.emission_insert[1];
-        out[16] = params.emission_insert[3];
-        out
+        [
+            params.transition[(Delete, Delete)],
+            params.transition[(Match, Delete)],
+            params.transition[(Insert, Delete)],
+            params.transition[(Delete, Match)],
+            params.transition[(Match, Match)],
+            params.transition[(Insert, Match)],
+            params.transition[(Delete, Insert)],
+            params.transition[(Match, Insert)],
+            params.transition[(Insert, Insert)],
+            params.emission_match[0],
+            params.emission_match[2],
+            params.emission_match[1],
+            params.emission_match[3],
+            params.emission_insert[0],
+            params.emission_insert[2],
+            params.emission_insert[1],
+            params.emission_insert[3],
+        ]
     }
 }
 
@@ -421,10 +431,14 @@ impl SamHmmConfig<20, 49> for SupportedConfig {
     fn group_params<T: PhmmNumber>(params: [T; 49]) -> LayerParams<T, 20> {
         let (transition, rest) = params.split_at(9);
 
+        // SAM stores the transition probabilities as
+        // [[d->d, m->d, i->d]
+        //  [d->m, m->m, i->m]
+        //  [d->i, m->i, i->i]]
         let transition = TransitionParams([
-            [transition[0], transition[1], transition[2]],
-            [transition[3], transition[4], transition[5]],
-            [transition[6], transition[7], transition[8]],
+            [transition[4], transition[3], transition[5]],
+            [transition[1], transition[0], transition[2]],
+            [transition[7], transition[6], transition[8]],
         ]);
         let (emission_match, emission_insert) = rest.split_at(20);
 
@@ -441,9 +455,17 @@ impl SamHmmConfig<20, 49> for SupportedConfig {
     #[inline]
     fn ungroup_params<T: PhmmNumber>(params: &LayerParams<T, 20>) -> [T; 49] {
         let mut out = [T::ZERO; 49];
-        out[0..3].copy_from_slice(&params.transition.0[0]);
-        out[3..6].copy_from_slice(&params.transition.0[1]);
-        out[6..9].copy_from_slice(&params.transition.0[2]);
+        out[0..9].copy_from_slice(&[
+            params.transition[(Delete, Delete)],
+            params.transition[(Match, Delete)],
+            params.transition[(Insert, Delete)],
+            params.transition[(Delete, Match)],
+            params.transition[(Match, Match)],
+            params.transition[(Insert, Match)],
+            params.transition[(Delete, Insert)],
+            params.transition[(Match, Insert)],
+            params.transition[(Insert, Insert)],
+        ]);
         out[9..29].copy_from_slice(&params.emission_match.0);
         out[29..49].copy_from_slice(&params.emission_insert.0);
         out

@@ -2,8 +2,8 @@ use crate::{
     alignment::{
         Alignment, AlignmentStates,
         phmm::{
-            BestScore, CorePhmm, GlobalPhmm, LayerParams, PhmmError, PhmmNumber, PhmmState, PhmmStateArray, QueryIndex,
-            ViterbiStrategy, ViterbiTraceback, indexing::PhmmIndex, viterbi::update_match,
+            BestScore, CorePhmm, GlobalPhmm, LayerParams, PhmmBacktrackFlags, PhmmError, PhmmNumber, PhmmState,
+            PhmmTracebackState, QueryIndex, ViterbiStrategy, ViterbiTraceback, best_state, indexing::PhmmIndex,
         },
     },
     data::ByteIndexMap,
@@ -29,8 +29,6 @@ impl<'a, T: PhmmNumber, const S: usize> GlobalViterbiParams<'a, T, S> {
 impl<'a, T: PhmmNumber, const S: usize> ViterbiStrategy<'a, T, S> for GlobalViterbiParams<'a, T, S> {
     type TracebackState = PhmmState;
     type BestScore = GlobalBestScore<T>;
-
-    const TRACEBACK_DEFAULT: PhmmStateArray<PhmmState> = PhmmStateArray::new([PhmmState::Match; 3]);
 
     #[inline]
     fn core(&self) -> &CorePhmm<T, S> {
@@ -58,39 +56,47 @@ impl<'a, T: PhmmNumber, const S: usize> ViterbiStrategy<'a, T, S> for GlobalVite
         v_m[0] = T::ZERO;
     }
 
-    #[inline]
     fn update_match_score(
-        &self, layer: &LayerParams<T, S>, x_idx: usize, cur_vals: PhmmStateArray<T>, _i: impl QueryIndex, _j: impl PhmmIndex,
-    ) -> (PhmmState, T) {
-        update_match(layer, x_idx, cur_vals)
+        &self, layer: &LayerParams<T, S>, x_idx: usize, mut match_val: T, mut delete_val: T, mut insert_val: T,
+        _i: impl QueryIndex, _j: impl PhmmIndex,
+    ) -> (Self::TracebackState, T) {
+        use crate::alignment::phmm::state::PhmmState::*;
+
+        match_val += layer.transition[(Match, Match)];
+        delete_val += layer.transition[(Delete, Match)];
+        insert_val += layer.transition[(Insert, Match)];
+
+        let (state, best) = best_state(match_val, delete_val, insert_val);
+        (state, best + layer.emission_match[x_idx])
     }
 
     fn perform_traceback(
-        self, best_score: GlobalBestScore<T>, traceback: ViterbiTraceback<PhmmStateArray<PhmmState>>,
+        self, best_score: GlobalBestScore<T>, traceback: ViterbiTraceback<PhmmBacktrackFlags>,
     ) -> Alignment<T> {
         // i = len(query); j = len(layers);
         let mut cursor = traceback.data.len() - 1;
-        let GlobalBestScore { mut state, score } = best_score;
+        let GlobalBestScore { state, score } = best_score;
+        let mut state = PhmmTracebackState::from(state);
 
         let mut states = AlignmentStates::new();
 
         while cursor > 0 {
-            states.add_state(state.to_op());
-            let next_state = traceback.data[cursor][state];
-            match state {
-                PhmmState::Match => {
-                    // i -= 1; j -= 1;
-                    cursor -= traceback.cols + 1;
-                }
-                PhmmState::Insert => {
-                    // i -= 1;
-                    cursor -= 1;
-                }
-                PhmmState::Delete => {
-                    // j -= 1;
-                    cursor -= traceback.cols;
-                }
+            let next_state = traceback.data[cursor].get_prev_state(state);
+
+            if state.is_match() {
+                states.add_state(b'M');
+                // i -= 1; j -= 1;
+                cursor -= traceback.cols + 1;
+            } else if state.is_delete() {
+                states.add_state(b'D');
+                // j -= 1;
+                cursor -= traceback.cols;
+            } else {
+                states.add_state(b'I');
+                // i -= 1;
+                cursor -= 1;
             }
+
             state = next_state;
         }
 
@@ -126,17 +132,17 @@ impl<T: PhmmNumber, const S: usize> BestScore<T, S> for GlobalBestScore<T> {
         self.score
     }
 
-    #[inline]
     fn update_seq_end_last_layer(
-        &mut self, _strategy: &Self::Strategy<'_>, layer: &LayerParams<T, S>, mut vals: PhmmStateArray<T>,
+        &mut self, _strategy: &Self::Strategy<'_>, layer: &LayerParams<T, S>, mut match_val: T, mut delete_val: T,
+        mut insert_val: T,
     ) {
         use crate::alignment::phmm::PhmmState::*;
 
-        vals[Delete] += layer.transition[(Delete, Match)];
-        vals[Match] += layer.transition[(Match, Match)];
-        vals[Insert] += layer.transition[(Insert, Match)];
+        match_val += layer.transition[(Match, Match)];
+        delete_val += layer.transition[(Delete, Match)];
+        insert_val += layer.transition[(Insert, Match)];
 
-        (self.state, self.score) = vals.locate_min();
+        (self.state, self.score) = best_state(match_val, delete_val, insert_val);
     }
 }
 

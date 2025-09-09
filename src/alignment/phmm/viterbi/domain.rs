@@ -2,11 +2,10 @@ use crate::{
     alignment::{
         Alignment, AlignmentStates,
         phmm::{
-            BestScore, CorePhmm, DomainPhmm, DpIndex, LastBase, LayerParams, PhmmError, PhmmIndexable, PhmmNumber,
-            PhmmState, PhmmStateArray, PrecomputedDomainModule, QueryIndex, QueryIndexable, ViterbiStrategy,
-            ViterbiTraceback,
+            BestScore, CorePhmm, DomainPhmm, DpIndex, LastBase, LayerParams, PhmmBacktrackFlags, PhmmError, PhmmIndexable,
+            PhmmNumber, PhmmState, PhmmTracebackState, PrecomputedDomainModule, QueryIndex, QueryIndexable, ViterbiStrategy,
+            ViterbiTraceback, best_state,
             indexing::{LastMatch, PhmmIndex},
-            viterbi::update_match,
         },
     },
     data::ByteIndexMap,
@@ -43,8 +42,6 @@ impl<'a, T: PhmmNumber, const S: usize> ViterbiStrategy<'a, T, S> for DomainVite
     type TracebackState = PhmmState;
     type BestScore = DomainBestScore<T>;
 
-    const TRACEBACK_DEFAULT: PhmmStateArray<PhmmState> = PhmmStateArray::new([PhmmState::Match; 3]);
-
     #[inline]
     fn core(&self) -> &CorePhmm<T, S> {
         self.core
@@ -76,23 +73,30 @@ impl<'a, T: PhmmNumber, const S: usize> ViterbiStrategy<'a, T, S> for DomainVite
     }
 
     fn update_match_score(
-        &self, layer: &LayerParams<T, S>, x_idx: usize, cur_vals: PhmmStateArray<T>, _i: impl QueryIndex, _j: impl PhmmIndex,
+        &self, layer: &LayerParams<T, S>, x_idx: usize, mut match_val: T, mut delete_val: T, mut insert_val: T,
+        _i: impl QueryIndex, _j: impl PhmmIndex,
     ) -> (PhmmState, T) {
-        update_match(layer, x_idx, cur_vals)
+        use crate::alignment::phmm::state::PhmmState::*;
+
+        match_val += layer.transition[(Match, Match)];
+        delete_val += layer.transition[(Delete, Match)];
+        insert_val += layer.transition[(Insert, Match)];
+
+        let (state, best) = best_state(match_val, delete_val, insert_val);
+        (state, best + layer.emission_match[x_idx])
     }
 
     fn perform_traceback(
-        self, best_score: DomainBestScore<T>, traceback: ViterbiTraceback<PhmmStateArray<PhmmState>>,
+        self, best_score: DomainBestScore<T>, traceback: ViterbiTraceback<PhmmBacktrackFlags>,
     ) -> Alignment<T> {
-        use PhmmState::*;
-
         let DomainBestScore {
             score,
             i: DpIndex(end_i),
-            ptr: mut state,
+            state,
         } = best_score;
         let end_j = self.core.get_dp_index(LastMatch);
 
+        let mut state = PhmmTracebackState::from(state);
         let mut i = end_i;
         let mut j = end_j;
 
@@ -100,28 +104,22 @@ impl<'a, T: PhmmNumber, const S: usize> ViterbiStrategy<'a, T, S> for DomainVite
         states.soft_clip(self.query.len() - i);
 
         // Continue traceback until BEGIN state is reached
-        while j > 0 || state != Match {
-            states.add_state(state.to_op());
-            let next_state = traceback.get(i, j)[state];
+        while j > 0 || !state.is_match() {
+            let next_state = traceback.get(i, j).get_prev_state(state);
 
-            match state {
-                Match => {
-                    i -= 1;
-                    j -= 1;
-                }
-                Insert => {
-                    i -= 1;
-                }
-                Delete => {
-                    j -= 1;
-                }
+            if state.is_match() {
+                states.add_state(b'M');
+                i -= 1;
+                j -= 1;
+            } else if state.is_delete() {
+                states.add_state(b'D');
+                j -= 1;
+            } else {
+                states.add_state(b'I');
+                i -= 1;
             }
 
-            state = match next_state {
-                PhmmState::Delete => Delete,
-                PhmmState::Match => Match,
-                PhmmState::Insert => Insert,
-            };
+            state = next_state;
         }
 
         states.soft_clip(i);
@@ -153,7 +151,7 @@ pub struct DomainBestScore<T> {
     /// The last query index consumed by the [`CorePhmm`]
     i:     DpIndex,
     /// The state from which the END state was reached
-    ptr:   PhmmState,
+    state: PhmmState,
 }
 
 impl<T: PhmmNumber, const S: usize> BestScore<T, S> for DomainBestScore<T> {
@@ -169,29 +167,30 @@ impl<T: PhmmNumber, const S: usize> BestScore<T, S> for DomainBestScore<T> {
 
     #[inline]
     fn update_last_layer(
-        &mut self, strategy: &Self::Strategy<'_>, layer: &LayerParams<T, S>, mut vals: PhmmStateArray<T>, i: impl QueryIndex,
+        &mut self, strategy: &Self::Strategy<'_>, layer: &LayerParams<T, S>, mut match_val: T, mut delete_val: T,
+        mut insert_val: T, i: impl QueryIndex,
     ) {
         use crate::alignment::phmm::PhmmState::*;
 
-        vals[Delete] += layer.transition[(Delete, Match)];
-        vals[Match] += layer.transition[(Match, Match)];
-        vals[Insert] += layer.transition[(Insert, Match)];
+        match_val += layer.transition[(Match, Match)];
+        delete_val += layer.transition[(Delete, Match)];
+        insert_val += layer.transition[(Insert, Match)];
 
-        let (ptr, mut score) = vals.locate_min();
+        let (state, mut score) = best_state(match_val, delete_val, insert_val);
         score += strategy.end.get_score(i);
 
         if score < self.score {
             self.score = score;
             self.i = strategy.query.to_dp_index(i);
-            self.ptr = ptr;
+            self.state = state;
         }
     }
 
     #[inline]
     fn update_seq_end_last_layer(
-        &mut self, strategy: &Self::Strategy<'_>, layer: &LayerParams<T, S>, vals: PhmmStateArray<T>,
+        &mut self, strategy: &Self::Strategy<'_>, layer: &LayerParams<T, S>, match_val: T, delete_val: T, insert_val: T,
     ) {
-        self.update_last_layer(strategy, layer, vals, LastBase);
+        self.update_last_layer(strategy, layer, match_val, delete_val, insert_val, LastBase);
     }
 }
 
@@ -201,7 +200,7 @@ impl<T: PhmmNumber> Default for DomainBestScore<T> {
         Self {
             score: T::INFINITY,
             i:     DpIndex(0),
-            ptr:   PhmmState::Match,
+            state: PhmmState::Match,
         }
     }
 }

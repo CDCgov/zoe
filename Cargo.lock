@@ -108,7 +108,7 @@ checksum = "f63a545481291138910575129486daeaf8ac54aee4387fe7906919f7830c7d9d"
 
 [[package]]
 name = "zoe"
-version = "0.0.22"
+version = "0.0.23-dev"
 dependencies = [
  "arbitrary",
  "itoa",

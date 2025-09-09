@@ -2,11 +2,11 @@ use crate::{
     alignment::{
         Alignment, AlignmentStates,
         phmm::{
-            Begin, BestScore, CorePhmm, DpIndex, End, LastBase, LayerParams, LocalPhmm, PhmmError, PhmmNumber, PhmmState,
-            PhmmStateArray, PhmmStateOrEnter, PrecomputedLocalModule, QueryIndex, QueryIndexable, ViterbiStrategy,
-            ViterbiTraceback,
+            Begin, BestScore, CorePhmm, DpIndex, End, LastBase, LayerParams, LocalPhmm, PhmmBacktrackFlags, PhmmError,
+            PhmmNumber, PhmmState, PhmmStateOrEnter, PhmmTracebackState, PrecomputedLocalModule, QueryIndex, QueryIndexable,
+            ViterbiStrategy, ViterbiTraceback, best_state_or_enter,
             indexing::{LastMatch, PhmmIndex, PhmmIndexable},
-            viterbi::{ExitLocation, update_match},
+            viterbi::ExitLocation,
         },
     },
     data::ByteIndexMap,
@@ -43,8 +43,6 @@ impl<'a, T: PhmmNumber, const S: usize> ViterbiStrategy<'a, T, S> for LocalViter
     type TracebackState = PhmmStateOrEnter;
     type BestScore = LocalBestScore<T>;
 
-    const TRACEBACK_DEFAULT: PhmmStateArray<PhmmStateOrEnter> = PhmmStateArray::new([PhmmStateOrEnter::Enter; 3]);
-
     #[inline]
     fn core(&self) -> &CorePhmm<T, S> {
         self.core
@@ -80,19 +78,29 @@ impl<'a, T: PhmmNumber, const S: usize> ViterbiStrategy<'a, T, S> for LocalViter
     }
 
     fn update_match_score(
-        &self, layer: &LayerParams<T, S>, x_idx: usize, cur_vals: PhmmStateArray<T>, i: impl QueryIndex, j: impl PhmmIndex,
-    ) -> (PhmmStateOrEnter, T) {
+        &self, layer: &LayerParams<T, S>, x_idx: usize, mut match_val: T, mut delete_val: T, mut insert_val: T,
+        i: impl QueryIndex, j: impl PhmmIndex,
+    ) -> (Self::TracebackState, T) {
+        use crate::alignment::phmm::state::PhmmState::*;
+
         // We are updating the match score of the layer after j after consuming
         // one more base after i. To reach this cell via entering, one must
         // consume all bases up to i in the begin module, then the (i+1)st is
         // consumed in this match state. The emission parameter is added within
         // `update_match`.
-        let enter_score = self.begin.get_score(i, j.next_index());
-        update_match(layer, x_idx, cur_vals.with_enter(enter_score))
+        let enter_val = self.begin.get_score(i, j.next_index());
+
+        match_val += layer.transition[(Match, Match)];
+        delete_val += layer.transition[(Delete, Match)];
+        insert_val += layer.transition[(Insert, Match)];
+
+        let (state, best) = best_state_or_enter(match_val, delete_val, insert_val, enter_val);
+
+        (state, best + layer.emission_match[x_idx])
     }
 
     fn perform_traceback(
-        self, best_score: LocalBestScore<T>, traceback: ViterbiTraceback<PhmmStateArray<PhmmStateOrEnter>>,
+        self, best_score: LocalBestScore<T>, traceback: ViterbiTraceback<PhmmBacktrackFlags>,
     ) -> Alignment<T> {
         use PhmmState::*;
 
@@ -101,7 +109,7 @@ impl<'a, T: PhmmNumber, const S: usize> ViterbiStrategy<'a, T, S> for LocalViter
             i: DpIndex(end_i),
             loc,
         } = best_score;
-        let (mut state, end_j) = match loc {
+        let (state, end_j) = match loc {
             ExitLocation::Begin => {
                 let mut states = AlignmentStates::new();
                 states.soft_clip(self.query.len());
@@ -131,6 +139,8 @@ impl<'a, T: PhmmNumber, const S: usize> ViterbiStrategy<'a, T, S> for LocalViter
                 (state, self.core.get_dp_index(LastMatch))
             }
         };
+
+        let mut state = PhmmTracebackState::from(state);
         let mut i = end_i;
         let mut j = end_j;
 
@@ -139,31 +149,25 @@ impl<'a, T: PhmmNumber, const S: usize> ViterbiStrategy<'a, T, S> for LocalViter
 
         // Continue traceback until BEGIN state is reached, or until Enter is
         // encountered (see break statement)
-        while j > 0 || state != Match {
-            states.add_state(state.to_op());
-            let next_state = traceback.get(i, j)[state];
+        while j > 0 || !state.is_match() {
+            let next_state = traceback.get(i, j).get_prev_state(state);
 
-            match state {
-                Match => {
-                    i -= 1;
-                    j -= 1;
-                }
-                Insert => {
-                    i -= 1;
-                }
-                Delete => {
-                    j -= 1;
-                }
+            if state.is_match() {
+                states.add_state(b'M');
+                i -= 1;
+                j -= 1;
+            } else if state.is_delete() {
+                states.add_state(b'D');
+                j -= 1;
+            } else {
+                states.add_state(b'I');
+                i -= 1;
             }
 
-            state = match next_state {
-                PhmmStateOrEnter::Delete => Delete,
-                PhmmStateOrEnter::Match => Match,
-                PhmmStateOrEnter::Insert => Insert,
-                PhmmStateOrEnter::Enter => {
-                    break;
-                }
-            };
+            if next_state.is_enter() {
+                break;
+            }
+            state = next_state;
         }
 
         states.soft_clip(i);
@@ -210,8 +214,11 @@ impl<T: PhmmNumber, const S: usize> BestScore<T, S> for LocalBestScore<T> {
     }
 
     #[inline]
-    fn update(&mut self, strategy: &Self::Strategy<'_>, vals: PhmmStateArray<T>, i: impl QueryIndex, j: impl PhmmIndex) {
-        let score = vals[PhmmState::Match] + strategy.end.get_score(i, j);
+    fn update(
+        &mut self, strategy: &Self::Strategy<'_>, match_val: T, _delete_val: T, _insert_val: T, i: impl QueryIndex,
+        j: impl PhmmIndex,
+    ) {
+        let score = match_val + strategy.end.get_score(i, j);
         if score < self.score {
             self.score = score;
             self.i = strategy.query.to_dp_index(i);
@@ -223,25 +230,28 @@ impl<T: PhmmNumber, const S: usize> BestScore<T, S> for LocalBestScore<T> {
     }
 
     #[inline]
-    fn update_seq_end(&mut self, strategy: &Self::Strategy<'_>, vals: PhmmStateArray<T>, j: impl PhmmIndex) {
-        self.update(strategy, vals, LastBase, j);
+    fn update_seq_end(
+        &mut self, strategy: &Self::Strategy<'_>, match_val: T, delete_val: T, insert_val: T, j: impl PhmmIndex,
+    ) {
+        self.update(strategy, match_val, delete_val, insert_val, LastBase, j);
     }
 
-    #[inline]
     fn update_last_layer(
-        &mut self, strategy: &Self::Strategy<'_>, layer: &LayerParams<T, S>, mut vals: PhmmStateArray<T>, i: impl QueryIndex,
+        &mut self, strategy: &Self::Strategy<'_>, layer: &LayerParams<T, S>, mut match_val: T, mut delete_val: T,
+        mut insert_val: T, i: impl QueryIndex,
     ) {
         use crate::alignment::phmm::PhmmState::*;
 
         // Option 1: Early exit from this layer
-        self.update(strategy, vals, i, LastMatch);
+        self.update(strategy, match_val, delete_val, insert_val, i, LastMatch);
 
         // Option 2: Go through END state
-        vals[Delete] += layer.transition[(Delete, Match)];
-        vals[Match] += layer.transition[(Match, Match)];
-        vals[Insert] += layer.transition[(Insert, Match)];
+        match_val += layer.transition[(Match, Match)];
+        delete_val += layer.transition[(Delete, Match)];
+        insert_val += layer.transition[(Insert, Match)];
+        let enter_val = strategy.begin.get_score(i, End);
 
-        let (state, mut score) = vals.with_enter(strategy.begin.get_score(i, End)).locate_min();
+        let (state, mut score) = best_state_or_enter(match_val, delete_val, insert_val, enter_val);
         score += strategy.end.get_score(i, End);
 
         if score < self.score {
@@ -253,9 +263,9 @@ impl<T: PhmmNumber, const S: usize> BestScore<T, S> for LocalBestScore<T> {
 
     #[inline]
     fn update_seq_end_last_layer(
-        &mut self, strategy: &Self::Strategy<'_>, layer: &LayerParams<T, S>, vals: PhmmStateArray<T>,
+        &mut self, strategy: &Self::Strategy<'_>, layer: &LayerParams<T, S>, match_val: T, delete_val: T, insert_val: T,
     ) {
-        self.update_last_layer(strategy, layer, vals, LastBase);
+        self.update_last_layer(strategy, layer, match_val, delete_val, insert_val, LastBase);
     }
 }
 
