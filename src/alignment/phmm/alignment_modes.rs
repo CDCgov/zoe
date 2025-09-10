@@ -76,13 +76,21 @@ impl<T: Float, const S: usize> DomainModule<T, S> {
         if inserted.is_empty() {
             self.start_to_end
         } else {
+            // Special casing needed in case insert_to_insert is infinite,
+            // causing a NAN to appear when multiplied by 0
+            let insert_to_insert = if inserted.len() > 1 {
+                T::cast_from(inserted.len() - 1) * self.insert_to_insert
+            } else {
+                T::ZERO
+            };
+
             self.start_to_insert
                 + self.insert_to_end
                 + (inserted
                     .iter()
                     .map(|x| self.background_emission[mapping.to_index(*x)])
                     .fold(T::ZERO, |acc, elem| acc + elem)
-                    + T::cast_from(inserted.len() - 1) * self.insert_to_insert)
+                    + insert_to_insert)
         }
     }
 
@@ -97,6 +105,14 @@ impl<T: Float, const S: usize> DomainModule<T, S> {
         if inserted.is_empty() {
             self.start_to_end
         } else {
+            // Special casing needed in case insert_to_insert is infinite,
+            // causing a NAN to appear when multiplied by 0
+            let insert_to_insert = if inserted.len() > 1 {
+                T::cast_from(inserted.len() - 1) * self.insert_to_insert
+            } else {
+                T::ZERO
+            };
+
             self.start_to_insert
                 + self.insert_to_end
                 + (inserted
@@ -104,7 +120,7 @@ impl<T: Float, const S: usize> DomainModule<T, S> {
                     .rev()
                     .map(|x| self.background_emission[mapping.to_index(*x)])
                     .fold(T::ZERO, |acc, elem| acc + elem)
-                    + T::cast_from(inserted.len() - 1) * self.insert_to_insert)
+                    + insert_to_insert)
         }
     }
 

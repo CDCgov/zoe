@@ -16,6 +16,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - `ProfileSets` is re-exported in the prelude
 - Fixed the initialization of the first match score for the semilocal Viterbi algorithm (behind `dev-phmm` feature gate)
 - Fixed the calculation of the end score for semilocal Viterbi algorithm to allow passing through the END state (behind `dev-phmm` feature gate)
+- Avoid error with NaN that may appear when using the `score_from_path` function on local or domain pHMMs (behind `dev-phmm` feature gate)
 
 ## [0.0.21] - 2025-09-05
 
