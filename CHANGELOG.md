@@ -9,6 +9,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 ### Added
 
 - Added `visit_params` methods to pHMMs as a diagnostic tool for inspecting the parameters that are visited along a given path (behind `dev-phmm` and `alignment-diagnostics` feature gates)
+- Added the ability to remove layers from a pHMM (behind `dev-phmm` and `alignment-diagnostics` feature gates)
 
 ### Changed
 

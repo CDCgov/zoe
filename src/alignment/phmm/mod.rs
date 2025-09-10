@@ -27,6 +27,11 @@ mod traits;
 mod viterbi;
 
 #[cfg(not(feature = "alignment-diagnostics"))]
+mod editing;
+#[cfg(feature = "alignment-diagnostics")]
+pub mod editing;
+
+#[cfg(not(feature = "alignment-diagnostics"))]
 pub(crate) mod indexing;
 #[cfg(feature = "alignment-diagnostics")]
 pub mod indexing;
@@ -52,8 +57,16 @@ pub use viterbi::*;
 /// These numeric types are used for performing pHMM calculations in negative
 /// log space.
 pub trait PhmmNumber:
-    Copy + Add<Output = Self> + Mul<Output = Self> + AddAssign + PartialOrd + CastAs + CastAsNumeric + CastFrom + CastFromNumeric
-{
+    Copy
+    + Add<Output = Self>
+    + Mul<Output = Self>
+    + AddAssign
+    + PartialOrd
+    + CastAs
+    + CastAsNumeric
+    + CastFrom
+    + CastFromNumeric
+    + Default {
     /// Infinity, the negative log space score corresponding to probability zero
     const INFINITY: Self;
     /// Zero, the negative log space score corresponding to probability one
@@ -138,13 +151,13 @@ impl PhmmNumber for f64 {
 ///  [m->d, d->d, i->d]
 ///  [m->i, d->i, i->i]]
 /// ```
+///
 /// This means the first element is the transition probabilities into the match
 /// state, the second element is the probabilities into the delete state, and
 /// the third element is the probabilities into the insert state.
 ///
-/// All parameters reflect the probability of transitioning from the previous
-/// layer into the current layer, except for transitions into the insert state,
-/// which are transitions within the same layer.
+/// Note that this is a different layout than
+/// [SAM](https://tr.soe.ucsc.edu/sites/default/files/technical-reports/UCSC-CRL-96-22.pdf).
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct TransitionParams<T>(pub(crate) [[T; 3]; 3]);
 
@@ -161,6 +174,8 @@ impl<T: PhmmNumber> Default for TransitionParams<T> {
 impl<T> Index<(PhmmState, PhmmState)> for TransitionParams<T> {
     type Output = T;
 
+    /// Retrieves the transition parameter corresponding to moving from state
+    /// `index.0` to state `index.1`.
     #[inline]
     fn index(&self, index: (PhmmState, PhmmState)) -> &Self::Output {
         &self.0[usize::from(index.1)][usize::from(index.0)]
@@ -168,6 +183,8 @@ impl<T> Index<(PhmmState, PhmmState)> for TransitionParams<T> {
 }
 
 impl<T> IndexMut<(PhmmState, PhmmState)> for TransitionParams<T> {
+    /// Retrieves a mutable reference to the transition parameter corresponding
+    /// to moving from state `index.0` to state `index.1`.
     #[inline]
     fn index_mut(&mut self, index: (PhmmState, PhmmState)) -> &mut Self::Output {
         &mut self.0[usize::from(index.1)][usize::from(index.0)]
@@ -177,6 +194,8 @@ impl<T> IndexMut<(PhmmState, PhmmState)> for TransitionParams<T> {
 impl<T> Index<PhmmState> for TransitionParams<T> {
     type Output = [T; 3];
 
+    /// Retrieves the transition parameters for moving into state `index` from
+    /// the match, delete, and insert states respectively.
     #[inline]
     fn index(&self, index: PhmmState) -> &Self::Output {
         &self.0[usize::from(index)]
@@ -184,6 +203,9 @@ impl<T> Index<PhmmState> for TransitionParams<T> {
 }
 
 impl<T> IndexMut<PhmmState> for TransitionParams<T> {
+    /// Retrieves a mutable reference to the transition parameters for moving
+    /// into state `index` from the match, delete, and insert states
+    /// respectively.
     #[inline]
     fn index_mut(&mut self, index: PhmmState) -> &mut Self::Output {
         &mut self.0[usize::from(index)]
@@ -226,7 +248,8 @@ impl<T, const S: usize> Index<usize> for EmissionParams<T, S> {
 
 /// The parameters for a single layer of the pHMM.
 ///
-/// See [`TransitionParams`] and [`EmissionParams`] for more details.
+/// See [`TransitionParams`], [`EmissionParams`], and [`CorePhmm`] for more
+/// details.
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct LayerParams<T, const S: usize> {
     pub(crate) transition:      TransitionParams<T>,
@@ -254,20 +277,26 @@ impl<T: PhmmNumber, const S: usize> Default for LayerParams<T, S> {
 /// All probabilities are converted to log space with
 /// $-\operatorname{ln}(\cdot)$. This struct guarantees that at least two layers
 /// are present (corresponding to a reference length of one).
+///
+/// Internally, each element stores:
+/// - The transition probabilities into the insert state within the current
+///   layer, as well as the insert state's emission probabilities
+/// - The transition probabilities from the current layer's states into the next
+///   layer's match and delete states, as well as the next layer's emission
+///   probabilities for the match state
+///
+/// The first element's match state is the BEGIN state, while the last element's
+/// transition probabilities reflect the probabilities entering the END state.
+///
+/// Note that this is different from
+/// [SAM](https://tr.soe.ucsc.edu/sites/default/files/technical-reports/UCSC-CRL-96-22.pdf),
+/// which instead has:
+/// - The emission probabilities for the insert and match states are stored in
+///   that layer
+/// - The transition probabilities from the previous layer to the current layer
+///   are stored
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct CorePhmm<T, const S: usize>(
-    /// Each element stores:
-    /// * The transition probabilities into the insert state within the current
-    ///   layer, as well as the insert state's emission probabilities
-    /// * The transition probabilities from the current layer's states into the next
-    ///   layer's match and delete states, as well as the next layer's emission
-    ///   probabilities for the match state
-    ///
-    /// Note that this is different from SAM. The first element's match state is the
-    /// BEGIN state, while the last element's transition probabilities reflect the
-    /// probabilities entering the END state.
-    Vec<LayerParams<T, S>>,
-);
+pub struct CorePhmm<T, const S: usize>(Vec<LayerParams<T, S>>);
 
 impl<T, const S: usize> CorePhmm<T, S> {
     /// Create a new [`CorePhmm`] from a `Vec` of the parameters.
@@ -315,6 +344,37 @@ impl<T, const S: usize> CorePhmm<T, S> {
             let idx = self.get_dp_index(j);
             &mut self.0[idx]
         }
+    }
+
+    /// Gets mutable references to two distinct layers within the core pHMM.
+    ///
+    /// Although there is no actual layer for the `End` state, for readability
+    /// we let `End` be synonymous with `LastMatch` since `End` emphasizes it is
+    /// the last layer.
+    ///
+    /// ## Panics
+    ///
+    /// If the requested indices correspond to the same dynamic programming
+    /// index or are out of bounds, this will panic.
+    pub(crate) fn get_two_layers_mut(
+        &mut self, j1: impl PhmmIndex, j2: impl PhmmIndex,
+    ) -> (&mut LayerParams<T, S>, &mut LayerParams<T, S>) {
+        let j1 = if j1.is_end() {
+            self.get_dp_index(LastMatch)
+        } else {
+            self.get_dp_index(j1)
+        };
+        let j2 = if j2.is_end() {
+            self.get_dp_index(LastMatch)
+        } else {
+            self.get_dp_index(j2)
+        };
+        let (j1, j2) = (std::cmp::min(j1, j2), std::cmp::max(j1, j2));
+        // Split into [0, j1] and (j1, len). This is the same as [0, j1+1) and
+        // [j1+1, len). This will fail if both j1 and j2 are out of bounds
+        let (s1, s2) = self.0.split_at_mut(j1 + 1);
+        // This will fail if j2 is out of bounds or equal to j1
+        (&mut s1[j1], &mut s2[j2 - (j1 + 1)])
     }
 
     /// Returns the length of the "reference" represented by the pHMM

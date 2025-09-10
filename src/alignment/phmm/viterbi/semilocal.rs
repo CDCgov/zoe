@@ -126,7 +126,7 @@ impl<'a, T: PhmmNumber, const S: usize> ViterbiStrategy<'a, T, S> for SemiLocalV
                     states.soft_clip(self.query.len());
                     return Alignment {
                         score,
-                        ref_range: self.core.get_seq_range(Included(End), Excluded(End)),
+                        ref_range: self.core.get_seq_range(End..End),
                         query_range: 0..0,
                         states,
                         ref_len: self.core.ref_length(),
@@ -181,7 +181,7 @@ impl<'a, T: PhmmNumber, const S: usize> ViterbiStrategy<'a, T, S> for SemiLocalV
 
         Alignment {
             score,
-            ref_range: self.core.get_seq_range(start_j, end_j),
+            ref_range: self.core.get_seq_range((start_j, end_j)),
             query_range: self.query.get_seq_range(start_i, end_i),
             states,
             ref_len: self.core.ref_length(),

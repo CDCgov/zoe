@@ -11,10 +11,107 @@
 //! </div>
 
 use crate::{
-    alignment::phmm::{CorePhmm, PrecomputedDomainModule, PrecomputedLocalModule, SemiLocalModule},
+    alignment::phmm::{
+        CorePhmm, DomainPhmm, GlobalPhmm, LocalPhmm, PrecomputedDomainModule, PrecomputedLocalModule, SemiLocalModule,
+        SemiLocalPhmm,
+    },
     data::views::IndexAdjustable,
 };
-use std::ops::{Bound, Range};
+use std::ops::{Bound, Range, RangeBounds, RangeFrom, RangeInclusive, RangeTo, RangeToInclusive};
+
+/// A trait similar to [`RangeBounds`] but for ranges of [`PhmmIndex`] values.
+pub trait PhmmIndexRange: Clone {
+    /// The type of the starting index
+    type Start: PhmmIndex;
+    /// The type of the ending index
+    type End: PhmmIndex;
+
+    /// Returns the starting index in the range as a [`Bound`].
+    fn start_bound(&self) -> Bound<Self::Start>;
+
+    /// Returns the ending index in the range as a [`Bound`].
+    fn end_bound(&self) -> Bound<Self::End>;
+}
+
+impl<I: PhmmIndex, J: PhmmIndex> PhmmIndexRange for (Bound<I>, Bound<J>) {
+    type Start = I;
+    type End = J;
+
+    #[inline]
+    fn start_bound(&self) -> Bound<Self::Start> {
+        self.0
+    }
+
+    #[inline]
+    fn end_bound(&self) -> Bound<Self::End> {
+        self.1
+    }
+}
+
+impl<I: PhmmIndex> PhmmIndexRange for Range<I> {
+    type Start = I;
+    type End = I;
+
+    fn start_bound(&self) -> Bound<Self::Start> {
+        <Self as RangeBounds<I>>::start_bound(self).map(|x| *x)
+    }
+
+    fn end_bound(&self) -> Bound<Self::End> {
+        <Self as RangeBounds<I>>::end_bound(self).map(|x| *x)
+    }
+}
+
+impl<I: PhmmIndex> PhmmIndexRange for RangeInclusive<I> {
+    type Start = I;
+    type End = I;
+
+    fn start_bound(&self) -> Bound<Self::Start> {
+        <Self as RangeBounds<I>>::start_bound(self).map(|x| *x)
+    }
+
+    fn end_bound(&self) -> Bound<Self::End> {
+        <Self as RangeBounds<I>>::end_bound(self).map(|x| *x)
+    }
+}
+
+impl<I: PhmmIndex> PhmmIndexRange for RangeFrom<I> {
+    type Start = I;
+    type End = I;
+
+    fn start_bound(&self) -> Bound<Self::Start> {
+        <Self as RangeBounds<I>>::start_bound(self).map(|x| *x)
+    }
+
+    fn end_bound(&self) -> Bound<Self::End> {
+        <Self as RangeBounds<I>>::end_bound(self).map(|x| *x)
+    }
+}
+
+impl<I: PhmmIndex> PhmmIndexRange for RangeTo<I> {
+    type Start = I;
+    type End = I;
+
+    fn start_bound(&self) -> Bound<Self::Start> {
+        <Self as RangeBounds<I>>::start_bound(self).map(|x| *x)
+    }
+
+    fn end_bound(&self) -> Bound<Self::End> {
+        <Self as RangeBounds<I>>::end_bound(self).map(|x| *x)
+    }
+}
+
+impl<I: PhmmIndex> PhmmIndexRange for RangeToInclusive<I> {
+    type Start = I;
+    type End = I;
+
+    fn start_bound(&self) -> Bound<Self::Start> {
+        <Self as RangeBounds<I>>::start_bound(self).map(|x| *x)
+    }
+
+    fn end_bound(&self) -> Bound<Self::End> {
+        <Self as RangeBounds<I>>::end_bound(self).map(|x| *x)
+    }
+}
 
 /// A trait for structures that can be indexed via a [`PhmmIndex`], such as
 /// pHMMs and modules.
@@ -63,16 +160,16 @@ pub trait PhmmIndexable: Sized {
         self.get_seq_index(j).map(SeqIndex)
     }
 
-    /// Returns a range of dynamic programming indices from a start and end
-    /// [`PhmmIndex`].
-    fn get_dp_range(&self, start: Bound<impl PhmmIndex>, end: Bound<impl PhmmIndex>) -> Range<usize> {
-        let start = match start {
+    /// Returns a range of dynamic programming indices from a
+    /// [`PhmmIndexRange`].
+    fn get_dp_range<R: PhmmIndexRange>(&self, range: R) -> Range<usize> {
+        let start = match range.start_bound() {
             Bound::Included(start) => self.get_dp_index(start),
             // +1 due to converting Excluded to Included
             Bound::Excluded(start) => self.get_dp_index(start) + 1,
             Bound::Unbounded => 0,
         };
-        let end = match end {
+        let end = match range.end_bound() {
             // +1 due to converting Included to Excluded
             Bound::Included(end) => self.get_dp_index(end) + 1,
             Bound::Excluded(end) => self.get_dp_index(end),
@@ -82,14 +179,28 @@ pub trait PhmmIndexable: Sized {
         start..end
     }
 
-    /// Returns a range of sequence indices from a start and end [`PhmmIndex`].
-    ///
+    /// Converts a [`PhmmIndexRange`] to a range of [`DpIndex`].
+    fn to_dp_range<R: PhmmIndexRange>(&self, range: R) -> Range<DpIndex> {
+        let Range { start, end } = self.get_dp_range(range);
+        DpIndex(start)..DpIndex(end)
+    }
+
+    /// Returns a range of sequence indices from [`PhmmIndexRange`].
     ///
     /// If either index corresponds to the BEGIN state, then this will be mapped
     /// to 0 (the same sequence index that [`FirstMatch`] corresponds to).
-    fn get_seq_range(&self, start: Bound<impl PhmmIndex>, end: Bound<impl PhmmIndex>) -> Range<usize> {
+    fn get_seq_range<R: PhmmIndexRange>(&self, range: R) -> Range<usize> {
         // -1 for converting dynamic programming index to sequence index
-        self.get_dp_range(start, end).saturating_sub(1)
+        self.get_dp_range(range).saturating_sub(1)
+    }
+
+    /// Converts a [`PhmmIndexRange`] to a range of [`SeqIndex`].
+    ///
+    /// If either index corresponds to the BEGIN state, then this will be mapped
+    /// to 0 (the same sequence index that [`FirstMatch`] corresponds to).
+    fn to_seq_range<R: PhmmIndexRange>(&self, range: R) -> Range<SeqIndex> {
+        let Range { start, end } = self.get_seq_range(range);
+        SeqIndex(start)..SeqIndex(end)
     }
 }
 
@@ -187,7 +298,7 @@ pub trait QueryIndex: IndexOffset {
 ///
 /// 0 represents the first position in the sequence (reference or query).
 #[repr(transparent)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SeqIndex(pub usize);
 
 /// A [`PhmmIndex`] or [`QueryIndex`] representing an index with respect to the
@@ -246,6 +357,34 @@ impl<T, const S: usize> PhmmIndexable for CorePhmm<T, S> {
     fn num_pseudomatch(&self) -> usize {
         // The END state does not have an index in the CorePhmm, so we add 1
         self.0.len() + 1
+    }
+}
+
+impl<T, const S: usize> PhmmIndexable for GlobalPhmm<T, S> {
+    #[inline]
+    fn num_pseudomatch(&self) -> usize {
+        self.core.num_pseudomatch()
+    }
+}
+
+impl<T, const S: usize> PhmmIndexable for LocalPhmm<T, S> {
+    #[inline]
+    fn num_pseudomatch(&self) -> usize {
+        self.core.num_pseudomatch()
+    }
+}
+
+impl<T, const S: usize> PhmmIndexable for SemiLocalPhmm<T, S> {
+    #[inline]
+    fn num_pseudomatch(&self) -> usize {
+        self.core.num_pseudomatch()
+    }
+}
+
+impl<T, const S: usize> PhmmIndexable for DomainPhmm<T, S> {
+    #[inline]
+    fn num_pseudomatch(&self) -> usize {
+        self.core.num_pseudomatch()
     }
 }
 
@@ -360,7 +499,11 @@ impl QueryIndex for LastBase {
 }
 
 /// A trait enabling a [`PhmmIndex`] or [`QueryIndex`] to be offset in either
-/// direction via the type system, without converting it to [`DpIndex`].
+/// direction via the type system, without converting it to [`DpIndex`]
+/// immediately.
+///
+/// The offsets do not saturate, so calling converting `Begin.prev_index()` to a
+/// [`DpIndex`] will likely panic.
 pub trait IndexOffset: Copy {
     /// Get the index before the current one.
     #[inline]

@@ -134,7 +134,7 @@ impl<'a, T: PhmmNumber, const S: usize> ViterbiStrategy<'a, T, S> for DomainVite
 
         Alignment {
             score,
-            ref_range: self.core.get_seq_range(start_j, end_j),
+            ref_range: self.core.get_seq_range((start_j, end_j)),
             query_range: self.query.get_seq_range(start_i, end_i),
             states,
             ref_len: self.core.ref_length(),
