@@ -81,6 +81,31 @@
 //! [`as_view_mut`]. However, slicing and restricting are not possible for these
 //! types, since they are not sequence data.
 //!
+//! ## IO Errors in *Zoe*
+//!
+//! As a library, *Zoe* aims to avoid making assumptions on the style of error
+//! handling chosen by users, in particular by not adopting any error handling
+//! crate as a dependency.
+//!
+//! For specific applications, *Zoe* has enum-style error types such as
+//! [`QueryProfileError`] or [`KmerError`], which the user can match on or
+//! display. For working with files and record types, however, *Zoe* elects to
+//! use [`std::io::Error`], allowing for system IO errors to be propagated and
+//! function-specific error messages to be represented with
+//! [`ErrorKind::InvalidData`] or [`ErrorKind::Other`].
+//!
+//! IO failures are assumed to be rare by *Zoe*, and hence the crate will
+//! automatically add the file path to the error messages (such as
+//! [`FastQReader::from_filename`]). If in doubt, check the `Errors` section of
+//! a function's documentation to determine what information is automatically
+//! added.
+//!
+//! When *Zoe* adds context to an error message, it will store the original
+//! error message so that it is accessible using [`Error::source`]. Many error
+//! handling crates such as `anyhow` automatically will display this information
+//! in the backtrace. Or, *Zoe* offers [`unwrap_or_fail`] and [`unwrap_or_die`]
+//! which will include this information when unwrapping an error.
+//!
 //! [`Nucleotides`]: types::nucleotides::Nucleotides
 //! [`NucleotidesView`]: types::nucleotides::NucleotidesView
 //! [`NucleotidesViewMut`]: types::nucleotides::NucleotidesViewMut
@@ -95,6 +120,14 @@
 //! [`slice_mut`]: crate::prelude::SliceMut::slice_mut
 //! [`to_owned_data`]: crate::prelude::DataView::to_owned_data
 //! [`restrict`]: crate::prelude::Restrict::restrict
+//! [`QueryProfileError`]: crate::data::err::QueryProfileError
+//! [`KmerError`]: crate::kmer::KmerError
+//! [`ErrorKind::InvalidData`]: std::io::ErrorKind::InvalidData
+//! [`ErrorKind::Other`]: std::io::ErrorKind::Other
+//! [`FastQReader::from_filename`]: crate::data::records::fastq::FastQReader
+//! [`Error::source`]: std::error::Error::source
+//! [`unwrap_or_fail`]: crate::data::err::OrFail::unwrap_or_fail
+//! [`unwrap_or_die`]: crate::data::err::OrFail::unwrap_or_die
 
 #[cfg(feature = "fuzzing")]
 pub mod arbitrary;
