@@ -1,15 +1,13 @@
-use std::{fmt::Debug, marker::PhantomData};
-
-use super::impl_deref;
 use crate::{
     alignment::phmm::{
         Begin, CorePhmm, DomainModule, DomainPhmm, EmissionParams, End, GlobalPhmm, LayerParams, LocalModule, LocalPhmm,
         PhmmIndexable, PhmmState, SemiLocalModule, SemiLocalPhmm, TransitionParams,
     },
-    data::mappings::DNA_UNAMBIG_PROFILE_MAP,
+    data::{arbitrary::impl_deref, mappings::DNA_UNAMBIG_PROFILE_MAP},
     math::Float,
 };
 use arbitrary::{Arbitrary, Result, Unstructured};
+use std::{fmt::Debug, marker::PhantomData};
 
 impl<'a, T: Arbitrary<'a>, const S: usize> Arbitrary<'a> for EmissionParams<T, S> {
     #[inline]

@@ -18,21 +18,18 @@ use crate::prelude::*;
 use arbitrary::{Arbitrary, Result, Unstructured};
 use std::fmt::Display;
 
-mod amino_acids;
-mod cigar;
+mod alignment;
 mod kmer;
 mod math;
-mod nucleotides;
-mod phmm;
 mod sam;
 mod string;
+mod types;
 mod vec;
 
-pub use cigar::*;
+pub use alignment::*;
 pub use math::*;
-pub use nucleotides::*;
-pub use phmm::*;
 pub use string::*;
+pub use types::*;
 pub use vec::*;
 
 macro_rules! impl_deref {

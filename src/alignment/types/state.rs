@@ -231,7 +231,8 @@ where
     /// # Panics
     ///
     /// The reference and query must be at least as long as the length specified
-    /// in the iterator's alignment operations.
+    /// in the iterator's alignment operations. All CIGAR operations must be in
+    /// `MIDNSHP=X`.
     fn next(&mut self) -> Option<Self::Item> {
         let op = self.get_next_op()?;
 
@@ -256,6 +257,7 @@ where
         }
     }
 }
+
 /// A trait representing a sequence of alignment states, where each element is
 /// represented as a [`Ciglet`].
 ///
@@ -379,3 +381,44 @@ impl StatesSequence for &[Ciglet] {
         Some(*last)
     }
 }
+
+/// A trait for computing the number of residues consumed in the reference or
+/// query for a given CIGAR string or [`AlignmentStates`], while checking for
+/// overflow. This is helpful for randomly generated alignments.
+///
+/// <div class="warning note">
+///
+/// **Note**
+///
+/// You must enable the *fuzzing* feature in your `Cargo.toml` to use this
+/// trait.
+///
+/// </div>
+#[cfg(feature = "fuzzing")]
+pub trait CheckedCigar
+where
+    for<'a> &'a Self: IntoIterator<Item: std::borrow::Borrow<Ciglet>>, {
+    /// Sums the lengths for operations consuming the reference (`M`, `D`, `N`,
+    /// `=`, and `X`), returning `None` for overflow.
+    #[inline]
+    #[must_use]
+    fn num_ref_consumed_checked(&self) -> Option<usize> {
+        self.into_iter()
+            .map(|ciglet| *std::borrow::Borrow::borrow(&ciglet))
+            .filter_map(|Ciglet { inc, op }| matches!(op, b'M' | b'D' | b'N' | b'=' | b'X').then_some(inc))
+            .try_fold(0, usize::checked_add)
+    }
+
+    /// Sums the lengths for operations consuming the query (`M`, `I`, `S`, `=`,
+    /// and `X`), returning `None` for overflow.
+    #[must_use]
+    fn num_query_consumed_checked(&self) -> Option<usize> {
+        self.into_iter()
+            .map(|ciglet| *std::borrow::Borrow::borrow(&ciglet))
+            .filter_map(|Ciglet { inc, op }| matches!(op, b'M' | b'I' | b'S' | b'=' | b'X').then_some(inc))
+            .try_fold(0, usize::checked_add)
+    }
+}
+
+#[cfg(feature = "fuzzing")]
+impl<T> CheckedCigar for T where for<'a> &'a T: IntoIterator<Item: std::borrow::Borrow<Ciglet>> {}

@@ -1,5 +1,7 @@
-use super::{VecAsciiGraphic, VecAsciiGraphicBashSafe, impl_deref};
-use crate::prelude::Nucleotides;
+use crate::{
+    data::arbitrary::{VecAsciiGraphic, VecAsciiGraphicBashSafe, impl_deref},
+    prelude::Nucleotides,
+};
 use arbitrary::{Arbitrary, Result, Unstructured};
 
 impl<'a> Arbitrary<'a> for Nucleotides {

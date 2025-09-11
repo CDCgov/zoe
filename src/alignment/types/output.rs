@@ -1,6 +1,7 @@
 use crate::alignment::pairwise_align_with;
 use crate::alignment::{AlignmentIter, AlignmentStates};
 use crate::data::cigar::Ciglet;
+use crate::data::views::IndexAdjustable;
 use std::ops::Range;
 
 /// The output of an alignment algorithm, allowing unmapped and overflowed
@@ -205,5 +206,198 @@ impl<T: Copy> Alignment<T> {
         self.ref_range = (self.ref_len - self.ref_range.end)..(self.ref_len - self.ref_range.start - 1);
         self.query_range = (self.query_len - self.query_range.end)..(self.query_len - self.query_range.start - 1);
         self.states.make_reverse();
+    }
+
+    /// Clips an [`Alignment`] so that it corresponds to the provided reference
+    /// range.
+    ///
+    /// If the reference range is out of bounds, then `None` is returned. The
+    /// `score`, `ref_len`, and `query_len` fields are not changed.
+    ///
+    /// ## Example
+    ///
+    /// ```
+    /// # use zoe::{
+    /// #     alignment::{AlignmentStates, ScalarProfile},
+    /// #     data::WeightMatrix,
+    /// #     prelude::*,
+    /// # };
+    /// const MATRIX: WeightMatrix<'_, i8, 5> = WeightMatrix::new_dna_matrix(1, -1, None);
+    /// const GAP_OPEN: i8 = -3;
+    /// const GAP_EXTEND: i8 = -1;
+    ///
+    /// let reference = Nucleotides::from(b"GATAATCACATGTGTTGCACGTTGTAAGGTAGCATGCCTTGA");
+    /// let query = Nucleotides::from(b"GATATCAAATGCGTGCTTGCACGATGTAAGGTAGC");
+    ///
+    /// let profile = ScalarProfile::new(&query, &MATRIX, GAP_OPEN, GAP_EXTEND).unwrap();
+    /// let alignment = profile.smith_waterman_alignment(reference.as_bytes()).unwrap();
+    ///
+    /// assert_eq!(alignment.states, AlignmentStates::try_from(b"4M1D10M3I18M").unwrap());
+    ///
+    /// let coding_alignment = alignment.slice_to_ref_range(9..27).unwrap();
+    /// assert_eq!(coding_alignment.states, AlignmentStates::try_from(b"8S6M3I12M6S").unwrap());
+    /// assert_eq!(coding_alignment.query_range, 8..29);
+    /// ```
+    pub fn slice_to_ref_range(&self, ref_range: Range<usize>) -> Option<Self> {
+        // Adjust the requested ref_range to be an offset from the start of
+        // self.ref_range
+        let rel_ref_range = if ref_range.start >= self.ref_range.start {
+            ref_range.sub(self.ref_range.start)
+        } else {
+            // We are trying to access a portion of the reference range that was
+            // not aligned to
+            return None;
+        };
+
+        let mut query_idx = 0;
+        let mut ref_idx = 0;
+
+        let mut ciglets = self.states.iter().copied();
+        let mut states = AlignmentStates::new();
+
+        // Find the first ciglet overlapping the reference range
+        let Some(mut first_ciglet) = ciglets.find_map(|ciglet| {
+            (query_idx, ref_idx) = (query_idx, ref_idx).increment_by(ciglet);
+            let num_in_range = ref_idx.saturating_sub(rel_ref_range.start);
+            (num_in_range > 0).then_some(Ciglet {
+                op:  ciglet.op,
+                inc: num_in_range,
+            })
+        }) else {
+            // If the requested reference range is empty AND is using a number
+            // in the appropriate range, then this function will return an empty
+            // alignment instead of `None`. The specific range was chosen to
+            // mimic `get`.
+            if ref_range.is_empty() && (self.ref_range.start..=self.ref_range.end).contains(&ref_range.start) {
+                let mut states = AlignmentStates::with_capacity(1);
+                states.soft_clip(self.query_len);
+                return Some(Alignment {
+                    score: self.score,
+                    ref_range: ref_range.clone(),
+                    query_range: 0..0,
+                    states,
+                    ref_len: self.ref_len,
+                    query_len: self.query_len,
+                });
+            }
+
+            if !self.ref_range.is_empty() {
+                debug_assert!(ref_range.start >= self.ref_range.end);
+            }
+
+            return None;
+        };
+
+        // Calculates where the sliced alignment starts in the query
+        let (query_start, ref_start) = (query_idx, ref_idx).decrement_by(first_ciglet);
+        debug_assert_eq!(ref_start, rel_ref_range.start);
+
+        // Add soft clipping at start
+        states.soft_clip(query_start);
+
+        // Check whether the sliced alignment is only a single ciglet
+        if ref_idx >= rel_ref_range.end {
+            first_ciglet.inc = first_ciglet.inc.saturating_sub(ref_idx - rel_ref_range.end);
+            states.add_ciglet(first_ciglet);
+            let (query_end, ref_end) = (query_start, ref_start).increment_by(first_ciglet);
+            states.soft_clip(self.query_len - query_end);
+
+            debug_assert_eq!(ref_end, rel_ref_range.end);
+
+            return Some(Self {
+                score: self.score,
+                ref_range,
+                query_range: query_start..query_end,
+                states,
+                ref_len: self.ref_len,
+                query_len: self.query_len,
+            });
+        }
+
+        // Add the first ciglet
+        states.add_ciglet(first_ciglet);
+
+        for mut ciglet in ciglets {
+            // Add the contribution of the next ciglet, but don't update idxs
+            // yet
+            let (new_query_idx, new_ref_idx) = (query_idx, ref_idx).increment_by(ciglet);
+
+            // Check whether ciglet caused us to meet or pass the end of
+            // rel_ref_range
+            if let Some(num_past) = new_ref_idx.checked_sub(rel_ref_range.end) {
+                ciglet.inc = ciglet.inc.saturating_sub(num_past);
+                states.add_ciglet(ciglet);
+                let (query_end, ref_end) = (query_idx, ref_idx).increment_by(ciglet);
+                states.soft_clip(self.query_len - query_end);
+
+                debug_assert!(ciglet.inc > 0);
+                debug_assert_eq!(ref_end, rel_ref_range.end);
+
+                return Some(Self {
+                    score: self.score,
+                    ref_range,
+                    query_range: query_start..query_end,
+                    states,
+                    ref_len: self.ref_len,
+                    query_len: self.query_len,
+                });
+            }
+
+            // Add ciglet and update idxs
+            states.add_ciglet(ciglet);
+            (query_idx, ref_idx) = (new_query_idx, new_ref_idx);
+        }
+
+        if ref_idx < rel_ref_range.end {
+            debug_assert!(ref_range.end > self.ref_range.end);
+            return None;
+        }
+
+        debug_assert_eq!(ref_idx, rel_ref_range.end);
+        let query_range = query_start..query_idx;
+        states.soft_clip(self.query_len - query_idx);
+        Some(Self {
+            score: self.score,
+            ref_range,
+            query_range,
+            states,
+            ref_len: self.ref_len,
+            query_len: self.query_len,
+        })
+    }
+}
+
+/// A private extension trait for adding or subtracting a [`Ciglet`] to a tuple
+/// representing the query index and reference index.
+trait AlignmentIndices {
+    /// Adds the contribution of the [`Ciglet`] to a query and reference index.
+    fn increment_by(self, ciglet: Ciglet) -> Self;
+
+    /// Subtracts the contribution of the [`Ciglet`] to a query and reference
+    /// index.
+    fn decrement_by(self, ciglet: Ciglet) -> Self;
+}
+
+impl AlignmentIndices for (usize, usize) {
+    #[inline]
+    fn increment_by(self, ciglet: Ciglet) -> Self {
+        let (query_idx, ref_idx) = self;
+        match ciglet.op {
+            b'M' | b'=' | b'X' => (query_idx + ciglet.inc, ref_idx + ciglet.inc),
+            b'D' | b'N' => (query_idx, ref_idx + ciglet.inc),
+            b'I' | b'S' => (query_idx + ciglet.inc, ref_idx),
+            _ => (query_idx, ref_idx),
+        }
+    }
+
+    #[inline]
+    fn decrement_by(self, ciglet: Ciglet) -> Self {
+        let (query_idx, ref_idx) = self;
+        match ciglet.op {
+            b'M' | b'=' | b'X' => (query_idx - ciglet.inc, ref_idx - ciglet.inc),
+            b'D' | b'N' => (query_idx, ref_idx - ciglet.inc),
+            b'I' | b'S' => (query_idx - ciglet.inc, ref_idx),
+            _ => (query_idx, ref_idx),
+        }
     }
 }

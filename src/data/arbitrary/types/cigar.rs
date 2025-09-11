@@ -1,7 +1,9 @@
-use super::impl_deref;
 use crate::{
-    alignment::AlignmentStates,
-    data::cigar::{Cigar, Ciglet},
+    alignment::{AlignmentStates, CheckedCigar},
+    data::{
+        arbitrary::impl_deref,
+        cigar::{Cigar, Ciglet},
+    },
 };
 use arbitrary::{Arbitrary, Result, Unstructured};
 use std::{marker::PhantomData, num::NonZeroUsize};
@@ -119,12 +121,23 @@ where
 ///
 /// * `C`: The [`Ciglet`] type or arbitrary wrapper for generating the ciglets
 /// * `D`: If true, ensures adjacent operations are different
+/// * `Q`: If true, ensures the number of residues of the query consumed by the
+///   alignment is not over [`usize::MAX`]
+/// * `R`: If true, ensures the number of residues of the reference consumed by
+///   the alignment is not over [`usize::MAX`]
 #[derive(Debug)]
-pub struct AlignmentStatesArbitrary<C, const D: bool>(pub AlignmentStates, PhantomData<C>);
+pub struct AlignmentStatesArbitrary<C, const D: bool, const Q: bool, const R: bool>(pub AlignmentStates, pub PhantomData<C>);
 
-impl_deref! {AlignmentStatesArbitrary<C, D>, AlignmentStates, <C, const D: bool>}
+impl_deref! {AlignmentStatesArbitrary<C, D, Q, R>, AlignmentStates, <C, const D: bool, const Q: bool, const R: bool>}
 
-impl<'a, C, const D: bool> Arbitrary<'a> for AlignmentStatesArbitrary<C, D>
+impl<C, const D: bool, const Q: bool, const R: bool> From<AlignmentStatesArbitrary<C, D, Q, R>> for AlignmentStates {
+    #[inline]
+    fn from(value: AlignmentStatesArbitrary<C, D, Q, R>) -> Self {
+        value.0
+    }
+}
+
+impl<'a, C, const D: bool, const Q: bool, const R: bool> Arbitrary<'a> for AlignmentStatesArbitrary<C, D, Q, R>
 where
     C: Arbitrary<'a> + Into<Ciglet>,
 {
@@ -155,6 +168,54 @@ where
             }
         }
 
-        Ok(AlignmentStatesArbitrary(AlignmentStates(vec), PhantomData))
+        let mut states = AlignmentStates(vec);
+
+        if Q {
+            ensure_no_query_len_overflow(&mut states);
+        }
+
+        if R {
+            ensure_no_match_len_overflow(&mut states);
+        }
+
+        Ok(AlignmentStatesArbitrary(states, PhantomData))
+    }
+}
+
+/// Removes ciglets from [`AlignmentStates`] to ensure calculating the number of
+/// residues it consumes in the query does not overflow.
+pub(crate) fn ensure_no_query_len_overflow(states: &mut AlignmentStates) {
+    if states.num_query_consumed_checked().is_none() {
+        let mut new_vec = Vec::new();
+        let mut match_len = 0usize;
+        for ciglet in states.iter().copied() {
+            if matches!(ciglet.op, b'M' | b'I' | b'S' | b'=' | b'X') {
+                match_len = match match_len.checked_add(ciglet.inc) {
+                    Some(match_len) => match_len,
+                    None => break,
+                }
+            }
+            new_vec.push(ciglet);
+        }
+        *states = AlignmentStates(new_vec);
+    }
+}
+
+/// Removes ciglets from [`AlignmentStates`] to ensure calculating the number of
+/// residues it consumes in the reference does not overflow.
+pub(crate) fn ensure_no_match_len_overflow(states: &mut AlignmentStates) {
+    if states.num_ref_consumed_checked().is_none() {
+        let mut new_vec = Vec::new();
+        let mut match_len = 0usize;
+        for ciglet in states.iter().copied() {
+            if matches!(ciglet.op, b'M' | b'D' | b'N' | b'=' | b'X') {
+                match_len = match match_len.checked_add(ciglet.inc) {
+                    Some(match_len) => match_len,
+                    None => break,
+                }
+            }
+            new_vec.push(ciglet);
+        }
+        *states = AlignmentStates(new_vec);
     }
 }
