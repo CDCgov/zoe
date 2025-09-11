@@ -53,6 +53,9 @@ pub trait PhmmNumber:
     /// Converts a negative log space score back to a probability
     fn to_prob<T: Float>(self) -> T;
 
+    /// Returns the negative log space score as a float
+    fn to_float<T: Float>(self) -> T;
+
     /// Computes the minimum of two negative log space scores
     #[must_use]
     fn min(self, other: Self) -> Self;
@@ -76,6 +79,11 @@ impl PhmmNumber for f32 {
     }
 
     #[inline]
+    fn to_float<T: Float>(self) -> T {
+        T::cast_from(self)
+    }
+
+    #[inline]
     fn min(self, other: Self) -> Self {
         self.min(other)
     }
@@ -96,6 +104,11 @@ impl PhmmNumber for f64 {
     fn to_prob<T: Float>(self) -> T {
         // Increase precision by converting from f64 last
         T::cast_from((-self).exp())
+    }
+
+    #[inline]
+    fn to_float<T: Float>(self) -> T {
+        T::cast_from(self)
     }
 
     #[inline]
