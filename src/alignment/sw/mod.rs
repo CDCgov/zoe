@@ -3,17 +3,21 @@
 //! For generating the optimal, local score use [`sw_simd_score`] or a wrapper
 //! thereof. Likewise, for generating an optimal, local alignment use
 //! [`sw_simd_alignment`].
+//! 
+//! For generating the two locally aligned sequences, first create an
+//! [`Alignment`], then use [`Alignment::get_aligned_seqs`].
 //!
 //! ### Affine Gap Penalties
 //!
 //! We use the affine gap formula, $W(k) = u(k-1) + v$, where $k$ is the gap
 //! length, $u$ is the gap extend penalty, $v$ is the gap open penalty, and
 //! $W(k)$ is the total penalty for the gap. In order to use $W(k) = uk + v$,
-//! simply pass gap open as the gap open plus gap extension.
+//! set the gap open score as your desired gap open score plus the gap extension
+//! score.
 //!
 //! ### Usage Note
 //!
-//! The following steps may be needed:
+//! The following steps may be needed to perform an alignment:
 //!
 //! 1. Choose an alphabet. *Zoe* provides an easy interface to work with DNA,
 //!    assuming the bases `ACGT` are case-insensitive and `N` is used as a
@@ -39,7 +43,7 @@
 //! Below is an example using DNA. We use a match score of 4 and a mismatch
 //! score of -2, as defined in `WEIGHTS`. We also choose to use a
 //! `StripedProfile` (so that the SIMD algorithm is used) with integer type `i8`
-//! and 32 lanes.
+//! and 32 lanes. 
 //!
 //! ```
 //! # use zoe::{
@@ -68,7 +72,7 @@
 //! ```
 //!
 //! Below is an example using a different alphabet. Matches are given a score of
-//! 1 and mismatches are given a score of -1.
+//! 1 and mismatches are given a score of -1. 
 //! ```
 //! # use zoe::{
 //! #     alignment::{Alignment, AlignmentStates, StripedProfile},
@@ -109,7 +113,8 @@
 //! one of the other constructors. Then, call
 //! [`LocalProfiles::smith_waterman_alignment_from_i8`],
 //! [`SharedProfiles::smith_waterman_alignment_from_i8`], or one of the other
-//! methods.
+//! methods. Starting with an `i8` profile is often a good choice, but if you are
+//! expecting a larger score, starting with `i16` can be more efficient.
 //!
 //! When using DNA, you can also create a profile by using
 //! [`Nucleotides::into_local_profile`] or [`Nucleotides::into_shared_profile`].
@@ -214,7 +219,8 @@
 //! [`ByteIndexMap::new`]: crate::data::ByteIndexMap::new
 //! [`WeightMatrix`]: crate::data::matrices::WeightMatrix
 //! [`WeightMatrix::new`]: crate::data::matrices::WeightMatrix::new
-//! [`new_biased_dna_matrix`]: crate::data::matrices::WeightMatrix::new_biased_dna_matrix
+//! [`new_biased_dna_matrix`]:
+//!     crate::data::matrices::WeightMatrix::new_biased_dna_matrix
 //! [`new_dna_matrix`]: crate::data::matrices::WeightMatrix::new_dna_matrix
 //! [`QueryProfileError`]: crate::data::err::QueryProfileError
 //! [`Nucleotides::into_local_profile`]:
