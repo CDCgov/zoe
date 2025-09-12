@@ -60,6 +60,13 @@ impl From<String> for Nucleotides {
     }
 }
 
+impl From<&str> for Nucleotides {
+    #[inline]
+    fn from(s: &str) -> Self {
+        Nucleotides(s.as_bytes().to_vec())
+    }
+}
+
 impl From<Vec<u8>> for Nucleotides {
     #[inline]
     fn from(vec: Vec<u8>) -> Self {
@@ -85,6 +92,13 @@ impl<'a> From<&'a [u8]> for NucleotidesView<'a> {
     #[inline]
     fn from(bytes: &'a [u8]) -> Self {
         NucleotidesView(bytes)
+    }
+}
+
+impl<'a> From<&'a str> for NucleotidesView<'a> {
+    #[inline]
+    fn from(s: &'a str) -> Self {
+        NucleotidesView(s.as_bytes())
     }
 }
 
