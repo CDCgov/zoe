@@ -90,6 +90,8 @@ pub(crate) const TO_DNA_ACGTN_STD_GAPS_UC: [u8; 256] = make_mapping_with_default
     0,
 );
 
+
+
 //
 // Typically used by:   Recode::recode
 // Mapping:             u8 -> u8 else self
@@ -114,10 +116,27 @@ pub(crate) const TO_REVERSE_COMPLEMENT: [u8; 256] = make_mapping_otherwise_self(
     b"cgtayrmkvbhdaCGTAYRMKVBHDA",
 );
 
+
+
 //
 // Typically used by:   Recode::recode
 // Mapping:             u8 -> u8 else default
 //
+
+/// Maps bytes to themselves but converts `T` to `U` for converting DNA to RNA.
+pub(crate) const TO_RNA: [u8; 256] = make_mapping_with_default(
+    b"acgtunACGTUN", 
+    b"acguunACGUUN",
+    b'N',
+);
+
+/// Used to convert any byte to uppercase RNA. Replaces `T` with `U`.
+#[rustfmt::skip]
+pub(crate) const TO_RNA_UC: [u8; 256] = make_mapping_with_default(
+    b"acgtunACGTUN", 
+    b"ACGUUNACGUUN",
+    b'N'
+);
 
 /// Used to convert any byte to uppercase ACGTN. N is used as a catch-all.
 #[rustfmt::skip]
@@ -160,6 +179,7 @@ pub(crate) const ANY_TO_DNA_IUPAC_CORRECT_GAPS_UC: [u8; 256] = make_mapping_with
     b"ACGTTRYSWKMBDHVNACGTTRYSWKMBDHVN.---",
     b'N',
 );
+
 
 //
 // Typically used by:   ByteIndexMap

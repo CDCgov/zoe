@@ -344,8 +344,29 @@ fn check_recode_dna() {
         } else {
             assert_eq!(&recode, b"N");
         }
+
+        let recode = get_recoded(char, RecodeDNAStrat::ToRna);
+        if seq == b"T" || seq == b"U" {
+            assert_eq!(recode, b"U");
+        } else if seq == b"t" || seq == b"u"{
+            assert_eq!(recode, b"u");
+        } else if seq.is_valid_dna(IsValidDNA::AcgtnNoGaps) {
+            assert_eq!(recode, seq);
+        } else {
+            assert_eq!(&recode, b"N", "{}", seq[0]);
+        }
+
+        let recode = get_recoded(char, RecodeDNAStrat::ToRnaUpper);
+        if seq == b"T" || seq == b"t" || seq == b"U" || seq == b"u" {
+            assert_eq!(recode, b"U");
+        } else if seq.is_valid_dna(IsValidDNA::AcgtNoGaps) {
+            assert_eq!(recode, seq.to_ascii_uppercase());
+        } else {
+            assert_eq!(&recode, b"N");
+        }
     }
 }
+
 
 #[test]
 fn simd_reverse_complement() {

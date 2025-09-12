@@ -37,8 +37,8 @@ pub trait ToDNA: Into<Nucleotides> + Sealed {
 
 impl<T: Into<Nucleotides> + Sealed> ToDNA for T {}
 
-/// Enumeration for DNA recoding strategies. In all strategies, U is recoded to
-/// T.
+/// Enumeration for DNA recoding strategies. In all strategies except `ToRna`
+/// and `ToRnaUpper`, U is recoded to T.
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 #[non_exhaustive]
 pub enum RecodeDNAStrat {
@@ -63,7 +63,13 @@ pub enum RecodeDNAStrat {
     /// (`:` and `~`) to `-`. Gaps represented by `.` are preserved. Capital N
     /// is used for non-IUPAC symbols
     AnyToIupacCorrectGapsUpper,
+    /// Converts to ACGUN, preserving case, with N as a catch-all, converting T
+    /// to U
+    ToRna,
+    /// Converts to uppercase ACGUN, with N as a catch-all, converting T to U
+    ToRnaUpper,
 }
+
 
 impl RecodeDNAStrat {
     /// Returns the corresponding mapping array for the selected recoding
@@ -80,6 +86,9 @@ impl RecodeDNAStrat {
             RecodeDNAStrat::AnyToIupacWithGaps => &ANY_TO_DNA_IUPAC_WITH_GAPS,
             RecodeDNAStrat::AnyToIupacWithGapsUpper => &ANY_TO_DNA_IUPAC_WITH_GAPS_UC,
             RecodeDNAStrat::AnyToIupacCorrectGapsUpper => &ANY_TO_DNA_IUPAC_CORRECT_GAPS_UC,
+
+            RecodeDNAStrat::ToRna => &TO_RNA,
+            RecodeDNAStrat::ToRnaUpper => &TO_RNA_UC,
         }
     }
 }
@@ -201,6 +210,29 @@ pub trait RecodeNucleotides: NucleotidesMutable + Sealed {
     fn recode_dna_aligned(&mut self) {
         self.nucleotide_mut_bytes()
             .recode(RecodeDNAStrat::AnyToIupacCorrectGapsUpper.mapping());
+    }
+
+    /// Recodes the stored sequence to RNA using [`RecodeDNAStrat::ToRna`], with
+    /// T being converted to U. Data that cannot be recoded becomes `N`. 
+    /// 
+    /// Note: it may be faster to use [`crate::search::replace_all_bytes`] if
+    /// the data is certain to already be DNA encoding.
+    #[inline]
+    fn to_rna(&mut self) {
+        self.nucleotide_mut_bytes()
+            .recode(RecodeDNAStrat::ToRna.mapping());
+    }
+
+    /// Recodes the stored sequence to uppercase RNA using
+    /// [`RecodeDNAStrat::ToRnaUpper`], with T being converted to U. Data that
+    /// cannot be recoded becomes `N`.
+    /// 
+    /// Note: it may be faster to use [`crate::search::replace_all_bytes`] if
+    /// the data is certain to already be DNA encoding.
+    #[inline]
+    fn to_rna_upper(&mut self) {
+        self.nucleotide_mut_bytes()
+            .recode(RecodeDNAStrat::ToRnaUpper.mapping());
     }
 
     /// Recodes the stored sequence to uppercase in-place.
