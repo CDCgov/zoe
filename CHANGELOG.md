@@ -9,11 +9,13 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 ### Added
 
 - Added `HeaderReadable` getter trait for record types
+- Implemented `Arbitrary` for `AlignmentStates` and added additional wrapper type (behind `fuzzing` feature gate)
 - Added Viterbi algorithm for `DomainPhmm` (behind `dev-phmm` feature gate)
 - Implemented `Arbitrary` for `SemiLocalPhmm` and `DomainPhmm` (behind `fuzzing` and `dev-phmm` feature gates)
 
 ### Changed
 
+- The wrapper types for generating arbitrary CIGAR strings have been modified (behind `fuzzing` feature gate)
 - pHMM types and algorithms now rely on the more general `PhmmNumber` trait instead of `Float` (behind `dev-phmm` feature gate)
 
 ### Fixes
