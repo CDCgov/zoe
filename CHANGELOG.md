@@ -10,6 +10,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 - Added `visit_params` methods to pHMMs as a diagnostic tool for inspecting the parameters that are visited along a given path (behind `dev-phmm` and `alignment-diagnostics` feature gates)
 - Added the ability to remove layers from a pHMM (behind `dev-phmm` and `alignment-diagnostics` feature gates)
+- Added random downsampling for sized and non-sized iterators using `MethodDIterator` and `method_l`
 
 ### Changed
 
@@ -100,7 +101,6 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `CorePhmm` struct storing PHMM layers (without other end modules or model information).
 - Added `LocalPhmm` and structs towards supporting other alignment modes in pHMMs.
 
-
 ### Changed
 
 - `Alignment` now uses `AlignmentStates` instead of `Cigar`, and alignment algorithms return `MaybeAligned` with scores as `u32` instead of `u64`.
@@ -166,7 +166,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 ### Added
 
 - Introduce `ByteIndexCounts`, a generalization of `NucleotideCounts`
-- Added an `Alignment` struct to improve the ergonomics of *Zoe*'s alignment algorithms
+- Added an `Alignment` struct to improve the ergonomics of _Zoe_'s alignment algorithms
 
 ### Changed
 
@@ -246,7 +246,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 - Updated README notices for open-sourcing Zoe on Github!
 - Added optional feature "arbitrary" to support fuzzing Zoe types
-- Added supported for the *signed* striped SW scoring function (generally faster)
+- Added supported for the _signed_ striped SW scoring function (generally faster)
 - Added set operations for k-mer sets and anew trait for finding k-mers in sequences
 - Added support for restricted range searching in `ByteSubstring` and `FindKmers`
 - Added `make_reverse_complement_simd` and `translate_to_stop` functions

@@ -1,3 +1,5 @@
+pub mod sampling;
+
 /// An iterator over subslices of length `window_size`, advancing forward by `step`
 /// positions each iteration.
 ///
@@ -66,5 +68,3 @@ impl<'a, T: 'a> Iterator for SteppedWindows<'a, T> {
         }
     }
 }
-
-pub mod sampling;
