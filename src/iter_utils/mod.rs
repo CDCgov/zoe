@@ -66,3 +66,5 @@ impl<'a, T: 'a> Iterator for SteppedWindows<'a, T> {
         }
     }
 }
+
+pub mod sampling;

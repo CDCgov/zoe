@@ -32,7 +32,7 @@ pub mod search;
 /// Generate sequences and other data.
 pub(crate) mod generate;
 /// Iterator utilities.
-pub(crate) mod iter_utils;
+pub mod iter_utils;
 
 /// Common structures and traits re-exported
 pub mod prelude {

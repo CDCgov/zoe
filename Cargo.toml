@@ -33,7 +33,7 @@ name = "zoe"
 default = ["rand"]
 
 # An optional feature for generating random nucleotide and amino acid sequences
-rand = ["dep:rand_xoshiro"]
+rand = ["dep:rand_xoshiro", "dep:rand"]
 
 # An optional feature that provides SIMD multiversioning of selected Zoe
 # functions
@@ -61,6 +61,7 @@ dev-3pass = []
 arbitrary = { version = "1", optional = true, features = ["derive"] }
 multiversion = { version = "0.8", optional = true }
 rand_xoshiro = { version = "0.7", optional = true }
+rand = { version = "0.9", optional = true }
 itoa = "1"
 visibility = { version = "0.1.1", optional = true }
 
