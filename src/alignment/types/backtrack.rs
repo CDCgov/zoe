@@ -13,12 +13,31 @@ pub(crate) struct BacktrackMatrix {
 }
 
 impl BacktrackMatrix {
+    /// The bitflag used to represent a score that can be reached via opening a
+    /// gap from the cell above it
     const UP: u8 = 1;
+
+    /// The bitflag used to represent a score that can be reached via extending
+    /// a gap from the cell above it
     const UP_EXTENDING: u8 = 2;
+
+    /// The bitfag used to represent a score that can be reached via opening a
+    /// gap from the cell left of it
     const LEFT: u8 = 4;
+
+    /// The bitflag used to represent a score that can be reached via extending
+    /// a gap from the cell left of it
     const LEFT_EXTENDING: u8 = 8;
+
+    /// The bitflag used to indicate that an alignment starts at a given cell
+    /// (i.e., the traceback should stop at that cell)
     const STOP: u8 = 16;
 
+    /// Creates a new [`BacktrackMatrix`] with the specified number of rows and
+    /// columns.
+    ///
+    /// The number of rows should be the length of the reference, and the number
+    /// of columns should be the length of the query.
     pub(crate) fn new(rows: usize, cols: usize) -> Self {
         BacktrackMatrix {
             data: vec![0u8; rows * cols],
@@ -27,32 +46,54 @@ impl BacktrackMatrix {
         }
     }
 
+    /// Sets the [`UP`] flag for the current cell in the [`BacktrackMatrix`].
+    ///
+    /// [`UP`]: Self::UP
     #[inline]
     pub(crate) fn up(&mut self) {
         self.data[self.cursor] |= Self::UP;
     }
 
+    /// Sets the [`LEFT`] flag for the current cell in the [`BacktrackMatrix`].
+    ///
+    /// [`LEFT`]: Self::LEFT
     #[inline]
     pub(crate) fn left(&mut self) {
         self.data[self.cursor] |= Self::LEFT;
     }
 
+    /// Sets the [`UP_EXTENDING`] flag for the current cell in the
+    /// [`BacktrackMatrix`].
+    ///
+    /// [`UP_EXTENDING`]: Self::UP_EXTENDING
     #[inline]
     pub(crate) fn up_extending(&mut self) {
         self.data[self.cursor] |= Self::UP_EXTENDING;
     }
 
+    /// Sets the [`LEFT_EXTENDING`] flag for the current cell in the
+    /// [`BacktrackMatrix`].
+    ///
+    /// [`LEFT_EXTENDING`]: Self::LEFT_EXTENDING
     #[inline]
     pub(crate) fn left_extending(&mut self) {
         self.data[self.cursor] |= Self::LEFT_EXTENDING;
     }
 
+    /// Clears all flags then sets the [`STOP`] flag for the current cell in the
+    /// [`BacktrackMatrix`].
+    ///
+    /// [`STOP`]: Self::STOP
     #[inline]
     pub(crate) fn stop(&mut self) {
         self.data[self.cursor] = Self::STOP;
     }
 }
 
+/// A backtrack matrix for the Striped Smith Waterman algorithm.
+///
+/// This stores the traceback information in a flattened vector of SIMD vectors
+/// (each holding `N` entries in the DP table).
 #[derive(Clone, Debug)]
 pub(crate) struct BacktrackMatrixStriped<const N: usize>
 where
@@ -428,6 +469,168 @@ where
         for r in 0..nr {
             print!("{r:02}: x");
             for c in 0..nc {
+                bt.move_to(r, c);
+                if bt.is_stop() {
+                    print!("o");
+                } else if bt.is_up() {
+                    print!("^");
+                } else if bt.is_left() {
+                    print!("<");
+                } else if bt.is_up_extending() {
+                    print!(":");
+                } else if bt.is_left_extending() {
+                    print!("-");
+                } else {
+                    print!("\\");
+                }
+            }
+            println!();
+        }
+    }
+}
+
+/// A backtrack matrix for the Banded Smith Waterman algorithm.
+///
+/// This stores the traceback information for the diagonal band in a flattened
+/// vector of bytes (using one byte per DP table entry).
+#[derive(Clone, Debug)]
+pub(crate) struct BandedBacktrackMatrix {
+    data:       Vec<u8>,
+    band_width: usize,
+    cursor:     usize,
+}
+
+impl BandedBacktrackMatrix {
+    /// The bitflag used to represent a score that can be reached via opening a
+    /// gap from the cell above it
+    const UP: u8 = BacktrackMatrix::UP;
+
+    /// The bitflag used to represent a score that can be reached via extending
+    /// a gap from the cell above it
+    const UP_EXTENDING: u8 = BacktrackMatrix::UP_EXTENDING;
+
+    /// The bitfag used to represent a score that can be reached via opening a
+    /// gap from the cell left of it
+    const LEFT: u8 = BacktrackMatrix::LEFT;
+
+    /// The bitflag used to represent a score that can be reached via extending
+    /// a gap from the cell left of it
+    const LEFT_EXTENDING: u8 = BacktrackMatrix::LEFT_EXTENDING;
+
+    /// The bitflag used to indicate that an alignment starts at a given cell
+    /// (i.e., the traceback should stop at that cell)
+    const STOP: u8 = BacktrackMatrix::STOP;
+
+    /// Create a new [`BandedBacktrackMatrix`] with the specified reference
+    /// length and band width.
+    ///
+    /// The total size of the matrix will be `ref_len × (2 * band_width + 1)`.
+    pub(crate) fn new(ref_len: usize, band_width: usize) -> Self {
+        Self {
+            data: vec![0u8; ref_len * (2 * band_width + 1)],
+            band_width,
+            cursor: 0,
+        }
+    }
+
+    /// Sets the [`UP`] flag for the current cell in the
+    /// [`BandedBacktrackMatrix`].
+    ///
+    /// [`UP`]: Self::UP
+    #[inline]
+    pub(crate) fn up(&mut self) {
+        self.data[self.cursor] |= Self::UP;
+    }
+
+    /// Sets the [`LEFT`] flag for the current cell in the
+    /// [`BandedBacktrackMatrix`].
+    ///
+    /// [`LEFT`]: Self::LEFT
+    #[inline]
+    pub(crate) fn left(&mut self) {
+        self.data[self.cursor] |= Self::LEFT;
+    }
+
+    /// Sets the [`UP_EXTENDING`] flag for the current cell in the
+    /// [`BandedBacktrackMatrix`].
+    ///
+    /// [`UP_EXTENDING`]: Self::UP_EXTENDING
+    #[inline]
+    pub(crate) fn up_extending(&mut self) {
+        self.data[self.cursor] |= Self::UP_EXTENDING;
+    }
+
+    /// Sets the [`LEFT_EXTENDING`] flag for the current cell in the
+    /// [`BandedBacktrackMatrix`].
+    ///
+    /// [`LEFT_EXTENDING`]: Self::LEFT_EXTENDING
+    #[inline]
+    pub(crate) fn left_extending(&mut self) {
+        self.data[self.cursor] |= Self::LEFT_EXTENDING;
+    }
+
+    /// Clears all flags then sets the [`STOP`] flag for the current cell in the
+    /// [`BandedBacktrackMatrix`].
+    ///
+    /// [`STOP`]: Self::STOP
+    #[inline]
+    pub(crate) fn stop(&mut self) {
+        self.data[self.cursor] = Self::STOP;
+    }
+}
+
+impl BackTrackable for BandedBacktrackMatrix {
+    #[inline]
+    fn move_to(&mut self, r: usize, c: usize) {
+        let band_full_width = 2 * self.band_width + 1;
+        let num_cols_skipped = r.saturating_sub(self.band_width);
+        let band_col = c - num_cols_skipped;
+        self.cursor = r * band_full_width + band_col;
+    }
+
+    #[inline]
+    fn is_up(&self) -> bool {
+        self.data[self.cursor] & Self::UP > 0
+    }
+
+    #[inline]
+    fn is_left(&self) -> bool {
+        self.data[self.cursor] & Self::LEFT > 0
+    }
+
+    #[inline]
+    fn is_left_extending(&self) -> bool {
+        self.data[self.cursor] & Self::LEFT_EXTENDING > 0
+    }
+
+    #[inline]
+    fn is_up_extending(&self) -> bool {
+        self.data[self.cursor] & Self::UP_EXTENDING > 0
+    }
+
+    #[inline]
+    fn is_stop(&self) -> bool {
+        self.data[self.cursor] & Self::STOP > 0
+    }
+
+    fn print(&self) {
+        let mut bt = self.clone();
+        let nr = self.data.len() / (2 * self.band_width + 1);
+        let nc = nr + self.band_width;
+
+        print!("    ");
+        for _ in 0..=nc {
+            print!("x");
+        }
+        println!();
+        for r in 0..nr {
+            print!("{r:02}: x");
+            let start_col = r.saturating_sub(self.band_width);
+            let end_col = r + self.band_width + 1;
+            for _ in 0..start_col {
+                print!(" ");
+            }
+            for c in start_col..end_col {
                 bt.move_to(r, c);
                 if bt.is_stop() {
                     print!("o");

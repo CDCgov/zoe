@@ -140,14 +140,101 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
         let mut h = 0;
 
         for c in 0..query.seq.len() {
-            // matching is the default direction
             backtrack.move_to(r, c);
 
+            // matching is the default direction
             let match_score = i32::from(query.matrix.get_weight(reference_base, query.seq[c]));
             h += match_score;
 
             let mut e = e_row[c];
             h = h.max(e).max(f).max(0);
+
+            if h > best_score {
+                best_score = h;
+                r_end = r;
+                c_end = c;
+            }
+
+            if e == h {
+                backtrack.up();
+            }
+
+            if f == h {
+                backtrack.left();
+            }
+
+            if h == 0 {
+                backtrack.stop();
+            }
+
+            let next_diag = h_row[c];
+            h_row[c] = h;
+
+            h += query.gap_open;
+            e = e.add(query.gap_extend).max(h);
+            f = f.add(query.gap_extend).max(h);
+
+            if h != query.gap_open {
+                if e > h {
+                    backtrack.up_extending();
+                }
+
+                if f > h {
+                    backtrack.left_extending();
+                }
+            }
+
+            h = next_diag;
+            e_row[c] = e;
+        }
+    }
+
+    if best_score == 0 {
+        MaybeAligned::Unmapped
+    } else {
+        // score is i32 and is non-negative due to this algorithm, so this is a
+        // valid cast
+        MaybeAligned::Some(backtrack.to_alignment(best_score as u32, r_end, c_end, reference.len(), query.seq.len()))
+    }
+}
+
+/// Similar to [`sw_scalar_alignment`], but allows the user to pass a closure to
+/// selectively alter certain scores in the DP table.
+///
+/// The closure `f` accepts the row index, the column index, and the old score
+/// as arguments and should yield the new score.
+#[must_use]
+#[cfg(feature = "fuzzing")]
+#[allow(clippy::cast_sign_loss)]
+pub fn sw_scalar_alignment_override<F, const S: usize>(
+    reference: &[u8], query: &ScalarProfile<S>, mut alter_score: F,
+) -> MaybeAligned<Alignment<u32>>
+where
+    F: FnMut(usize, usize, i32) -> i32, {
+    if reference.is_empty() {
+        return MaybeAligned::Unmapped;
+    }
+
+    let (mut best_score, mut r_end, mut c_end) = (0, 0, 0);
+    let mut h_row = vec![0; query.seq.len()];
+    let mut e_row = vec![query.gap_open; query.seq.len()];
+
+    let mut backtrack = BacktrackMatrix::new(reference.len(), query.seq.len());
+
+    for (r, reference_base) in reference.iter().copied().enumerate() {
+        let mut f = query.gap_open;
+        let mut h = 0;
+
+        for c in 0..query.seq.len() {
+            backtrack.move_to(r, c);
+
+            // matching is the default direction
+            let match_score = i32::from(query.matrix.get_weight(reference_base, query.seq[c]));
+            h += match_score;
+
+            let mut e = e_row[c];
+            h = h.max(e).max(f).max(0);
+            h = alter_score(r, c, h);
 
             if h > best_score {
                 best_score = h;

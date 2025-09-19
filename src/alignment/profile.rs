@@ -1,5 +1,5 @@
 #[cfg(feature = "dev-3pass")]
-use crate::alignment::sw::sw_simd_score_ranges;
+use crate::alignment::sw::{sw_banded_alignment, sw_simd_score_ranges};
 use crate::{
     alignment::{
         Alignment, MaybeAligned,
@@ -491,13 +491,13 @@ where
     #[inline]
     #[must_use]
     #[cfg(feature = "dev-3pass")]
-    pub fn smith_waterman_alignment_3pass<U>(
-        &self, reference: &[u8], original_query: &[u8], matrix: &WeightMatrix<U, S>, gap_open: i8, gap_extend: i8,
-    ) -> MaybeAligned<Alignment<u32>>
-    where
-        U: AnyInt,
-        T: From<U>, {
+    #[allow(clippy::missing_panics_doc)]
+    pub fn smith_waterman_alignment_3pass(
+        &self, reference: &[u8], original_query: &[u8], matrix: &WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
+    ) -> MaybeAligned<Alignment<u32>> {
         sw_simd_score_ranges::<T, N, S>(reference, self).and_then(|(score, ref_range, query_range)| {
+            use crate::data::views::IndexAdjustable;
+
             if query_range.is_empty() {
                 return MaybeAligned::Unmapped;
             } else if query_range.len() == ref_range.len()
@@ -505,7 +505,7 @@ where
                 && reference[ref_range.clone()]
                     .iter()
                     .zip(original_query[query_range.clone()].iter())
-                    .map(|(&r, &q)| matrix.get_weight(r, q).cast_as::<i32>())
+                    .map(|(&r, &q)| i32::from(matrix.get_weight(r, q)))
                     .sum::<i32>()
                     .try_into()
                     .unwrap_or(0)
@@ -522,25 +522,49 @@ where
                 });
             }
 
-            // Validity: we already checked scoring and that query_range is
-            // non-empty
+            // Validity: query_range is non-empty per check, and weights are
+            // same as those in self
             let query_new =
-                StripedProfile::<T, N, S>::new_unchecked(&original_query[query_range.clone()], matrix, gap_open, gap_extend);
+                ScalarProfile::<S>::new_unchecked(&original_query[query_range.clone()], matrix, gap_open, gap_extend);
             let reference_new = &reference[ref_range.clone()];
-            super::sw::sw_simd_alignment(reference_new, &query_new).map(|mut alignment| {
-                debug_assert_eq!(alignment.score, score);
-                debug_assert_eq!(alignment.ref_range, 0..reference_new.len());
-                debug_assert_eq!(alignment.query_range, 0..query_new.seq_len);
-                alignment.states.prepend_soft_clip(query_range.start);
-                alignment.states.soft_clip(original_query.len() - query_range.end);
-                Alignment {
-                    score,
-                    ref_range,
-                    query_range,
-                    states: alignment.states,
-                    ref_len: reference.len(),
-                    query_len: original_query.len(),
+
+            let mut band_width = ref_range.len().abs_diff(query_range.len()) + 1;
+
+            let max_bandwidth = (query_range.len() - 1) / 2;
+            let mut banded_alignment = None;
+
+            while band_width <= max_bandwidth {
+                if let MaybeAligned::Some(alignment) = sw_banded_alignment(reference_new, &query_new, band_width)
+                    && alignment.score == score
+                {
+                    banded_alignment = Some(alignment);
+                    break;
                 }
+                band_width *= 2;
+            }
+
+            let mut alignment = match banded_alignment {
+                Some(alignment) => alignment,
+                None => sw_scalar_alignment(reference_new, &query_new).unwrap(),
+            };
+
+            // The alignment found may not span the full bounding box, since
+            // multiple alignments of different lengths could have the same
+            // score
+            let adjusted_query_range = alignment.query_range.add(query_range.start);
+            let adjusted_ref_range = alignment.ref_range.add(ref_range.start);
+
+            // Note: banded alignment may not cover the full reference/query ranges like SIMD
+            alignment.states.prepend_soft_clip(adjusted_query_range.start);
+            alignment.states.soft_clip(original_query.len() - adjusted_query_range.end);
+
+            MaybeAligned::Some(Alignment {
+                score,
+                ref_range: adjusted_ref_range,
+                query_range: adjusted_query_range,
+                states: alignment.states,
+                ref_len: reference.len(),
+                query_len: original_query.len(),
             })
         })
     }

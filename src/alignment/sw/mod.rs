@@ -3,7 +3,7 @@
 //! For generating the optimal, local score use [`sw_simd_score`] or a wrapper
 //! thereof. Likewise, for generating an optimal, local alignment use
 //! [`sw_simd_alignment`].
-//! 
+//!
 //! For generating the two locally aligned sequences, first create an
 //! [`Alignment`], then use [`Alignment::get_aligned_seqs`].
 //!
@@ -43,7 +43,7 @@
 //! Below is an example using DNA. We use a match score of 4 and a mismatch
 //! score of -2, as defined in `WEIGHTS`. We also choose to use a
 //! `StripedProfile` (so that the SIMD algorithm is used) with integer type `i8`
-//! and 32 lanes. 
+//! and 32 lanes.
 //!
 //! ```
 //! # use zoe::{
@@ -72,7 +72,7 @@
 //! ```
 //!
 //! Below is an example using a different alphabet. Matches are given a score of
-//! 1 and mismatches are given a score of -1. 
+//! 1 and mismatches are given a score of -1.
 //! ```
 //! # use zoe::{
 //! #     alignment::{Alignment, AlignmentStates, StripedProfile},
@@ -338,8 +338,10 @@ mod test;
 #[cfg(test)]
 mod bench;
 
+mod banded;
 mod scalar;
 mod striped;
 
+pub use banded::*;
 pub use scalar::*;
 pub use striped::*;

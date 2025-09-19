@@ -234,6 +234,7 @@ pub(crate) static PHYSIOCHEMICAL_FACTORS: [[Option<f32>; 256]; 256] = {
 pub struct WeightMatrix<'a, T: AnyInt, const S: usize> {
     pub weights:     [[T; S]; S],
     pub mapping:     &'a ByteIndexMap<S>,
+    /// This field is only nonzero if `T` is unsigned
     pub(crate) bias: T,
 }
 

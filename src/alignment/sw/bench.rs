@@ -77,20 +77,20 @@ mod int16 {
     }
 
     #[bench]
-    fn sw_simd_w0256n16i(b: &mut Bencher) {
+    fn sw_simd_w0256n16i_score(b: &mut Bencher) {
         let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
         b.iter(|| sw_simd_score::<i16, 16, 5>(QUERY, &query_profile));
     }
 
     #[bench]
-    fn sw_simd_w0256n16i_2(b: &mut Bencher) {
+    fn sw_simd_w0256n16i_ends(b: &mut Bencher) {
         let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
         b.iter(|| sw_simd_score_ends::<i16, 16, 5>(QUERY, &query_profile));
     }
 
     #[cfg(feature = "dev-3pass")]
     #[bench]
-    fn sw_simd_w0256n16i_3(b: &mut Bencher) {
+    fn sw_simd_w0256n16i_ranges(b: &mut Bencher) {
         let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
         b.iter(|| sw_simd_score_ranges::<i16, 16, 5>(QUERY, &query_profile));
     }
@@ -102,20 +102,20 @@ mod int16 {
     }
 
     #[bench]
-    fn sw_simd_w0512n32i_2(b: &mut Bencher) {
+    fn sw_simd_w0512n32i_ends(b: &mut Bencher) {
         let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
         b.iter(|| sw_simd_score_ends::<i16, 32, 5>(QUERY, &query_profile));
     }
 
     #[cfg(feature = "dev-3pass")]
     #[bench]
-    fn sw_simd_w0512n32i_3(b: &mut Bencher) {
+    fn sw_simd_w0512n32i_ranges(b: &mut Bencher) {
         let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
         b.iter(|| sw_simd_score_ranges::<i16, 32, 5>(QUERY, &query_profile));
     }
 
     #[bench]
-    fn sw_simd_w0512n32i(b: &mut Bencher) {
+    fn sw_simd_w0512n32i_score(b: &mut Bencher) {
         let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
         b.iter(|| sw_simd_score::<i16, 32, 5>(QUERY, &query_profile));
     }
@@ -231,5 +231,41 @@ mod simd_aln {
             let query_profile = StripedProfile::new(REFERENCE, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
             b.iter(|| sw_simd_alignment::<i32, 32, 5>(QUERY, &query_profile));
         }
+    }
+}
+
+mod banded {
+    extern crate test;
+    use super::*;
+    use test::Bencher;
+
+    #[bench]
+    fn sw_banded_alignment_w03(b: &mut Bencher) {
+        let query_profile = &*SCALAR_PROFILE;
+        b.iter(|| sw_banded_alignment(REFERENCE, query_profile, 3));
+    }
+
+    #[bench]
+    fn sw_banded_alignment_w05(b: &mut Bencher) {
+        let query_profile = &*SCALAR_PROFILE;
+        b.iter(|| sw_banded_alignment(REFERENCE, query_profile, 5));
+    }
+
+    #[bench]
+    fn sw_banded_alignment_w10(b: &mut Bencher) {
+        let query_profile = &*SCALAR_PROFILE;
+        b.iter(|| sw_banded_alignment(REFERENCE, query_profile, 10));
+    }
+
+    #[bench]
+    fn sw_banded_alignment_w20(b: &mut Bencher) {
+        let query_profile = &*SCALAR_PROFILE;
+        b.iter(|| sw_banded_alignment(REFERENCE, query_profile, 20));
+    }
+
+    #[bench]
+    fn sw_banded_alignment_w50(b: &mut Bencher) {
+        let query_profile = &*SCALAR_PROFILE;
+        b.iter(|| sw_banded_alignment(REFERENCE, query_profile, 50));
     }
 }

@@ -8,10 +8,12 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ### Added
 
+- Added banded Smith Waterman implementation as a more memory-efficient alternative for long sequence alignment
 - Added `HeaderReadable` getter trait for record types
 - Implemented `Arbitrary` for `AlignmentStates` and added additional wrapper type (behind `fuzzing` feature gate)
 - Added Viterbi algorithm for `DomainPhmm` (behind `dev-phmm` feature gate)
 - Implemented `Arbitrary` for `SemiLocalPhmm` and `DomainPhmm` (behind `fuzzing` and `dev-phmm` feature gates)
+- Added `sw_scalar_alignment_override` for more flexible testing of dynamic programming alignment algorithms (behind `fuzzing` feature gate)
 
 ### Changed
 
