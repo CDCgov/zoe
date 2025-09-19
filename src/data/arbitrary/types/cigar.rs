@@ -171,11 +171,11 @@ where
         let mut states = AlignmentStates(vec);
 
         if Q {
-            ensure_no_query_len_overflow(&mut states);
+            clamp_query_len(&mut states, usize::MAX);
         }
 
         if R {
-            ensure_no_match_len_overflow(&mut states);
+            clamp_match_len(&mut states, usize::MAX);
         }
 
         Ok(AlignmentStatesArbitrary(states, PhantomData))
@@ -183,16 +183,24 @@ where
 }
 
 /// Removes ciglets from [`AlignmentStates`] to ensure calculating the number of
-/// residues it consumes in the query does not overflow.
-pub(crate) fn ensure_no_query_len_overflow(states: &mut AlignmentStates) {
-    if states.num_query_consumed_checked().is_none() {
+/// residues it consumes in the query does not exceed `max_query_len`.
+pub(crate) fn clamp_query_len(states: &mut AlignmentStates, max_query_len: usize) {
+    let needs_shrink = match states.num_query_consumed_checked() {
+        Some(query_len) => query_len > max_query_len,
+        None => true,
+    };
+
+    if needs_shrink {
         let mut new_vec = Vec::new();
-        let mut match_len = 0usize;
+        let mut query_len = 0usize;
         for ciglet in states.iter().copied() {
             if matches!(ciglet.op, b'M' | b'I' | b'S' | b'=' | b'X') {
-                match_len = match match_len.checked_add(ciglet.inc) {
-                    Some(match_len) => match_len,
+                query_len = match query_len.checked_add(ciglet.inc) {
+                    Some(query_len) => query_len,
                     None => break,
+                };
+                if query_len > max_query_len {
+                    break;
                 }
             }
             new_vec.push(ciglet);
@@ -202,9 +210,14 @@ pub(crate) fn ensure_no_query_len_overflow(states: &mut AlignmentStates) {
 }
 
 /// Removes ciglets from [`AlignmentStates`] to ensure calculating the number of
-/// residues it consumes in the reference does not overflow.
-pub(crate) fn ensure_no_match_len_overflow(states: &mut AlignmentStates) {
-    if states.num_ref_consumed_checked().is_none() {
+/// residues it consumes in the reference does not exceed `max_match_len`.
+pub(crate) fn clamp_match_len(states: &mut AlignmentStates, max_match_len: usize) {
+    let needs_shrink = match states.num_ref_consumed_checked() {
+        Some(match_len) => match_len > max_match_len,
+        None => true,
+    };
+
+    if needs_shrink {
         let mut new_vec = Vec::new();
         let mut match_len = 0usize;
         for ciglet in states.iter().copied() {
@@ -212,6 +225,9 @@ pub(crate) fn ensure_no_match_len_overflow(states: &mut AlignmentStates) {
                 match_len = match match_len.checked_add(ciglet.inc) {
                     Some(match_len) => match_len,
                     None => break,
+                };
+                if match_len > max_match_len {
+                    break;
                 }
             }
             new_vec.push(ciglet);

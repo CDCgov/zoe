@@ -1,9 +1,9 @@
 use crate::{
-    data::views::{Restrict, SliceRange, impl_len},
+    data::views::{Restrict, SliceRange, impl_len_for_views},
     prelude::*,
 };
 
-impl_len!(FastQ, FastQView, FastQViewMut, sequence);
+impl_len_for_views!(FastQ, FastQView, FastQViewMut, sequence);
 
 impl DataOwned for FastQ {
     type View<'a> = FastQView<'a>;

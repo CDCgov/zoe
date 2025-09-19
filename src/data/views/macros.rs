@@ -1,10 +1,10 @@
-/// A macro for implementing [`Len`], given the owning type, the view type, the
-/// mutable view type, and the name of the field which determines the length.
+/// A macro for implementing [`Len`], given the type and the name of the field
+/// which determines the length.
 ///
 /// [`Len`]: crate::data::views::Len
-macro_rules! impl_len {
-    ($owned:ident, $view:ident, $viewmut:ident, $lenfield:tt) => {
-        impl $crate::data::views::Len for $owned {
+macro_rules! impl_len_for_wrapper {
+    ($type:ident, $lenfield:tt) => {
+        impl $crate::data::views::Len for $type {
             #[inline]
             fn is_empty(&self) -> bool {
                 self.$lenfield.is_empty()
@@ -15,6 +15,16 @@ macro_rules! impl_len {
                 self.$lenfield.len()
             }
         }
+    };
+}
+
+/// A macro for implementing [`Len`], given the owning type, the view type, the
+/// mutable view type, and the name of the field which determines the length.
+///
+/// [`Len`]: crate::data::views::Len
+macro_rules! impl_len_for_views {
+    ($owned:ident, $view:ident, $viewmut:ident, $lenfield:tt) => {
+        $crate::data::views::impl_len_for_wrapper! {$owned, $lenfield}
 
         impl<'a> $crate::data::views::Len for $view<'a> {
             #[inline]
@@ -217,7 +227,8 @@ macro_rules! impl_restrict_for_wrapper {
     };
 }
 
-pub(crate) use impl_len;
+pub(crate) use impl_len_for_views;
+pub(crate) use impl_len_for_wrapper;
 pub(crate) use impl_restrict_for_wrapper;
 pub(crate) use impl_slice_for_wrapper;
 pub(crate) use impl_views_for_wrapper;

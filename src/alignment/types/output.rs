@@ -125,7 +125,22 @@ impl<T> Alignment<T> {
     /// Given the output of an alignment algorithm, generate the aligned
     /// sequences, using `-` as a gap character.
     ///
-    /// The first output is the reference, and the second is the query.
+    /// `reference` and `query` should be the full sequences originally passed
+    /// to the alignment algorithm.
+    ///
+    /// The first output is the aligned reference, and the second is the aligned
+    /// query. Portions of the reference that were not matched are not included
+    /// in the output, nor are clipped portions of the query.
+    ///
+    /// ## Panics
+    ///
+    /// This function requires the following assumptions to avoid panicking.
+    /// Note that any [`Alignment`] struct returned by a *Zoe* alignment
+    /// function will satisfy these.
+    ///
+    /// - All operations must be valid state, e.g, bytes in `MIDNSHP=X`.
+    /// - The query and reference must be at least as long as the length implied
+    ///   by the alignment operations.
     #[inline]
     #[must_use]
     pub fn get_aligned_seqs(&self, reference: &[u8], query: &[u8]) -> (Vec<u8>, Vec<u8>) {
@@ -140,6 +155,9 @@ impl<T> Alignment<T> {
     /// [`get_aligned_iter`] avoids allocations and may offer a more convenient
     /// syntax for handling gaps.
     ///
+    /// The same conditions are required as [`get_aligned_seqs`] in order for
+    /// the iterator to be non-panicking.
+    ///
     /// [`get_aligned_seqs`]: Alignment::get_aligned_seqs
     /// [`get_aligned_iter`]: Alignment::get_aligned_iter
     #[inline]
@@ -148,6 +166,54 @@ impl<T> Alignment<T> {
         &'a self, reference: &'a [u8], query: &'a [u8],
     ) -> AlignmentIter<'a, std::iter::Copied<std::slice::Iter<'a, Ciglet>>> {
         AlignmentIter::new(reference, query, &self.states, self.ref_range.start)
+    }
+
+    /// Given the output of an alignment algorithm, generate the aligned query,
+    /// using `-` as a gap character.
+    ///
+    /// This is similar to [`get_aligned_seqs`], but only requires passing the
+    /// query (and only returns the aligned query). This is useful when the
+    /// alignment is against a model or family of references (e.g., a pHMM).
+    ///
+    /// Portions of the query that were clipped are not included.
+    ///
+    /// ## Panics
+    ///
+    /// This function requires the following assumptions to avoid panicking.
+    /// Note that any [`Alignment`] struct returned by a *Zoe* alignment
+    /// function will satisfy these.
+    ///
+    /// - All operations must be valid state, e.g, bytes in `MIDNSHP=X`.
+    /// - The query must be at least as long as the length implied by the
+    ///   alignment operations.
+    ///
+    /// [`get_aligned_seqs`]: Alignment::get_aligned_seqs
+    #[allow(clippy::missing_panics_doc)]
+    pub fn get_aligned_query(&self, query: &[u8]) -> Vec<u8> {
+        let mut query_index = 0;
+        let mut query_aln = Vec::with_capacity(query.len() + (self.ref_range.len() / 2));
+
+        for Ciglet { inc, op } in &self.states {
+            match op {
+                b'M' | b'=' | b'X' | b'I' => {
+                    query_aln.extend_from_slice(&query[query_index..query_index + inc]);
+                    query_index += inc;
+                }
+                b'D' => {
+                    query_aln.extend(std::iter::repeat_n(b'-', inc));
+                }
+
+                b'S' => query_index += inc,
+                b'N' => {
+                    query_aln.extend(std::iter::repeat_n(b'N', inc));
+                }
+                b'H' | b'P' => {}
+                // TODO: Could ignore if we allow only valid CIGAR by default.
+                _ => panic!("CIGAR op '{op}' not supported.\n"),
+            }
+        }
+
+        query_aln
     }
 }
 

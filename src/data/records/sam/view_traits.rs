@@ -1,10 +1,10 @@
 use super::*;
 use crate::{
-    data::{sam::SamData, views::impl_len},
+    data::{sam::SamData, views::impl_len_for_views},
     prelude::{DataOwned, DataView, DataViewMut},
 };
 
-impl_len!(SamData, SamDataView, SamDataViewMut, seq);
+impl_len_for_views!(SamData, SamDataView, SamDataViewMut, seq);
 
 impl DataOwned for SamData {
     type View<'a>

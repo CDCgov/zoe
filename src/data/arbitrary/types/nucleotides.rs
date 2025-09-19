@@ -1,5 +1,8 @@
 use crate::{
-    data::arbitrary::{VecAsciiGraphic, VecAsciiGraphicBashSafe, impl_deref},
+    data::{
+        arbitrary::{VecAsciiGraphic, VecAsciiGraphicBashSafe, impl_deref},
+        views::impl_len_for_wrapper,
+    },
     prelude::Nucleotides,
 };
 use arbitrary::{Arbitrary, Result, Unstructured};
@@ -17,6 +20,7 @@ impl<'a> Arbitrary<'a> for Nucleotides {
 pub struct NucleotidesAsciiGraphic(pub Nucleotides);
 
 impl_deref! {NucleotidesAsciiGraphic, Nucleotides}
+impl_len_for_wrapper! {NucleotidesAsciiGraphic, 0}
 
 impl<'a> Arbitrary<'a> for NucleotidesAsciiGraphic {
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
@@ -35,6 +39,7 @@ impl<'a> Arbitrary<'a> for NucleotidesAsciiGraphic {
 pub struct NucleotidesAsciiGraphicBashSafe(pub Nucleotides);
 
 impl_deref! {NucleotidesAsciiGraphicBashSafe, Nucleotides}
+impl_len_for_wrapper! {NucleotidesAsciiGraphicBashSafe, 0}
 
 impl<'a> Arbitrary<'a> for NucleotidesAsciiGraphicBashSafe {
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
@@ -51,6 +56,7 @@ impl<'a> Arbitrary<'a> for NucleotidesAsciiGraphicBashSafe {
 pub struct NucleotidesAcgtun(pub Nucleotides);
 
 impl_deref! {NucleotidesAcgtun, Nucleotides}
+impl_len_for_wrapper! {NucleotidesAcgtun, 0}
 
 impl<'a> Arbitrary<'a> for NucleotidesAcgtun {
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
@@ -71,6 +77,7 @@ impl<'a> Arbitrary<'a> for NucleotidesAcgtun {
 pub struct NucleotidesAcgtu(pub Nucleotides);
 
 impl_deref! {NucleotidesAcgtu, Nucleotides}
+impl_len_for_wrapper! {NucleotidesAcgtu, 0}
 
 impl<'a> Arbitrary<'a> for NucleotidesAcgtu {
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
@@ -91,6 +98,7 @@ impl<'a> Arbitrary<'a> for NucleotidesAcgtu {
 pub struct NucleotidesAcgtUpper(pub Nucleotides);
 
 impl_deref! {NucleotidesAcgtUpper, Nucleotides}
+impl_len_for_wrapper! {NucleotidesAcgtUpper, 0}
 
 impl<'a> Arbitrary<'a> for NucleotidesAcgtUpper {
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
