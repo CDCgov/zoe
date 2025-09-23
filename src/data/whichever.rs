@@ -109,6 +109,7 @@ macro_rules! define_whichever {
 
         $($impl_stuff:tt)*
     ) => {
+        #[doc(hidden)]
         macro_rules! match_macro {
             ($value:expr, $pattern:pat => $result:expr) => {
                 match $value {
