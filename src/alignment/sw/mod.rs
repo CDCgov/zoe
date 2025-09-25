@@ -211,6 +211,11 @@
 //!    and local pairwise sequence alignments". BMC Bioinformatics. 17: 81. doi:
 //!    <https://doi.org/10.1186/s12859-016-0930-z>
 //!
+//! 9. Chao, K. M., Pearson, W. R. & Miller, W. (1992). "Aligning two sequences
+//!    within a specified diagonal band". Computer Applications in the
+//!    Biosciences. 8(5): 481-487. doi:
+//!    <https://doi.org/10.1093/bioinformatics/8.5.481>
+//!
 //!
 //! [`sw_scalar_score`]: sw::sw_scalar_score
 //! [`sw_simd_score`]: sw::sw_simd_score

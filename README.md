@@ -56,7 +56,7 @@ This list may not be up-to-date or exhaustive, but some example usage:
 
 ### How should this library be cited?
 
-While it is always welcome to cite *Zoe* as the implementation (see [`CITATION.bib`](https://github.com/CDCgov/zoe/blob/main/BIBLIOGRAPHY.bib))for the method being used. To that end, the innermost function (not convenience methods) usually contains all relevant citations to it (raise an issue if not). In addition, the complete bibliography of methods used in this library is included in [BibTex](https://en.wikipedia.org/wiki/BibTeX) format for easy inclusion in a mansuscript (see [`BIBLIOGRAPHY.bib`](https://github.com/CDCgov/zoe/blob/main/BIBLIOGRAPHY.bib)).
+While it is always welcome to cite *Zoe* as the implementation (see [`CITATION.bib`](https://github.com/CDCgov/zoe/blob/main/CITATION.bib)) for the method being used. To that end, the innermost function (not convenience methods) usually contains all relevant citations to it (raise an issue if not). In addition, the complete bibliography of methods used in this library is included in [BibTex](https://en.wikipedia.org/wiki/BibTeX) format for easy inclusion in a mansuscript (see [`BIBLIOGRAPHY.bib`](https://github.com/CDCgov/zoe/blob/main/BIBLIOGRAPHY.bib)).
 
 ## Crate Features
 

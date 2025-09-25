@@ -9,6 +9,8 @@ use std::ops::Add;
 /// Note that this is a heuristic approach that may not find the globally
 /// optimal alignment due to the band constraint.
 ///
+/// Based on work by (9), see **[module citations](crate::alignment::sw#module-citations)**.
+///
 /// ## Arguments
 ///
 /// * `reference` - The reference sequence

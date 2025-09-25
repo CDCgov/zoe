@@ -146,9 +146,13 @@ impl<'a, T: PhmmNumber, const S: usize> ViterbiStrategy<'a, T, S> for DomainVite
     }
 }
 
+/// A tracker for the best score for the domain Viterbi algorithm.
 pub struct DomainBestScore<T> {
+    /// The best score found at the end of the model
     score: T,
+    /// The last query index consumed by the [`CorePhmm`]
     i:     DpIndex,
+    /// The state from which the END state was reached
     ptr:   PhmmState,
 }
 
