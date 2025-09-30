@@ -51,14 +51,29 @@ pub fn sw_banded_alignment<const S: usize>(
     let mut e_row = vec![query.gap_open; q_len];
     let mut backtrack = BandedBacktrackMatrix::new(reference.len(), band_width);
 
+    // The previous value of h in the row above and the furthest left column
+    // (column r-band_with, or 0 if this is outside of the DP table)
     let mut h_store = 0;
 
     for (r, reference_base) in reference.iter().copied().enumerate() {
         let mut f = query.gap_open;
+        // Initialize h to the value of h one above and one left, or to 0 if
+        // this is out of bounds
         let mut h = h_store;
 
         let start_col = r.saturating_sub(band_width);
         let end_col = (r + band_width + 1).min(q_len);
+
+        if start_col >= end_col {
+            break;
+        }
+
+        if start_col + band_width == r {
+            let match_score = i32::from(query.matrix.get_weight(reference_base, query.seq[start_col]));
+            let e = e_row[start_col];
+            // Cannot be reached via f, since that is out of the band
+            h_store = (h + match_score).max(e).max(0);
+        }
 
         for c in start_col..end_col {
             backtrack.move_to(r, c);
@@ -69,11 +84,6 @@ pub fn sw_banded_alignment<const S: usize>(
 
             let mut e = e_row[c];
             h = h.max(e).max(f).max(0);
-
-            // TODO: THIS IS INEFFICIENT
-            if c + band_width == r {
-                h_store = h;
-            }
 
             if h > best_score {
                 best_score = h;
