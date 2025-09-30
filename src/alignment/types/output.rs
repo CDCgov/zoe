@@ -103,7 +103,7 @@ impl<T> MaybeAligned<T> {
 /// A struct representing the information for an alignment, such as its score
 /// and where in the sequences it occurs.
 #[non_exhaustive]
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug, Default)]
 pub struct Alignment<T> {
     /// The score of the alignment
     pub score:       T,
