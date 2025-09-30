@@ -14,6 +14,10 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 - Modified Viterbi algorithm to use compact bit representation instead of array (behind `dev-phmm` feature gate)
 
+### Fixed
+
+- The `fuzzing` feature now successfully compiles even when `dev-phmm` is not enabled
+
 ## [0.0.22] - 2025-09-25
 
 ### Added

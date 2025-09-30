@@ -1,160 +1,3 @@
-/// A trait unifying the methods for comparing two floating point numbers. This
-/// is implemented for [`NearlyEqualStrategy`] (provided methods for comparing
-/// floats) and `Fn(T, T) -> bool` closures (custom comparison methods).
-///
-/// <div class="warning">
-///
-/// **Warning**
-///
-/// This is an implementation detail and *should not* be called directly! Use
-/// [`is_fp_equal`] or [`assert_fp_equal`] instead.
-///
-/// </div>
-#[doc(hidden)]
-pub trait NearlyEqualMethod<T> {
-    fn nearly_equal_float(&self, a: T, b: T) -> bool;
-}
-
-/// An enum for provided floating point comparison methods.
-///
-/// <div class="warning">
-///
-/// **Warning**
-///
-/// This is an implementation detail and *should not* be called directly! Use
-/// [`is_fp_equal`] or [`assert_fp_equal`] instead.
-///
-/// </div>
-#[doc(hidden)]
-pub enum NearlyEqualStrategy<T> {
-    /// Compare the floating point values using relative error with a tolerance
-    /// of `eps`
-    Relative { eps: T },
-    /// Compare the floating point values using absolute error with a tolerance
-    /// of `eps`
-    Absolute { eps: T },
-}
-
-impl<T: Float> NearlyEqualMethod<T> for NearlyEqualStrategy<T> {
-    /// Tests if two floating points are approximately equal within an epsilon.
-    /// Relative error port courtesy of
-    /// <https://floating-point-gui.de/errors/comparison/>
-    fn nearly_equal_float(&self, a: T, b: T) -> bool {
-        match self {
-            NearlyEqualStrategy::Relative { eps } => {
-                let abs_a = a.abs();
-                let abs_b = b.abs();
-                let diff = (a - b).abs();
-
-                if a == b {
-                    // shortcut, handles infinities
-                    true
-                } else if a == T::ZERO || b == T::ZERO || (abs_a + abs_b < T::MIN_POSITIVE) {
-                    // a or b is zero or both are extremely close to it
-                    // relative error is less meaningful here
-                    diff < *eps * T::MIN_POSITIVE
-                } else {
-                    // use relative error
-                    diff / (abs_a + abs_b).min(T::MAX) < *eps
-                }
-            }
-            NearlyEqualStrategy::Absolute { eps } => a == b || (a - b).abs() < *eps,
-        }
-    }
-}
-
-impl<T: Float, F: Fn(T, T) -> bool> NearlyEqualMethod<T> for F {
-    fn nearly_equal_float(&self, a: T, b: T) -> bool {
-        self(a, b)
-    }
-}
-
-/// A trait for enabling equality comparisons involving floating point numbers
-/// using a given comparison method. This trait can be implemented for
-/// primitives and for more complex types containing floating point numbers. `T`
-/// is the underlying floating point type (and the type used for the tolerance).
-///
-/// <div class="warning">
-///
-/// **Warning**
-///
-/// This is an implementation detail and *should not* be called directly! Use
-/// [`is_fp_equal`] or [`assert_fp_equal`] instead.
-///
-/// </div>
-#[doc(hidden)]
-pub trait NearlyEqual<T> {
-    /// Check whether two types are approximately equal using `method`. The
-    /// first value in the tuple is whether they are approximately equal.
-    ///
-    /// The second is optionally a tuple of floats which are responsible for the
-    /// inequality. For example, if two unequal `Vec<f32>` are being compared,
-    /// then the second value will be `None` if the vecs are unequal due to
-    /// being different lengths, or otherwise will be `Some(val1, val2)` where
-    /// `val1` and `val2` are the first unequal floats.
-    fn nearly_equal<M: NearlyEqualMethod<T>>(&self, b: &Self, method: &M) -> (bool, Option<(T, T)>);
-}
-
-/// Implement [`NearlyEqual`] for floating point primitives.
-macro_rules! impl_float_nearly_equal {
-    {$($ty:ty),* } => {
-        $(
-            impl NearlyEqual<$ty> for $ty {
-                #[inline]
-                #[allow(clippy::float_cmp)]
-                fn nearly_equal<M: NearlyEqualMethod<$ty>>(&self, b: &Self, strategy: &M) -> (bool, Option<($ty, $ty)>) {
-                    if strategy.nearly_equal_float(*self, *b) {
-                        (true, None)
-                    } else {
-                        (false, Some((*self, *b)))
-                    }
-                }
-            }
-        )*
-    }
-}
-
-impl_float_nearly_equal!(f32, f64);
-
-impl<T, S: NearlyEqual<T>> NearlyEqual<T> for Option<S> {
-    #[inline]
-    fn nearly_equal<M: NearlyEqualMethod<T>>(&self, b: &Self, strategy: &M) -> (bool, Option<(T, T)>) {
-        match (self, b) {
-            (Some(x), Some(y)) => x.nearly_equal(y, strategy),
-            (None, None) => (true, None),
-            _ => (false, None),
-        }
-    }
-}
-
-impl<T: Copy, S: NearlyEqual<T>, const N: usize> NearlyEqual<T> for [S; N] {
-    #[inline]
-    fn nearly_equal<M: NearlyEqualMethod<T>>(&self, b: &Self, strategy: &M) -> (bool, Option<(T, T)>) {
-        for (eq, vals) in self.iter().zip(b).map(|(x, y)| x.nearly_equal(y, strategy)) {
-            if !eq {
-                return (false, vals);
-            }
-        }
-        (true, None)
-    }
-}
-
-impl<T: Copy, S: NearlyEqual<T>> NearlyEqual<T> for Vec<S> {
-    #[inline]
-    fn nearly_equal<M: NearlyEqualMethod<T>>(&self, b: &Self, strategy: &M) -> (bool, Option<(T, T)>) {
-        if self.len() == b.len() {
-            for (eq, vals) in self.iter().zip(b).map(|(x, y)| x.nearly_equal(y, strategy)) {
-                if !eq {
-                    return (false, vals);
-                }
-            }
-            (true, None)
-        } else {
-            (false, None)
-        }
-    }
-}
-
 /// Assert that two floating point values are approximately equal.
 ///
 /// ## Comparison Options
@@ -275,6 +118,163 @@ macro_rules! is_fp_eq {
     (@custom, $a:expr, $b:expr, $closure:expr) => {
         $crate::math::NearlyEqual::nearly_equal(&$a, &$b, &$closure).0
     };
+}
+
+/// A trait unifying the methods for comparing two floating point numbers. This
+/// is implemented for [`NearlyEqualStrategy`] (provided methods for comparing
+/// floats) and `Fn(T, T) -> bool` closures (custom comparison methods).
+///
+/// <div class="warning">
+///
+/// **Warning**
+///
+/// This is an implementation detail and *should not* be called directly! Use
+/// [`is_fp_eq`] or [`assert_fp_eq`] instead.
+///
+/// </div>
+#[doc(hidden)]
+pub trait NearlyEqualMethod<T> {
+    fn nearly_equal_float(&self, a: T, b: T) -> bool;
+}
+
+/// An enum for provided floating point comparison methods.
+///
+/// <div class="warning">
+///
+/// **Warning**
+///
+/// This is an implementation detail and *should not* be called directly! Use
+/// [`is_fp_eq`] or [`assert_fp_eq`] instead.
+///
+/// </div>
+#[doc(hidden)]
+pub enum NearlyEqualStrategy<T> {
+    /// Compare the floating point values using relative error with a tolerance
+    /// of `eps`
+    Relative { eps: T },
+    /// Compare the floating point values using absolute error with a tolerance
+    /// of `eps`
+    Absolute { eps: T },
+}
+
+impl<T: Float> NearlyEqualMethod<T> for NearlyEqualStrategy<T> {
+    /// Tests if two floating points are approximately equal within an epsilon.
+    /// Relative error port courtesy of
+    /// <https://floating-point-gui.de/errors/comparison/>
+    fn nearly_equal_float(&self, a: T, b: T) -> bool {
+        match self {
+            NearlyEqualStrategy::Relative { eps } => {
+                let abs_a = a.abs();
+                let abs_b = b.abs();
+                let diff = (a - b).abs();
+
+                if a == b {
+                    // shortcut, handles infinities
+                    true
+                } else if a == T::ZERO || b == T::ZERO || (abs_a + abs_b < T::MIN_POSITIVE) {
+                    // a or b is zero or both are extremely close to it
+                    // relative error is less meaningful here
+                    diff < *eps * T::MIN_POSITIVE
+                } else {
+                    // use relative error
+                    diff / (abs_a + abs_b).min(T::MAX) < *eps
+                }
+            }
+            NearlyEqualStrategy::Absolute { eps } => a == b || (a - b).abs() < *eps,
+        }
+    }
+}
+
+impl<T: Float, F: Fn(T, T) -> bool> NearlyEqualMethod<T> for F {
+    fn nearly_equal_float(&self, a: T, b: T) -> bool {
+        self(a, b)
+    }
+}
+
+/// A trait for enabling equality comparisons involving floating point numbers
+/// using a given comparison method. This trait can be implemented for
+/// primitives and for more complex types containing floating point numbers. `T`
+/// is the underlying floating point type (and the type used for the tolerance).
+///
+/// <div class="warning">
+///
+/// **Warning**
+///
+/// This is an implementation detail and *should not* be called directly! Use
+/// [`is_fp_eq`] or [`assert_fp_eq`] instead.
+///
+/// </div>
+#[doc(hidden)]
+pub trait NearlyEqual<T> {
+    /// Check whether two types are approximately equal using `method`. The
+    /// first value in the tuple is whether they are approximately equal.
+    ///
+    /// The second is optionally a tuple of floats which are responsible for the
+    /// inequality. For example, if two unequal `Vec<f32>` are being compared,
+    /// then the second value will be `None` if the vecs are unequal due to
+    /// being different lengths, or otherwise will be `Some(val1, val2)` where
+    /// `val1` and `val2` are the first unequal floats.
+    fn nearly_equal<M: NearlyEqualMethod<T>>(&self, b: &Self, method: &M) -> (bool, Option<(T, T)>);
+}
+
+/// Implement [`NearlyEqual`] for floating point primitives.
+macro_rules! impl_float_nearly_equal {
+    {$($ty:ty),* } => {
+        $(
+            impl NearlyEqual<$ty> for $ty {
+                #[inline]
+                #[allow(clippy::float_cmp)]
+                fn nearly_equal<M: NearlyEqualMethod<$ty>>(&self, b: &Self, strategy: &M) -> (bool, Option<($ty, $ty)>) {
+                    if strategy.nearly_equal_float(*self, *b) {
+                        (true, None)
+                    } else {
+                        (false, Some((*self, *b)))
+                    }
+                }
+            }
+        )*
+    }
+}
+
+impl_float_nearly_equal!(f32, f64);
+
+impl<T, S: NearlyEqual<T>> NearlyEqual<T> for Option<S> {
+    #[inline]
+    fn nearly_equal<M: NearlyEqualMethod<T>>(&self, b: &Self, strategy: &M) -> (bool, Option<(T, T)>) {
+        match (self, b) {
+            (Some(x), Some(y)) => x.nearly_equal(y, strategy),
+            (None, None) => (true, None),
+            _ => (false, None),
+        }
+    }
+}
+
+impl<T: Copy, S: NearlyEqual<T>, const N: usize> NearlyEqual<T> for [S; N] {
+    #[inline]
+    fn nearly_equal<M: NearlyEqualMethod<T>>(&self, b: &Self, strategy: &M) -> (bool, Option<(T, T)>) {
+        for (eq, vals) in self.iter().zip(b).map(|(x, y)| x.nearly_equal(y, strategy)) {
+            if !eq {
+                return (false, vals);
+            }
+        }
+        (true, None)
+    }
+}
+
+impl<T: Copy, S: NearlyEqual<T>> NearlyEqual<T> for Vec<S> {
+    #[inline]
+    fn nearly_equal<M: NearlyEqualMethod<T>>(&self, b: &Self, strategy: &M) -> (bool, Option<(T, T)>) {
+        if self.len() == b.len() {
+            for (eq, vals) in self.iter().zip(b).map(|(x, y)| x.nearly_equal(y, strategy)) {
+                if !eq {
+                    return (false, vals);
+                }
+            }
+            (true, None)
+        } else {
+            (false, None)
+        }
+    }
 }
 
 use super::Float;

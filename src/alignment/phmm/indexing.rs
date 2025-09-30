@@ -158,10 +158,9 @@ pub trait PhmmIndex: IndexOffset {
     /// type to control how it gets coverted to a dynamic programming index
     fn get_phmm_dp_index(&self, v: &impl PhmmIndexable) -> usize;
 
+    // TODO: Doc link
     /// Hook to allow the `End` index literal to be detected separately than the
-    /// rest (e.g., for [`get_layer`] in [`CorePhmm`])
-    ///
-    /// [`get_layer`]: CorePhmm::get_layer
+    /// rest (e.g., for `get_layer` in [`CorePhmm`])
     #[inline]
     fn is_end(&self) -> bool {
         false
@@ -218,13 +217,12 @@ pub struct FirstMatch;
 #[derive(Clone, Copy)]
 pub struct LastMatch;
 
+// TODO: Doc link
 /// A [`PhmmIndex`] representing the END state of the pHMM.
 ///
-/// When used to get a layer from a pHMM with [`get_layer`], this is treated as
+/// When used to get a layer from a pHMM with `get_layer`, this is treated as
 /// the same thing as [`LastMatch`] since the END state does not have its own
 /// layer.
-///
-/// [`get_layer`]: CorePhmm::get_layer
 #[derive(Clone, Copy)]
 pub struct End;
 
