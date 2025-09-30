@@ -2,6 +2,13 @@ use super::AlignmentStates;
 use crate::data::types::cigar::{Cigar, CigarError, Ciglet, CigletIteratorChecked};
 use std::fmt::Write;
 
+impl AsRef<[Ciglet]> for AlignmentStates {
+    #[inline]
+    fn as_ref(&self) -> &[Ciglet] {
+        &self.0
+    }
+}
+
 impl Default for AlignmentStates {
     #[inline]
     fn default() -> Self {

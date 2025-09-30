@@ -444,8 +444,8 @@ where
 ///
 /// [`seq_len`]: PhmmIndexable::seq_len
 fn visit_params_core<T, const S: usize, F>(
-    core: &CorePhmm<T, S>, mapping: &ByteIndexMap<S>, seq_in_alignment: &[u8], ref_range: Range<usize>,
-    ciglets: impl IntoIterator<Item = Ciglet>, score: &mut T, f: &mut F,
+    core: &CorePhmm<T, S>, mapping: &ByteIndexMap<S>, seq_in_alignment: &[u8], ref_range: Range<usize>, ciglets: &[Ciglet],
+    score: &mut T, f: &mut F,
 ) -> Result<PhmmState, PhmmError>
 where
     T: PhmmNumber,
@@ -453,9 +453,7 @@ where
     use PhmmState::*;
 
     // TODO: Improve ergonomics later...
-    let mut op_iter = ciglets
-        .into_iter()
-        .flat_map(|ciglet| std::iter::repeat_n(ciglet.op, ciglet.inc));
+    let mut op_iter = ciglets.iter().flat_map(|ciglet| std::iter::repeat_n(ciglet.op, ciglet.inc));
 
     let Some(op) = op_iter.next() else {
         if ref_range.is_empty() {
@@ -712,16 +710,26 @@ impl<T: PhmmNumber, const S: usize> GlobalPhmm<T, S> {
     /// only supported operations are M, =, X, I, and D.
     ///
     /// [`viterbi`]: GlobalPhmm::viterbi
-    pub fn visit_params<Q, F>(&self, seq: Q, alignment: &AlignmentStates, mut f: F) -> Result<T, PhmmError>
+    pub fn visit_params<Q, A, F>(&self, seq: Q, alignment: A, f: F) -> Result<T, PhmmError>
     where
         Q: AsRef<[u8]>,
+        A: AsRef<[Ciglet]>,
+        F: FnMut(PhmmParam<T>), {
+        self.visit_params_helper(seq.as_ref(), alignment.as_ref(), f)
+    }
+
+    /// See [`visit_params`]. This is a helper function to reduce
+    /// monomorphization.
+    ///
+    /// [`visit_params`]: GlobalPhmm::visit_params
+    fn visit_params_helper<F>(&self, seq: &[u8], ciglets: &[Ciglet], mut f: F) -> Result<T, PhmmError>
+    where
         F: FnMut(PhmmParam<T>), {
         use PhmmState::*;
 
-        let seq = seq.as_ref();
         let mut score = T::ZERO;
 
-        let first_op = alignment.iter().next().ok_or(PhmmError::FullModelNotUsed)?.op;
+        let first_op = ciglets.iter().next().ok_or(PhmmError::FullModelNotUsed)?.op;
         let first_state = PhmmState::from_op(first_op)?;
 
         // Get transition from BEGIN state the actual first state
@@ -744,7 +752,7 @@ impl<T: PhmmNumber, const S: usize> GlobalPhmm<T, S> {
             self.mapping(),
             seq,
             0..self.seq_len(),
-            alignment,
+            ciglets,
             &mut score,
             &mut f,
         )?;
@@ -767,70 +775,6 @@ impl<T: PhmmNumber, const S: usize> GlobalPhmm<T, S> {
 }
 
 impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
-    /// Performs an action on each parameter that is encountered as an empty
-    /// alignment (all soft clipping) is taken through a pHMM.
-    ///
-    /// The action to perform is specified by closure `f`, which takes a
-    /// [`PhmmParam`] (which is a helper struct containing any relevant
-    /// information about the parameter). The closure may mutate state as
-    /// needed.
-    ///
-    /// The score is also summed and returned. This is designed to give the
-    /// exact same score as [`viterbi`] when the best alignment is indeed empty,
-    /// performing all arithmetic operations in the same order so as not to
-    /// change the floating point error.
-    ///
-    /// There is ambiguity as to which query bases are consumed by the module at
-    /// the beginning of the pHMM and the model at the end. This is resolved by
-    /// choosing the grouping with the minimal score. If there is a tie,
-    /// residues are included in the module at the beginning.
-    ///
-    /// [`viterbi`]: LocalPhmm::viterbi
-    fn visit_params_empty_alignment<Q, F>(&self, seq: Q, mut f: F) -> T
-    where
-        Q: AsRef<[u8]>,
-        F: FnMut(PhmmParam<T>), {
-        let seq = seq.as_ref();
-
-        let mut best_i = 0;
-        let mut best_state = self.to_dp_index(Begin);
-        let mut best_score = T::INFINITY;
-
-        for i in 0..=seq.len() {
-            let (inserted_begin, inserted_end) = seq.split_at(i);
-            for through_state in [self.to_dp_index(Begin), self.to_dp_index(End)] {
-                let begin_score = self.begin().internal_params.get_begin_score(inserted_begin, self.mapping())
-                    + self.get_begin_external_score(through_state);
-                let end_score =
-                    self.get_end_internal_score(inserted_end, self.mapping()) + self.get_end_external_score(through_state);
-                let score = begin_score + end_score;
-
-                if score < best_score {
-                    best_i = i;
-                    best_state = through_state;
-                    best_score = score;
-                }
-            }
-        }
-
-        let (inserted_begin, inserted_end) = seq.split_at(best_i);
-        f(PhmmParam::new_begin_local(
-            self.begin().internal_params.get_begin_score(inserted_begin, self.mapping()),
-            inserted_begin.to_vec(),
-            self.get_begin_external_score(best_state),
-            best_state,
-            self,
-        ));
-        f(PhmmParam::new_end_local(
-            self.get_end_internal_score(inserted_end, self.mapping()),
-            inserted_end.to_vec(),
-            self.get_end_external_score(best_state),
-            best_state,
-            self,
-        ));
-        best_score
-    }
-
     /// Performs an action on each parameter that is encountered as a particular
     /// alignment is taken through a pHMM.
     ///
@@ -856,16 +800,26 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
     ///
     /// [`viterbi`]: LocalPhmm::viterbi
     #[allow(clippy::too_many_lines)]
-    pub fn visit_params<Q, F>(
-        &self, seq: Q, alignment: &AlignmentStates, ref_range: Range<usize>, mut f: F,
-    ) -> Result<T, PhmmError>
+    pub fn visit_params<Q, A, F>(&self, seq: Q, alignment: A, ref_range: Range<usize>, f: F) -> Result<T, PhmmError>
     where
         Q: AsRef<[u8]>,
+        A: AsRef<[Ciglet]>,
+        F: FnMut(PhmmParam<T>), {
+        self.visit_params_helper(seq.as_ref(), alignment.as_ref(), ref_range, f)
+    }
+
+    /// See [`visit_params`]. This is a helper function to reduce
+    /// monomorphization.
+    ///
+    /// [`visit_params`]: LocalPhmm::visit_params
+    #[allow(clippy::too_many_lines)]
+    fn visit_params_helper<F>(
+        &self, seq: &[u8], mut ciglets: &[Ciglet], ref_range: Range<usize>, mut f: F,
+    ) -> Result<T, PhmmError>
+    where
         F: FnMut(PhmmParam<T>), {
         use PhmmState::*;
 
-        let seq = seq.as_ref();
-        let mut ciglets = alignment.as_slice();
         let mut score = T::ZERO;
 
         // Split query between begin module, core pHMM, and end module
@@ -929,7 +883,7 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
             self.mapping(),
             seq,
             ref_range.clone(),
-            ciglets.iter().copied(),
+            ciglets,
             &mut score,
             &mut f,
         )?;
@@ -983,6 +937,67 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
 
         Ok(score)
     }
+
+    /// Performs an action on each parameter that is encountered as an empty
+    /// alignment (all soft clipping) is taken through a pHMM.
+    ///
+    /// The action to perform is specified by closure `f`, which takes a
+    /// [`PhmmParam`] (which is a helper struct containing any relevant
+    /// information about the parameter). The closure may mutate state as
+    /// needed.
+    ///
+    /// The score is also summed and returned. This is designed to give the
+    /// exact same score as [`viterbi`] when the best alignment is indeed empty,
+    /// performing all arithmetic operations in the same order so as not to
+    /// change the floating point error.
+    ///
+    /// There is ambiguity as to which query bases are consumed by the module at
+    /// the beginning of the pHMM and the model at the end. This is resolved by
+    /// choosing the grouping with the minimal score. If there is a tie,
+    /// residues are included in the module at the beginning.
+    ///
+    /// [`viterbi`]: LocalPhmm::viterbi
+    fn visit_params_empty_alignment<F>(&self, seq: &[u8], mut f: F) -> T
+    where
+        F: FnMut(PhmmParam<T>), {
+        let mut best_i = 0;
+        let mut best_state = self.to_dp_index(Begin);
+        let mut best_score = T::INFINITY;
+
+        for i in 0..=seq.len() {
+            let (inserted_begin, inserted_end) = seq.split_at(i);
+            for through_state in [self.to_dp_index(Begin), self.to_dp_index(End)] {
+                let begin_score = self.begin().internal_params.get_begin_score(inserted_begin, self.mapping())
+                    + self.get_begin_external_score(through_state);
+                let end_score =
+                    self.get_end_internal_score(inserted_end, self.mapping()) + self.get_end_external_score(through_state);
+                let score = begin_score + end_score;
+
+                if score < best_score {
+                    best_i = i;
+                    best_state = through_state;
+                    best_score = score;
+                }
+            }
+        }
+
+        let (inserted_begin, inserted_end) = seq.split_at(best_i);
+        f(PhmmParam::new_begin_local(
+            self.begin().internal_params.get_begin_score(inserted_begin, self.mapping()),
+            inserted_begin.to_vec(),
+            self.get_begin_external_score(best_state),
+            best_state,
+            self,
+        ));
+        f(PhmmParam::new_end_local(
+            self.get_end_internal_score(inserted_end, self.mapping()),
+            inserted_end.to_vec(),
+            self.get_end_external_score(best_state),
+            best_state,
+            self,
+        ));
+        best_score
+    }
 }
 
 impl<T: PhmmNumber, const S: usize> DomainPhmm<T, S> {
@@ -1007,14 +1022,22 @@ impl<T: PhmmNumber, const S: usize> DomainPhmm<T, S> {
     /// [`PhmmError::InvalidPath`] is returned.
     ///
     /// [`viterbi`]: DomainPhmm::viterbi
-    pub fn visit_params<Q, F>(&self, seq: Q, alignment: &AlignmentStates, mut f: F) -> Result<T, PhmmError>
+    pub fn visit_params<Q, F>(&self, seq: Q, alignment: &AlignmentStates, f: F) -> Result<T, PhmmError>
     where
         Q: AsRef<[u8]>,
         F: FnMut(PhmmParam<T>), {
+        self.visit_params_helper(seq.as_ref(), alignment.as_ref(), f)
+    }
+
+    /// See [`visit_params`]. This is a helper function to reduce
+    /// monomorphization.
+    ///
+    /// [`visit_params`]: DomainPhmm::visit_params
+    fn visit_params_helper<F>(&self, seq: &[u8], mut ciglets: &[Ciglet], mut f: F) -> Result<T, PhmmError>
+    where
+        F: FnMut(PhmmParam<T>), {
         use PhmmState::*;
 
-        let seq = seq.as_ref();
-        let mut ciglets = alignment.as_slice();
         let mut score = T::ZERO;
 
         // Split query between begin module, core pHMM, and end module
@@ -1056,7 +1079,7 @@ impl<T: PhmmNumber, const S: usize> DomainPhmm<T, S> {
             self.mapping(),
             seq,
             0..self.seq_len(),
-            ciglets.iter().copied(),
+            ciglets,
             &mut score,
             &mut f,
         )?;
@@ -1086,50 +1109,6 @@ impl<T: PhmmNumber, const S: usize> DomainPhmm<T, S> {
 }
 
 impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
-    /// Performs an action on each parameter that is encountered as an empty
-    /// alignment is taken through a pHMM. This means that the original sequence
-    /// was empty too!
-    ///
-    /// The action to perform is specified by closure `f`, which takes a
-    /// [`PhmmParam`] (which is a helper struct containing any relevant
-    /// information about the parameter). The closure may mutate state as
-    /// needed.
-    ///
-    /// The score is also summed and returned. This is designed to give the
-    /// exact same score as [`viterbi`] when the best alignment is indeed empty,
-    /// performing all arithmetic operations in the same order so as not to
-    /// change the floating point error.
-    ///
-    /// There is ambiguity as to whether to pass through the Begin or End state.
-    /// This is resolved by choosing the state with the minimal score. If there
-    /// is a tie, the Begin state is used.
-    ///
-    /// [`viterbi`]: SemiLocalPhmm::viterbi
-    fn visit_params_empty_alignment<F>(&self, mut f: F) -> T
-    where
-        F: FnMut(PhmmParam<T>), {
-        let score_through_begin = self.get_begin_score(Begin) + self.get_end_score(Begin);
-        let score_through_end = self.get_begin_score(End) + self.get_end_score(End);
-
-        let (score, through_state) = if score_through_begin <= score_through_end {
-            (score_through_begin, self.to_dp_index(Begin))
-        } else {
-            (score_through_end, self.to_dp_index(End))
-        };
-
-        f(PhmmParam::new_begin_semilocal(
-            self.get_begin_score(through_state),
-            through_state,
-            self,
-        ));
-        f(PhmmParam::new_end_semilocal(
-            self.get_end_score(through_state),
-            through_state,
-            self,
-        ));
-        score
-    }
-
     /// Performs an action on each parameter that is encountered as a particular
     /// alignment is taken through a pHMM.
     ///
@@ -1155,15 +1134,25 @@ impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
     ///
     /// [`viterbi`]: SemiLocalPhmm::viterbi
     pub fn visit_params<Q, F>(
-        &self, seq: Q, alignment: &AlignmentStates, ref_range: Range<usize>, mut f: F,
+        &self, seq: Q, alignment: &AlignmentStates, ref_range: Range<usize>, f: F,
     ) -> Result<T, PhmmError>
     where
         Q: AsRef<[u8]>,
         F: FnMut(PhmmParam<T>), {
+        self.visit_params_helper(seq.as_ref(), alignment.as_ref(), ref_range, f)
+    }
+
+    /// See [`visit_params`]. This is a helper function to reduce
+    /// monomorphization.
+    ///
+    /// [`visit_params`]: SemiLocalPhmm::visit_params
+    fn visit_params_helper<F>(
+        &self, seq: &[u8], ciglets: &[Ciglet], ref_range: Range<usize>, mut f: F,
+    ) -> Result<T, PhmmError>
+    where
+        F: FnMut(PhmmParam<T>), {
         use PhmmState::*;
 
-        let seq = seq.as_ref();
-        let ciglets = alignment.as_slice();
         let mut score = T::ZERO;
 
         if ciglets.peek_op().is_none() {
@@ -1213,7 +1202,7 @@ impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
             self.mapping(),
             seq,
             ref_range.clone(),
-            ciglets.iter().copied(),
+            ciglets,
             &mut score,
             &mut f,
         )?;
@@ -1250,5 +1239,49 @@ impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
         }
 
         Ok(score)
+    }
+
+    /// Performs an action on each parameter that is encountered as an empty
+    /// alignment is taken through a pHMM. This means that the original sequence
+    /// was empty too!
+    ///
+    /// The action to perform is specified by closure `f`, which takes a
+    /// [`PhmmParam`] (which is a helper struct containing any relevant
+    /// information about the parameter). The closure may mutate state as
+    /// needed.
+    ///
+    /// The score is also summed and returned. This is designed to give the
+    /// exact same score as [`viterbi`] when the best alignment is indeed empty,
+    /// performing all arithmetic operations in the same order so as not to
+    /// change the floating point error.
+    ///
+    /// There is ambiguity as to whether to pass through the Begin or End state.
+    /// This is resolved by choosing the state with the minimal score. If there
+    /// is a tie, the Begin state is used.
+    ///
+    /// [`viterbi`]: SemiLocalPhmm::viterbi
+    fn visit_params_empty_alignment<F>(&self, mut f: F) -> T
+    where
+        F: FnMut(PhmmParam<T>), {
+        let score_through_begin = self.get_begin_score(Begin) + self.get_end_score(Begin);
+        let score_through_end = self.get_begin_score(End) + self.get_end_score(End);
+
+        let (score, through_state) = if score_through_begin <= score_through_end {
+            (score_through_begin, self.to_dp_index(Begin))
+        } else {
+            (score_through_end, self.to_dp_index(End))
+        };
+
+        f(PhmmParam::new_begin_semilocal(
+            self.get_begin_score(through_state),
+            through_state,
+            self,
+        ));
+        f(PhmmParam::new_end_semilocal(
+            self.get_end_score(through_state),
+            through_state,
+            self,
+        ));
+        score
     }
 }
