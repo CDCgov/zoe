@@ -138,7 +138,14 @@ impl<T: PhmmNumber, const S: usize> DomainModule<T, S> {
         let mut emissions_sum = T::ZERO;
         for (i, x_idx) in seq.iter().map(|x| mapping.to_index(*x)).enumerate() {
             emissions_sum += self.background_emission[x_idx];
-            internal_params[i + 1] += emissions_sum + T::cast_from(i) * self.insert_to_insert;
+            // Special casing needed in case insert_to_insert is infinite,
+            // causing a NAN to appear when multiplied by 0
+            let insert_to_insert = if i > 0 {
+                T::cast_from(i) * self.insert_to_insert
+            } else {
+                T::ZERO
+            };
+            internal_params[i + 1] += emissions_sum + insert_to_insert;
         }
 
         PrecomputedDomainModule(internal_params)
@@ -159,7 +166,14 @@ impl<T: PhmmNumber, const S: usize> DomainModule<T, S> {
         let mut emissions_sum = T::ZERO;
         for (i, x_idx) in seq.iter().rev().map(|x| mapping.to_index(*x)).enumerate() {
             emissions_sum += self.background_emission[x_idx];
-            internal_params[seq.len() - i - 1] += emissions_sum + T::cast_from(i) * self.insert_to_insert;
+            // Special casing needed in case insert_to_insert is infinite,
+            // causing a NAN to appear when multiplied by 0
+            let insert_to_insert = if i > 0 {
+                T::cast_from(i) * self.insert_to_insert
+            } else {
+                T::ZERO
+            };
+            internal_params[seq.len() - i - 1] += emissions_sum + insert_to_insert;
         }
 
         PrecomputedDomainModule(internal_params)

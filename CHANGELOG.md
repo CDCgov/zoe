@@ -17,6 +17,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 ### Fixed
 
 - The `fuzzing` feature now successfully compiles even when `dev-phmm` is not enabled
+- Fixed another NaN error that would occur when certain transitions in a pHMM were zero probability (behind `dev-phmm` feature gate)
 
 ## [0.0.22] - 2025-09-25
 
