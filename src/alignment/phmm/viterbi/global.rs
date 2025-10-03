@@ -1,10 +1,11 @@
-use crate::alignment::phmm::{PhmmBacktrackFlags, PhmmTracebackState, ViterbiTraceback, best_state};
+use super::{BestScore, ViterbiStrategy, ViterbiTraceback};
 use crate::{
     alignment::{
         Alignment, AlignmentStates,
         phmm::{
-            BestScore, CorePhmm, GlobalPhmm, LayerParams, PhmmError, PhmmNumber, PhmmState, ViterbiStrategy,
-            indexing::{PhmmIndex, QueryIndex},
+            CorePhmm, GetLayer, GlobalPhmm, LayerParams, PhmmBacktrackFlags, PhmmError, PhmmNumber, PhmmState,
+            PhmmTracebackState, best_state,
+            indexing::{PhmmIndex, PhmmIndexable, QueryIndex},
         },
     },
     data::ByteIndexMap,
@@ -12,7 +13,7 @@ use crate::{
 
 /// Parameters for running a global Viterbi alignment, including the pHMM
 /// information and the query.
-pub struct GlobalViterbiParams<'a, T, const S: usize> {
+struct GlobalViterbiParams<'a, T, const S: usize> {
     phmm:  &'a GlobalPhmm<T, S>,
     query: &'a [u8],
 }
@@ -33,12 +34,12 @@ impl<'a, T: PhmmNumber, const S: usize> ViterbiStrategy<'a, T, S> for GlobalVite
 
     #[inline]
     fn core(&self) -> &CorePhmm<T, S> {
-        &self.phmm.core
+        self.phmm.core()
     }
 
     #[inline]
     fn mapping(&self) -> &ByteIndexMap<S> {
-        self.phmm.mapping
+        self.phmm.mapping()
     }
 
     #[inline]
@@ -105,17 +106,17 @@ impl<'a, T: PhmmNumber, const S: usize> ViterbiStrategy<'a, T, S> for GlobalVite
 
         Alignment {
             score,
-            ref_range: 0..self.phmm.core.ref_length(),
+            ref_range: 0..self.phmm.seq_len(),
             query_range: 0..self.query.len(),
             states,
-            ref_len: self.phmm.core.ref_length(),
+            ref_len: self.phmm.seq_len(),
             query_len: self.query.len(),
         }
     }
 }
 
 /// A tracker for the best score for the global Viterbi algorithm.
-pub(crate) struct GlobalBestScore<T> {
+struct GlobalBestScore<T> {
     /// The state from which the END state was reached
     state: PhmmState,
     /// The score in the END state

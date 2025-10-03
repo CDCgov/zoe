@@ -1,10 +1,13 @@
+use super::ViterbiStrategy;
 use crate::{
     alignment::{
         Alignment, AlignmentStates,
         phmm::{
-            BestScore, CorePhmm, DomainPhmm, LayerParams, PhmmBacktrackFlags, PhmmError, PhmmNumber, PhmmState,
-            PhmmTracebackState, PrecomputedDomainModule, ViterbiStrategy, ViterbiTraceback, best_state,
+            CorePhmm, DomainPhmm, GetLayer, GetModule, LayerParams, PhmmBacktrackFlags, PhmmError, PhmmNumber, PhmmState,
+            PhmmTracebackState, best_state,
             indexing::{DpIndex, LastBase, LastMatch, PhmmIndex, PhmmIndexable, QueryIndex, QueryIndexable},
+            modules::PrecomputedDomainModule,
+            viterbi::{BestScore, ViterbiTraceback},
         },
     },
     data::ByteIndexMap,
@@ -13,7 +16,7 @@ use std::ops::Bound::{Excluded, Included};
 
 /// Parameters for running a domain Viterbi alignment, including the pHMM
 /// information and the query.
-pub struct DomainViterbiParams<'a, T, const S: usize> {
+struct DomainViterbiParams<'a, T, const S: usize> {
     mapping: &'static ByteIndexMap<S>,
     core:    &'a CorePhmm<T, S>,
     begin:   PrecomputedDomainModule<T, S>,
@@ -28,10 +31,10 @@ impl<'a, T: PhmmNumber, const S: usize> DomainViterbiParams<'a, T, S> {
     #[must_use]
     fn new(phmm: &'a DomainPhmm<T, S>, query: &'a [u8]) -> Self {
         Self {
-            mapping: phmm.mapping,
-            core: &phmm.core,
-            begin: phmm.begin.precompute_begin_mod(query, phmm.mapping),
-            end: phmm.end.precompute_end_mod(query, phmm.mapping),
+            mapping: phmm.mapping(),
+            core: phmm.core(),
+            begin: phmm.begin().precompute_begin_mod(query, phmm.mapping()),
+            end: phmm.end().precompute_end_mod(query, phmm.mapping()),
             query,
         }
     }
@@ -137,14 +140,14 @@ impl<'a, T: PhmmNumber, const S: usize> ViterbiStrategy<'a, T, S> for DomainVite
             ref_range: self.core.get_seq_range((start_j, end_j)),
             query_range: self.query.get_seq_range(start_i, end_i),
             states,
-            ref_len: self.core.ref_length(),
+            ref_len: self.core.seq_len(),
             query_len: self.query.len(),
         }
     }
 }
 
 /// A tracker for the best score for the domain Viterbi algorithm.
-pub struct DomainBestScore<T> {
+struct DomainBestScore<T> {
     /// The best score found at the end of the model
     score: T,
     /// The last query index consumed by the [`CorePhmm`]

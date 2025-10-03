@@ -45,7 +45,7 @@ fuzzing = ["dep:arbitrary"]
 
 # An optional feature exposing additional alignment-related functions and
 # internals, such as for testing
-alignment-diagnostics = []
+alignment-diagnostics = ["dep:visibility"]
 
 # Note: development features may be removed at any time.
 
@@ -62,6 +62,7 @@ arbitrary = { version = "1", optional = true, features = ["derive"] }
 multiversion = { version = "0.8", optional = true }
 rand_xoshiro = { version = "0.7", optional = true }
 itoa = "1"
+visibility = { version = "0.1.1", optional = true }
 
 [profile.release]
 strip = true

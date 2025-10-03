@@ -12,8 +12,8 @@
 
 use crate::{
     alignment::phmm::{
-        CorePhmm, DomainPhmm, GlobalPhmm, LocalPhmm, PrecomputedDomainModule, PrecomputedLocalModule, SemiLocalModule,
-        SemiLocalPhmm,
+        CorePhmm, DomainPhmm, GetLayer, GlobalPhmm, LocalPhmm, SemiLocalPhmm,
+        modules::{PrecomputedDomainModule, PrecomputedLocalModule, SemiLocalModule},
     },
     data::views::IndexAdjustable,
 };
@@ -356,35 +356,35 @@ impl<T, const S: usize> PhmmIndexable for CorePhmm<T, S> {
     #[inline]
     fn num_pseudomatch(&self) -> usize {
         // The END state does not have an index in the CorePhmm, so we add 1
-        self.0.len() + 1
+        self.layers().len() + 1
     }
 }
 
 impl<T, const S: usize> PhmmIndexable for GlobalPhmm<T, S> {
     #[inline]
     fn num_pseudomatch(&self) -> usize {
-        self.core.num_pseudomatch()
+        self.core().num_pseudomatch()
     }
 }
 
 impl<T, const S: usize> PhmmIndexable for LocalPhmm<T, S> {
     #[inline]
     fn num_pseudomatch(&self) -> usize {
-        self.core.num_pseudomatch()
+        self.core().num_pseudomatch()
     }
 }
 
 impl<T, const S: usize> PhmmIndexable for SemiLocalPhmm<T, S> {
     #[inline]
     fn num_pseudomatch(&self) -> usize {
-        self.core.num_pseudomatch()
+        self.core().num_pseudomatch()
     }
 }
 
 impl<T, const S: usize> PhmmIndexable for DomainPhmm<T, S> {
     #[inline]
     fn num_pseudomatch(&self) -> usize {
-        self.core.num_pseudomatch()
+        self.core().num_pseudomatch()
     }
 }
 

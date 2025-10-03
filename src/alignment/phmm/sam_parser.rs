@@ -1,8 +1,13 @@
+//! Parsers and writers for pHMMs in the
+//! [SAM](https://tr.soe.ucsc.edu/sites/default/files/technical-reports/UCSC-CRL-96-22.pdf)
+//! format.
+
 use crate::{
     alignment::phmm::{
-        CorePhmm, EmissionParams, GlobalPhmm, LayerParams, PhmmNumber,
+        CorePhmm, EmissionParams, GetLayer, GlobalPhmm, LayerParams, PhmmNumber,
         PhmmState::{self, *},
         TransitionParams,
+        indexing::PhmmIndexable,
     },
     data::{
         ByteIndexMap,
@@ -184,11 +189,8 @@ trait SamHmmConfig<const S: usize, const L: usize> {
         last_layer.transition[(Insert, Delete)] = T::INFINITY;
         last_layer.transition[(Match, Delete)] = T::INFINITY;
 
-        Ok(GlobalPhmm {
-            mapping,
-            // Validity: We already verified `layers` has at least two entries
-            core: CorePhmm::new_unchecked(layers),
-        })
+        // Validity: We already verified `layers` has at least two entries
+        Ok(GlobalPhmm::new(mapping, CorePhmm::new_unchecked(layers)))
     }
 
     /// Write a global pHMM to a file, following the SAM format.
@@ -199,24 +201,24 @@ trait SamHmmConfig<const S: usize, const L: usize> {
     ///
     /// * IO errors (when creating file or writing to it)
     /// * The mapping of the pHMM must correspond to DNA
-    /// * The model must have at least one layer
+    /// * The model must correspond to a reference of length at least 1
     fn write_sam_model_file<T: PhmmNumber, P>(filename: P, model: &GlobalPhmm<T, S>) -> std::io::Result<()>
     where
         P: AsRef<Path>,
         SupportedConfig: SamHmmConfig<S, L>, {
-        if model.core.0.len() < 2 {
+        if model.seq_len() < 1 {
             return Err(IOError::new(
                 ErrorKind::InvalidData,
-                "At least two layers must be present in the model!",
+                "The pHMM must correspond to a reference of length at least 1!",
             ));
         }
 
         let mut writer = BufWriter::new(File::create(filename.as_ref())?);
 
         writeln!(writer, "MODEL")?;
-        writeln!(writer, "alphabet {}", Self::unparse_mapping(model.mapping)?)?;
+        writeln!(writer, "alphabet {}", Self::unparse_mapping(model.mapping())?)?;
 
-        let [first_layer, rest @ ..] = model.core.0.as_slice() else {
+        let [first_layer, rest @ ..] = model.layers() else {
             return Err(IOError::new(
                 ErrorKind::InvalidData,
                 "At least two layers must be present in the model!",
@@ -372,8 +374,8 @@ impl SamHmmConfig<4, 17> for SupportedConfig {
             [params[7], params[6], params[8]],
         ]);
 
-        let emission_match = EmissionParams([params[9], params[11], params[10], params[12]]);
-        let emission_insert = EmissionParams([params[13], params[15], params[14], params[16]]);
+        let emission_match = EmissionParams::from_array([params[9], params[11], params[10], params[12]]);
+        let emission_insert = EmissionParams::from_array([params[13], params[15], params[14], params[16]]);
 
         LayerParams {
             transition,
@@ -442,8 +444,8 @@ impl SamHmmConfig<20, 49> for SupportedConfig {
         ]);
         let (emission_match, emission_insert) = rest.split_at(20);
 
-        let emission_match = EmissionParams(emission_match.try_into().unwrap());
-        let emission_insert = EmissionParams(emission_insert.try_into().unwrap());
+        let emission_match = EmissionParams::from_array(emission_match.try_into().unwrap());
+        let emission_insert = EmissionParams::from_array(emission_insert.try_into().unwrap());
 
         LayerParams {
             transition,
@@ -466,8 +468,8 @@ impl SamHmmConfig<20, 49> for SupportedConfig {
             params.transition[(Match, Insert)],
             params.transition[(Insert, Insert)],
         ]);
-        out[9..29].copy_from_slice(&params.emission_match.0);
-        out[29..49].copy_from_slice(&params.emission_insert.0);
+        out[9..29].copy_from_slice(params.emission_match.as_slice());
+        out[29..49].copy_from_slice(params.emission_insert.as_slice());
         out
     }
 }
@@ -584,7 +586,7 @@ where
         for param in PARAMS_TO_COPY_PARSING {
             self.last_layer.transition[param] = next_layer.transition[param];
         }
-        self.last_layer.emission_match = std::mem::replace(&mut next_layer.emission_match, EmissionParams([T::ZERO; S]));
+        self.last_layer.emission_match = std::mem::take(&mut next_layer.emission_match);
 
         Some(Ok(std::mem::replace(&mut self.last_layer, next_layer)))
     }

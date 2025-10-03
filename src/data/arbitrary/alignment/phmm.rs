@@ -1,8 +1,9 @@
 use crate::{
     alignment::phmm::{
-        CorePhmm, DomainModule, DomainPhmm, EmissionParams, GlobalPhmm, LayerParams, LocalModule, LocalPhmm, PhmmState,
-        SemiLocalModule, SemiLocalPhmm, TransitionParams,
+        CorePhmm, DomainPhmm, EmissionParams, GetLayer, GlobalPhmm, LayerParams, LocalPhmm, PhmmState, SemiLocalPhmm,
+        TransitionParams,
         indexing::{Begin, End, PhmmIndexable},
+        modules::{DomainModule, LocalModule, SemiLocalModule},
     },
     data::{arbitrary::impl_deref, mappings::DNA_UNAMBIG_PROFILE_MAP},
     math::Float,
@@ -13,7 +14,7 @@ use std::{fmt::Debug, marker::PhantomData};
 impl<'a, T: Arbitrary<'a>, const S: usize> Arbitrary<'a> for EmissionParams<T, S> {
     #[inline]
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        Ok(EmissionParams(<[T; S]>::arbitrary(u)?))
+        Ok(EmissionParams::from_array(<[T; S]>::arbitrary(u)?))
     }
 }
 
@@ -92,7 +93,7 @@ where
     #[inline]
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
         Ok(EmissionParamsArbitrary(
-            EmissionParams(<[F; S]>::arbitrary(u)?.map(std::convert::Into::into)),
+            EmissionParams::from_array(<[F; S]>::arbitrary(u)?.map(std::convert::Into::into)),
             PhantomData,
         ))
     }
@@ -106,7 +107,7 @@ where
 /// * `T`: The floating point type for the parameters
 /// * `F`: The floating point type or arbitrary wrapper for generating the
 ///   parameters
-pub struct TransitionParamsArbitrary<T, F>(pub TransitionParams<T>, PhantomData<F>);
+pub(crate) struct TransitionParamsArbitrary<T, F>(pub TransitionParams<T>, pub PhantomData<F>);
 
 impl_deref! {TransitionParamsArbitrary<T, F>, TransitionParams<T>, <T, F>}
 
@@ -133,7 +134,7 @@ where
 /// * `F`: The floating point type or arbitrary wrapper for generating the
 ///   parameters
 /// * `S`: The size of the pHMM alphabet
-pub struct LayerParamsArbitrary<T, F, const S: usize>(LayerParams<T, S>, PhantomData<F>);
+pub(crate) struct LayerParamsArbitrary<T, F, const S: usize>(LayerParams<T, S>, PhantomData<F>);
 
 impl_deref! {LayerParamsArbitrary<T, F, S>, LayerParams<T, S>, <T, F, const S: usize>}
 
@@ -166,7 +167,8 @@ where
 /// * `S`: The size of the pHMM alphabet
 /// * `R`: If true, ensure invalid transitions are set to infinity
 #[derive(Debug)]
-pub struct CorePhmmArbitrary<T, F, const S: usize, const R: bool>(pub CorePhmm<T, S>, PhantomData<F>);
+#[cfg_attr(feature = "alignment-diagnostics", visibility::make(pub))]
+pub(crate) struct CorePhmmArbitrary<T, F, const S: usize, const R: bool>(pub CorePhmm<T, S>, PhantomData<F>);
 
 impl_deref! {CorePhmmArbitrary<T, F, S, R>, CorePhmm<T, S>, <T: Float, F, const S: usize, const R: bool>}
 
@@ -368,10 +370,7 @@ where
     #[inline]
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
         Ok(DnaGlobalPhmm(
-            GlobalPhmm {
-                mapping: &DNA_UNAMBIG_PROFILE_MAP,
-                core:    CorePhmmArbitrary::<T, F, 4, R>::arbitrary(u)?.0,
-            },
+            GlobalPhmm::new(&DNA_UNAMBIG_PROFILE_MAP, CorePhmmArbitrary::<T, F, 4, R>::arbitrary(u)?.0),
             PhantomData,
         ))
     }
@@ -399,12 +398,12 @@ where
 {
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
         Ok(Self(
-            LocalPhmm {
-                mapping: &DNA_UNAMBIG_PROFILE_MAP,
-                core:    CorePhmmArbitrary::<T, F, 4, R>::arbitrary(u)?.0,
-                begin:   LocalModuleArbitrary::<T, F, 4>::arbitrary(u)?.0,
-                end:     LocalModuleArbitrary::<T, F, 4>::arbitrary(u)?.0,
-            },
+            LocalPhmm::new(
+                &DNA_UNAMBIG_PROFILE_MAP,
+                CorePhmmArbitrary::<T, F, 4, R>::arbitrary(u)?.0,
+                LocalModuleArbitrary::<T, F, 4>::arbitrary(u)?.0,
+                LocalModuleArbitrary::<T, F, 4>::arbitrary(u)?.0,
+            ),
             PhantomData,
         ))
     }
@@ -421,15 +420,7 @@ where
         let begin = LocalModuleArbitrary::<T, F, 4>::arbitrary_compatible(u, &core)?.0;
         let end = LocalModuleArbitrary::<T, F, 4>::arbitrary_compatible(u, &core)?.0;
 
-        Ok(Self(
-            LocalPhmm {
-                mapping: &DNA_UNAMBIG_PROFILE_MAP,
-                core,
-                begin,
-                end,
-            },
-            PhantomData,
-        ))
+        Ok(Self(LocalPhmm::new(&DNA_UNAMBIG_PROFILE_MAP, core, begin, end), PhantomData))
     }
 }
 
@@ -450,12 +441,12 @@ where
 {
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
         Ok(Self(
-            DomainPhmm {
-                mapping: &DNA_UNAMBIG_PROFILE_MAP,
-                core:    CorePhmmArbitrary::<T, F, 4, R>::arbitrary(u)?.0,
-                begin:   DomainModuleArbitrary::<T, F, 4>::arbitrary(u)?.0,
-                end:     DomainModuleArbitrary::<T, F, 4>::arbitrary(u)?.0,
-            },
+            DomainPhmm::new(
+                &DNA_UNAMBIG_PROFILE_MAP,
+                CorePhmmArbitrary::<T, F, 4, R>::arbitrary(u)?.0,
+                DomainModuleArbitrary::<T, F, 4>::arbitrary(u)?.0,
+                DomainModuleArbitrary::<T, F, 4>::arbitrary(u)?.0,
+            ),
             PhantomData,
         ))
     }
@@ -478,12 +469,12 @@ where
 {
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
         Ok(Self(
-            SemiLocalPhmm {
-                mapping: &DNA_UNAMBIG_PROFILE_MAP,
-                core:    CorePhmmArbitrary::<T, F, 4, R>::arbitrary(u)?.0,
-                begin:   SemiLocalModuleArbitrary::<T, F>::arbitrary(u)?.0,
-                end:     SemiLocalModuleArbitrary::<T, F>::arbitrary(u)?.0,
-            },
+            SemiLocalPhmm::new(
+                &DNA_UNAMBIG_PROFILE_MAP,
+                CorePhmmArbitrary::<T, F, 4, R>::arbitrary(u)?.0,
+                SemiLocalModuleArbitrary::<T, F>::arbitrary(u)?.0,
+                SemiLocalModuleArbitrary::<T, F>::arbitrary(u)?.0,
+            ),
             PhantomData,
         ))
     }

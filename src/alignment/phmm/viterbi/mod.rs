@@ -15,11 +15,6 @@ mod global;
 mod local;
 mod semilocal;
 
-pub use domain::*;
-pub use global::*;
-pub use local::*;
-pub use semilocal::*;
-
 /// Given the current `vals` for delete/match/insert and the next `layer`,
 /// calculate the best score for the next insert state and the state from which
 /// it was reached.
@@ -64,7 +59,7 @@ fn update_delete<T: PhmmNumber, const S: usize>(
 /// condition of no bases in the query being matched to be represented). The
 /// number of rows is one more than the number of PHMM match states (i.e., the
 /// number of match states along with the BEGIN state).
-pub struct ViterbiTraceback<T> {
+struct ViterbiTraceback<T> {
     data: Vec<T>,
     cols: usize,
 }
@@ -132,7 +127,7 @@ impl<T> ViterbiTraceback<T> {
 /// alignment modes. By specifying various components of the algorithm via the
 /// required trait methods, this trait provides an implementation of the Viterbi
 /// algorithm.
-pub(crate) trait ViterbiStrategy<'a, T: PhmmNumber + 'a, const S: usize>: Sized {
+trait ViterbiStrategy<'a, T: PhmmNumber + 'a, const S: usize>: Sized {
     /// The type used in the traceback matrix, either [`PhmmState`] or
     /// [`PhmmStateOrEnter`].
     ///
@@ -179,7 +174,7 @@ pub(crate) trait ViterbiStrategy<'a, T: PhmmNumber + 'a, const S: usize>: Sized 
     fn viterbi(self) -> Result<Alignment<T>, PhmmError> {
         self.initial_check()?;
 
-        let [layers @ .., end] = self.core().0.as_slice() else {
+        let [layers @ .., end] = self.core().layers() else {
             return Err(PhmmError::EmptyModel);
         };
 
@@ -273,7 +268,7 @@ pub(crate) trait ViterbiStrategy<'a, T: PhmmNumber + 'a, const S: usize>: Sized 
 /// This is designed to encapsulate behavior between the various types of
 /// alignment. Four hooks are provided to allow the best score to update at
 /// various points in the Viterbi algorithm.
-pub(crate) trait BestScore<T, const S: usize> {
+trait BestScore<T, const S: usize> {
     /// The [`ViterbiStrategy`] struct this [`BestScore`] type corresponds with.
     type Strategy<'a>
     where

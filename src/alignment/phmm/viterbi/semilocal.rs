@@ -1,11 +1,12 @@
+use super::{BestScore, ViterbiStrategy, ViterbiTraceback};
 use crate::{
     alignment::{
         Alignment, AlignmentStates,
         phmm::{
-            BestScore, CorePhmm, LayerParams, PhmmBacktrackFlags, PhmmError, PhmmNumber, PhmmState, PhmmStateOrEnter,
-            PhmmTracebackState, SemiLocalModule, SemiLocalPhmm, ViterbiStrategy, ViterbiTraceback, best_state,
-            best_state_or_enter,
+            CorePhmm, GetLayer, GetModule, LayerParams, PhmmBacktrackFlags, PhmmError, PhmmNumber, PhmmState,
+            PhmmStateOrEnter, PhmmTracebackState, SemiLocalPhmm, best_state, best_state_or_enter,
             indexing::{Begin, DpIndex, End, LastMatch, NoBases, PhmmIndex, PhmmIndexable, QueryIndex, QueryIndexable},
+            modules::SemiLocalModule,
             viterbi::ExitLocation,
         },
     },
@@ -15,7 +16,7 @@ use std::ops::Bound::{Excluded, Included};
 
 /// Parameters for running a semilocal Viterbi alignment, including the pHMM
 /// information and the query.
-pub struct SemiLocalViterbiParams<'a, T, const S: usize> {
+struct SemiLocalViterbiParams<'a, T, const S: usize> {
     mapping: &'static ByteIndexMap<S>,
     core:    &'a CorePhmm<T, S>,
     begin:   &'a SemiLocalModule<T>,
@@ -30,10 +31,10 @@ impl<'a, T: PhmmNumber, const S: usize> SemiLocalViterbiParams<'a, T, S> {
     #[must_use]
     fn new(phmm: &'a SemiLocalPhmm<T, S>, query: &'a [u8]) -> Self {
         Self {
-            mapping: phmm.mapping,
-            core: &phmm.core,
-            begin: &phmm.begin,
-            end: &phmm.end,
+            mapping: phmm.mapping(),
+            core: phmm.core(),
+            begin: phmm.begin(),
+            end: phmm.end(),
             query,
         }
     }
@@ -115,7 +116,7 @@ impl<'a, T: PhmmNumber, const S: usize> ViterbiStrategy<'a, T, S> for SemiLocalV
                     ref_range: 0..0,
                     query_range: 0..0,
                     states,
-                    ref_len: self.core.ref_length(),
+                    ref_len: self.core().seq_len(),
                     query_len: self.query.len(),
                 };
             }
@@ -129,7 +130,7 @@ impl<'a, T: PhmmNumber, const S: usize> ViterbiStrategy<'a, T, S> for SemiLocalV
                         ref_range: self.core.get_seq_range(End..End),
                         query_range: 0..0,
                         states,
-                        ref_len: self.core.ref_length(),
+                        ref_len: self.core.seq_len(),
                         query_len: self.query.len(),
                     };
                 };
@@ -184,14 +185,14 @@ impl<'a, T: PhmmNumber, const S: usize> ViterbiStrategy<'a, T, S> for SemiLocalV
             ref_range: self.core.get_seq_range((start_j, end_j)),
             query_range: self.query.get_seq_range(start_i, end_i),
             states,
-            ref_len: self.core.ref_length(),
+            ref_len: self.core.seq_len(),
             query_len: self.query.len(),
         }
     }
 }
 
 /// A tracker for the best score for the semilocal Viterbi algorithm.
-pub struct SemiLocalBestScore<T> {
+struct SemiLocalBestScore<T> {
     /// The best score found at the end of the model
     score: T,
     /// The location from which the alignment exits the [`CorePhmm`]

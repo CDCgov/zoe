@@ -1,3 +1,4 @@
+// TODO: Doc links
 /// Assert that two floating point values are approximately equal.
 ///
 /// ## Comparison Options
@@ -39,14 +40,8 @@
 /// This macro allows for `f32` and `f64` to be compared. Additionally, assuming
 /// that type `T` can be compared using this macro, so can `Option<T>`, `[T;
 /// N]`, and `Vec<T>`. Additionally, the following Zoe structs can be compared:
-/// * Profile Hidden Markov Models: [`TransitionParams`], [`EmissionParams`],
-///   [`LayerParams`], [`CorePhmm`], and [`GlobalPhmm`]
-///
-/// [`TransitionParams`]: crate::alignment::phmm::TransitionParams
-/// [`EmissionParams`]: crate::alignment::phmm::EmissionParams
-/// [`LayerParams`]: crate::alignment::phmm::LayerParams
-/// [`CorePhmm`]: crate::alignment::phmm::CorePhmm
-/// [`GlobalPhmm`]: crate::alignment::phmm::GlobalPhmm
+/// * Profile Hidden Markov Models: `TransitionParams`, `EmissionParams`,
+///   `LayerParams`, `CorePhmm`, and `GlobalPhmm`.
 #[macro_export]
 macro_rules! assert_fp_eq {
     ($(@$method:tt,)? $a:expr, $b:expr) => {
@@ -261,11 +256,11 @@ impl<T: Copy, S: NearlyEqual<T>, const N: usize> NearlyEqual<T> for [S; N] {
     }
 }
 
-impl<T: Copy, S: NearlyEqual<T>> NearlyEqual<T> for Vec<S> {
+impl<T: Copy, S: NearlyEqual<T>> NearlyEqual<T> for &[S] {
     #[inline]
     fn nearly_equal<M: NearlyEqualMethod<T>>(&self, b: &Self, strategy: &M) -> (bool, Option<(T, T)>) {
         if self.len() == b.len() {
-            for (eq, vals) in self.iter().zip(b).map(|(x, y)| x.nearly_equal(y, strategy)) {
+            for (eq, vals) in self.iter().zip(b.iter()).map(|(x, y)| x.nearly_equal(y, strategy)) {
                 if !eq {
                     return (false, vals);
                 }
@@ -274,6 +269,13 @@ impl<T: Copy, S: NearlyEqual<T>> NearlyEqual<T> for Vec<S> {
         } else {
             (false, None)
         }
+    }
+}
+
+impl<T: Copy, S: NearlyEqual<T>> NearlyEqual<T> for Vec<S> {
+    #[inline]
+    fn nearly_equal<M: NearlyEqualMethod<T>>(&self, b: &Self, strategy: &M) -> (bool, Option<(T, T)>) {
+        self.as_slice().nearly_equal(&b.as_slice(), strategy)
     }
 }
 

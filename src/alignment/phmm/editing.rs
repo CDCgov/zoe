@@ -1,6 +1,8 @@
+//! Functions for editing a pHMM after it has been created/loaded.
+
 use crate::alignment::phmm::{
-    CorePhmm, DomainPhmm, GlobalPhmm, LocalPhmm, PhmmIndexable, PhmmNumber, PhmmState, SemiLocalPhmm,
-    indexing::{IndexOffset, PhmmIndex, PhmmIndexRange},
+    CorePhmm, DomainPhmm, GetLayer, GetModule, GlobalPhmm, LocalPhmm, PhmmNumber, PhmmState, SemiLocalPhmm,
+    indexing::{IndexOffset, PhmmIndex, PhmmIndexRange, PhmmIndexable},
 };
 
 /// A trait facilitating editing of a pHMM by removing layers.
@@ -110,7 +112,8 @@ impl<T: PhmmNumber, const S: usize> RemoveLayer for CorePhmm<T, S> {
             &mut layer2.transition[PhmmState::Delete],
         );
         std::mem::swap(&mut layer1.emission_match, &mut layer2.emission_match);
-        self.0.remove(self.get_dp_index(layer));
+        let layer_idx = self.get_dp_index(layer);
+        self.layers_mut_vec().remove(layer_idx);
     }
 
     fn remove_layer_and_post_transition(&mut self, layer: impl PhmmIndex) {
@@ -123,7 +126,8 @@ impl<T: PhmmNumber, const S: usize> RemoveLayer for CorePhmm<T, S> {
             std::mem::swap(&mut layer1.emission_match, &mut layer2.emission_match);
         }
 
-        self.0.remove(self.get_dp_index(layer));
+        let layer_idx = self.get_dp_index(layer);
+        self.layers_mut_vec().remove(layer_idx);
     }
 
     fn remove_layers_and_pre_transitions<R: PhmmIndexRange>(&mut self, range: R) {
@@ -142,7 +146,8 @@ impl<T: PhmmNumber, const S: usize> RemoveLayer for CorePhmm<T, S> {
             &mut layer2.transition[PhmmState::Delete],
         );
         std::mem::swap(&mut layer1.emission_match, &mut layer2.emission_match);
-        self.0.drain(self.get_dp_range(range));
+        let layer_idxs = self.get_dp_range(range);
+        self.layers_mut_vec().drain(layer_idxs);
     }
 
     fn remove_layers_and_post_transitions<R: PhmmIndexRange>(&mut self, range: R) {
@@ -162,29 +167,30 @@ impl<T: PhmmNumber, const S: usize> RemoveLayer for CorePhmm<T, S> {
             std::mem::swap(&mut layer1.emission_match, &mut layer2.emission_match);
         }
 
-        self.0.drain(self.get_dp_range(range));
+        let layer_idxs = self.get_dp_range(range);
+        self.layers_mut_vec().drain(layer_idxs);
     }
 }
 
 impl<T: PhmmNumber, const S: usize> RemoveLayer for GlobalPhmm<T, S> {
     #[inline]
     fn remove_layer_and_pre_transition(&mut self, layer: impl PhmmIndex) {
-        self.core.remove_layer_and_pre_transition(layer);
+        self.core_mut().remove_layer_and_pre_transition(layer);
     }
 
     #[inline]
     fn remove_layer_and_post_transition(&mut self, layer: impl PhmmIndex) {
-        self.core.remove_layer_and_post_transition(layer);
+        self.core_mut().remove_layer_and_post_transition(layer);
     }
 
     #[inline]
     fn remove_layers_and_pre_transitions<R: PhmmIndexRange>(&mut self, range: R) {
-        self.core.remove_layers_and_pre_transitions(range);
+        self.core_mut().remove_layers_and_pre_transitions(range);
     }
 
     #[inline]
     fn remove_layers_and_post_transitions<R: PhmmIndexRange>(&mut self, range: R) {
-        self.core.remove_layers_and_post_transitions(range);
+        self.core_mut().remove_layers_and_post_transitions(range);
     }
 }
 
@@ -192,33 +198,33 @@ impl<T: PhmmNumber, const S: usize> RemoveLayer for LocalPhmm<T, S> {
     #[inline]
     fn remove_layer_and_pre_transition(&mut self, layer: impl PhmmIndex) {
         let layer_idx = self.get_dp_index(layer);
-        self.begin.external_params.0.remove(layer_idx);
-        self.end.external_params.0.remove(layer_idx);
-        self.core.remove_layer_and_pre_transition(layer);
+        self.begin_mut().external_params.0.remove(layer_idx);
+        self.end_mut().external_params.0.remove(layer_idx);
+        self.core_mut().remove_layer_and_pre_transition(layer);
     }
 
     #[inline]
     fn remove_layer_and_post_transition(&mut self, layer: impl PhmmIndex) {
         let layer_idx = self.get_dp_index(layer);
-        self.begin.external_params.0.remove(layer_idx);
-        self.end.external_params.0.remove(layer_idx);
-        self.core.remove_layer_and_post_transition(layer);
+        self.begin_mut().external_params.0.remove(layer_idx);
+        self.end_mut().external_params.0.remove(layer_idx);
+        self.core_mut().remove_layer_and_post_transition(layer);
     }
 
     #[inline]
     fn remove_layers_and_pre_transitions<R: PhmmIndexRange>(&mut self, range: R) {
         let range_idxs = self.get_dp_range(range.clone());
-        self.begin.external_params.0.drain(range_idxs.clone());
-        self.end.external_params.0.drain(range_idxs);
-        self.core.remove_layers_and_pre_transitions(range);
+        self.begin_mut().external_params.0.drain(range_idxs.clone());
+        self.end_mut().external_params.0.drain(range_idxs);
+        self.core_mut().remove_layers_and_pre_transitions(range);
     }
 
     #[inline]
     fn remove_layers_and_post_transitions<R: PhmmIndexRange>(&mut self, range: R) {
         let range_idxs = self.get_dp_range(range.clone());
-        self.begin.external_params.0.drain(range_idxs.clone());
-        self.end.external_params.0.drain(range_idxs);
-        self.core.remove_layers_and_post_transitions(range);
+        self.begin_mut().external_params.0.drain(range_idxs.clone());
+        self.end_mut().external_params.0.drain(range_idxs);
+        self.core_mut().remove_layers_and_post_transitions(range);
     }
 }
 
@@ -226,54 +232,54 @@ impl<T: PhmmNumber, const S: usize> RemoveLayer for SemiLocalPhmm<T, S> {
     #[inline]
     fn remove_layer_and_pre_transition(&mut self, layer: impl PhmmIndex) {
         let layer_idx = self.get_dp_index(layer);
-        self.begin.0.remove(layer_idx);
-        self.end.0.remove(layer_idx);
-        self.core.remove_layer_and_pre_transition(layer);
+        self.begin_mut().0.remove(layer_idx);
+        self.end_mut().0.remove(layer_idx);
+        self.core_mut().remove_layer_and_pre_transition(layer);
     }
 
     #[inline]
     fn remove_layer_and_post_transition(&mut self, layer: impl PhmmIndex) {
         let layer_idx = self.get_dp_index(layer);
-        self.begin.0.remove(layer_idx);
-        self.end.0.remove(layer_idx);
-        self.core.remove_layer_and_post_transition(layer);
+        self.begin_mut().0.remove(layer_idx);
+        self.end_mut().0.remove(layer_idx);
+        self.core_mut().remove_layer_and_post_transition(layer);
     }
 
     #[inline]
     fn remove_layers_and_pre_transitions<R: PhmmIndexRange>(&mut self, range: R) {
         let range_idxs = self.get_dp_range(range.clone());
-        self.begin.0.drain(range_idxs.clone());
-        self.end.0.drain(range_idxs);
-        self.core.remove_layers_and_pre_transitions(range);
+        self.begin_mut().0.drain(range_idxs.clone());
+        self.end_mut().0.drain(range_idxs);
+        self.core_mut().remove_layers_and_pre_transitions(range);
     }
 
     #[inline]
     fn remove_layers_and_post_transitions<R: PhmmIndexRange>(&mut self, range: R) {
         let range_idxs = self.get_dp_range(range.clone());
-        self.begin.0.drain(range_idxs.clone());
-        self.end.0.drain(range_idxs);
-        self.core.remove_layers_and_post_transitions(range);
+        self.begin_mut().0.drain(range_idxs.clone());
+        self.end_mut().0.drain(range_idxs);
+        self.core_mut().remove_layers_and_post_transitions(range);
     }
 }
 
 impl<T: PhmmNumber, const S: usize> RemoveLayer for DomainPhmm<T, S> {
     #[inline]
     fn remove_layer_and_pre_transition(&mut self, layer: impl PhmmIndex) {
-        self.core.remove_layer_and_pre_transition(layer);
+        self.core_mut().remove_layer_and_pre_transition(layer);
     }
 
     #[inline]
     fn remove_layer_and_post_transition(&mut self, layer: impl PhmmIndex) {
-        self.core.remove_layer_and_post_transition(layer);
+        self.core_mut().remove_layer_and_post_transition(layer);
     }
 
     #[inline]
     fn remove_layers_and_pre_transitions<R: PhmmIndexRange>(&mut self, range: R) {
-        self.core.remove_layers_and_pre_transitions(range);
+        self.core_mut().remove_layers_and_pre_transitions(range);
     }
 
     #[inline]
     fn remove_layers_and_post_transitions<R: PhmmIndexRange>(&mut self, range: R) {
-        self.core.remove_layers_and_post_transitions(range);
+        self.core_mut().remove_layers_and_post_transitions(range);
     }
 }

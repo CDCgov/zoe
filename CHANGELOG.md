@@ -13,6 +13,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ### Changed
 
+- Refactored the organization and visibility of pHMM structs/fields/modules (behind `dev-phmm` feature gate)
 - Modified Viterbi algorithm to use compact bit representation instead of array (behind `dev-phmm` feature gate)
 
 ### Fixed

@@ -1,11 +1,12 @@
+use super::{BestScore, ViterbiStrategy, ViterbiTraceback};
 use crate::{
     alignment::{
         Alignment, AlignmentStates,
         phmm::{
-            BestScore, CorePhmm, LayerParams, LocalPhmm, PhmmBacktrackFlags, PhmmError, PhmmNumber, PhmmState,
-            PhmmStateOrEnter, PhmmTracebackState, PrecomputedLocalModule, ViterbiStrategy, ViterbiTraceback,
-            best_state_or_enter,
+            CorePhmm, GetLayer, GetModule, LayerParams, LocalPhmm, PhmmBacktrackFlags, PhmmError, PhmmNumber, PhmmState,
+            PhmmStateOrEnter, PhmmTracebackState, best_state_or_enter,
             indexing::{Begin, DpIndex, End, LastBase, LastMatch, PhmmIndex, PhmmIndexable, QueryIndex, QueryIndexable},
+            modules::PrecomputedLocalModule,
             viterbi::ExitLocation,
         },
     },
@@ -15,7 +16,7 @@ use std::ops::Bound::{Excluded, Included};
 
 /// Parameters for running a local Viterbi alignment, including the pHMM
 /// information and the query.
-pub struct LocalViterbiParams<'a, T, const S: usize> {
+struct LocalViterbiParams<'a, T, const S: usize> {
     mapping: &'static ByteIndexMap<S>,
     core:    &'a CorePhmm<T, S>,
     begin:   PrecomputedLocalModule<'a, T, S>,
@@ -30,10 +31,10 @@ impl<'a, T: PhmmNumber, const S: usize> LocalViterbiParams<'a, T, S> {
     #[must_use]
     fn new(phmm: &'a LocalPhmm<T, S>, query: &'a [u8]) -> Self {
         Self {
-            mapping: phmm.mapping,
-            core: &phmm.core,
-            begin: phmm.begin.precompute_begin_mod(query, phmm.mapping),
-            end: phmm.end.precompute_end_mod(query, phmm.mapping),
+            mapping: phmm.mapping(),
+            core: phmm.core(),
+            begin: phmm.begin().precompute_begin_mod(query, phmm.mapping()),
+            end: phmm.end().precompute_end_mod(query, phmm.mapping()),
             query,
         }
     }
@@ -118,7 +119,7 @@ impl<'a, T: PhmmNumber, const S: usize> ViterbiStrategy<'a, T, S> for LocalViter
                     ref_range: 0..0,
                     query_range: 0..0,
                     states,
-                    ref_len: self.core.ref_length(),
+                    ref_len: self.core.seq_len(),
                     query_len: self.query.len(),
                 };
             }
@@ -132,7 +133,7 @@ impl<'a, T: PhmmNumber, const S: usize> ViterbiStrategy<'a, T, S> for LocalViter
                         ref_range: self.core.get_seq_range(End..End),
                         query_range: 0..0,
                         states,
-                        ref_len: self.core.ref_length(),
+                        ref_len: self.core.seq_len(),
                         query_len: self.query.len(),
                     };
                 };
@@ -186,14 +187,14 @@ impl<'a, T: PhmmNumber, const S: usize> ViterbiStrategy<'a, T, S> for LocalViter
             ref_range: self.core.get_seq_range((start_j, end_j)),
             query_range: self.query.get_seq_range(start_i, end_i),
             states,
-            ref_len: self.core.ref_length(),
+            ref_len: self.core.seq_len(),
             query_len: self.query.len(),
         }
     }
 }
 
 /// A tracker for the best score for the local Viterbi algorithm.
-pub struct LocalBestScore<T> {
+struct LocalBestScore<T> {
     /// The best score found at the end of the model
     score: T,
     /// The last query index consumed by the [`CorePhmm`]

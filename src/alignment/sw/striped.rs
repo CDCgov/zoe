@@ -170,6 +170,7 @@ where
     sw_simd_score_ends_dir::<T, N, S, false>(reference, query)
 }
 
+// TODO: Doc link
 /// Similar to [`sw_simd_score`] but also returns the reference and query end or
 /// start coordinates.
 ///
@@ -185,11 +186,9 @@ where
 /// **Important**
 ///
 /// When `FORWARD` is false, the query profile should also be in reverse
-/// orientation, such as using [`reverse_from_forward`].
+/// orientation, such as using `reverse_from_forward`.
 ///
 /// </div>
-///
-/// [`reverse_from_forward`]: StripedProfile::reverse_from_forward
 #[allow(non_snake_case)]
 #[must_use]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
