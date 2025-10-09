@@ -10,8 +10,9 @@ use std::ops::{Bound, Index, Range};
 /// range](crate::search#restricting-the-search-range) for more details.
 ///
 /// It is compatible with:
-/// * Performing string search via the [`ByteSubstring`] trait
-/// * Searching for k-mers using methods similar to those in [`FindKmers`]
+///
+/// - Performing string search via the [`ByteSubstring`] trait
+/// - Searching for k-mers using methods similar to those in [`FindKmers`]
 ///
 /// <div class="warning note">
 ///

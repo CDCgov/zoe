@@ -284,11 +284,11 @@ trait BestScore<T, const S: usize> {
     ///
     /// ## Arguments
     ///
-    /// * `strategy`: the [`ViterbiStrategy`] struct this [`BestScore`] type
+    /// - `strategy`: the [`ViterbiStrategy`] struct this [`BestScore`] type
     ///   corresponds with
-    /// * `vals`: the current values in the delete, match, and insert states
-    /// * `i`: The current number of bases consumed
-    /// * `j`: The current model layer
+    /// - `vals`: the current values in the delete, match, and insert states
+    /// - `i`: The current number of bases consumed
+    /// - `j`: The current model layer
     fn update(
         &mut self, _strategy: &Self::Strategy<'_>, _match_val: T, _delete_val: T, _insert_val: T, _i: impl QueryIndex,
         _j: impl PhmmIndex,
@@ -300,10 +300,10 @@ trait BestScore<T, const S: usize> {
     ///
     /// ## Arguments
     ///
-    /// * `strategy`: the [`ViterbiStrategy`] struct this [`BestScore`] type
+    /// - `strategy`: the [`ViterbiStrategy`] struct this [`BestScore`] type
     ///   corresponds with
-    /// * `vals`: the current values in the delete, match, and insert states
-    /// * `j`: The current model layer
+    /// - `vals`: the current values in the delete, match, and insert states
+    /// - `j`: The current model layer
     fn update_seq_end(
         &mut self, _strategy: &Self::Strategy<'_>, _match_val: T, _delete_val: T, _insert_val: T, _j: impl PhmmIndex,
     ) {
@@ -314,14 +314,14 @@ trait BestScore<T, const S: usize> {
     ///
     /// ## Arguments
     ///
-    /// * `strategy`: the [`ViterbiStrategy`] struct this [`BestScore`] type
+    /// - `strategy`: the [`ViterbiStrategy`] struct this [`BestScore`] type
     ///   corresponds with
-    /// * `layer`: the last layer, including transition probabilities into the
+    /// - `layer`: the last layer, including transition probabilities into the
     ///   END state
-    /// * `vals`: the values in the delete, match, and insert states of the
+    /// - `vals`: the values in the delete, match, and insert states of the
     ///   layer before the END state. This function must handle early exits out
     ///   of that state as well as exits through the END state.
-    /// * `i`: The current number of bases consumed
+    /// - `i`: The current number of bases consumed
     fn update_last_layer(
         &mut self, _strategy: &Self::Strategy<'_>, _layer: &LayerParams<T, S>, _match_val: T, _delete_val: T,
         _insert_val: T, _i: impl QueryIndex,
@@ -332,11 +332,11 @@ trait BestScore<T, const S: usize> {
     ///
     /// ## Arguments
     ///
-    /// * `strategy`: the [`ViterbiStrategy`] struct this [`BestScore`] type
+    /// - `strategy`: the [`ViterbiStrategy`] struct this [`BestScore`] type
     ///   corresponds with
-    /// * `layer`: the last layer, including transition probabilities into the
+    /// - `layer`: the last layer, including transition probabilities into the
     ///   END state
-    /// * `vals`: the current values in the delete, match, and insert states
+    /// - `vals`: the current values in the delete, match, and insert states
     fn update_seq_end_last_layer(
         &mut self, _strategy: &Self::Strategy<'_>, _layer: &LayerParams<T, S>, _match_val: T, _delete_val: T, _insert_val: T,
     ) {

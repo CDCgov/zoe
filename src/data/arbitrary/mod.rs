@@ -120,9 +120,10 @@ impl<'a> Arbitrary<'a> for FastQ {
 /// A wrapper around [`FastQ`] such that the implementation of
 /// [`Arbitrary`](https://docs.rs/arbitrary/latest/arbitrary/trait.Arbitrary.html)
 /// only generates valid FASTQ records. This means:
-/// * The header can only contain graphic ASCII or spaces
-/// * The sequence must be graphic ASCII in the range `!`..=`~`
-/// * The sequence and quality scores must be the same length
+///
+/// - The header can only contain graphic ASCII or spaces
+/// - The sequence must be graphic ASCII in the range `!`..=`~`
+/// - The sequence and quality scores must be the same length
 #[derive(Debug)]
 pub struct FastQValid(pub FastQ);
 

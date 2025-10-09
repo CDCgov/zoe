@@ -167,7 +167,7 @@ impl ByteMap {
 ///
 /// ## Type Parameters
 ///
-/// * `S` - The number of unique indices in the output of the mapping (such as 5
+/// - `S` - The number of unique indices in the output of the mapping (such as 5
 ///   for DNA including *N*)
 ///
 /// [`DNA_PROFILE_MAP`]: super::DNA_PROFILE_MAP

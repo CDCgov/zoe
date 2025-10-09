@@ -13,9 +13,9 @@ use std::ops::Add;
 ///
 /// ## Arguments
 ///
-/// * `reference` - The reference sequence
-/// * `query` - The query profile
-/// * `band_width` - Number of positions away from diagonal to search
+/// - `reference` - The reference sequence
+/// - `query` - The query profile
+/// - `band_width` - Number of positions away from diagonal to search
 ///
 /// ## Example
 ///

@@ -77,10 +77,10 @@ impl<'a, T: Arbitrary<'a>, const S: usize> Arbitrary<'a> for LocalModule<T, S> {
 ///
 /// ## Parameters:
 ///
-/// * `T`: The floating point type for the parameters
-/// * `F`: The floating point type or arbitrary wrapper for generating the
+/// - `T`: The floating point type for the parameters
+/// - `F`: The floating point type or arbitrary wrapper for generating the
 ///   parameters
-/// * `S`: The number of parameters (size of the pHMM alphabet)
+/// - `S`: The number of parameters (size of the pHMM alphabet)
 pub struct EmissionParamsArbitrary<T, F, const S: usize>(pub EmissionParams<T, S>, PhantomData<F>);
 
 impl_deref! {EmissionParamsArbitrary<T, F, S>, EmissionParams<T, S>, <T, F, const S: usize>}
@@ -104,8 +104,8 @@ where
 ///
 /// ## Parameters:
 ///
-/// * `T`: The floating point type for the parameters
-/// * `F`: The floating point type or arbitrary wrapper for generating the
+/// - `T`: The floating point type for the parameters
+/// - `F`: The floating point type or arbitrary wrapper for generating the
 ///   parameters
 pub(crate) struct TransitionParamsArbitrary<T, F>(pub TransitionParams<T>, pub PhantomData<F>);
 
@@ -130,10 +130,10 @@ where
 ///
 /// ## Parameters:
 ///
-/// * `T`: The floating point type for the parameters
-/// * `F`: The floating point type or arbitrary wrapper for generating the
+/// - `T`: The floating point type for the parameters
+/// - `F`: The floating point type or arbitrary wrapper for generating the
 ///   parameters
-/// * `S`: The size of the pHMM alphabet
+/// - `S`: The size of the pHMM alphabet
 pub(crate) struct LayerParamsArbitrary<T, F, const S: usize>(LayerParams<T, S>, PhantomData<F>);
 
 impl_deref! {LayerParamsArbitrary<T, F, S>, LayerParams<T, S>, <T, F, const S: usize>}
@@ -161,11 +161,11 @@ where
 ///
 /// Parameters:
 ///
-/// * `T`: The floating point type for the parameters
-/// * `F`: The floating point type or arbitrary wrapper for generating the
+/// - `T`: The floating point type for the parameters
+/// - `F`: The floating point type or arbitrary wrapper for generating the
 ///   parameters
-/// * `S`: The size of the pHMM alphabet
-/// * `R`: If true, ensure invalid transitions are set to infinity
+/// - `S`: The size of the pHMM alphabet
+/// - `R`: If true, ensure invalid transitions are set to infinity
 #[derive(Debug)]
 #[cfg_attr(feature = "alignment-diagnostics", visibility::make(pub))]
 pub(crate) struct CorePhmmArbitrary<T, F, const S: usize, const R: bool>(pub CorePhmm<T, S>, PhantomData<F>);
@@ -220,8 +220,8 @@ where
 ///
 /// ## Parameters:
 ///
-/// * `T`: The floating point type for the parameters
-/// * `F`: The floating point type or arbitrary wrapper for generating the
+/// - `T`: The floating point type for the parameters
+/// - `F`: The floating point type or arbitrary wrapper for generating the
 ///   parameters
 pub struct SemiLocalModuleArbitrary<T, F>(SemiLocalModule<T>, PhantomData<F>);
 
@@ -272,10 +272,10 @@ where
 ///
 /// ## Parameters:
 ///
-/// * `T`: The floating point type for the parameters
-/// * `F`: The floating point type or arbitrary wrapper for generating the
+/// - `T`: The floating point type for the parameters
+/// - `F`: The floating point type or arbitrary wrapper for generating the
 ///   parameters
-/// * `S`: The size of the pHMM alphabet
+/// - `S`: The size of the pHMM alphabet
 pub struct DomainModuleArbitrary<T, F, const S: usize>(DomainModule<T, S>, PhantomData<F>);
 
 impl_deref! {DomainModuleArbitrary<T, F, S>, DomainModule<T, S>, <T, F, const S: usize>}
@@ -304,10 +304,10 @@ where
 ///
 /// ## Parameters:
 ///
-/// * `T`: The floating point type for the parameters
-/// * `F`: The floating point type or arbitrary wrapper for generating the
+/// - `T`: The floating point type for the parameters
+/// - `F`: The floating point type or arbitrary wrapper for generating the
 ///   parameters
-/// * `S`: The size of the pHMM alphabet
+/// - `S`: The size of the pHMM alphabet
 pub struct LocalModuleArbitrary<T, F, const S: usize>(LocalModule<T, S>, PhantomData<F>);
 
 impl_deref! {LocalModuleArbitrary<T, F, S>, LocalModule<T, S>, <T, F, const S: usize>}
@@ -354,10 +354,10 @@ where
 ///
 /// Parameters:
 ///
-/// * `T`: The floating point type for the parameters
-/// * `F`: The floating point type or arbitrary wrapper for generating the
+/// - `T`: The floating point type for the parameters
+/// - `F`: The floating point type or arbitrary wrapper for generating the
 ///   parameters
-/// * `R`: If true, ensure invalid transitions are set to infinity
+/// - `R`: If true, ensure invalid transitions are set to infinity
 #[derive(Debug)]
 pub struct DnaGlobalPhmm<T, F, const R: bool>(pub GlobalPhmm<T, 4>, PhantomData<F>);
 
@@ -380,12 +380,12 @@ where
 /// flexibility on the [`Arbitrary`] implementation.
 ///
 /// Parameters:
-/// * `T`: The floating point type for the parameters
-/// * `F`: The floating point type or arbitrary wrapper for generating the
+/// - `T`: The floating point type for the parameters
+/// - `F`: The floating point type or arbitrary wrapper for generating the
 ///   parameters
-/// * `M`: If true, ensure there are the [`LocalModule`]s are compatible with
+/// - `M`: If true, ensure there are the [`LocalModule`]s are compatible with
 ///   the pHMM
-/// * `R`: If true, ensure invalid transitions are set to infinity
+/// - `R`: If true, ensure invalid transitions are set to infinity
 #[derive(Debug)]
 pub struct DnaLocalPhmm<T, F, const M: bool, const R: bool>(pub LocalPhmm<T, 4>, pub PhantomData<F>);
 
@@ -425,10 +425,10 @@ where
 }
 
 /// Parameters:
-/// * `T`: The floating point type for the parameters
-/// * `F`: The floating point type or arbitrary wrapper for generating the
+/// - `T`: The floating point type for the parameters
+/// - `F`: The floating point type or arbitrary wrapper for generating the
 ///   parameters
-/// * `R`: If true, ensure invalid transitions are set to infinity
+/// - `R`: If true, ensure invalid transitions are set to infinity
 #[derive(Debug)]
 pub struct DnaDomainPhmm<T, F, const R: bool>(pub DomainPhmm<T, 4>, pub PhantomData<F>);
 
@@ -453,10 +453,10 @@ where
 }
 
 /// Parameters:
-/// * `T`: The floating point type for the parameters
-/// * `F`: The floating point type or arbitrary wrapper for generating the
+/// - `T`: The floating point type for the parameters
+/// - `F`: The floating point type or arbitrary wrapper for generating the
 ///   parameters
-/// * `R`: If true, ensure invalid transitions are set to infinity
+/// - `R`: If true, ensure invalid transitions are set to infinity
 #[derive(Debug)]
 pub struct DnaSemiLocalPhmm<T, F, const R: bool>(pub SemiLocalPhmm<T, 4>, pub PhantomData<F>);
 

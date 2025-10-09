@@ -24,18 +24,18 @@ impl<'a, T: Arbitrary<'a>> Arbitrary<'a> for Alignment<T> {
 ///
 /// ## Parameters:
 ///
-/// * `T`: The score type for the [`Alignment`]
-/// * `S`: [`AlignmentStates`] or arbitrary wrapper for generating the alignment
+/// - `T`: The score type for the [`Alignment`]
+/// - `S`: [`AlignmentStates`] or arbitrary wrapper for generating the alignment
 ///   states
-/// * `R_RANGE`: If true, ensures the length of the reference range is
+/// - `R_RANGE`: If true, ensures the length of the reference range is
 ///   compatible with the generated [`AlignmentStates`]
-/// * `Q_RANGE`: If true, ensures the length of the query range is compatible
+/// - `Q_RANGE`: If true, ensures the length of the query range is compatible
 ///   with the generated [`AlignmentStates`]
-/// * `R_LEN`: If true, ensures the length of the reference is at least the end
+/// - `R_LEN`: If true, ensures the length of the reference is at least the end
 ///   of the reference range
-/// * `Q_LEN`: If true, ensures the length of the query is at least the end of
+/// - `Q_LEN`: If true, ensures the length of the query is at least the end of
 ///   the query range
-/// * `CLIP`: If true, prepends `query_range.start` soft clipping and appends
+/// - `CLIP`: If true, prepends `query_range.start` soft clipping and appends
 ///   `query_len-query_range.end` soft clipping
 ///
 /// [`AlignmentStatesArbitrary`]:

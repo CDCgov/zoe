@@ -20,12 +20,12 @@ use std::{
 /// ## Errors
 ///
 /// The following errors are possible:
-/// * [`QueryProfileError::EmptyQuery`] if `query` is empty
-/// * [`QueryProfileError::GapOpenOutOfRange`] if `gap_open` is not between -127
+/// - [`QueryProfileError::EmptyQuery`] if `query` is empty
+/// - [`QueryProfileError::GapOpenOutOfRange`] if `gap_open` is not between -127
 ///   and 0, inclusive
-/// * [`QueryProfileError::GapExtendOutOfRange`] if `gap_extend` is not between
+/// - [`QueryProfileError::GapExtendOutOfRange`] if `gap_extend` is not between
 ///   -127 and 0, inclusive
-/// * [`QueryProfileError::BadGapWeights`] if `gap_extend` is less than
+/// - [`QueryProfileError::BadGapWeights`] if `gap_extend` is less than
 ///   `gap_open`
 #[inline]
 pub(crate) fn validate_profile_args<Q: AsRef<[u8]>>(
@@ -52,7 +52,7 @@ pub(crate) fn validate_profile_args<Q: AsRef<[u8]>>(
 ///
 /// ## Type Parameters
 ///
-/// * `S` - The size of the alphabet (usually 5 for DNA including *N*)
+/// - `S` - The size of the alphabet (usually 5 for DNA including *N*)
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ScalarProfile<'a, const S: usize> {
     pub(crate) seq:        &'a [u8],
@@ -67,12 +67,13 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// ## Errors
     ///
     /// The following errors are possible:
-    /// * [`QueryProfileError::EmptyQuery`] if `query` is empty
-    /// * [`QueryProfileError::GapOpenOutOfRange`] if `gap_open` is not between
+    ///
+    /// - [`QueryProfileError::EmptyQuery`] if `query` is empty
+    /// - [`QueryProfileError::GapOpenOutOfRange`] if `gap_open` is not between
     ///   -127 and 0, inclusive
-    /// * [`QueryProfileError::GapExtendOutOfRange`] if `gap_extend` is not
+    /// - [`QueryProfileError::GapExtendOutOfRange`] if `gap_extend` is not
     ///   between -127 and 0, inclusive
-    /// * [`QueryProfileError::BadGapWeights`] if `gap_extend` is less than
+    /// - [`QueryProfileError::BadGapWeights`] if `gap_extend` is less than
     ///   `gap_open`
     pub fn new<Q: AsRef<[u8]> + ?Sized>(
         query: &'a Q, matrix: &'a WeightMatrix<'a, i8, S>, gap_open: i8, gap_extend: i8,
@@ -168,11 +169,11 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
 ///
 /// ## Type Parameters
 ///
-/// * `T` - The numeric type used for scores. i8, i16, i32, and i64 use the
+/// - `T` - The numeric type used for scores. i8, i16, i32, and i64 use the
 ///   signed algorithm, which is the most common. u8, u16, u32, and u64 use the
 ///   unsigned algorithm.
-/// * `N` - The number of SIMD lanes (usually 16, 32 or 64)
-/// * `S` - The size of the alphabet (usually 5 for DNA including *N*)
+/// - `N` - The number of SIMD lanes (usually 16, 32 or 64)
+/// - `S` - The size of the alphabet (usually 5 for DNA including *N*)
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct StripedProfile<'a, T, const N: usize, const S: usize>
 where
@@ -198,12 +199,13 @@ where
     /// ## Errors
     ///
     /// The following errors are possible:
-    /// * [`QueryProfileError::EmptyQuery`] if `query` is empty
-    /// * [`QueryProfileError::GapOpenOutOfRange`] if `gap_open` is not between
+    ///
+    /// - [`QueryProfileError::EmptyQuery`] if `query` is empty
+    /// - [`QueryProfileError::GapOpenOutOfRange`] if `gap_open` is not between
     ///   -127 and 0, inclusive
-    /// * [`QueryProfileError::GapExtendOutOfRange`] if `gap_extend` is not
+    /// - [`QueryProfileError::GapExtendOutOfRange`] if `gap_extend` is not
     ///   between -127 and 0, inclusive
-    /// * [`QueryProfileError::BadGapWeights`] if `gap_extend` is less than
+    /// - [`QueryProfileError::BadGapWeights`] if `gap_extend` is less than
     ///   `gap_open`
     pub fn new<U>(
         query: &[u8], matrix: &WeightMatrix<'a, U, S>, gap_open: i8, gap_extend: i8,

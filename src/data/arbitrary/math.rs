@@ -8,7 +8,7 @@ use super::{impl_deref, impl_from};
 ///
 /// ## Parameters
 ///
-/// * `T`: The type of the float (`f32` or `f64`)
+/// - `T`: The type of the float (`f32` or `f64`)
 #[derive(Debug, Clone, Copy)]
 pub struct FloatNotNan<T>(pub T);
 
@@ -28,7 +28,7 @@ impl<'a, T: Float + Arbitrary<'a>> Arbitrary<'a> for FloatNotNan<T> {
 ///
 /// ## Parameters
 ///
-/// * `T`: The type of the float (`f32` or `f64`)
+/// - `T`: The type of the float (`f32` or `f64`)
 #[derive(Debug, Clone, Copy)]
 pub struct NonnegativeFloat<T>(pub T);
 

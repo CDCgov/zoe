@@ -15,11 +15,12 @@ pub struct KmerLen<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>>(PhantomData<E>
 /// given [`KmerEncoder`], as well as provides the appropriate integer type.
 ///
 /// Supported max k-mer lengths for [`ThreeBitKmerEncoder`] include:
-/// * `2`: uses a `u8`
-/// * `3..=5`: uses a `u16`
-/// * `6..=10`: uses a `u32`
-/// * `11..=21`: uses a `u64`
-/// * `22..=42`: uses a `u128`
+///
+/// - `2`: uses a `u8`
+/// - `3..=5`: uses a `u16`
+/// - `6..=10`: uses a `u32`
+/// - `11..=21`: uses a `u64`
+/// - `22..=42`: uses a `u128`
 ///
 /// This must never be implemented on any [`KmerLen`] where `MAX_LEN > 255`,
 /// since [`Kmer`] uses a `u8` to store the kmer length.

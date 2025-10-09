@@ -18,8 +18,8 @@ use crate::{
 ///
 /// ## Panics
 ///
-/// * All operations must be valid state, e.g, bytes in `MIDNSHP=X`.
-/// * The reference and query must be at least as long as the length implied by
+/// - All operations must be valid state, e.g, bytes in `MIDNSHP=X`.
+/// - The reference and query must be at least as long as the length implied by
 ///   alignment operations.
 #[inline]
 #[must_use]
@@ -73,8 +73,8 @@ pub trait PairwiseSequence: AsRef<[u8]> + Sealed {
     ///
     /// ## Panics
     ///
-    /// * All opcodes in the CIGAR must be characters in `MIDNSHP=X`.
-    /// * The reference and query must be at least as long as the length
+    /// - All opcodes in the CIGAR must be characters in `MIDNSHP=X`.
+    /// - The reference and query must be at least as long as the length
     ///   specified in the alignment states.
     #[inline]
     fn align_and_collect(
@@ -96,8 +96,8 @@ pub trait PairwiseSequence: AsRef<[u8]> + Sealed {
     ///
     /// ## Panics
     ///
-    /// * All opcodes must be characters in `MIDNSHP=X`.
-    /// * The reference and query must be at least as long as the length
+    /// - All opcodes must be characters in `MIDNSHP=X`.
+    /// - The reference and query must be at least as long as the length
     ///   specified in the alignment operations.
     ///
     /// [`align_and_collect`]: PairwiseSequence::align_and_collect

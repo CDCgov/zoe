@@ -24,12 +24,12 @@ pub(crate) use tabulation::{hamming_dist_from_sub_matrix, total_and_frequencies}
 ///
 /// ## Returns
 ///
-/// * `Some(f64)` - The p-distance between sequences if valid positions are found.
-/// * `None` - If no valid positions are found to compare.
+/// - `Some(f64)` - The p-distance between sequences if valid positions are found.
+/// - `None` - If no valid positions are found to compare.
 ///
 /// ## Type Parameters
 ///
-/// * `N` - SIMD lane count, must be a supported lane count
+/// - `N` - SIMD lane count, must be a supported lane count
 ///
 /// ## Example
 ///

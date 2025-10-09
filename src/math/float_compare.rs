@@ -40,7 +40,8 @@
 /// This macro allows for `f32` and `f64` to be compared. Additionally, assuming
 /// that type `T` can be compared using this macro, so can `Option<T>`, `[T;
 /// N]`, and `Vec<T>`. Additionally, the following Zoe structs can be compared:
-/// * Profile Hidden Markov Models: `TransitionParams`, `EmissionParams`,
+///
+/// - Profile Hidden Markov Models: `TransitionParams`, `EmissionParams`,
 ///   `LayerParams`, `CorePhmm`, and `GlobalPhmm`.
 #[macro_export]
 macro_rules! assert_fp_eq {

@@ -17,10 +17,10 @@ use std::{
 ///
 /// ## Type Parameters
 ///
-/// * `M` - The number of SIMD lanes for i8 profiles
-/// * `N` - The number of SIMD lanes for i16 profiles
-/// * `O` - The number of SIMD lanes for i32 profiles
-/// * `S` - The size of the alphabet (usually 5 for DNA including *N*)
+/// - `M` - The number of SIMD lanes for i8 profiles
+/// - `N` - The number of SIMD lanes for i16 profiles
+/// - `O` - The number of SIMD lanes for i32 profiles
+/// - `S` - The size of the alphabet (usually 5 for DNA including *N*)
 pub trait ProfileSets<'a, const M: usize, const N: usize, const O: usize, const S: usize>: Sized
 where
     LaneCount<M>: SupportedLaneCount,
@@ -238,12 +238,12 @@ where
     /// ## Errors
     ///
     /// The following errors are possible:
-    /// * [`QueryProfileError::EmptyQuery`] if `query` is empty
-    /// * [`QueryProfileError::GapOpenOutOfRange`] if `gap_open` is not between
+    /// - [`QueryProfileError::EmptyQuery`] if `query` is empty
+    /// - [`QueryProfileError::GapOpenOutOfRange`] if `gap_open` is not between
     ///   -127 and 0, inclusive
-    /// * [`QueryProfileError::GapExtendOutOfRange`] if `gap_extend` is not
+    /// - [`QueryProfileError::GapExtendOutOfRange`] if `gap_extend` is not
     ///   between -127 and 0, inclusive
-    /// * [`QueryProfileError::BadGapWeights`] if `gap_extend` is less than
+    /// - [`QueryProfileError::BadGapWeights`] if `gap_extend` is less than
     ///   `gap_open`
     #[inline]
     pub fn new<T: AsRef<[u8]> + ?Sized>(
@@ -293,10 +293,10 @@ impl<'a, const S: usize> LocalProfiles<'a, 16, 8, 4, S> {
 ///
 /// ## Type Parameters
 ///
-/// * `M` - The number of SIMD lanes for i8 profiles
-/// * `N` - The number of SIMD lanes for i16 profiles
-/// * `O` - The number of SIMD lanes for i32 profiles
-/// * `S` - The size of the alphabet (usually 5 for DNA including *N*)
+/// - `M` - The number of SIMD lanes for i8 profiles
+/// - `N` - The number of SIMD lanes for i16 profiles
+/// - `O` - The number of SIMD lanes for i32 profiles
+/// - `S` - The size of the alphabet (usually 5 for DNA including *N*)
 #[derive(Debug, Clone)]
 pub struct LocalProfiles<'a, const M: usize, const N: usize, const O: usize, const S: usize>
 where
@@ -411,10 +411,10 @@ where
 ///
 /// ## Type Parameters
 ///
-/// * `M` - The number of SIMD lanes for i8 profiles
-/// * `N` - The number of SIMD lanes for i16 profiles
-/// * `O` - The number of SIMD lanes for i32 profiles
-/// * `S` - The size of the alphabet (usually 5 for DNA including *N*)
+/// - `M` - The number of SIMD lanes for i8 profiles
+/// - `N` - The number of SIMD lanes for i16 profiles
+/// - `O` - The number of SIMD lanes for i32 profiles
+/// - `S` - The size of the alphabet (usually 5 for DNA including *N*)
 #[derive(Debug, Clone)]
 pub struct SharedProfiles<'a, const M: usize, const N: usize, const O: usize, const S: usize>
 where
@@ -443,12 +443,12 @@ where
     /// ## Errors
     ///
     /// The following errors are possible:
-    /// * [`QueryProfileError::EmptyQuery`] if `query` is empty
-    /// * [`QueryProfileError::GapOpenOutOfRange`] if `gap_open` is not between
+    /// - [`QueryProfileError::EmptyQuery`] if `query` is empty
+    /// - [`QueryProfileError::GapOpenOutOfRange`] if `gap_open` is not between
     ///   -127 and 0, inclusive
-    /// * [`QueryProfileError::GapExtendOutOfRange`] if `gap_extend` is not
+    /// - [`QueryProfileError::GapExtendOutOfRange`] if `gap_extend` is not
     ///   between -127 and 0, inclusive
-    /// * [`QueryProfileError::BadGapWeights`] if `gap_extend` is less than
+    /// - [`QueryProfileError::BadGapWeights`] if `gap_extend` is less than
     ///   `gap_open`
     #[inline]
     pub fn new(

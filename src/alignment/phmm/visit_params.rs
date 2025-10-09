@@ -438,9 +438,10 @@ where
 /// about the parameter). The closure may mutate state as needed.
 ///
 /// This function does not include the following parameters:
-/// * Transitions from the BEGIN state
-/// * Transitions into the END state
-/// * Transitions from a starting or ending module into a match state
+///
+/// - Transitions from the BEGIN state
+/// - Transitions into the END state
+/// - Transitions from a starting or ending module into a match state
 ///
 /// [`seq_len`]: PhmmIndexable::seq_len
 fn visit_params_core<T, const S: usize, F>(

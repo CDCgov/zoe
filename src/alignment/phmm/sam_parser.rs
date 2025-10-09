@@ -17,7 +17,7 @@ use crate::{
 };
 use std::{
     fs::File,
-    io::{BufRead, BufReader, BufWriter, Error as IOError, ErrorKind, Lines, Write},
+    io::{BufRead, BufReader, BufWriter, Error as IOError, ErrorKind, Lines, Read, Write},
     marker::PhantomData,
     path::Path,
 };
@@ -28,28 +28,56 @@ use std::{
 pub struct SamHmmParser;
 
 impl SamHmmParser {
-    /// Parse a DNA pHMM from a SAM model file.
+    /// Parses a DNA pHMM from SAM model specifications in a type implementing
+    /// [`Read`].
     ///
     /// ## Errors
     ///
-    /// * The file must meet the specifications for a SAM model file
-    /// * The file must be a model file (not a regularizer or null model)
-    /// * The specified alphabet must be dna
-    /// * No negative indices are allowed in layer names
-    pub fn parse_dna_model(filename: impl AsRef<Path>) -> std::io::Result<GlobalPhmm<f32, 4>> {
-        SupportedConfig::parse_sam_model_file(filename)
+    /// - The data must meet the SAM model specifications
+    /// - The data must be a model (not a regularizer or null model)
+    /// - The specified alphabet must be `dna`
+    /// - No negative indices are allowed in layer names
+    pub fn dna_hmm_from_readable<R: Read>(read: R) -> std::io::Result<GlobalPhmm<f32, 4>> {
+        SupportedConfig::parse_sam_model(read)
     }
 
-    /// Parse a protein pHMM from a SAM model file.
+    /// Parses a DNA pHMM from a SAM model file.
     ///
     /// ## Errors
     ///
-    /// * The file must meet the specifications for a SAM model file
-    /// * The file must be a model file (not a regularizer or null model)
-    /// * The specified alphabet must be protein
-    /// * No negative indices are allowed in layer names
-    pub fn parse_protein_model(filename: impl AsRef<Path>) -> Result<GlobalPhmm<f32, 20>, std::io::Error> {
-        SupportedConfig::parse_sam_model_file(filename)
+    /// - Any IO errors from reading the file are propagated
+    /// - The data must meet the SAM model specifications
+    /// - The data must be a model (not a regularizer or null model)
+    /// - The specified alphabet must be `dna`
+    /// - No negative indices are allowed in layer names
+    pub fn dna_hmm_from_filename(filename: impl AsRef<Path>) -> std::io::Result<GlobalPhmm<f32, 4>> {
+        SupportedConfig::parse_sam_model(File::open(filename)?)
+    }
+
+    /// Parses a protein pHMM from a SAM model file.
+    ///
+    /// ## Errors
+    ///
+    /// - Any IO errors from reading the file are propagated
+    /// - The data must meet the SAM model specifications
+    /// - The data must be a model (not a regularizer or null model)
+    /// - The specified alphabet must be `protein`
+    /// - No negative indices are allowed in layer names
+    pub fn protein_hmm_from_readable<R: Read>(read: R) -> Result<GlobalPhmm<f32, 20>, std::io::Error> {
+        SupportedConfig::parse_sam_model(read)
+    }
+
+    /// Parses a protein pHMM from a SAM model file.
+    ///
+    /// ## Errors
+    ///
+    /// - Any IO errors from reading the file are propagated
+    /// - The data must meet the SAM model specifications
+    /// - The data must be a model (not a regularizer or null model)
+    /// - The specified alphabet must be `protein`
+    /// - No negative indices are allowed in layer names
+    pub fn protein_hmm_from_filename(filename: impl AsRef<Path>) -> Result<GlobalPhmm<f32, 20>, std::io::Error> {
+        SupportedConfig::parse_sam_model(File::open(filename)?)
     }
 }
 
@@ -70,30 +98,61 @@ impl SamHmmParser {
 struct GenericSamHmmParser<T>(PhantomData<T>);
 
 impl<T: PhmmNumber> GenericSamHmmParser<T> {
-    /// Parse a DNA pHMM from a SAM model file.
+    /// Parses a DNA pHMM from SAM model specifications in a type implementing
+    /// [`Read`].
     ///
     /// ## Errors
     ///
-    /// * The file must meet the specifications for a SAM model file
-    /// * The file must be a model file (not a regularizer or null model)
-    /// * The specified alphabet must be dna
-    /// * No negative indices are allowed in layer names
+    /// - The data must meet the SAM model specifications
+    /// - The data must be a model (not a regularizer or null model)
+    /// - The specified alphabet must be `dna`
+    /// - No negative indices are allowed in layer names
     #[allow(dead_code)]
-    pub fn parse_dna_model(filename: impl AsRef<Path>) -> Result<GlobalPhmm<T, 4>, std::io::Error> {
-        SupportedConfig::parse_sam_model_file(filename)
+    pub fn dna_hmm_from_readable<R: Read>(read: R) -> std::io::Result<GlobalPhmm<T, 4>> {
+        SupportedConfig::parse_sam_model(read)
     }
 
-    /// Parse a protein pHMM from a SAM model file.
+    /// Parses a DNA pHMM from a SAM model file.
     ///
     /// ## Errors
     ///
-    /// * The file must meet the specifications for a SAM model file
-    /// * The file must be a model file (not a regularizer or null model)
-    /// * The specified alphabet must be protein
-    /// * No negative indices are allowed in layer names
+    /// - Any IO errors from reading the file are propagated
+    /// - The data must meet the SAM model specifications
+    /// - The data must be a model (not a regularizer or null model)
+    /// - The specified alphabet must be `dna`
+    /// - No negative indices are allowed in layer names
     #[allow(dead_code)]
-    pub fn parse_protein_model(filename: impl AsRef<Path>) -> Result<GlobalPhmm<T, 20>, std::io::Error> {
-        SupportedConfig::parse_sam_model_file(filename)
+    pub fn dna_hmm_from_filename(filename: impl AsRef<Path>) -> std::io::Result<GlobalPhmm<T, 4>> {
+        SupportedConfig::parse_sam_model(File::open(filename)?)
+    }
+
+    /// Parses a protein pHMM from SAM model specifications in a type
+    /// implementing [`Read`].
+    ///
+    /// ## Errors
+    ///
+    /// - Any IO errors from reading the file are propagated
+    /// - The data must meet the SAM model specifications
+    /// - The data must be a model (not a regularizer or null model)
+    /// - The specified alphabet must be `protein`
+    /// - No negative indices are allowed in layer names
+    #[allow(dead_code)]
+    pub fn protein_hmm_from_readable<R: Read>(read: R) -> std::io::Result<GlobalPhmm<T, 20>> {
+        SupportedConfig::parse_sam_model(read)
+    }
+
+    /// Parses a protein pHMM from a SAM model file.
+    ///
+    /// ## Errors
+    ///
+    /// - Any IO errors from reading the file are propagated
+    /// - The data must meet the SAM model specifications
+    /// - The data must be a model (not a regularizer or null model)
+    /// - The specified alphabet must be `protein`
+    /// - No negative indices are allowed in layer names
+    #[allow(dead_code)]
+    pub fn protein_hmm_from_filename(filename: impl AsRef<Path>) -> std::io::Result<GlobalPhmm<T, 20>> {
+        SupportedConfig::parse_sam_model(File::open(filename)?)
     }
 }
 
@@ -106,9 +165,9 @@ impl SamHmmWriter {
     ///
     /// ## Errors
     ///
-    /// * IO errors (when creating file or writing to it)
-    /// * The mapping of the pHMM must correspond to DNA
-    /// * The model must have at least one layer
+    /// - IO errors (when creating file or writing to it)
+    /// - The mapping of the pHMM must correspond to DNA
+    /// - The model must have at least one layer
     #[inline]
     pub fn write_dna_model<T: PhmmNumber>(filename: impl AsRef<Path>, model: &GlobalPhmm<T, 4>) -> std::io::Result<()> {
         SupportedConfig::write_sam_model_file(filename, model)
@@ -118,9 +177,9 @@ impl SamHmmWriter {
     ///
     /// ## Errors
     ///
-    /// * IO errors (when creating file or writing to it)
-    /// * The mapping of the pHMM must correspond to DNA
-    /// * The model must have at least one layer
+    /// - IO errors (when creating file or writing to it)
+    /// - The mapping of the pHMM must correspond to DNA
+    /// - The model must have at least one layer
     #[inline]
     pub fn write_protein_model<T: PhmmNumber>(filename: impl AsRef<Path>, model: &GlobalPhmm<T, 20>) -> std::io::Result<()> {
         SupportedConfig::write_sam_model_file(filename, model)
@@ -166,17 +225,18 @@ trait SamHmmConfig<const S: usize, const L: usize> {
     ///
     /// ## Errors
     ///
-    /// * The file must meet the specifications for a SAM model file
-    /// * The file must be a model file (not a regularizer or null model)
-    /// * The specified alphabet must be compatible with the selected `S` and
+    /// - The file must meet the specifications for a SAM model file
+    /// - The file must be a model file (not a regularizer or null model)
+    /// - The specified alphabet must be compatible with the selected `S` and
     ///   `L`
-    /// * No negative indices are allowed in layer names
-    /// * At least three layers must be present in the model
-    fn parse_sam_model_file<T: PhmmNumber, P>(filename: P) -> Result<GlobalPhmm<T, S>, IOError>
+    /// - No negative indices are allowed in layer names
+    /// - At least three layers must be present in the model
+    fn parse_sam_model<R, T>(read: R) -> Result<GlobalPhmm<T, S>, IOError>
     where
-        P: AsRef<Path>,
+        R: Read,
+        T: PhmmNumber,
         SupportedConfig: SamHmmConfig<S, L>, {
-        let mut lines = LineIterator::new(filename)?;
+        let mut lines = LineIterator::from_readable(read);
 
         // Read initial line
         validate_model_line(&mut lines)?;
@@ -185,7 +245,7 @@ trait SamHmmConfig<const S: usize, const L: usize> {
         let mapping = Self::parse_alphabet_line(&mut lines)?;
 
         // Read all model layers
-        let mut layers = LayerIter::<T, S, L>::new(&mut lines)?.collect::<Result<Vec<_>, IOError>>()?;
+        let mut layers = LayerIter::new(&mut lines)?.collect::<Result<Vec<_>, IOError>>()?;
 
         let [first_layer, .., last_layer] = layers.as_mut_slice() else {
             return Err(IOError::new(
@@ -212,9 +272,9 @@ trait SamHmmConfig<const S: usize, const L: usize> {
     ///
     /// ## Errors
     ///
-    /// * IO errors (when creating file or writing to it)
-    /// * The mapping of the pHMM must correspond to DNA
-    /// * The model must correspond to a reference of length at least 1
+    /// - IO errors (when creating file or writing to it)
+    /// - The mapping of the pHMM must correspond to DNA
+    /// - The model must correspond to a reference of length at least 1
     fn write_sam_model_file<T: PhmmNumber, P>(filename: P, model: &GlobalPhmm<T, S>) -> std::io::Result<()>
     where
         P: AsRef<Path>,
@@ -263,7 +323,7 @@ trait SamHmmConfig<const S: usize, const L: usize> {
     }
 
     /// Parse the alphabet line of the model. This consumes one line of the file
-    fn parse_alphabet_line(lines: &mut LineIterator) -> Result<&'static ByteIndexMap<S>, IOError> {
+    fn parse_alphabet_line<R: Read>(lines: &mut LineIterator<R>) -> std::io::Result<&'static ByteIndexMap<S>> {
         let line = lines
             .next()
             .ok_or(IOError::new(ErrorKind::InvalidData, "Could not locate alphabet line in file"))??
@@ -292,15 +352,15 @@ trait SamHmmConfig<const S: usize, const L: usize> {
     ///
     /// ## Errors
     ///
-    /// * `rest_of_line` and `lines` must contain sufficiently many tokens to
+    /// - `rest_of_line` and `lines` must contain sufficiently many tokens to
     ///   fill a full set of parameters
-    /// * All parameters must parse successfully, and there should be no extra
+    /// - All parameters must parse successfully, and there should be no extra
     ///   parameters on any line (see [`fill_params_from_iter`])
     ///
     /// [`fill_params_from_iter`]: crate::alignment::phmm::sam_parser::SamHmmConfig::fill_params_from_iter
-    fn parse_layer_params<'a, T: PhmmNumber>(
-        mut rest_of_line: impl Iterator<Item = &'a str>, lines: &mut LineIterator,
-    ) -> Result<LayerParams<T, S>, IOError> {
+    fn parse_layer_params<'a, R: Read, T: PhmmNumber>(
+        mut rest_of_line: impl Iterator<Item = &'a str>, lines: &mut LineIterator<R>,
+    ) -> std::io::Result<LayerParams<T, S>> {
         let mut params = [T::ZERO; L];
 
         let mut i = Self::fill_params_from_iter::<T>(rest_of_line.by_ref(), &mut params, 0)?;
@@ -334,8 +394,8 @@ trait SamHmmConfig<const S: usize, const L: usize> {
     ///
     /// ## Errors
     ///
-    /// * The parameters must successfully parse (see [`parse_param`])
-    /// * If `params` gets filled, then `iter` must not contain any more
+    /// - The parameters must successfully parse (see [`parse_param`])
+    /// - If `params` gets filled, then `iter` must not contain any more
     ///   elements
     fn fill_params_from_iter<'a, T: PhmmNumber>(
         iter: &mut impl Iterator<Item = &'a str>, params: &mut [T], mut i: usize,
@@ -492,8 +552,8 @@ impl SamHmmConfig<20, 49> for SupportedConfig {
 ///
 /// ## Errors
 ///
-/// * Negatively-numbered nodes are not supported
-/// * Any layer name other than BEGIN or END must successfully parse to a usize
+/// - Negatively-numbered nodes are not supported
+/// - Any layer name other than BEGIN or END must successfully parse to a usize
 fn parse_layer_name(token: &str) -> Result<Option<usize>, IOError> {
     if token.eq_ignore_ascii_case("BEGIN") {
         Ok(Some(0))
@@ -513,7 +573,7 @@ fn parse_layer_name(token: &str) -> Result<Option<usize>, IOError> {
 
 /// Extracts and validates the "MODEL" line of the file
 #[inline]
-fn validate_model_line(lines: &mut LineIterator) -> Result<(), IOError> {
+fn validate_model_line<R: Read>(lines: &mut LineIterator<R>) -> std::io::Result<()> {
     let line = lines
         .next()
         .ok_or(IOError::new(ErrorKind::InvalidData, "Could not locate initial line in file"))??;
@@ -539,8 +599,8 @@ fn validate_model_line(lines: &mut LineIterator) -> Result<(), IOError> {
 ///
 /// ## Errors
 ///
-/// * Negative parameters are not allowed
-/// * The parameter must succeed when parsing to type `T`
+/// - Negative parameters are not allowed
+/// - The parameter must succeed when parsing to type `T`
 #[inline]
 fn parse_param<T: PhmmNumber>(prob: &str) -> Result<T, IOError> {
     if prob.starts_with('-') {
@@ -560,14 +620,14 @@ fn parse_param<T: PhmmNumber>(prob: &str) -> Result<T, IOError> {
 
 /// An iterator over the layers in a SAM pHMM file, rearranged to be compatible
 /// with Zoe.
-struct LayerIter<'a, T, const S: usize, const L: usize> {
+struct LayerIter<'a, R: Read, T, const S: usize, const L: usize> {
     /// The underlying raw layers of the SAM pHMM file
-    raw_layers: RawLayerIter<'a, T, S, L>,
+    raw_layers: RawLayerIter<'a, R, T, S, L>,
     /// The last layer that was parsed, but not yet yielded
     last_layer: LayerParams<T, S>,
 }
 
-impl<'a, T: PhmmNumber, const S: usize, const L: usize> LayerIter<'a, T, S, L>
+impl<'a, R: Read, T: PhmmNumber, const S: usize, const L: usize> LayerIter<'a, R, T, S, L>
 where
     SupportedConfig: SamHmmConfig<S, L>,
 {
@@ -576,9 +636,9 @@ where
     ///
     /// ## Errors
     ///
-    /// * IO errors
-    /// * At least one model layer must be present
-    fn new(lines: &'a mut LineIterator) -> Result<Self, IOError> {
+    /// - IO errors
+    /// - At least one model layer must be present
+    fn new(lines: &'a mut LineIterator<R>) -> std::io::Result<Self> {
         let mut raw_layers = RawLayerIter::new(lines);
         let last_layer = raw_layers
             .next()
@@ -587,11 +647,11 @@ where
     }
 }
 
-impl<T: PhmmNumber, const S: usize, const L: usize> Iterator for LayerIter<'_, T, S, L>
+impl<R: Read, T: PhmmNumber, const S: usize, const L: usize> Iterator for LayerIter<'_, R, T, S, L>
 where
     SupportedConfig: SamHmmConfig<S, L>,
 {
-    type Item = Result<LayerParams<T, S>, IOError>;
+    type Item = std::io::Result<LayerParams<T, S>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let mut next_layer = unwrap_or_return_some_err!(self.raw_layers.next()?);
@@ -608,19 +668,19 @@ where
 /// An iterator over the "raw" layers in a SAM pHMM file. These are the layers
 /// as grouped in the model file, which is a different grouping than how
 /// [`GlobalPhmm`] represents them.
-struct RawLayerIter<'a, T, const S: usize, const L: usize> {
+struct RawLayerIter<'a, R: Read, T, const S: usize, const L: usize> {
     /// The underlying iterator of lines in the file
-    lines:          &'a mut LineIterator,
+    lines:          &'a mut LineIterator<R>,
     /// The next layer number expected by the model. This is `None` when
     /// ENDMODEL has been parsed
     expected_layer: Option<usize>,
     phantom:        PhantomData<T>,
 }
 
-impl<'a, T, const S: usize, const L: usize> RawLayerIter<'a, T, S, L> {
+impl<'a, R: Read, T, const S: usize, const L: usize> RawLayerIter<'a, R, T, S, L> {
     /// Creates a new [`RawLayerIter`] from an iterator of the lines in the
     /// file.
-    fn new(lines: &'a mut LineIterator) -> Self {
+    fn new(lines: &'a mut LineIterator<R>) -> Self {
         Self {
             lines,
             expected_layer: Some(0),
@@ -629,7 +689,7 @@ impl<'a, T, const S: usize, const L: usize> RawLayerIter<'a, T, S, L> {
     }
 }
 
-impl<T: PhmmNumber, const S: usize, const L: usize> Iterator for RawLayerIter<'_, T, S, L>
+impl<R: Read, T: PhmmNumber, const S: usize, const L: usize> Iterator for RawLayerIter<'_, R, T, S, L>
 where
     SupportedConfig: SamHmmConfig<S, L>,
 {
@@ -655,7 +715,7 @@ where
         }
 
         if token.eq_ignore_ascii_case("FREQAVE") {
-            unwrap_or_return_some_err!(SupportedConfig::parse_layer_params::<T>(tokens, self.lines));
+            unwrap_or_return_some_err!(SupportedConfig::parse_layer_params::<R, T>(tokens, self.lines));
             return self.next();
         }
 
@@ -699,23 +759,22 @@ where
 
 /// An iterator over the lines in a SAM file, skipping empty lines, lines
 /// containing only whitespace, and comment lines.
-struct LineIterator {
-    lines: Lines<BufReader<File>>,
+struct LineIterator<R: Read> {
+    lines: Lines<BufReader<R>>,
 }
 
-impl LineIterator {
-    /// Create a new [`LineIterator`] object from a file. A `BufReader` is
-    /// automatically used.
-    #[inline]
-    fn new<P: AsRef<Path>>(filename: P) -> Result<Self, IOError> {
-        Ok(Self {
-            lines: BufReader::new(File::open(filename)?).lines(),
-        })
+impl<R: Read> LineIterator<R> {
+    /// Creates a new [`LineIterator`] object from a type implementing [`Read`],
+    /// wrapping the input in a [`BufReader`].
+    fn from_readable(read: R) -> Self {
+        Self {
+            lines: BufReader::new(read).lines(),
+        }
     }
 }
 
-impl Iterator for LineIterator {
-    type Item = Result<String, IOError>;
+impl<R: Read> Iterator for LineIterator<R> {
+    type Item = std::io::Result<String>;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {

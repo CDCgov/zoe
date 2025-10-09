@@ -119,11 +119,11 @@ where
 ///
 /// ## Parameters:
 ///
-/// * `C`: The [`Ciglet`] type or arbitrary wrapper for generating the ciglets
-/// * `D`: If true, ensures adjacent operations are different
-/// * `Q`: If true, ensures the number of residues of the query consumed by the
+/// - `C`: The [`Ciglet`] type or arbitrary wrapper for generating the ciglets
+/// - `D`: If true, ensures adjacent operations are different
+/// - `Q`: If true, ensures the number of residues of the query consumed by the
 ///   alignment is not over [`usize::MAX`]
-/// * `R`: If true, ensures the number of residues of the reference consumed by
+/// - `R`: If true, ensures the number of residues of the reference consumed by
 ///   the alignment is not over [`usize::MAX`]
 #[derive(Debug)]
 pub struct AlignmentStatesArbitrary<C, const D: bool, const Q: bool, const R: bool>(pub AlignmentStates, pub PhantomData<C>);
