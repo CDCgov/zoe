@@ -71,7 +71,8 @@ impl<T: Clone> ViterbiTraceback<T> {
     /// The layer length is the number of match states excluding BEGIN and END.
     #[inline]
     #[must_use]
-    fn new(default: T, query_len: usize, layers_len: usize) -> Self {
+    #[allow(dead_code)]
+    pub fn new(default: T, query_len: usize, layers_len: usize) -> Self {
         Self {
             data: vec![default; (query_len + 1) * (layers_len + 1)],
             cols: query_len + 1,
@@ -106,6 +107,7 @@ impl<T> ViterbiTraceback<T> {
     /// the BEGIN state, `1` corresponds to the first layer, and so on.
     #[inline]
     #[must_use]
+    #[allow(dead_code)]
     pub fn get_mut(&mut self, i: usize, j: usize) -> &mut T {
         &mut self.data[self.cols * j + i]
     }
@@ -117,6 +119,7 @@ impl<T> ViterbiTraceback<T> {
     /// and so on.
     #[inline]
     #[must_use]
+    #[allow(dead_code)]
     pub fn get_rows_mut(&mut self, j: usize) -> (&mut [T], &mut [T]) {
         let start = self.cols * j;
         self.data[start..2 * self.cols].split_at_mut(start + self.cols)

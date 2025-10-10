@@ -138,6 +138,8 @@ pub trait PhmmIndexable: Sized {
 
     /// Converts the [`PhmmIndex`] to a dynamic programming index.
     #[inline]
+    #[must_use]
+    #[allow(dead_code)]
     fn to_dp_index(&self, j: impl PhmmIndex) -> DpIndex {
         DpIndex(self.get_dp_index(j))
     }
@@ -147,6 +149,8 @@ pub trait PhmmIndexable: Sized {
     ///
     /// If the index corresponds to the BEGIN state, then `None` is returned
     /// since this does not correspond to a position in the reference.
+    #[inline]
+    #[must_use]
     fn get_seq_index(&self, j: impl PhmmIndex) -> Option<usize> {
         self.get_dp_index(j).checked_sub(1)
     }
@@ -180,6 +184,9 @@ pub trait PhmmIndexable: Sized {
     }
 
     /// Converts a [`PhmmIndexRange`] to a range of [`DpIndex`].
+    #[inline]
+    #[must_use]
+    #[allow(dead_code)]
     fn to_dp_range<R: PhmmIndexRange>(&self, range: R) -> Range<DpIndex> {
         let Range { start, end } = self.get_dp_range(range);
         DpIndex(start)..DpIndex(end)
@@ -198,6 +205,9 @@ pub trait PhmmIndexable: Sized {
     ///
     /// If either index corresponds to the BEGIN state, then this will be mapped
     /// to 0 (the same sequence index that [`FirstMatch`] corresponds to).
+    #[inline]
+    #[must_use]
+    #[allow(dead_code)]
     fn to_seq_range<R: PhmmIndexRange>(&self, range: R) -> Range<SeqIndex> {
         let Range { start, end } = self.get_seq_range(range);
         SeqIndex(start)..SeqIndex(end)
@@ -267,12 +277,15 @@ pub trait QueryIndexable: Sized {
 pub trait PhmmIndex: IndexOffset {
     /// Helper function for [`PhmmIndexable::get_dp_index`], allowing each index
     /// type to control how it gets coverted to a dynamic programming index
+    #[must_use]
     fn get_phmm_dp_index(&self, v: &impl PhmmIndexable) -> usize;
 
     // TODO: Doc link
     /// Hook to allow the `End` index literal to be detected separately than the
     /// rest (e.g., for `get_layer` in [`CorePhmm`])
     #[inline]
+    #[must_use]
+    #[allow(dead_code)]
     fn is_end(&self) -> bool {
         false
     }
@@ -319,6 +332,7 @@ pub struct Begin;
 /// A [`PhmmIndex`] representing the first match state of the pHMM after BEGIN.
 ///
 /// This corresponds to the first residue in the reference sequences.
+#[allow(dead_code)]
 #[derive(Clone, Copy)]
 pub struct FirstMatch;
 
@@ -507,12 +521,15 @@ impl QueryIndex for LastBase {
 pub trait IndexOffset: Copy {
     /// Get the index before the current one.
     #[inline]
+    #[must_use]
+    #[allow(dead_code)]
     fn prev_index(self) -> PrevOffset<Self> {
         PrevOffset(self, 1)
     }
 
     /// Get the index after the current one.
     #[inline]
+    #[must_use]
     fn next_index(self) -> NextOffset<Self> {
         NextOffset(self, 1)
     }
@@ -532,6 +549,7 @@ impl<I: IndexOffset> IndexOffset for NextOffset<I> {}
 
 /// A wrapper type for a [`PhmmIndex`] or [`QueryIndex`] for specifying the
 /// layer before another one by a given offset.
+#[allow(dead_code)]
 #[derive(Clone, Copy)]
 pub struct PrevOffset<I>(I, usize);
 

@@ -80,17 +80,17 @@ impl<T: PhmmNumber> SemiLocalModule<T> {
 pub struct DomainModule<T, const S: usize> {
     /// The transition parameter from the start of the module to the insert
     /// state
-    pub(crate) start_to_insert:     T,
+    pub start_to_insert:     T,
     /// The transition parameter for staying in the insert state
-    pub(crate) insert_to_insert:    T,
+    pub insert_to_insert:    T,
     /// The transition parameter for exiting the insert state and going to the
     /// end of the module
-    pub(crate) insert_to_end:       T,
+    pub insert_to_end:       T,
     /// The transition parameter for going from the start to the end of the
     /// module without any insertions (no residues in the sequence are skipped)
-    pub(crate) start_to_end:        T,
+    pub start_to_end:        T,
     /// The emission parameters for all inserted/skipped residues
-    pub(crate) background_emission: EmissionParams<T, S>,
+    pub background_emission: EmissionParams<T, S>,
 }
 
 impl<T: PhmmNumber, const S: usize> DomainModule<T, S> {

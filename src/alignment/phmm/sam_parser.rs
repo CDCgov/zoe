@@ -56,6 +56,17 @@ impl SamHmmParser {
 /// A struct providing methods for parsing a [`GlobalPhmm`] from a SAM (sequence
 /// alignment and modeling system) model file, using type `T` to represent all
 /// model parameters.
+///
+/// <div class="warning note">
+///
+/// **Note**
+///
+/// You must enable the *alignment-diagnostics* feature in your `Cargo.toml` to
+/// access this struct.
+///
+/// </div>
+#[allow(dead_code)]
+#[cfg_attr(feature = "alignment-diagnostics", visibility::make(pub))]
 struct GenericSamHmmParser<T>(PhantomData<T>);
 
 impl<T: PhmmNumber> GenericSamHmmParser<T> {
@@ -67,7 +78,8 @@ impl<T: PhmmNumber> GenericSamHmmParser<T> {
     /// * The file must be a model file (not a regularizer or null model)
     /// * The specified alphabet must be dna
     /// * No negative indices are allowed in layer names
-    fn parse_dna_model(filename: impl AsRef<Path>) -> Result<GlobalPhmm<T, 4>, std::io::Error> {
+    #[allow(dead_code)]
+    pub fn parse_dna_model(filename: impl AsRef<Path>) -> Result<GlobalPhmm<T, 4>, std::io::Error> {
         SupportedConfig::parse_sam_model_file(filename)
     }
 
@@ -79,7 +91,8 @@ impl<T: PhmmNumber> GenericSamHmmParser<T> {
     /// * The file must be a model file (not a regularizer or null model)
     /// * The specified alphabet must be protein
     /// * No negative indices are allowed in layer names
-    fn parse_protein_model(filename: impl AsRef<Path>) -> Result<GlobalPhmm<T, 20>, std::io::Error> {
+    #[allow(dead_code)]
+    pub fn parse_protein_model(filename: impl AsRef<Path>) -> Result<GlobalPhmm<T, 20>, std::io::Error> {
         SupportedConfig::parse_sam_model_file(filename)
     }
 }

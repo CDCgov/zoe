@@ -9,14 +9,14 @@
 //!
 //! </div>
 
-#![allow(dead_code)]
-// TODO: Remove this when more pHMM stuff is added
-
 use crate::{
     alignment::phmm::indexing::PhmmIndex,
     math::{CastAs, CastAsNumeric, CastFrom, CastFromNumeric, Float},
 };
-use std::ops::{Add, AddAssign, Mul};
+use std::{
+    fmt::Display,
+    ops::{Add, AddAssign, Mul},
+};
 
 mod errors;
 mod models;
@@ -44,8 +44,9 @@ pub mod visit_params;
 
 pub use errors::*;
 pub use models::*;
+
+#[cfg_attr(feature = "alignment-diagnostics", visibility::make(pub))]
 pub(crate) use state::*;
-// pub use viterbi::*;
 
 /// A trait for numeric types compatible with pHMMs.
 ///
@@ -61,7 +62,8 @@ pub trait PhmmNumber:
     + CastAsNumeric
     + CastFrom
     + CastFromNumeric
-    + Default {
+    + Default
+    + Display {
     /// Infinity, the negative log space score corresponding to probability zero
     const INFINITY: Self;
     /// Zero, the negative log space score corresponding to probability one

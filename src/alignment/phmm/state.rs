@@ -3,6 +3,15 @@ use crate::alignment::phmm::{PhmmError, PhmmNumber};
 /// An enum representing the three states within each layer of a pHMM.
 ///
 /// This is used for readability when indexing.
+///
+/// <div class="warning note">
+///
+/// **Note**
+///
+/// You must enable the *alignment-diagnostics* feature in your `Cargo.toml` to
+/// access this enum.
+///
+/// </div>
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PhmmState {
@@ -15,6 +24,15 @@ pub enum PhmmState {
 /// addition to `Enter`.
 ///
 /// This is useful for local pHMMs.
+///
+/// <div class="warning note">
+///
+/// **Note**
+///
+/// You must enable the *alignment-diagnostics* feature in your `Cargo.toml` to
+/// access this enum.
+///
+/// </div>
 #[repr(u8)]
 #[derive(Clone, Copy, Debug)]
 pub enum PhmmStateOrEnter {
@@ -69,6 +87,7 @@ impl PhmmState {
     ///
     /// [`Enter`]: PhmmStateOrEnter::Enter
     #[inline]
+    #[must_use]
     pub(crate) fn get_from(value: PhmmStateOrEnter) -> Option<PhmmState> {
         match value {
             PhmmStateOrEnter::Match => Some(PhmmState::Match),
@@ -84,6 +103,7 @@ impl PhmmState {
     ///
     /// The operation must be in `MDI=X`.
     #[inline]
+    #[allow(dead_code)]
     pub(crate) fn from_op(op: u8) -> Result<Self, PhmmError> {
         match op {
             b'M' | b'=' | b'X' => Ok(PhmmState::Match),
@@ -100,7 +120,7 @@ impl PhmmState {
 /// 2, and `Enter` corresponds to 3.
 #[repr(transparent)]
 #[derive(Copy, Clone)]
-pub struct PhmmTracebackState(u8);
+pub(crate) struct PhmmTracebackState(u8);
 
 impl PhmmTracebackState {
     /// Returns whether the stored state is `Match`.
@@ -117,6 +137,7 @@ impl PhmmTracebackState {
 
     /// Returns whether the stored state is `Insert`.
     #[inline]
+    #[allow(dead_code)]
     pub fn is_insert(self) -> bool {
         self.0 == 2
     }
@@ -151,7 +172,7 @@ impl From<PhmmStateOrEnter> for PhmmTracebackState {
 /// [`PhmmTracebackState`] values packed into a single `u8`.
 #[repr(transparent)]
 #[derive(Copy, Clone)]
-pub struct PhmmBacktrackFlags(u8);
+pub(crate) struct PhmmBacktrackFlags(u8);
 
 impl PhmmBacktrackFlags {
     /// Creates a new [`PhmmBacktrackFlags`] object with all the previous states

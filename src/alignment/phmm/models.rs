@@ -1,7 +1,7 @@
 use crate::{
     alignment::phmm::{
         PhmmError, PhmmNumber, PhmmState,
-        indexing::{LastMatch, PhmmIndex, PhmmIndexable},
+        indexing::{LastMatch, PhmmIndex, PhmmIndexRange, PhmmIndexable},
         modules::{DomainModule, LocalModule, SemiLocalModule},
     },
     data::ByteIndexMap,
@@ -248,6 +248,8 @@ impl<T, const S: usize> CorePhmm<T, S> {
     ///
     /// At least two layers are required, otherwise [`PhmmError::TooFewLayers`]
     /// is returned.
+    #[inline]
+    #[allow(dead_code)]
     pub fn new(layers: Vec<LayerParams<T, S>>) -> Result<Self, PhmmError> {
         if layers.len() >= 2 {
             Ok(CorePhmm(layers))
@@ -276,6 +278,7 @@ impl<T, const S: usize> CorePhmm<T, S> {
     /// pHMM.
     #[inline]
     #[must_use]
+    #[allow(dead_code)]
     pub fn layers_mut(&mut self) -> &mut [LayerParams<T, S>] {
         self.0.as_mut_slice()
     }
@@ -284,6 +287,7 @@ impl<T, const S: usize> CorePhmm<T, S> {
     /// the core pHMM.
     #[inline]
     #[must_use]
+    #[allow(dead_code)]
     pub fn layers_mut_vec(&mut self) -> &mut Vec<LayerParams<T, S>> {
         &mut self.0
     }
@@ -360,6 +364,9 @@ impl<T, const S: usize> LocalPhmm<T, S> {
     /// to use this method.
     ///
     /// </div>
+    #[inline]
+    #[must_use]
+    #[allow(dead_code)]
     #[cfg_attr(feature = "alignment-diagnostics", visibility::make(pub))]
     pub(crate) fn new(
         mapping: &'static ByteIndexMap<S>, core: CorePhmm<T, S>, begin: LocalModule<T, S>, end: LocalModule<T, S>,
@@ -412,6 +419,9 @@ impl<T, const S: usize> DomainPhmm<T, S> {
     /// to use this method.
     ///
     /// </div>
+    #[inline]
+    #[must_use]
+    #[allow(dead_code)]
     #[cfg_attr(feature = "alignment-diagnostics", visibility::make(pub))]
     pub(crate) fn new(
         mapping: &'static ByteIndexMap<S>, core: CorePhmm<T, S>, begin: DomainModule<T, S>, end: DomainModule<T, S>,
@@ -466,6 +476,7 @@ impl<T, const S: usize> SemiLocalPhmm<T, S> {
     /// </div>
     #[inline]
     #[must_use]
+    #[allow(dead_code)]
     #[cfg_attr(feature = "alignment-diagnostics", visibility::make(pub))]
     pub(crate) fn new(
         mapping: &'static ByteIndexMap<S>, core: CorePhmm<T, S>, begin: SemiLocalModule<T>, end: SemiLocalModule<T>,
@@ -489,12 +500,18 @@ impl<T, const S: usize> SemiLocalPhmm<T, S> {
 impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
     /// Gets the score for transitioning into a given [`PhmmIndex`] from the
     /// [`SemiLocalModule`] at the beginning of the pHMM.
+    #[inline]
+    #[must_use]
+    #[allow(dead_code)]
     pub(crate) fn get_begin_score(&self, index: impl PhmmIndex) -> T {
         self.begin.get_score(index)
     }
 
     /// Gets the score for transitioning out of a given [`PhmmIndex`] into the
     /// [`SemiLocalModule`] at the end of the pHMM.
+    #[inline]
+    #[must_use]
+    #[allow(dead_code)]
     pub(crate) fn get_end_score(&self, index: impl PhmmIndex) -> T {
         self.end.get_score(index)
     }
@@ -644,6 +661,7 @@ pub(crate) trait GetModule {
     ///
     /// </div>
     #[must_use]
+    #[allow(dead_code)]
     fn begin_mut(&mut self) -> &mut Self::Begin;
 
     /// Returns a reference to the module at the end of the pHMM.
@@ -670,6 +688,7 @@ pub(crate) trait GetModule {
     ///
     /// </div>
     #[must_use]
+    #[allow(dead_code)]
     fn end_mut(&mut self) -> &mut Self::End;
 }
 
@@ -767,6 +786,7 @@ pub(crate) trait GetLayer<T, const S: usize>: PhmmIndexable {
     /// Returns a mutable reference to the [`CorePhmm`] holding the core
     /// parameters.
     #[must_use]
+    #[allow(dead_code)]
     fn core_mut(&mut self) -> &mut CorePhmm<T, S>;
 
     /// Retrieves a slice of the layers contained within the core pHMM.
@@ -779,6 +799,7 @@ pub(crate) trait GetLayer<T, const S: usize>: PhmmIndexable {
     /// Retrieves a mutable slice of the layers contained within the core pHMM.
     #[inline]
     #[must_use]
+    #[allow(dead_code)]
     fn layers_mut(&mut self) -> &mut [LayerParams<T, S>] {
         self.core_mut().layers_mut()
     }
@@ -787,6 +808,7 @@ pub(crate) trait GetLayer<T, const S: usize>: PhmmIndexable {
     /// the core pHMM.
     #[inline]
     #[must_use]
+    #[allow(dead_code)]
     fn layers_mut_vec(&mut self) -> &mut Vec<LayerParams<T, S>> {
         self.core_mut().layers_mut_vec()
     }
@@ -798,6 +820,7 @@ pub(crate) trait GetLayer<T, const S: usize>: PhmmIndexable {
     /// the last layer.
     #[inline]
     #[must_use]
+    #[allow(dead_code)]
     fn get_layer(&self, j: impl PhmmIndex) -> &LayerParams<T, S> {
         if j.is_end() {
             self.get_layer(LastMatch)
@@ -813,6 +836,7 @@ pub(crate) trait GetLayer<T, const S: usize>: PhmmIndexable {
     /// the last layer.
     #[inline]
     #[must_use]
+    #[allow(dead_code)]
     fn get_layer_mut(&mut self, j: impl PhmmIndex) -> &mut LayerParams<T, S> {
         if j.is_end() {
             self.get_layer_mut(LastMatch)
@@ -820,6 +844,39 @@ pub(crate) trait GetLayer<T, const S: usize>: PhmmIndexable {
             let idx = self.get_dp_index(j);
             &mut self.layers_mut()[idx]
         }
+    }
+
+    /// Get a range of layers from within the core pHMM.
+    ///
+    /// ## Panics
+    ///
+    /// If any of the indices are out of bounds, this will panic. Particularly,
+    /// if the range is end-inclusive and ends with `End` (e.g., `..=End`), this
+    /// will panic. This is different behavior than [`get_layer`].
+    ///
+    /// [`get_layer`]: GetLayer::get_layer
+    #[inline]
+    #[must_use]
+    #[allow(dead_code)]
+    fn get_layers(&self, range: impl PhmmIndexRange) -> &[LayerParams<T, S>] {
+        &self.layers()[self.get_dp_range(range)]
+    }
+
+    /// Get a range of mutable layers from within the core pHMM.
+    ///
+    /// ## Panics
+    ///
+    /// If any of the indices are out of bounds, this will panic. Particularly,
+    /// if the range is end-inclusive and ends with `End` (e.g., `..=End`), this
+    /// will panic. This is different behavior than [`get_layer_mut`].
+    ///
+    /// [`get_layer_mut`]: GetLayer::get_layer_mut
+    #[inline]
+    #[must_use]
+    #[allow(dead_code)]
+    fn get_layers_mut(&mut self, range: impl PhmmIndexRange) -> &mut [LayerParams<T, S>] {
+        let range = self.get_dp_range(range);
+        &mut self.layers_mut()[range]
     }
 
     /// Gets mutable references to two distinct layers within the core pHMM.
@@ -832,6 +889,9 @@ pub(crate) trait GetLayer<T, const S: usize>: PhmmIndexable {
     ///
     /// If the requested indices correspond to the same dynamic programming
     /// index or are out of bounds, this will panic.
+    #[inline]
+    #[must_use]
+    #[allow(dead_code)]
     fn get_two_layers_mut(
         &mut self, j1: impl PhmmIndex, j2: impl PhmmIndex,
     ) -> (&mut LayerParams<T, S>, &mut LayerParams<T, S>) {
