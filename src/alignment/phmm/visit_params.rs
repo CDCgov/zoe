@@ -16,7 +16,7 @@ use crate::{
         phmm::{
             CorePhmm, DomainPhmm, GetLayer, GetModule, GlobalPhmm, LocalPhmm, PhmmError, PhmmNumber, PhmmState,
             SemiLocalPhmm,
-            indexing::{Begin, DpIndex, End, FirstMatch, IndexOffset, LastMatch, PhmmIndex, PhmmIndexable, SeqIndex},
+            indexing::{Begin, DpIndex, End, FirstMatch, LastMatch, PhmmIndex, PhmmIndexable, SeqIndex},
             modules::{DomainModule, SemiLocalModule},
         },
     },
@@ -483,7 +483,7 @@ where
             let x_idx = mapping.to_index(seq_in_alignment[i]);
             // Need to look at the previous layer to get transitions into this
             // layer
-            let layer_idx = SeqIndex(ref_range.start).prev_index();
+            let layer_idx = SeqIndex(ref_range.start).prev_index(core);
             call_f(
                 f,
                 score,

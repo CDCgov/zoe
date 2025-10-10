@@ -2,7 +2,7 @@
 
 use crate::alignment::phmm::{
     CorePhmm, DomainPhmm, GetLayer, GetModule, GlobalPhmm, LocalPhmm, PhmmNumber, PhmmState, SemiLocalPhmm,
-    indexing::{IndexOffset, PhmmIndex, PhmmIndexRange, PhmmIndexable},
+    indexing::{PhmmIndex, PhmmIndexRange, PhmmIndexable},
 };
 
 /// A trait facilitating editing of a pHMM by removing layers.
@@ -103,7 +103,8 @@ impl<T: PhmmNumber, const S: usize> RemoveLayer for CorePhmm<T, S> {
     fn remove_layer_and_pre_transition(&mut self, layer: impl PhmmIndex) {
         // Zoe stores the transitions from the current layer into the next, so
         // we must shift these transitions back before deleting so that the
-        let (layer1, layer2) = self.get_two_layers_mut(layer.prev_index(), layer);
+        let prev_layer = layer.prev_index(self);
+        let (layer1, layer2) = self.get_two_layers_mut(prev_layer, layer);
         std::mem::swap(
             &mut layer1.transition[PhmmState::Match],
             &mut layer2.transition[PhmmState::Match],
@@ -123,7 +124,8 @@ impl<T: PhmmNumber, const S: usize> RemoveLayer for CorePhmm<T, S> {
             // the match emission for this layer which must be deleted, and the
             // this layer holds the match emission for the next layer which must
             // be saved
-            let (layer1, layer2) = self.get_two_layers_mut(layer.prev_index(), layer);
+            let prev_layer = layer.prev_index(self);
+            let (layer1, layer2) = self.get_two_layers_mut(prev_layer, layer);
             std::mem::swap(&mut layer1.emission_match, &mut layer2.emission_match);
         }
 
@@ -137,7 +139,9 @@ impl<T: PhmmNumber, const S: usize> RemoveLayer for CorePhmm<T, S> {
             return;
         }
 
-        let (layer1, layer2) = self.get_two_layers_mut(range.start.prev_index(), range.end.prev_index());
+        let swap1_idx = range.start.prev_index(self);
+        let swap2_idx = range.end.prev_index(self);
+        let (layer1, layer2) = self.get_two_layers_mut(swap1_idx, swap2_idx);
         std::mem::swap(
             &mut layer1.transition[PhmmState::Match],
             &mut layer2.transition[PhmmState::Match],
@@ -164,7 +168,9 @@ impl<T: PhmmNumber, const S: usize> RemoveLayer for CorePhmm<T, S> {
             // be deleted, and the layer before range.end holds the match
             // emission for range.end which is not deleted and hence must be
             // saved
-            let (layer1, layer2) = self.get_two_layers_mut(range.start.prev_index(), range.end.prev_index());
+            let swap1_idx = range.start.prev_index(self);
+            let swap2_idx = range.end.prev_index(self);
+            let (layer1, layer2) = self.get_two_layers_mut(swap1_idx, swap2_idx);
             std::mem::swap(&mut layer1.emission_match, &mut layer2.emission_match);
         }
 

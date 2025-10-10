@@ -118,6 +118,7 @@ impl<I: PhmmIndex> PhmmIndexRange for RangeToInclusive<I> {
 pub trait PhmmIndexable: Sized {
     /// Returns the number of pseudomatch states in the pHMM-related structure
     /// (either a match state for the reference, or BEGIN or END).
+    #[must_use]
     fn num_pseudomatch(&self) -> usize;
 
     /// Returns the length of the reference which the pHMM-related structure
@@ -126,12 +127,14 @@ pub trait PhmmIndexable: Sized {
     /// This is also the number of match states in the pHMM-related structure,
     /// excluding BEGIN and END.
     #[inline]
+    #[must_use]
     fn seq_len(&self) -> usize {
         self.num_pseudomatch() - 2
     }
 
     /// Returns the [`PhmmIndex`] as a dynamic programming index.
     #[inline]
+    #[must_use]
     fn get_dp_index(&self, j: impl PhmmIndex) -> usize {
         j.get_phmm_dp_index(self)
     }
@@ -160,12 +163,16 @@ pub trait PhmmIndexable: Sized {
     ///
     /// If the index corresponds to the BEGIN state, then `None` is returned
     /// since this does not correspond to a position in the reference.
+    #[inline]
+    #[must_use]
     fn to_seq_index(&self, j: impl PhmmIndex) -> Option<SeqIndex> {
         self.get_seq_index(j).map(SeqIndex)
     }
 
     /// Returns a range of dynamic programming indices from a
     /// [`PhmmIndexRange`].
+    #[inline]
+    #[must_use]
     fn get_dp_range<R: PhmmIndexRange>(&self, range: R) -> Range<usize> {
         let start = match range.start_bound() {
             Bound::Included(start) => self.get_dp_index(start),
@@ -196,6 +203,8 @@ pub trait PhmmIndexable: Sized {
     ///
     /// If either index corresponds to the BEGIN state, then this will be mapped
     /// to 0 (the same sequence index that [`FirstMatch`] corresponds to).
+    #[inline]
+    #[must_use]
     fn get_seq_range<R: PhmmIndexRange>(&self, range: R) -> Range<usize> {
         // -1 for converting dynamic programming index to sequence index
         self.get_dp_range(range).saturating_sub(1)
@@ -218,6 +227,7 @@ pub trait PhmmIndexable: Sized {
 /// query sequence.
 pub trait QueryIndexable: Sized {
     /// Returns the length of the query sequence.
+    #[must_use]
     fn seq_len(&self) -> usize;
 
     /// Returns the number of possible states that could be in when traversing
@@ -225,22 +235,30 @@ pub trait QueryIndexable: Sized {
     ///
     /// Either none of the bases are consumed, or up to and including
     /// `query_len` bases could be consumed.
+    #[inline]
+    #[must_use]
     fn dp_len(&self) -> usize {
         self.seq_len() + 1
     }
 
     /// Returns the [`QueryIndex`] as a dynamic programming index.
+    #[inline]
+    #[must_use]
     fn get_dp_index(&self, i: impl QueryIndex) -> usize {
         i.get_query_dp_index(self)
     }
 
     /// Converts the [`QueryIndex`] to a dynamic programming index.
+    #[inline]
+    #[must_use]
     fn to_dp_index(&self, i: impl QueryIndex) -> DpIndex {
         DpIndex(self.get_dp_index(i))
     }
 
     /// Returns a range of dynamic programming indices from a start and end
     /// [`QueryIndex`].
+    #[inline]
+    #[must_use]
     fn get_dp_range(&self, start: Bound<impl QueryIndex>, end: Bound<impl QueryIndex>) -> Range<usize> {
         let start = match start {
             Bound::Included(start) => self.get_dp_index(start),
@@ -260,6 +278,8 @@ pub trait QueryIndexable: Sized {
     ///
     /// If either index corresponds [`NoBases`], then this will be mapped to 0
     /// (the same sequence index that [`FirstBase`] corresponds to).
+    #[inline]
+    #[must_use]
     fn get_seq_range(&self, start: Bound<impl QueryIndex>, end: Bound<impl QueryIndex>) -> Range<usize> {
         // -1 for converting dynamic programming index to sequence index
         self.get_dp_range(start, end).saturating_sub(1)
@@ -274,19 +294,40 @@ pub trait QueryIndexable: Sized {
 /// (such as a dynamic programming index with [`DpIndex`] or a sequence index
 /// with [`SeqIndex`]). It also allows special elements to be accessed with
 /// [`Begin`], [`FirstMatch`], [`LastMatch`], and [`End`].
-pub trait PhmmIndex: IndexOffset {
+pub trait PhmmIndex: Copy {
     /// Helper function for [`PhmmIndexable::get_dp_index`], allowing each index
     /// type to control how it gets coverted to a dynamic programming index
     #[must_use]
-    fn get_phmm_dp_index(&self, v: &impl PhmmIndexable) -> usize;
+    fn get_phmm_dp_index(self, v: &impl PhmmIndexable) -> usize;
 
-    // TODO: Doc link
-    /// Hook to allow the `End` index literal to be detected separately than the
+    /// Gets the index before the current one, as a [`DpIndex`].
+    ///
+    /// ## Panics
+    ///
+    /// If the previous index is out of bounds (e.g., for [`Begin`] or
+    /// `DpIndex(0)`), then this will panic.
+    #[inline]
+    #[must_use]
+    fn prev_index(self, phmm: &impl PhmmIndexable) -> DpIndex {
+        DpIndex(phmm.get_dp_index(self) - 1)
+    }
+
+    /// Gets the index after the current one, as a [`DpIndex`].
+    ///
+    /// No check is performed for whether this index is in bounds for the given
+    /// `phmm`.
+    #[inline]
+    #[must_use]
+    fn next_index(self, phmm: &impl PhmmIndexable) -> DpIndex {
+        DpIndex(phmm.get_dp_index(self) + 1)
+    }
+
+    /// Hook to allow the [`End`] index literal to be detected separately than the
     /// rest (e.g., for `get_layer` in [`CorePhmm`])
     #[inline]
     #[must_use]
     #[allow(dead_code)]
-    fn is_end(&self) -> bool {
+    fn is_end(self) -> bool {
         false
     }
 }
@@ -299,11 +340,12 @@ pub trait PhmmIndex: IndexOffset {
 /// (such as a dynamic programming index with [`DpIndex`] or a sequence index
 /// with [`SeqIndex`]). It also allows special elements to be accessed with
 /// [`NoBases`], [`FirstBase`], and [`LastBase`].
-pub trait QueryIndex: IndexOffset {
+pub trait QueryIndex: Copy {
     /// Helper function for [`QueryIndexable::get_dp_index`], allowing each
     /// index type to control how it gets converted to a dynamic programming
     /// index.
-    fn get_query_dp_index(&self, v: &impl QueryIndexable) -> usize;
+    #[must_use]
+    fn get_query_dp_index(self, v: &impl QueryIndexable) -> usize;
 }
 
 /// A [`PhmmIndex`] or [`QueryIndex`] representing an index with respect to the
@@ -374,7 +416,37 @@ impl<T, const S: usize> PhmmIndexable for CorePhmm<T, S> {
     }
 }
 
+impl<T, const S: usize> PhmmIndexable for &CorePhmm<T, S> {
+    #[inline]
+    fn num_pseudomatch(&self) -> usize {
+        // The END state does not have an index in the CorePhmm, so we add 1
+        self.layers().len() + 1
+    }
+}
+
+impl<T, const S: usize> PhmmIndexable for &mut CorePhmm<T, S> {
+    #[inline]
+    fn num_pseudomatch(&self) -> usize {
+        // The END state does not have an index in the CorePhmm, so we add 1
+        self.layers().len() + 1
+    }
+}
+
 impl<T, const S: usize> PhmmIndexable for GlobalPhmm<T, S> {
+    #[inline]
+    fn num_pseudomatch(&self) -> usize {
+        self.core().num_pseudomatch()
+    }
+}
+
+impl<T, const S: usize> PhmmIndexable for &GlobalPhmm<T, S> {
+    #[inline]
+    fn num_pseudomatch(&self) -> usize {
+        self.core().num_pseudomatch()
+    }
+}
+
+impl<T, const S: usize> PhmmIndexable for &mut GlobalPhmm<T, S> {
     #[inline]
     fn num_pseudomatch(&self) -> usize {
         self.core().num_pseudomatch()
@@ -388,7 +460,35 @@ impl<T, const S: usize> PhmmIndexable for LocalPhmm<T, S> {
     }
 }
 
+impl<T, const S: usize> PhmmIndexable for &LocalPhmm<T, S> {
+    #[inline]
+    fn num_pseudomatch(&self) -> usize {
+        self.core().num_pseudomatch()
+    }
+}
+
+impl<T, const S: usize> PhmmIndexable for &mut LocalPhmm<T, S> {
+    #[inline]
+    fn num_pseudomatch(&self) -> usize {
+        self.core().num_pseudomatch()
+    }
+}
+
 impl<T, const S: usize> PhmmIndexable for SemiLocalPhmm<T, S> {
+    #[inline]
+    fn num_pseudomatch(&self) -> usize {
+        self.core().num_pseudomatch()
+    }
+}
+
+impl<T, const S: usize> PhmmIndexable for &SemiLocalPhmm<T, S> {
+    #[inline]
+    fn num_pseudomatch(&self) -> usize {
+        self.core().num_pseudomatch()
+    }
+}
+
+impl<T, const S: usize> PhmmIndexable for &mut SemiLocalPhmm<T, S> {
     #[inline]
     fn num_pseudomatch(&self) -> usize {
         self.core().num_pseudomatch()
@@ -402,6 +502,20 @@ impl<T, const S: usize> PhmmIndexable for DomainPhmm<T, S> {
     }
 }
 
+impl<T, const S: usize> PhmmIndexable for &DomainPhmm<T, S> {
+    #[inline]
+    fn num_pseudomatch(&self) -> usize {
+        self.core().num_pseudomatch()
+    }
+}
+
+impl<T, const S: usize> PhmmIndexable for &mut DomainPhmm<T, S> {
+    #[inline]
+    fn num_pseudomatch(&self) -> usize {
+        self.core().num_pseudomatch()
+    }
+}
+
 impl<T> PhmmIndexable for SemiLocalModule<T> {
     #[inline]
     fn num_pseudomatch(&self) -> usize {
@@ -409,9 +523,17 @@ impl<T> PhmmIndexable for SemiLocalModule<T> {
     }
 }
 
-impl QueryIndexable for &[u8] {
-    fn seq_len(&self) -> usize {
-        self.len()
+impl<T> PhmmIndexable for &SemiLocalModule<T> {
+    #[inline]
+    fn num_pseudomatch(&self) -> usize {
+        self.0.len()
+    }
+}
+
+impl<T> PhmmIndexable for &mut SemiLocalModule<T> {
+    #[inline]
+    fn num_pseudomatch(&self) -> usize {
+        self.0.len()
     }
 }
 
@@ -419,6 +541,26 @@ impl<T, const S: usize> PhmmIndexable for PrecomputedLocalModule<'_, T, S> {
     #[inline]
     fn num_pseudomatch(&self) -> usize {
         self.external_params.num_pseudomatch()
+    }
+}
+
+impl<T, const S: usize> PhmmIndexable for &PrecomputedLocalModule<'_, T, S> {
+    #[inline]
+    fn num_pseudomatch(&self) -> usize {
+        self.external_params.num_pseudomatch()
+    }
+}
+
+impl<T, const S: usize> PhmmIndexable for &mut PrecomputedLocalModule<'_, T, S> {
+    #[inline]
+    fn num_pseudomatch(&self) -> usize {
+        self.external_params.num_pseudomatch()
+    }
+}
+
+impl QueryIndexable for &[u8] {
+    fn seq_len(&self) -> usize {
+        self.len()
     }
 }
 
@@ -431,157 +573,83 @@ impl<T, const S: usize> QueryIndexable for PrecomputedDomainModule<T, S> {
 
 impl PhmmIndex for DpIndex {
     #[inline]
-    fn get_phmm_dp_index(&self, _v: &impl PhmmIndexable) -> usize {
+    fn get_phmm_dp_index(self, _v: &impl PhmmIndexable) -> usize {
         self.0
     }
 }
 
 impl PhmmIndex for SeqIndex {
     #[inline]
-    fn get_phmm_dp_index(&self, _v: &impl PhmmIndexable) -> usize {
+    fn get_phmm_dp_index(self, _v: &impl PhmmIndexable) -> usize {
         self.0 + 1
     }
 }
 
 impl PhmmIndex for Begin {
     #[inline]
-    fn get_phmm_dp_index(&self, _v: &impl PhmmIndexable) -> usize {
+    fn get_phmm_dp_index(self, _v: &impl PhmmIndexable) -> usize {
         0
     }
 }
 
 impl PhmmIndex for FirstMatch {
     #[inline]
-    fn get_phmm_dp_index(&self, _v: &impl PhmmIndexable) -> usize {
+    fn get_phmm_dp_index(self, _v: &impl PhmmIndexable) -> usize {
         1
     }
 }
 
 impl PhmmIndex for LastMatch {
     #[inline]
-    fn get_phmm_dp_index(&self, v: &impl PhmmIndexable) -> usize {
+    fn get_phmm_dp_index(self, v: &impl PhmmIndexable) -> usize {
         v.num_pseudomatch() - 2
     }
 }
 
 impl PhmmIndex for End {
     #[inline]
-    fn get_phmm_dp_index(&self, v: &impl PhmmIndexable) -> usize {
+    fn get_phmm_dp_index(self, v: &impl PhmmIndexable) -> usize {
         v.num_pseudomatch() - 1
     }
 
     #[inline]
-    fn is_end(&self) -> bool {
+    fn is_end(self) -> bool {
         true
     }
 }
 
 impl QueryIndex for NoBases {
     #[inline]
-    fn get_query_dp_index(&self, _v: &impl QueryIndexable) -> usize {
+    fn get_query_dp_index(self, _v: &impl QueryIndexable) -> usize {
         0
     }
 }
 
 impl QueryIndex for FirstBase {
     #[inline]
-    fn get_query_dp_index(&self, _v: &impl QueryIndexable) -> usize {
+    fn get_query_dp_index(self, _v: &impl QueryIndexable) -> usize {
         1
     }
 }
 
 impl QueryIndex for SeqIndex {
     #[inline]
-    fn get_query_dp_index(&self, _v: &impl QueryIndexable) -> usize {
+    fn get_query_dp_index(self, _v: &impl QueryIndexable) -> usize {
         self.0 + 1
     }
 }
 
 impl QueryIndex for DpIndex {
     #[inline]
-    fn get_query_dp_index(&self, _v: &impl QueryIndexable) -> usize {
+    fn get_query_dp_index(self, _v: &impl QueryIndexable) -> usize {
         self.0
     }
 }
 
 impl QueryIndex for LastBase {
     #[inline]
-    fn get_query_dp_index(&self, v: &impl QueryIndexable) -> usize {
+    fn get_query_dp_index(self, v: &impl QueryIndexable) -> usize {
         // The last value in a slice of length dp_len
         v.dp_len() - 1
-    }
-}
-
-/// A trait enabling a [`PhmmIndex`] or [`QueryIndex`] to be offset in either
-/// direction via the type system, without converting it to [`DpIndex`]
-/// immediately.
-///
-/// The offsets do not saturate, so calling converting `Begin.prev_index()` to a
-/// [`DpIndex`] will likely panic.
-pub trait IndexOffset: Copy {
-    /// Get the index before the current one.
-    #[inline]
-    #[must_use]
-    #[allow(dead_code)]
-    fn prev_index(self) -> PrevOffset<Self> {
-        PrevOffset(self, 1)
-    }
-
-    /// Get the index after the current one.
-    #[inline]
-    #[must_use]
-    fn next_index(self) -> NextOffset<Self> {
-        NextOffset(self, 1)
-    }
-}
-
-impl IndexOffset for SeqIndex {}
-impl IndexOffset for DpIndex {}
-impl IndexOffset for Begin {}
-impl IndexOffset for FirstMatch {}
-impl IndexOffset for LastMatch {}
-impl IndexOffset for End {}
-impl IndexOffset for NoBases {}
-impl IndexOffset for FirstBase {}
-impl IndexOffset for LastBase {}
-impl<I: IndexOffset> IndexOffset for PrevOffset<I> {}
-impl<I: IndexOffset> IndexOffset for NextOffset<I> {}
-
-/// A wrapper type for a [`PhmmIndex`] or [`QueryIndex`] for specifying the
-/// layer before another one by a given offset.
-#[allow(dead_code)]
-#[derive(Clone, Copy)]
-pub struct PrevOffset<I>(I, usize);
-
-impl<I: PhmmIndex> PhmmIndex for PrevOffset<I> {
-    #[inline]
-    fn get_phmm_dp_index(&self, v: &impl PhmmIndexable) -> usize {
-        self.0.get_phmm_dp_index(v) - self.1
-    }
-}
-
-impl<I: QueryIndex> QueryIndex for PrevOffset<I> {
-    #[inline]
-    fn get_query_dp_index(&self, v: &impl QueryIndexable) -> usize {
-        self.0.get_query_dp_index(v) - self.1
-    }
-}
-
-/// A wrapper type for a [`PhmmIndex`] or [`QueryIndex`] for specifying the
-/// layer after another one by a given offset.
-#[derive(Clone, Copy)]
-pub struct NextOffset<I>(I, usize);
-
-impl<I: PhmmIndex> PhmmIndex for NextOffset<I> {
-    #[inline]
-    fn get_phmm_dp_index(&self, v: &impl PhmmIndexable) -> usize {
-        self.0.get_phmm_dp_index(v) + self.1
-    }
-}
-
-impl<I: QueryIndex> QueryIndex for NextOffset<I> {
-    #[inline]
-    fn get_query_dp_index(&self, v: &impl QueryIndexable) -> usize {
-        self.0.get_query_dp_index(v) + self.1
     }
 }

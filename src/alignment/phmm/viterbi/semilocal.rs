@@ -91,7 +91,8 @@ impl<'a, T: PhmmNumber, const S: usize> ViterbiStrategy<'a, T, S> for SemiLocalV
         // consumed in this match state. The emission parameter is added within
         // `update_match`.
         if self.query.to_dp_index(i) == self.query.to_dp_index(NoBases) {
-            let enter_val = self.begin.get_score(j.next_index());
+            let next_layer_idx = j.next_index(self.core);
+            let enter_val = self.begin.get_score(next_layer_idx);
 
             let (state, best) = best_state_or_enter(match_val, delete_val, insert_val, enter_val);
             (state, best + layer.emission_match[x_idx])

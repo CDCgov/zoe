@@ -89,7 +89,8 @@ impl<'a, T: PhmmNumber, const S: usize> ViterbiStrategy<'a, T, S> for LocalViter
         // consume all bases up to i in the begin module, then the (i+1)st is
         // consumed in this match state. The emission parameter is added within
         // `update_match`.
-        let enter_val = self.begin.get_score(i, j.next_index());
+        let next_layer_idx = j.next_index(self.core);
+        let enter_val = self.begin.get_score(i, next_layer_idx);
 
         match_val += layer.transition[(Match, Match)];
         delete_val += layer.transition[(Delete, Match)];
