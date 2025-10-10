@@ -1,3 +1,4 @@
+#[cfg(feature = "rand")]
 pub mod sampling;
 
 /// An iterator over subslices of length `window_size`, advancing forward by `step`

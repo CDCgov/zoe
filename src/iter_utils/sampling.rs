@@ -61,6 +61,15 @@
 //! let downsampled = method_l(filtered, &mut rng, target);
 //! assert_eq!(downsampled.len(), target);
 //! ```
+//!
+//! <div class="warning note">
+//!
+//! **Note**
+//!
+//! You must enable the *rand* feature in your `Cargo.toml` to use these
+//! functions. This feature is enabled by default.
+//!
+//! </div>
 #![allow(clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 use rand::{Rng, seq::IndexedMutRandom};
 use rand_xoshiro::Xoshiro256StarStar;
