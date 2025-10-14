@@ -10,7 +10,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 - Added `visit_params` methods to pHMMs as a diagnostic tool for inspecting the parameters that are visited along a given path (behind `dev-phmm` and `alignment-diagnostics` feature gates)
 - Added the ability to remove layers from a pHMM (behind `dev-phmm` and `alignment-diagnostics` feature gates)
-- Added random downsampling for sized and non-sized iterators using `MethodDIterator` and `method_l`
+- Added random downsampling for sized and non-sized iterators using `MethodDSampler`, `method_l`, and `BernoulliSampler`
 
 ### Changed
 

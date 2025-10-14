@@ -1,23 +1,25 @@
 //! ## Subsampling
 //!
-//! *Zoe* provides the ability to efficiently and randomly downsample both sized
-//! and unsized collections. Two methods are provided:
+//! *Zoe* provides the ability to efficiently and randomly downsample iterators
+//! (with and without a known size). The following methods are provided:
 //!
 //! - Vitter's [Method
-//!   D](https://www.ittc.ku.edu/~jsv/Papers/Vit87.RandomSampling.pdf)
-//!
-//!   This method operates by iterating through the collection, and calculating
+//!   D](https://www.ittc.ku.edu/~jsv/Papers/Vit87.RandomSampling.pdf): This
+//!   method operates by iterating through the collection, and calculating
 //!   random values used to skip over multiple elements as it iterates through
 //!   the collection. This method is very efficient, but requires knowing the
 //!   length of the collection.
 //!
-//! - Vitter's [Method L](https://dl.acm.org/doi/pdf/10.1145/198429.198435)
-//!
+//! - Vitter's [Method L](https://dl.acm.org/doi/pdf/10.1145/198429.198435):
 //!   This method uses a reservoir to hold downsampled elements, and moves
 //!   through an iterator of elements, randomly inserting elements into the
 //!   reservoir. Method L requires allocating a the elements in the reservoir,
 //!   but has the advantage of not requiring knowledge of the length of the
 //!   iterator.
+//!
+//! - Bernoulli Sampling: This method keeps each element with a given
+//!   probability. Unlike Method L, the number of yielded elements may
+//!   fluctuate.
 //!
 //! Both methods require a random number generator, for which Zoe uses
 //! `rand_xoshiro`'s `Xoshiro256StarStar`
@@ -43,7 +45,8 @@
 //! ```
 //!
 //! The following example shows downsampling of a `Vec<usize>`, but first, a
-//! filter is applied, which leaves an iterator of unknown size, requiring use of Method L for downsampling.
+//! filter is applied, which leaves an iterator of unknown size, requiring use
+//! of Method L for downsampling.
 //!
 //! ```
 //! # use rand_xoshiro::{Xoshiro256StarStar, rand_core::SeedableRng};
@@ -62,10 +65,10 @@
 use rand::{Rng, seq::IndexedMutRandom};
 use rand_xoshiro::Xoshiro256StarStar;
 
-/// Struct for subsampling using method D, which wraps an iterator and holds the
-/// variables used in the Method D calculations for generating skips
+/// Struct for subsampling using Method D, which wraps an iterator and holds the
+/// variables used in the Method D calculations for generating skips.
 pub struct MethodDSampler<'a, I: Iterator> {
-    reader:               I,
+    iterator:             I,
     rng:                  &'a mut Xoshiro256StarStar,
     remaining_samples:    usize,
     remaining_population: usize,
@@ -86,7 +89,7 @@ impl<'a, I: Iterator> MethodDSampler<'a, I> {
     ///
     /// The sample target size must be smaller than the total population,
     /// otherwise, an error is returned.
-    pub fn new(reader: I, target: usize, total_items: usize, rng: &'a mut Xoshiro256StarStar) -> std::io::Result<Self> {
+    pub fn new(iterator: I, target: usize, total_items: usize, rng: &'a mut Xoshiro256StarStar) -> std::io::Result<Self> {
         if target > total_items {
             return Err(std::io::Error::other(format!(
                 "The sample target size {target} should not be larger than the population size {total_items}!"
@@ -100,7 +103,7 @@ impl<'a, I: Iterator> MethodDSampler<'a, I> {
         let vprime = rng.random::<f32>().powf(rem_samples_inv);
 
         Ok(MethodDSampler {
-            reader,
+            iterator,
             remaining_samples,
             remaining_population,
             max_start_index,
@@ -228,14 +231,57 @@ impl<'a, I: Iterator> MethodDSampler<'a, I> {
     }
 }
 
-impl<T, I> Iterator for MethodDSampler<'_, I>
-where
-    I: Iterator<Item = T>,
-{
+impl<I: Iterator> Iterator for MethodDSampler<'_, I> {
     type Item = I::Item;
+
     fn next(&mut self) -> Option<Self::Item> {
         let skip = self.next_skip()?;
-        self.reader.nth(skip)
+        self.iterator.nth(skip)
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        // Lower bound of 0 is due to case where target is larger than the
+        // original iterator size
+        (0, Some(self.remaining_samples))
+    }
+
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        let mut inner_n = self.next_skip()?;
+        for _ in 0..n {
+            // Add 1 to consume the element that would've been yielded, then add
+            // the next skip
+            inner_n += 1 + self.next_skip()?;
+        }
+        self.iterator.nth(inner_n)
+    }
+}
+
+/// An iterator providing sampling using the Bernoulli method.
+pub struct BernoulliSampler<'a, I: Iterator> {
+    iterator: I,
+    prob:     f32,
+    rng:      &'a mut Xoshiro256StarStar,
+}
+
+impl<I> Iterator for BernoulliSampler<'_, I>
+where
+    I: Iterator,
+{
+    type Item = I::Item;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            let item = self.iterator.next()?;
+            if self.rng.random::<f32>() < self.prob {
+                return Some(item);
+            }
+        }
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (0, self.iterator.size_hint().1)
     }
 }
 
@@ -281,13 +327,30 @@ where
     reservoir
 }
 
+/// Extension trait for [`Iterator`] that allows downsampling via the Bernoulli
+/// method.
+pub trait DownsampleBernoulli: Iterator + Sized {
+    /// Downsamples the iterator using the Bernoulli method (keeping each item
+    /// with probability `prob`).
+    #[inline]
+    fn downsample_bernoulli(self, prob: f32, rng: &mut Xoshiro256StarStar) -> BernoulliSampler<'_, Self> {
+        BernoulliSampler {
+            iterator: self,
+            prob,
+            rng,
+        }
+    }
+}
+
+impl<I: Iterator> DownsampleBernoulli for I {}
+
 /// Extension trait for [`ExactSizeIterator`] that allows for `downsample` to be
 /// called directly on an iterator of known size.
 pub trait DownsampleMethodD: ExactSizeIterator + Sized {
     /// Create a new [`MethodDSampler`] iterator that wraps and randomly
-    /// subsamples an [`ExactSizeIterator`].
+    /// subsamples an [`ExactSizeIterator`] using Method D.
     ///
-    /// # Errors
+    /// ## Errors
     ///
     /// The sample target size must be smaller than the total population,
     /// otherwise, an error is returned.
