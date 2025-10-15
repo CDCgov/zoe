@@ -12,6 +12,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Implemented `to_reverse` and `make_reverse` for `MaybeAligned<Alignment<_>>`
 - Implemented `SequenceReadable` for profile sets
 - Implemented `PartialOrd` for `Alignment` and `MaybeAligned`
+- Adds the `sneaky_snake` pre-alignment filter (edit distance)
 
 ### Changed
 

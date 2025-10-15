@@ -1,12 +1,32 @@
 %% This BibTeX bibliography file was created using BibDesk.
 %% https://bibdesk.sourceforge.io/
 
-%% Created for Samuel Shepard at 2025-09-25 14:39:28 -0400
+%% Created for Samuel Shepard at 2026-01-30 10:55:54 -0500
 
 
 %% Saved with string encoding Unicode (UTF-8)
 
 
+
+@article{10.1093/bioinformatics/btaa1015,
+  abstract      = {We introduce SneakySnake, a highly parallel and highly accurate pre-alignment filter that remarkably reduces the need for computationally costly sequence alignment. The key idea of SneakySnake is to reduce the approximate string matching (ASM) problem to the single net routing (SNR) problem in VLSI chip layout. In the SNR problem, we are interested in finding the optimal path that connects two terminals with the least routing cost on a special grid layout that contains obstacles. The SneakySnake algorithm quickly solves the SNR problem and uses the found optimal path to decide whether or not performing sequence alignment is necessary. Reducing the ASM problem into SNR also makes SneakySnake efficient to implement on CPUs, GPUs and FPGAs.SneakySnake significantly improves the accuracy of pre-alignment filtering by up to four orders of magnitude compared to the state-of-the-art pre-alignment filters, Shouji, GateKeeper and SHD. For short sequences, SneakySnake accelerates Edlib (state-of-the-art implementation of Myers{\^a}€{\texttrademark}s bit-vector algorithm) and Parasail (state-of-the-art sequence aligner with a configurable scoring function), by up to 37.7{\~A}--- and 43.9{\~A}--- (\&gt;12{\~A}--- on average), respectively, with its CPU implementation, and by up to 413{\~A}--- and 689{\~A}--- (\&gt;400{\~A}--- on average), respectively, with FPGA and GPU acceleration. For long sequences, the CPU implementation of SneakySnake accelerates Parasail and KSW2 (sequence aligner of minimap2) by up to 979{\~A}--- (276.9{\~A}--- on average) and 91.7{\~A}--- (31.7{\~A}--- on average), respectively. As SneakySnake does not replace sequence alignment, users can still obtain all capabilities (e.g. configurable scoring functions) of the aligner of their choice, unlike existing acceleration efforts that sacrifice some aligner capabilities.https://github.com/CMU-SAFARI/SneakySnake.Supplementary data are available at Bioinformatics online.},
+  author        = {Alser, Mohammed and Shahroodi, Taha and G{\~A}³mez-Luna, Juan and Alkan, Can and Mutlu, Onur},
+  date-added    = {2026-01-30 10:55:13 -0500},
+  date-modified = {2026-01-30 10:55:54 -0500},
+  doi           = {10.1093/bioinformatics/btaa1015},
+  eprint        = {https://academic.oup.com/bioinformatics/article-pdf/36/22-23/5282/50715957/btaa1015.pdf},
+  issn          = {1367-4803},
+  journal       = {Bioinformatics},
+  keywords      = {alignment},
+  month         = {12},
+  number        = {22-23},
+  pages         = {5282-5290},
+  title         = {SneakySnake: a fast and accurate universal genome pre-alignment filter for CPUs, GPUs and FPGAs},
+  url           = {https://doi.org/10.1093/bioinformatics/btaa1015},
+  volume        = {36},
+  year          = {2020},
+  bdsk-url-1    = {https://doi.org/10.1093/bioinformatics/btaa1015}
+}
 
 @article{Chao:1992aa,
   abstract      = {We describe an algorithm for aligning two sequences within a diagonal band that requires only O(NW) computation time and O(N) space, where N is the length of the shorter of the two sequences and W is the width of the band. The basic algorithm can be used to calculate either local or global alignment scores. Local alignments are produced by finding the beginning and end of a best local alignment in the band, and then applying the global alignment algorithm between those points. This algorithm has been incorporated into the FASTA program package, where it has decreased the amount of memory required to calculate local alignments from O(NW) to O(N) and decreased the time required to calculate optimized scores for every sequence in a protein sequence database by 40%. On computers with limited memory, such as the IBM-PC, this improvement both allows longer sequences to be aligned and allows optimization within wider bands, which can include longer gaps.},
