@@ -1,4 +1,7 @@
-use crate::data::types::cigar::{Cigar, Ciglet};
+use crate::{
+    alignment::AlignmentIndices,
+    data::types::cigar::{Cigar, Ciglet},
+};
 
 /// A struct for storing alignment states.
 ///
@@ -200,6 +203,48 @@ impl AlignmentStates {
     #[inline]
     pub fn iter(&self) -> std::slice::Iter<'_, Ciglet> {
         self.0.iter()
+    }
+
+    /// Generates a new alignment states replacing `M` with either `=` for
+    /// matches and `X` for mismatches.
+    ///
+    /// Consider using [`Alignment::to_eq_x`] if you have an [`Alignment`]
+    /// object.
+    ///
+    /// The `reference` should be the entire reference, and `ref_index` is the
+    /// starting position of the alignment within the passed reference.
+    ///
+    /// ## Panics
+    ///
+    /// If either `reference` or `query` are of a shorter length than
+    /// implied by the alignment, then this will panic due to out of bounds
+    /// indexing.
+    ///
+    /// [`Alignment`]: super::Alignment
+    /// [`Alignment::to_eq_x`]: super::Alignment::to_eq_x
+    #[must_use]
+    pub fn to_eq_x(&self, reference: &[u8], query: &[u8], mut ref_index: usize) -> Self {
+        let mut out = AlignmentStates::with_capacity(self.0.len());
+        let mut query_index = 0;
+
+        for ciglet in self {
+            if ciglet.op == b'M' {
+                let query_slice = &query[query_index..query_index + ciglet.inc];
+                let ref_slice = &reference[ref_index..ref_index + ciglet.inc];
+
+                for (query_base, ref_base) in query_slice.iter().zip(ref_slice) {
+                    out.add_state(if query_base == ref_base { b'=' } else { b'X' });
+                }
+
+                query_index += ciglet.inc;
+                ref_index += ciglet.inc;
+            } else {
+                out.add_ciglet(ciglet);
+                (query_index, ref_index) = (query_index, ref_index).increment_idxs_by(ciglet);
+            }
+        }
+
+        out
     }
 }
 

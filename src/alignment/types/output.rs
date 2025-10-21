@@ -277,6 +277,29 @@ impl<T: Copy> Alignment<T> {
         self.states.make_reverse();
     }
 
+    /// Generates a new alignment replacing `M` in `states` with either `=` for
+    /// matches and `X` for mismatches.
+    ///
+    /// The first argument should contain the full reference that was used to
+    /// generate the alignment.
+    ///
+    /// ## Panics
+    ///
+    /// If either `reference` or `query` are of a shorter length than implied by
+    /// the alignment, then this will panic due to out of bounds indexing.
+    #[inline]
+    #[must_use]
+    pub fn to_eq_x(&self, reference: &[u8], query: &[u8]) -> Self {
+        Self {
+            score:       self.score,
+            ref_range:   self.ref_range.clone(),
+            query_range: self.query_range.clone(),
+            states:      self.states.to_eq_x(reference, query, self.ref_range.start),
+            ref_len:     self.ref_len,
+            query_len:   self.query_len,
+        }
+    }
+
     /// Clips an [`Alignment`] so that it corresponds to the provided reference
     /// range.
     ///
@@ -326,7 +349,7 @@ impl<T: Copy> Alignment<T> {
 
         // Find the first ciglet overlapping the reference range
         let Some(mut first_ciglet) = ciglets.find_map(|ciglet| {
-            (query_idx, ref_idx) = (query_idx, ref_idx).increment_by(ciglet);
+            (query_idx, ref_idx) = (query_idx, ref_idx).increment_idxs_by(ciglet);
             let num_in_range = ref_idx.saturating_sub(rel_ref_range.start);
             (num_in_range > 0).then_some(Ciglet {
                 op:  ciglet.op,
@@ -358,7 +381,7 @@ impl<T: Copy> Alignment<T> {
         };
 
         // Calculates where the sliced alignment starts in the query
-        let (query_start, ref_start) = (query_idx, ref_idx).decrement_by(first_ciglet);
+        let (query_start, ref_start) = (query_idx, ref_idx).decrement_idxs_by(first_ciglet);
         debug_assert_eq!(ref_start, rel_ref_range.start);
 
         // Add soft clipping at start
@@ -368,7 +391,7 @@ impl<T: Copy> Alignment<T> {
         if ref_idx >= rel_ref_range.end {
             first_ciglet.inc = first_ciglet.inc.saturating_sub(ref_idx - rel_ref_range.end);
             states.add_ciglet(first_ciglet);
-            let (query_end, ref_end) = (query_start, ref_start).increment_by(first_ciglet);
+            let (query_end, ref_end) = (query_start, ref_start).increment_idxs_by(first_ciglet);
             states.soft_clip(self.query_len - query_end);
 
             debug_assert_eq!(ref_end, rel_ref_range.end);
@@ -389,14 +412,14 @@ impl<T: Copy> Alignment<T> {
         for mut ciglet in ciglets {
             // Add the contribution of the next ciglet, but don't update idxs
             // yet
-            let (new_query_idx, new_ref_idx) = (query_idx, ref_idx).increment_by(ciglet);
+            let (new_query_idx, new_ref_idx) = (query_idx, ref_idx).increment_idxs_by(ciglet);
 
             // Check whether ciglet caused us to meet or pass the end of
             // rel_ref_range
             if let Some(num_past) = new_ref_idx.checked_sub(rel_ref_range.end) {
                 ciglet.inc = ciglet.inc.saturating_sub(num_past);
                 states.add_ciglet(ciglet);
-                let (query_end, ref_end) = (query_idx, ref_idx).increment_by(ciglet);
+                let (query_end, ref_end) = (query_idx, ref_idx).increment_idxs_by(ciglet);
                 states.soft_clip(self.query_len - query_end);
 
                 debug_assert!(ciglet.inc > 0);
@@ -436,20 +459,20 @@ impl<T: Copy> Alignment<T> {
     }
 }
 
-/// A private extension trait for adding or subtracting a [`Ciglet`] to a tuple
+/// An extension trait for adding or subtracting a [`Ciglet`] to a tuple
 /// representing the query index and reference index.
-trait AlignmentIndices {
+pub(crate) trait AlignmentIndices {
     /// Adds the contribution of the [`Ciglet`] to a query and reference index.
-    fn increment_by(self, ciglet: Ciglet) -> Self;
+    fn increment_idxs_by(self, ciglet: Ciglet) -> Self;
 
     /// Subtracts the contribution of the [`Ciglet`] to a query and reference
     /// index.
-    fn decrement_by(self, ciglet: Ciglet) -> Self;
+    fn decrement_idxs_by(self, ciglet: Ciglet) -> Self;
 }
 
 impl AlignmentIndices for (usize, usize) {
     #[inline]
-    fn increment_by(self, ciglet: Ciglet) -> Self {
+    fn increment_idxs_by(self, ciglet: Ciglet) -> Self {
         let (query_idx, ref_idx) = self;
         match ciglet.op {
             b'M' | b'=' | b'X' => (query_idx + ciglet.inc, ref_idx + ciglet.inc),
@@ -460,7 +483,7 @@ impl AlignmentIndices for (usize, usize) {
     }
 
     #[inline]
-    fn decrement_by(self, ciglet: Ciglet) -> Self {
+    fn decrement_idxs_by(self, ciglet: Ciglet) -> Self {
         let (query_idx, ref_idx) = self;
         match ciglet.op {
             b'M' | b'=' | b'X' => (query_idx - ciglet.inc, ref_idx - ciglet.inc),
