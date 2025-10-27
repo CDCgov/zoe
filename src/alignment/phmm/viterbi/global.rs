@@ -1,119 +1,14 @@
-use super::{BestScore, ViterbiStrategy, ViterbiTraceback};
-use crate::{
-    alignment::{
-        Alignment, AlignmentStates,
-        phmm::{
-            CorePhmm, GetLayer, GlobalPhmm, LayerParams, PhmmBacktrackFlags, PhmmError, PhmmNumber, PhmmState,
-            PhmmTracebackState, best_state,
-            indexing::{PhmmIndex, PhmmIndexable, QueryIndex},
-        },
+use super::ViterbiTraceback;
+use crate::alignment::{
+    Alignment, AlignmentStates,
+    phmm::{
+        GetLayer, GlobalPhmm, LayerParams, PhmmBacktrackFlags, PhmmError, PhmmNumber,
+        PhmmState::{self, Delete, Insert, Match},
+        PhmmTracebackState, best_state,
+        indexing::PhmmIndexable,
+        viterbi::{update_delete, update_insert},
     },
-    data::ByteIndexMap,
 };
-
-/// Parameters for running a global Viterbi alignment, including the pHMM
-/// information and the query.
-struct GlobalViterbiParams<'a, T, const S: usize> {
-    phmm:  &'a GlobalPhmm<T, S>,
-    query: &'a [u8],
-}
-
-impl<'a, T: PhmmNumber, const S: usize> GlobalViterbiParams<'a, T, S> {
-    /// Groups the parameters for a global Viterbi alignment in
-    /// [`GlobalViterbiParams`].
-    #[inline]
-    #[must_use]
-    fn new(phmm: &'a GlobalPhmm<T, S>, query: &'a [u8]) -> Self {
-        Self { phmm, query }
-    }
-}
-
-impl<'a, T: PhmmNumber, const S: usize> ViterbiStrategy<'a, T, S> for GlobalViterbiParams<'a, T, S> {
-    type TracebackState = PhmmState;
-    type BestScore = GlobalBestScore<T>;
-
-    #[inline]
-    fn core(&self) -> &CorePhmm<T, S> {
-        self.phmm.core()
-    }
-
-    #[inline]
-    fn mapping(&self) -> &ByteIndexMap<S> {
-        self.phmm.mapping()
-    }
-
-    #[inline]
-    fn query(&self) -> &[u8] {
-        self.query
-    }
-
-    #[inline]
-    fn initial_check(&self) -> Result<(), PhmmError> {
-        Ok(())
-    }
-
-    #[inline]
-    fn fill_vm(&self, v_m: &mut [T]) {
-        v_m.fill(T::INFINITY);
-        v_m[0] = T::ZERO;
-    }
-
-    fn update_match_score(
-        &self, layer: &LayerParams<T, S>, x_idx: usize, mut match_val: T, mut delete_val: T, mut insert_val: T,
-        _i: impl QueryIndex, _j: impl PhmmIndex,
-    ) -> (Self::TracebackState, T) {
-        use crate::alignment::phmm::state::PhmmState::*;
-
-        match_val += layer.transition[(Match, Match)];
-        delete_val += layer.transition[(Delete, Match)];
-        insert_val += layer.transition[(Insert, Match)];
-
-        let (state, best) = best_state(match_val, delete_val, insert_val);
-        (state, best + layer.emission_match[x_idx])
-    }
-
-    fn perform_traceback(
-        self, best_score: GlobalBestScore<T>, traceback: ViterbiTraceback<PhmmBacktrackFlags>,
-    ) -> Alignment<T> {
-        // i = len(query); j = len(layers);
-        let mut cursor = traceback.data.len() - 1;
-        let GlobalBestScore { state, score } = best_score;
-        let mut state = PhmmTracebackState::from(state);
-
-        let mut states = AlignmentStates::new();
-
-        while cursor > 0 {
-            let next_state = traceback.data[cursor].get_prev_state(state);
-
-            if state.is_match() {
-                states.add_state(b'M');
-                // i -= 1; j -= 1;
-                cursor -= traceback.cols + 1;
-            } else if state.is_delete() {
-                states.add_state(b'D');
-                // j -= 1;
-                cursor -= traceback.cols;
-            } else {
-                states.add_state(b'I');
-                // i -= 1;
-                cursor -= 1;
-            }
-
-            state = next_state;
-        }
-
-        states.make_reverse();
-
-        Alignment {
-            score,
-            ref_range: 0..self.phmm.seq_len(),
-            query_range: 0..self.query.len(),
-            states,
-            ref_len: self.phmm.seq_len(),
-            query_len: self.query.len(),
-        }
-    }
-}
 
 /// A tracker for the best score for the global Viterbi algorithm.
 struct GlobalBestScore<T> {
@@ -123,20 +18,16 @@ struct GlobalBestScore<T> {
     score: T,
 }
 
-impl<T: PhmmNumber, const S: usize> BestScore<T, S> for GlobalBestScore<T> {
-    type Strategy<'a>
-        = GlobalViterbiParams<'a, T, S>
-    where
-        T: 'a;
-
-    #[inline]
-    fn score(&self) -> T {
-        self.score
-    }
-
-    fn update_seq_end_last_layer(
-        &mut self, _strategy: &Self::Strategy<'_>, layer: &LayerParams<T, S>, mut match_val: T, mut delete_val: T,
-        mut insert_val: T,
+impl<T: PhmmNumber> GlobalBestScore<T> {
+    /// Updates the best state and score from the score values at the end of the
+    /// sequence and last layer.
+    ///
+    /// ## Validity
+    ///
+    /// NaN values should not be passed within the layers or the score values,
+    /// and may result in inconsistent behavior.
+    fn update_seq_end_last_layer<const S: usize>(
+        &mut self, layer: &LayerParams<T, S>, mut match_val: T, mut delete_val: T, mut insert_val: T,
     ) {
         use crate::alignment::phmm::PhmmState::*;
 
@@ -168,7 +59,124 @@ impl<T: PhmmNumber, const S: usize> GlobalPhmm<T, S> {
     /// error is also returned if the model has no layers.
     pub fn viterbi<Q: AsRef<[u8]>>(&self, seq: Q) -> Result<Alignment<T>, PhmmError> {
         let seq = seq.as_ref();
-        let specs = GlobalViterbiParams::new(self, seq);
-        specs.viterbi()
+
+        let [layers @ .., end] = self.core().layers() else {
+            return Err(PhmmError::EmptyModel);
+        };
+
+        let query_dim = seq.len() + 1;
+        // This is equivalent to self.seq_len()+1, but may help with bounds
+        // checking
+        let phmm_dim = layers.len() + 1;
+
+        let mut v_m = vec![T::INFINITY; query_dim];
+        v_m[0] = T::ZERO;
+        let mut v_i = vec![T::INFINITY; query_dim];
+        let mut v_d = vec![T::INFINITY; query_dim];
+
+        let mut j = 0;
+
+        let mut traceback = ViterbiTraceback::new(PhmmBacktrackFlags::new(), query_dim, phmm_dim);
+
+        for layer in layers {
+            let mut cur_m = v_m[0];
+
+            let start = query_dim * j;
+            let (traceback_curr_row, traceback_next_row) =
+                traceback.data[start..start + 2 * query_dim].split_at_mut(query_dim);
+
+            let traceback_curr_row = &mut traceback_curr_row[0..query_dim];
+            let traceback_next_row = &mut traceback_next_row[0..query_dim];
+
+            for (i, x_idx) in seq.iter().map(|x| self.mapping().to_index(*x)).enumerate() {
+                let match_val = cur_m;
+                let delete_val = v_d[i];
+                let insert_val = v_i[i];
+
+                let (state_m, match_score) = {
+                    let (state, best) = best_state(
+                        match_val + layer.transition[(Match, Match)],
+                        delete_val + layer.transition[(Delete, Match)],
+                        insert_val + layer.transition[(Insert, Match)],
+                    );
+                    (state, best + layer.emission_match[x_idx])
+                };
+                traceback_next_row[i + 1].set_match(state_m);
+                cur_m = std::mem::replace(&mut v_m[i + 1], match_score);
+
+                let (state_i, insert_score) = update_insert(layer, x_idx, match_val, delete_val, insert_val);
+                traceback_curr_row[i + 1].set_insert(state_i);
+                v_i[i + 1] = insert_score;
+
+                let (state_d, delete_score) = update_delete(layer, match_val, delete_val, insert_val);
+                traceback_next_row[i].set_delete(state_d);
+                v_d[i] = delete_score;
+            }
+
+            let i = seq.len();
+            let (state_d, delete_score) = update_delete(layer, cur_m, v_d[i], v_i[i]);
+            traceback_next_row[i].set_delete(state_d);
+            v_d[i] = delete_score;
+
+            j += 1;
+            // Cannot enter a match state after BEGIN without consuming a base
+            v_m[0] = T::INFINITY;
+        }
+
+        // Calculate last column of insertion table and previous states for END
+        // state
+        let start = query_dim * j;
+        let traceback_curr_row = &mut traceback.data[start..start + query_dim];
+        for (i, x_idx) in seq.iter().map(|x| self.mapping().to_index(*x)).enumerate() {
+            let (state_i, insert_score) = update_insert(end, x_idx, v_m[i], v_d[i], v_i[i]);
+            traceback_curr_row[i + 1].set_insert(state_i);
+            v_i[i + 1] = insert_score;
+        }
+
+        let i = seq.len();
+        let mut best_score = GlobalBestScore::default();
+        best_score.update_seq_end_last_layer(end, v_m[i], v_d[i], v_i[i]);
+
+        // This is a necessary check, otherwise the traceback may panic
+        if best_score.score == T::INFINITY {
+            return Err(PhmmError::NoAlignmentFound);
+        }
+
+        let mut cursor = traceback.data.len() - 1;
+        let GlobalBestScore { state, score } = best_score;
+        let mut state = PhmmTracebackState::from(state);
+
+        let mut states = AlignmentStates::new();
+
+        while cursor > 0 {
+            let next_state = traceback.data[cursor].get_prev_state(state);
+
+            if state.is_match() {
+                states.add_state(b'M');
+                // i -= 1; j -= 1;
+                cursor -= traceback.cols + 1;
+            } else if state.is_delete() {
+                states.add_state(b'D');
+                // j -= 1;
+                cursor -= traceback.cols;
+            } else {
+                states.add_state(b'I');
+                // i -= 1;
+                cursor -= 1;
+            }
+
+            state = next_state;
+        }
+
+        states.make_reverse();
+
+        Ok(Alignment {
+            score,
+            ref_range: 0..self.seq_len(),
+            query_range: 0..seq.len(),
+            states,
+            ref_len: self.seq_len(),
+            query_len: seq.len(),
+        })
     }
 }

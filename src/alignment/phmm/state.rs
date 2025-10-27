@@ -244,6 +244,10 @@ impl PhmmBacktrackFlags {
 
 /// Identifies the minimum score among three values (corresponding to `Match`,
 /// `Delete`, and `Insert`) and returns the best state and score.
+///
+/// ## Validity
+///
+/// NaN values should not be passed, and may result in inconsistent behavior.
 pub(crate) fn best_state<T: PhmmNumber>(match_val: T, delete_val: T, insert_val: T) -> (PhmmState, T) {
     use PhmmState::*;
 

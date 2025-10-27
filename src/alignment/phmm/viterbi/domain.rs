@@ -1,109 +1,185 @@
-use super::ViterbiStrategy;
-use crate::{
-    alignment::{
-        Alignment, AlignmentStates,
-        phmm::{
-            CorePhmm, DomainPhmm, GetLayer, GetModule, LayerParams, PhmmBacktrackFlags, PhmmError, PhmmNumber, PhmmState,
-            PhmmTracebackState, best_state,
-            indexing::{DpIndex, LastBase, LastMatch, PhmmIndex, PhmmIndexable, QueryIndex, QueryIndexable},
-            modules::PrecomputedDomainModule,
-            viterbi::{BestScore, ViterbiTraceback},
-        },
+use crate::alignment::{
+    Alignment, AlignmentStates,
+    phmm::{
+        DomainPhmm, GetLayer, GetModule, LayerParams, PhmmBacktrackFlags, PhmmError, PhmmNumber,
+        PhmmState::{self, Delete, Insert, Match},
+        PhmmTracebackState, best_state,
+        indexing::{DpIndex, LastBase, LastMatch, PhmmIndexable, QueryIndex, QueryIndexable},
+        modules::PrecomputedDomainModule,
+        viterbi::{ViterbiTraceback, update_delete, update_insert},
     },
-    data::ByteIndexMap,
 };
 use std::ops::Bound::{Excluded, Included};
 
-/// Parameters for running a domain Viterbi alignment, including the pHMM
-/// information and the query.
-struct DomainViterbiParams<'a, T, const S: usize> {
-    mapping: &'static ByteIndexMap<S>,
-    core:    &'a CorePhmm<T, S>,
-    begin:   PrecomputedDomainModule<T, S>,
-    end:     PrecomputedDomainModule<T, S>,
-    query:   &'a [u8],
+/// A tracker for the best score for the domain Viterbi algorithm.
+struct DomainBestScore<T> {
+    /// The best score found at the end of the model
+    score: T,
+    /// The last query index consumed by the [`CorePhmm`]
+    ///
+    /// [`CorePhmm`]: crate::alignment::phmm::CorePhmm
+    i:     DpIndex,
+    /// The state from which the END state was reached
+    state: PhmmState,
 }
 
-impl<'a, T: PhmmNumber, const S: usize> DomainViterbiParams<'a, T, S> {
-    /// Create the Viterbi specifications for a local alignment from the pHMM
-    /// and the sequence.
+impl<T: PhmmNumber> DomainBestScore<T> {
     #[inline]
-    #[must_use]
-    fn new(phmm: &'a DomainPhmm<T, S>, query: &'a [u8]) -> Self {
-        Self {
-            mapping: phmm.mapping(),
-            core: phmm.core(),
-            begin: phmm.begin().precompute_begin_mod(query, phmm.mapping()),
-            end: phmm.end().precompute_end_mod(query, phmm.mapping()),
-            query,
-        }
-    }
-}
-
-impl<'a, T: PhmmNumber, const S: usize> ViterbiStrategy<'a, T, S> for DomainViterbiParams<'a, T, S> {
-    type TracebackState = PhmmState;
-    type BestScore = DomainBestScore<T>;
-
-    #[inline]
-    fn core(&self) -> &CorePhmm<T, S> {
-        self.core
-    }
-
-    #[inline]
-    fn mapping(&self) -> &ByteIndexMap<S> {
-        self.mapping
-    }
-
-    #[inline]
-    fn query(&self) -> &[u8] {
-        self.query
-    }
-
-    #[inline]
-    fn initial_check(&self) -> Result<(), PhmmError> {
-        if self.begin.seq_len() != self.query.seq_len() || self.end.seq_len() != self.query.seq_len() {
-            return Err(PhmmError::IncompatibleModule);
-        }
-        Ok(())
-    }
-
-    #[inline]
-    fn fill_vm(&self, v_m: &mut [T]) {
-        for (i, value) in v_m.iter_mut().enumerate() {
-            *value = self.begin.get_score(DpIndex(i));
-        }
-    }
-
-    fn update_match_score(
-        &self, layer: &LayerParams<T, S>, x_idx: usize, mut match_val: T, mut delete_val: T, mut insert_val: T,
-        _i: impl QueryIndex, _j: impl PhmmIndex,
-    ) -> (PhmmState, T) {
-        use crate::alignment::phmm::state::PhmmState::*;
+    #[allow(clippy::too_many_arguments)]
+    fn update_last_layer<const S: usize>(
+        &mut self, layer: &LayerParams<T, S>, mut match_val: T, mut delete_val: T, mut insert_val: T, i: impl QueryIndex,
+        seq: &[u8], end: &PrecomputedDomainModule<T, S>,
+    ) {
+        use crate::alignment::phmm::PhmmState::*;
 
         match_val += layer.transition[(Match, Match)];
         delete_val += layer.transition[(Delete, Match)];
         insert_val += layer.transition[(Insert, Match)];
 
-        let (state, best) = best_state(match_val, delete_val, insert_val);
-        (state, best + layer.emission_match[x_idx])
-    }
+        let (state, mut score) = best_state(match_val, delete_val, insert_val);
+        score += end.get_score(i);
 
-    fn perform_traceback(
-        self, best_score: DomainBestScore<T>, traceback: ViterbiTraceback<PhmmBacktrackFlags>,
-    ) -> Alignment<T> {
+        if score < self.score {
+            self.score = score;
+            self.i = seq.to_dp_index(i);
+            self.state = state;
+        }
+    }
+}
+
+impl<T: PhmmNumber> Default for DomainBestScore<T> {
+    #[inline]
+    fn default() -> Self {
+        Self {
+            score: T::INFINITY,
+            i:     DpIndex(0),
+            state: PhmmState::Match,
+        }
+    }
+}
+
+impl<T: PhmmNumber, const S: usize> DomainPhmm<T, S> {
+    /// Obtain the best scoring domain alignment along with its score via the
+    /// Viterbi algorithm.
+    ///
+    /// ## Errors
+    ///
+    /// If no alignment with nonzero probability is found, an error is given. An
+    /// error is also returned if the model has no layers.
+    #[allow(clippy::too_many_lines)]
+    pub fn viterbi<Q: AsRef<[u8]>>(&self, seq: Q) -> Result<Alignment<T>, PhmmError> {
+        let seq = seq.as_ref();
+
+        let begin_mod = self.begin().precompute_begin_mod(seq, self.mapping());
+        let end_mod = self.end().precompute_end_mod(seq, self.mapping());
+
+        // Check for compatibility between the pHMM and the start/end modules
+        if begin_mod.seq_len() != seq.len() || end_mod.seq_len() != seq.len() {
+            return Err(PhmmError::IncompatibleModule);
+        }
+
+        let [layers @ .., end] = self.core().layers() else {
+            return Err(PhmmError::EmptyModel);
+        };
+
+        let query_dim = seq.len() + 1;
+        // This is equivalent to self.seq_len()+1, but may help with bounds
+        // checking
+        let phmm_dim = layers.len() + 1;
+
+        let mut v_m = vec![T::INFINITY; query_dim];
+        for (i, value) in v_m.iter_mut().enumerate() {
+            *value = begin_mod.get_score(DpIndex(i));
+        }
+        let mut v_i = vec![T::INFINITY; query_dim];
+        let mut v_d = vec![T::INFINITY; query_dim];
+
+        let mut j = 0;
+
+        let mut traceback = ViterbiTraceback::new(PhmmBacktrackFlags::new(), query_dim, phmm_dim);
+
+        let mut best_score: DomainBestScore<T> = DomainBestScore::default();
+
+        for layer in layers {
+            let mut cur_m = v_m[0];
+
+            let start = query_dim * j;
+            let (traceback_curr_row, traceback_next_row) =
+                traceback.data[start..start + 2 * query_dim].split_at_mut(query_dim);
+
+            let traceback_curr_row = &mut traceback_curr_row[0..query_dim];
+            let traceback_next_row = &mut traceback_next_row[0..query_dim];
+
+            for (i, x_idx) in seq.iter().map(|x| self.mapping().to_index(*x)).enumerate() {
+                let match_val = cur_m;
+                let delete_val = v_d[i];
+                let insert_val = v_i[i];
+
+                let (state_m, match_score) = {
+                    let (state, best) = best_state(
+                        match_val + layer.transition[(Match, Match)],
+                        delete_val + layer.transition[(Delete, Match)],
+                        insert_val + layer.transition[(Insert, Match)],
+                    );
+                    (state, best + layer.emission_match[x_idx])
+                };
+                traceback_next_row[i + 1].set_match(state_m);
+                cur_m = std::mem::replace(&mut v_m[i + 1], match_score);
+
+                let (state_i, insert_score) = update_insert(layer, x_idx, match_val, delete_val, insert_val);
+                traceback_curr_row[i + 1].set_insert(state_i);
+                v_i[i + 1] = insert_score;
+
+                let (state_d, delete_score) = update_delete(layer, match_val, delete_val, insert_val);
+                traceback_next_row[i].set_delete(state_d);
+                v_d[i] = delete_score;
+            }
+
+            let i = seq.len();
+
+            let (state_d, delete_score) = update_delete(layer, cur_m, v_d[i], v_i[i]);
+            traceback_next_row[i].set_delete(state_d);
+            v_d[i] = delete_score;
+
+            j += 1;
+            // No version of alignment can enter a match state after BEGIN
+            // without consuming a base
+            v_m[0] = T::INFINITY;
+        }
+
+        // Calculate last column of insertion table and previous states for END
+        // state
+        let start = query_dim * j;
+        let traceback_curr_row = &mut traceback.data[start..start + query_dim];
+        for (i, x_idx) in seq.iter().map(|x| self.mapping().to_index(*x)).enumerate() {
+            best_score.update_last_layer(end, v_m[i], v_d[i], v_i[i], DpIndex(i), seq, &end_mod);
+
+            let (state_i, insert_score) = update_insert(end, x_idx, v_m[i], v_d[i], v_i[i]);
+            traceback_curr_row[i + 1].set_insert(state_i);
+            v_i[i + 1] = insert_score;
+        }
+
+        let i = seq.len();
+        best_score.update_last_layer(end, v_m[i], v_d[i], v_i[i], LastBase, seq, &end_mod);
+
+        // This is a necessary check, otherwise the traceback may panic
+        if best_score.score == T::INFINITY {
+            return Err(PhmmError::NoAlignmentFound);
+        }
+
         let DomainBestScore {
             score,
             i: DpIndex(end_i),
             state,
         } = best_score;
-        let end_j = self.core.get_dp_index(LastMatch);
+        let end_j = self.get_dp_index(LastMatch);
 
         let mut state = PhmmTracebackState::from(state);
         let mut i = end_i;
         let mut j = end_j;
 
         let mut states = AlignmentStates::new();
-        states.soft_clip(self.query.len() - i);
+        states.soft_clip(seq.len() - i);
 
         // Continue traceback until BEGIN state is reached
         while j > 0 || !state.is_match() {
@@ -135,89 +211,13 @@ impl<'a, T: PhmmNumber, const S: usize> ViterbiStrategy<'a, T, S> for DomainVite
         let start_i = Excluded(DpIndex(i));
         let end_i = Included(DpIndex(end_i));
 
-        Alignment {
+        Ok(Alignment {
             score,
-            ref_range: self.core.get_seq_range((start_j, end_j)),
-            query_range: self.query.get_seq_range(start_i, end_i),
+            ref_range: self.get_seq_range((start_j, end_j)),
+            query_range: seq.get_seq_range(start_i, end_i),
             states,
-            ref_len: self.core.seq_len(),
-            query_len: self.query.len(),
-        }
-    }
-}
-
-/// A tracker for the best score for the domain Viterbi algorithm.
-struct DomainBestScore<T> {
-    /// The best score found at the end of the model
-    score: T,
-    /// The last query index consumed by the [`CorePhmm`]
-    i:     DpIndex,
-    /// The state from which the END state was reached
-    state: PhmmState,
-}
-
-impl<T: PhmmNumber, const S: usize> BestScore<T, S> for DomainBestScore<T> {
-    type Strategy<'a>
-        = DomainViterbiParams<'a, T, S>
-    where
-        T: 'a;
-
-    #[inline]
-    fn score(&self) -> T {
-        self.score
-    }
-
-    #[inline]
-    fn update_last_layer(
-        &mut self, strategy: &Self::Strategy<'_>, layer: &LayerParams<T, S>, mut match_val: T, mut delete_val: T,
-        mut insert_val: T, i: impl QueryIndex,
-    ) {
-        use crate::alignment::phmm::PhmmState::*;
-
-        match_val += layer.transition[(Match, Match)];
-        delete_val += layer.transition[(Delete, Match)];
-        insert_val += layer.transition[(Insert, Match)];
-
-        let (state, mut score) = best_state(match_val, delete_val, insert_val);
-        score += strategy.end.get_score(i);
-
-        if score < self.score {
-            self.score = score;
-            self.i = strategy.query.to_dp_index(i);
-            self.state = state;
-        }
-    }
-
-    #[inline]
-    fn update_seq_end_last_layer(
-        &mut self, strategy: &Self::Strategy<'_>, layer: &LayerParams<T, S>, match_val: T, delete_val: T, insert_val: T,
-    ) {
-        self.update_last_layer(strategy, layer, match_val, delete_val, insert_val, LastBase);
-    }
-}
-
-impl<T: PhmmNumber> Default for DomainBestScore<T> {
-    #[inline]
-    fn default() -> Self {
-        Self {
-            score: T::INFINITY,
-            i:     DpIndex(0),
-            state: PhmmState::Match,
-        }
-    }
-}
-
-impl<T: PhmmNumber, const S: usize> DomainPhmm<T, S> {
-    /// Obtain the best scoring local alignment along with its score via the
-    /// Viterbi algorithm.
-    ///
-    /// ## Errors
-    ///
-    /// If no alignment with nonzero probability is found, an error is given. An
-    /// error is also returned if the model has no layers.
-    pub fn viterbi<Q: AsRef<[u8]>>(&self, seq: Q) -> Result<Alignment<T>, PhmmError> {
-        let seq = seq.as_ref();
-        let specs = DomainViterbiParams::new(self, seq);
-        specs.viterbi()
+            ref_len: self.seq_len(),
+            query_len: seq.len(),
+        })
     }
 }

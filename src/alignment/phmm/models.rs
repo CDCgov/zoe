@@ -10,8 +10,9 @@ use std::ops::{Index, IndexMut};
 
 /// The transition probabilities for a layer of the pHMM.
 ///
-/// The parameters are converted to log space with $-\operatorname{ln}(\cdot)$.
-/// They are arranged in the format:
+/// The parameters are stored in log space (see
+/// [here](crate::alignment::phmm#log-space-parameters) for more details). They
+/// are arranged in the format:
 /// ```text
 /// [[m->m, d->m, i->m]
 ///  [m->d, d->d, i->d]
@@ -87,8 +88,10 @@ impl<T> IndexMut<PhmmState> for TransitionParams<T> {
     }
 }
 
-/// A set of emission probabilities, converted to log space with
-/// $-\operatorname{ln}(\cdot)$.
+/// A set of emission probabilities.
+///
+/// The parameters are stored in log space (see
+/// [here](crate::alignment::phmm#log-space-parameters) for more details).
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub struct EmissionParams<T, const S: usize>([T; S]);
 
@@ -171,8 +174,9 @@ impl<T, const S: usize> Index<usize> for EmissionParams<T, S> {
 
 /// The parameters for a single layer of the pHMM.
 ///
-/// See [`TransitionParams`], [`EmissionParams`], and [`CorePhmm`] for more
-/// details.
+/// The parameters are stored in log space (see
+/// [here](crate::alignment::phmm#log-space-parameters) for more details). Also
+/// see [`TransitionParams`], [`EmissionParams`], and [`CorePhmm`].
 ///
 /// <div class="warning note">
 ///
@@ -207,9 +211,8 @@ impl<T: PhmmNumber, const S: usize> Default for LayerParams<T, S> {
 /// This includes the layers of the pHMM without any modules at the beginning or
 /// end.
 ///
-/// All probabilities are converted to log space with
-/// $-\operatorname{ln}(\cdot)$. This struct guarantees that at least two layers
-/// are present (corresponding to a reference length of one).
+/// This struct guarantees that at least two layers are present (corresponding
+/// to a reference length of one).
 ///
 /// Internally, each element stores:
 /// - The transition probabilities into the insert state within the current

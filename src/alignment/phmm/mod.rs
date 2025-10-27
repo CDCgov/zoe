@@ -1,5 +1,18 @@
 //! Structs and algorithms for profile Hidden Markov Models (pHMMs).
 //!
+//! ## Log Space Parameters
+//!
+//! Internally, *Zoe* stores pHMM parameters in log space with $-\ln(\cdot)$.
+//! This allows for algorithms to be performed in a numerically stable manner,
+//! while also avoiding repeated logarithm computations.
+//!
+//! When the input model is probabilistic (so that all parameters are in
+//! `0..=1`), this will result in stored parameters in `0..=INFINITY`. *Zoe*
+//! does not currently provide functionality for parameters outside of this
+//! range ([`SamHmmParser`] will return an error). If this is required
+//! functionality, please raise an issue (supporting it will require more
+//! careful handling of NaNs and negative infinity values).
+//!
 //! <div class="warning note">
 //!
 //! **Note**
@@ -8,11 +21,10 @@
 //! functions. They are in active development and are not complete.
 //!
 //! </div>
+//!
+//! [`SamHmmParser`]: sam_parser::SamHmmParser
 
-use crate::{
-    alignment::phmm::indexing::PhmmIndex,
-    math::{CastAs, CastAsNumeric, CastFrom, CastFromNumeric, Float},
-};
+use crate::math::{CastAs, CastAsNumeric, CastFrom, CastFromNumeric, Float};
 use std::{
     fmt::Display,
     ops::{Add, AddAssign, Mul},
