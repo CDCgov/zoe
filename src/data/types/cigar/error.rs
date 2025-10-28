@@ -5,27 +5,30 @@ use std::{error::Error, fmt};
 #[derive(Clone, Eq, PartialEq, Copy, Hash)]
 /// Custom error type for constructing CIGAR strings.
 pub enum CigarError {
-    /// CIGAR operator must be one of: M, I, D, N, S, H, P, X, =
+    /// The CIGAR operation must be one of: `M, I, D, N, S, H, P, X, =`
     InvalidOperation,
-    /// CIGAR increment must be a non-zero positive integer
+    /// The CIGAR increment must be a non-zero positive integer
     IncZero,
-    /// CIGAR increment must be smaller than the maximum usize value
+    /// The CIGAR increment must be smaller than [`usize::MAX`]
     IncOverflow,
-    /// CIGAR operator must have preceding increment
+    /// The CIGAR operation must have preceding increment
     MissingInc,
-    /// CIGAR increment must be followed by operator
+    /// The CIGAR increment must be followed by operation
     MissingOp,
+    /// The CIGAR string cannot have two adjacent operations which are the same
+    RepeatedOp,
 }
 
 impl fmt::Display for CigarError {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            CigarError::InvalidOperation => write!(f, "CIGAR operator must be one of: M, I, D, N, S, H, P, X, ="),
-            CigarError::IncZero => write!(f, "CIGAR increment must be a non-zero positive integer"),
+            CigarError::InvalidOperation => f.write_str("CIGAR operation must be one of: M, I, D, N, S, H, P, X, ="),
+            CigarError::IncZero => f.write_str("CIGAR increment must be a non-zero positive integer"),
             CigarError::IncOverflow => write!(f, "CIGAR increment must be smaller than {}", usize::MAX),
-            CigarError::MissingInc => write!(f, "CIGAR operator must have preceding increment"),
-            CigarError::MissingOp => write!(f, "CIGAR increment must be followed by operator"),
+            CigarError::MissingInc => f.write_str("CIGAR operation must have preceding increment"),
+            CigarError::MissingOp => f.write_str("CIGAR increment must be followed by operator"),
+            CigarError::RepeatedOp => f.write_str("The CIGAR string cannot have two adjacent operations which are the same"),
         }
     }
 }

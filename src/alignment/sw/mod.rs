@@ -258,11 +258,16 @@ use std::{
 /// passed as a [`ScalarProfile`], as well as the slice of the reference which
 /// was aligned to (e.g., the indices in [`Alignment::ref_range`]).
 ///
+/// ## Validity
+///
+/// - The iterator of ciglets should never contain two ciglets with the same
+///   operation adjacent to each other.
+///
 /// ## Errors
 ///
-/// - The `ciglets` must contain valid operations
-/// - All of `query`, `ref_in_alignment`, and `cigar` must be fully consumed
-/// - The final score should be nonnegative
+/// - The `ciglets` must contain valid operations.
+/// - All of `query`, `ref_in_alignment`, and `cigar` must be fully consumed.
+/// - The final score should be nonnegative.
 pub fn sw_score_from_path<const S: usize>(
     ciglets: impl IntoIterator<Item = Ciglet>, ref_in_alignment: &[u8], query: &ScalarProfile<S>,
 ) -> Result<u32, ScoringError> {

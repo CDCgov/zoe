@@ -8,12 +8,15 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ### Added
 
+- Added `from_ciglets_unchecked` and `from_cigar_unchecked` to `AlignmentStates`
 - Added `visit_params` methods to pHMMs as a diagnostic tool for inspecting the parameters that are visited along a given path (behind `dev-phmm` and `alignment-diagnostics` feature gates)
 - Added the ability to remove layers from a pHMM (behind `dev-phmm` and `alignment-diagnostics` feature gates)
 - Added random downsampling for sized and non-sized iterators using `MethodDSampler`, `method_l`, and `BernoulliSampler`
 
 ### Changed
 
+- `CigletIteratorChecked` now requires that adjacent ciglets have differing operations. This also impacts `TryFrom` impls and `is_valid`
+- An iterator of ciglets now collects into a `Result<AlignmentStates, CigarError>` instead of `AlignmentStates`
 - Refactored the organization and visibility of pHMM structs/fields/modules (behind `dev-phmm` feature gate)
 - Modified Viterbi algorithm to use compact bit representation instead of array (behind `dev-phmm` feature gate)
 

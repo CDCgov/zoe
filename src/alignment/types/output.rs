@@ -169,6 +169,9 @@ impl<T: Copy> Alignment<T> {
             }),
             _ => Some(ciglet),
         });
+        // Validity: No adjacent ciglets have the same operation since this is
+        // true of AlignmentStates and the filter_map call is injective. The
+        // increments are non-zero since the same is true of AlignmentStates.
         states.extend_from_ciglets(inverted_ciglets);
         states.soft_clip(self.ref_len - self.ref_range.end);
 

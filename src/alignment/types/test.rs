@@ -2,6 +2,7 @@ use crate::{
     alignment::{AlignmentStates, PairwiseSequence, StatesSequence, profile::ScalarProfile, sw::sw_scalar_alignment},
     data::{
         amino_acids::AminoAcids,
+        cigar::CigarError,
         matrices::WeightMatrix,
         types::cigar::{Cigar, Ciglet},
     },
@@ -31,10 +32,10 @@ fn alignment_invert() {
 
 #[test]
 fn states_sequence() {
-    // The clipping is not valid here, but we are using it to exercise all
+    // The cigar string is not valid here, but we are using it to exercise all
     // options
-    let cigar = Cigar::try_from("3H4S4S3H10M9I3M1D5M3H5S10S1H").unwrap();
-    let alignment_states = cigar.iter().collect::<AlignmentStates>();
+    let cigar = Cigar::from_slice_unchecked(b"3H4S4S3H10M9I3M1D5M3H5S10S1H");
+    let alignment_states = AlignmentStates::from_cigar_unchecked(&cigar);
     let mut cigar_slice = alignment_states.as_slice();
     let mut ciglet_iterator = cigar.into_iter();
 
@@ -126,6 +127,65 @@ fn align_with_cigar() {
             (ref_output, query_ouptut)
         );
     }
+}
+
+#[test]
+fn collect_ciglets() {
+    assert!(
+        AlignmentStates::from_ciglets_unchecked(vec![
+            Ciglet { inc: 10, op: b'M' },
+            Ciglet { inc: 5, op: b'I' },
+            Ciglet { inc: 12, op: b'D' }
+        ])
+        .iter()
+        .copied()
+        .collect::<Result<AlignmentStates, _>>()
+        .is_ok()
+    );
+    assert_eq!(
+        AlignmentStates::from_ciglets_unchecked(vec![
+            Ciglet { inc: 10, op: b'M' },
+            Ciglet { inc: 0, op: b'I' },
+            Ciglet { inc: 12, op: b'D' }
+        ])
+        .iter()
+        .copied()
+        .collect::<Result<AlignmentStates, _>>(),
+        Err(CigarError::IncZero)
+    );
+    assert_eq!(
+        AlignmentStates::from_ciglets_unchecked(vec![
+            Ciglet { inc: 10, op: b'M' },
+            Ciglet { inc: 5, op: b'I' },
+            Ciglet { inc: 12, op: b'Q' }
+        ])
+        .iter()
+        .copied()
+        .collect::<Result<AlignmentStates, _>>(),
+        Err(CigarError::InvalidOperation)
+    );
+    assert_eq!(
+        AlignmentStates::from_ciglets_unchecked(vec![
+            Ciglet { inc: 10, op: b'M' },
+            Ciglet { inc: 5, op: b'I' },
+            Ciglet { inc: 12, op: b'I' }
+        ])
+        .iter()
+        .copied()
+        .collect::<Result<AlignmentStates, _>>(),
+        Err(CigarError::RepeatedOp)
+    );
+    assert_eq!(
+        AlignmentStates::from_ciglets_unchecked(vec![
+            Ciglet { inc: 10, op: 0 },
+            Ciglet { inc: 5, op: b'I' },
+            Ciglet { inc: 12, op: b'D' }
+        ])
+        .iter()
+        .copied()
+        .collect::<Result<AlignmentStates, _>>(),
+        Err(CigarError::InvalidOperation)
+    );
 }
 
 #[test]

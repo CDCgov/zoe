@@ -57,8 +57,12 @@ impl std::fmt::Display for SamRow {
     }
 }
 
-/// An iterator for buffered reading of a SAM file. Guarantees quality scores
-/// are valid.
+/// An iterator for buffered reading of a SAM file.
+///
+/// This iterator guarantees quality scores are valid (see [`QualityScores`] for
+/// more details). It does not check for the validity of the CIGAR strings.
+///
+/// [`QualityScores`]: crate::data::types::phred::QualityScores
 #[derive(Debug)]
 pub struct SAMReader<R: std::io::Read, const TAGS: bool> {
     pub sam_reader: std::io::Lines<std::io::BufReader<R>>,

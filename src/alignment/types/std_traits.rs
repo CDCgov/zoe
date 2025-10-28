@@ -1,5 +1,8 @@
 use super::AlignmentStates;
-use crate::data::types::cigar::{Cigar, CigarError, Ciglet, CigletIteratorChecked};
+use crate::data::{
+    cigar::is_valid_op,
+    types::cigar::{Cigar, CigarError, Ciglet, CigletIteratorChecked},
+};
 use std::fmt::Write;
 
 impl AsRef<[Ciglet]> for AlignmentStates {
@@ -45,10 +48,28 @@ impl IntoIterator for AlignmentStates {
     }
 }
 
-impl FromIterator<Ciglet> for AlignmentStates {
+impl FromIterator<Ciglet> for Result<AlignmentStates, CigarError> {
     #[inline]
     fn from_iter<T: IntoIterator<Item = Ciglet>>(iter: T) -> Self {
-        AlignmentStates(iter.into_iter().collect::<Vec<_>>())
+        let mut last_op = 0;
+
+        let out = iter
+            .into_iter()
+            .map(|ciglet| {
+                if ciglet.inc == 0 {
+                    Err(CigarError::IncZero)
+                } else if !is_valid_op(ciglet.op) {
+                    Err(CigarError::InvalidOperation)
+                } else if ciglet.op == last_op {
+                    Err(CigarError::RepeatedOp)
+                } else {
+                    last_op = ciglet.op;
+                    Ok(ciglet)
+                }
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(AlignmentStates(out))
     }
 }
 
@@ -76,6 +97,8 @@ impl TryFrom<&[u8]> for AlignmentStates {
         if v == b"*" {
             Ok(AlignmentStates::new())
         } else {
+            // Validity: CigletIteratorChecked checks for increments that are
+            // zero and adjacent operations which are the same
             CigletIteratorChecked::new(v)
                 .collect::<Result<Vec<_>, _>>()
                 .map(AlignmentStates)

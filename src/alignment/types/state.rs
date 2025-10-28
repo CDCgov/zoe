@@ -1,7 +1,22 @@
 use crate::data::types::cigar::{Cigar, Ciglet};
 
-/// A struct for storing alignment states, which can be converted into a
-/// [`Cigar`] string.
+/// A struct for storing alignment states.
+///
+/// This is similar to [`Cigar`] (and can be converted to one). However, instead
+/// of storing the bytes for the CIGAR string, [`AlignmentStates`] stores
+/// increment-operation pairs as a vector of [`Ciglet`] structs. This allows for
+/// less parsing/checking during use.
+///
+/// ## Validity
+///
+/// This struct does not guarantee that the operations in each [`Ciglet`] are
+/// valid.
+///
+/// [`AlignmentStates`] ensures that the increments are non-zero and that
+/// adjacent [`Ciglet`] values have distinct operations. There are some
+/// unchecked functions which may invalidate this, although those functions have
+/// documented validity sections. Any arbitrary implementations may ignore these
+/// assumptions as well.
 #[derive(Clone, PartialEq, Eq)]
 pub struct AlignmentStates(pub(crate) Vec<Ciglet>);
 
@@ -13,7 +28,7 @@ impl AlignmentStates {
         AlignmentStates(Vec::new())
     }
 
-    /// Initializes the states with capacity for `n` (inc, op) pairs.
+    /// Initializes the states with capacity for `n` increment-operation pairs.
     #[inline]
     #[must_use]
     pub fn with_capacity(n: usize) -> Self {
@@ -28,12 +43,17 @@ impl AlignmentStates {
     }
 
     /// Adds a state to the right end of the alignment.
+    ///
+    /// If the operation is the same as the rightmost operation, this state is
+    /// included in the previous [`Ciglet`].
     pub fn add_state(&mut self, op: u8) {
         self.add_ciglet(Ciglet { inc: 1, op });
     }
 
-    /// Adds a ciglet to the right end of the alignment. If the operation is the
-    /// same as the rightmost operation, the ciglet is merged with the last one.
+    /// Adds a [`Ciglet`] to the right end of the alignment.
+    ///
+    /// If the operation is the same as the rightmost operation, the ciglet is
+    /// merged with the last one. If the increment is 0, no change occurs.
     pub fn add_ciglet(&mut self, ciglet: Ciglet) {
         if ciglet.inc > 0 {
             if let Some(c) = self.0.last_mut()
@@ -46,7 +66,16 @@ impl AlignmentStates {
         }
     }
 
-    /// Adds an alignment `op` of size `inc`.
+    /// Adds an increment-operation pair.
+    ///
+    /// This is equivalent to calling [`add_state`] `inc` times, or calling
+    /// [`add_ciglet`] after combining the information into a [`Ciglet`].
+    ///
+    /// If the operation is the same as the rightmost operation, the ciglet is
+    /// merged with the last one. If the increment is 0, no change occurs.
+    ///
+    /// [`add_state`]: AlignmentStates::add_state
+    /// [`add_ciglet`]: AlignmentStates::add_ciglet
     #[inline]
     pub fn add_inc_op(&mut self, inc: usize, op: u8) {
         self.add_ciglet(Ciglet { inc, op });
@@ -65,6 +94,15 @@ impl AlignmentStates {
         states
     }
 
+    /// Extends the [`AlignmentStates`] with an iterator of [`Ciglet`] values.
+    ///
+    /// If the rightmost operation is the same as the first operation in the
+    /// iterator, they are merged.
+    ///
+    /// ## Validity
+    ///
+    /// Adjacent ciglets in the iterator must have distinct operations and
+    /// non-zero increments.
     pub(crate) fn extend_from_ciglets<I>(&mut self, ciglets: I)
     where
         I: IntoIterator<Item = Ciglet>, {
@@ -75,6 +113,9 @@ impl AlignmentStates {
     }
 
     /// Adds soft clipping `S` to the end of the alignment `inc` times.
+    ///
+    /// If the rightmost operation is `S`, `inc` is added to its `increment`. If
+    /// `inc` is 0, no change occurs.
     pub fn soft_clip(&mut self, inc: usize) {
         if inc > 0 {
             if let Some(c) = self.0.last_mut()
@@ -88,6 +129,9 @@ impl AlignmentStates {
     }
 
     /// Adds soft clipping `S` to the start of the alignment `inc` times.
+    ///
+    /// If the leftmost operation is `S`, `inc` is added to its `increment`. If
+    /// `inc` is 0, no change occurs.
     pub fn prepend_soft_clip(&mut self, inc: usize) {
         if inc > 0 {
             if let Some(c) = self.0.first_mut()
@@ -100,11 +144,39 @@ impl AlignmentStates {
         }
     }
 
-    /// Converts the [`AlignmentStates`] struct to a [`Cigar`] string. All
-    /// operations should be valid for a CIGAR string.
+    /// Converts the [`AlignmentStates`] struct to a [`Cigar`] string, without
+    /// checking for valid operations.
     #[must_use]
     pub fn to_cigar_unchecked(&self) -> Cigar {
         Cigar::from_ciglets_unchecked(self.0.iter().copied())
+    }
+
+    /// Collects an iterator of [`Ciglet`] values into an [`AlignmentStates`]
+    /// struct without checking.
+    ///
+    /// ## Validity
+    ///
+    /// - `ciglets` must not contain adjacent operations that are equal
+    /// - `ciglets` must not contain any increments that are zero
+    /// - If `ciglets` contains any invalid operations, increment overflows, or
+    ///   missing operations, the output may be truncated
+    #[must_use]
+    pub fn from_ciglets_unchecked<I: IntoIterator<Item = Ciglet>>(ciglets: I) -> Self {
+        Self(ciglets.into_iter().collect())
+    }
+
+    /// Converts the [`Cigar`] string into an [`AlignmentStates`] struct without
+    /// checking.
+    ///
+    /// ## Validity
+    ///
+    /// - `cigar` must not contain adjacent operations that are equal
+    /// - `cigar` must not contain any increments that are zero
+    /// - If `cigar` contains any invalid operations, increment overflows, or
+    ///   missing operations, the output may be truncated
+    #[must_use]
+    pub fn from_cigar_unchecked(cigar: &Cigar) -> Self {
+        Self(cigar.iter().collect())
     }
 
     /// Reverses the order of the stored alignment states in-place.
@@ -113,11 +185,15 @@ impl AlignmentStates {
         self.0.reverse();
     }
 
-    /// Reverses the order of the stored alignment states in-place.
+    /// Returns an [`AlignmentStates`] with the order of the states reversed.
     #[inline]
     #[must_use]
     pub fn to_reverse(&self) -> Self {
-        self.into_iter().rev().collect()
+        // Validity: reversing the ciglets will not alter the increments or
+        // operations other than their order. Since the input does not have any
+        // equal adjacent operations, the reversed ciglets also will not have
+        // any
+        Self::from_ciglets_unchecked(self.into_iter().rev())
     }
 
     /// Yields an iterator over the alignment states.

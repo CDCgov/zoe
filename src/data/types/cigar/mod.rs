@@ -15,9 +15,22 @@ mod views;
 pub use error::*;
 pub use views::*;
 
-/// A [CIGAR string] of length-opcode pairs used in sequence alignment.
+/// A [CIGAR string] of increment-operation pairs used in sequence alignment.
 ///
-/// [CIGAR string]: https://en.wikipedia.org/wiki/Sequence_alignment#CIGAR_Format
+/// [`Cigar`] internally stores a buffer of the bytes used when displaying a
+/// CIGAR string. This makes it efficient for displaying, as well as reading
+/// (since no parsing is done). Some algorithms in *Zoe* assume that a CIGAR
+/// string meets certain assumptions, in which case these are documented.
+/// Otherwise, a CIGAR string may contain arbitrary data, such as through
+/// [`from_vec_unchecked`].
+///
+/// For an alternative data type which stores the increment-operation pairs
+/// directly (and hence has more data quality guarantees), see
+/// [`AlignmentStates`].
+///
+/// [CIGAR string]:
+///     https://en.wikipedia.org/wiki/Sequence_alignment#CIGAR_Format
+/// [`from_vec_unchecked`]: Cigar::from_vec_unchecked
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Cigar(pub(crate) Vec<u8>);
 
@@ -96,7 +109,12 @@ impl Cigar {
             .sum()
     }
 
-    /// Returns an iterator of [`Ciglet`] for the CIGAR.
+    /// Returns an (unchecked) iterator of [`Ciglet`] values for the CIGAR
+    /// string.
+    ///
+    /// This iterator does not perform any checking of the input CIGAR string
+    /// for validity. See the documentation for [`CigletIterator`] to understand
+    /// its behavior for different cases.
     #[inline]
     #[must_use]
     pub fn iter(&self) -> CigletIterator<'_> {
@@ -110,7 +128,16 @@ impl Cigar {
         self.iter().flat_map(|Ciglet { inc, op }| std::iter::repeat_n(op, inc))
     }
 
-    /// Validates that a CIGAR only contains valid (inc, op) pairs
+    /// Validates that a CIGAR only contains valid increment-operation pairs.
+    ///
+    /// Specifically, the assumptions that are checked are:
+    ///
+    /// - The CIGAR operations must be among `M, I, D, N, S, H, P, X, =`
+    /// - Every operation in the CIGAR string must have a preceding increment
+    /// - Every increment must be followed by an operation
+    /// - The increment for each operation must be non-zero and less than
+    ///   [`usize::MAX`]
+    /// - Two adjacent operations must be distinct
     #[inline]
     #[must_use]
     pub fn is_valid(&self) -> bool {
@@ -119,6 +146,9 @@ impl Cigar {
 
     /// Checks for errors in the CIGAR string, returning the particular
     /// [`CigarError`] if one is present.
+    ///
+    /// See the documentation for [`CigletIteratorChecked`] for a list of the
+    /// assumptions that are checked.
     fn check_for_err(bytes: &[u8]) -> Result<(), CigarError> {
         if bytes == b"*" || bytes.is_empty() {
             return Ok(());
@@ -260,6 +290,16 @@ pub struct Ciglet {
 }
 
 /// An iterator over a CIGAR string.
+///
+/// This iterator has the following unchecked behavior which is worth noting:
+///
+/// - If any increment is missing, a [`Ciglet`] with an increment of 0 is
+///   yielded.
+/// - If an invalid operation is encountered, an increment is bigger than
+///   [`usize::MAX`], or an increment has no following operation, then the
+///   iterator ends early.
+/// - If adjacent operations are the same, this iterator will yield them
+///   separately as two [`Ciglet`] values.
 #[derive(Debug)]
 pub struct CigletIterator<'a> {
     buffer: &'a [u8],
@@ -459,19 +499,36 @@ impl FromIterator<Ciglet> for Result<Cigar, CigarError> {
     }
 }
 
-/// Similar to [`CigletIterator`], but performs checking to ensure eacg ciglet
+/// Similar to [`CigletIterator`], but performs checking to ensure each ciglet
 /// is valid during iteration.
 ///
 /// Exhausting the iterator and checking for errors is equivalent to
 /// [`Cigar::is_valid`], except that `*` will not be considered valid by this
 /// method.
+///
+/// The following assumptions are validated by this iterator:
+///
+/// - The CIGAR operations must be among `M, I, D, N, S, H, P, X, =`
+/// - Every operation in the CIGAR string must have a preceding increment
+/// - Every increment must be followed by an operation
+/// - The increment for each operation must be non-zero and less than
+///   [`usize::MAX`]
+/// - Two adjacent operations must be distinct
+///
+/// If any of these are not valid, a [`CigarError`] is returned.
 pub(crate) struct CigletIteratorChecked<'a> {
-    buffer: &'a [u8],
+    /// The bytes remaining to decode
+    buffer:  &'a [u8],
+    /// The last CIGAR operation encountered (or 0 if at the beginning)
+    last_op: u8,
 }
 
 impl<'a> CigletIteratorChecked<'a> {
     pub(crate) fn new(bytes: &'a [u8]) -> CigletIteratorChecked<'a> {
-        Self { buffer: bytes }
+        Self {
+            buffer:  bytes,
+            last_op: 0,
+        }
     }
 }
 
@@ -493,10 +550,12 @@ impl Iterator for CigletIteratorChecked<'_> {
             } else if is_valid_op(b) {
                 if !has_number {
                     return Some(Err(CigarError::MissingInc));
-                }
-                if num == 0 {
+                } else if num == 0 {
                     return Some(Err(CigarError::IncZero));
+                } else if b == self.last_op {
+                    return Some(Err(CigarError::RepeatedOp));
                 }
+                self.last_op = b;
                 self.buffer = &self.buffer[index + 1..];
                 return Some(Ok(Ciglet { inc: num, op: b }));
             } else {
@@ -518,10 +577,12 @@ impl Iterator for CigletIteratorChecked<'_> {
             } else if is_valid_op(b) {
                 if !has_number {
                     return Some(Err(CigarError::MissingInc));
-                }
-                if num == 0 {
+                } else if num == 0 {
                     return Some(Err(CigarError::IncZero));
+                } else if b == self.last_op {
+                    return Some(Err(CigarError::RepeatedOp));
                 }
+                self.last_op = b;
                 self.buffer = &self.buffer[index + 1..];
                 return Some(Ok(Ciglet { inc: num, op: b }));
             } else {
@@ -626,6 +687,6 @@ impl<const N: usize> From<&[u8; N]> for ExpandedCigar {
 }
 
 #[inline]
-const fn is_valid_op(op: u8) -> bool {
+pub(crate) const fn is_valid_op(op: u8) -> bool {
     matches!(op, b'M' | b'I' | b'D' | b'N' | b'S' | b'H' | b'P' | b'X' | b'=')
 }
