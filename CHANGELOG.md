@@ -17,6 +17,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 - `CigletIteratorChecked` now requires that adjacent ciglets have differing operations. This also impacts `TryFrom` impls and `is_valid`
 - An iterator of ciglets now collects into a `Result<AlignmentStates, CigarError>` instead of `AlignmentStates`
+- `sw_score_from_path` is now behind the `alignment-diagnostics` feature gate
 - Refactored the organization and visibility of pHMM structs/fields/modules (behind `dev-phmm` feature gate)
 - Modified Viterbi algorithm to use compact bit representation instead of array (behind `dev-phmm` feature gate)
 

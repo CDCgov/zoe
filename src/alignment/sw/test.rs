@@ -49,7 +49,7 @@ macro_rules! test_sw_simd_alignment {
 }
 
 #[test]
-#[allow(clippy::cast_sign_loss)]
+#[cfg(feature = "alignment-diagnostics")]
 fn sw_verify_score_from_path() {
     let reference = b"ATTCCTTTTGCCGGG";
     let weights: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(3, -1, Some(b'N'));

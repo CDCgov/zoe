@@ -246,11 +246,7 @@
 
 #![allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
 use super::*;
-use crate::data::cigar::Ciglet;
-use std::{
-    cmp::Ordering::{Equal, Greater, Less},
-    simd::prelude::*,
-};
+use std::simd::prelude::*;
 
 /// Compute the Smith-Waterman score for a given alignment.
 ///
@@ -268,14 +264,24 @@ use std::{
 /// - The `ciglets` must contain valid operations.
 /// - All of `query`, `ref_in_alignment`, and `cigar` must be fully consumed.
 /// - The final score should be nonnegative.
+///
+/// <div class="warning note">
+///
+/// **Note**
+///
+/// You must enable the *alignment-diagnostics* feature in your `Cargo.toml` to
+/// access this function.
+///
+/// </div>
+#[cfg(feature = "alignment-diagnostics")]
 pub fn sw_score_from_path<const S: usize>(
-    ciglets: impl IntoIterator<Item = Ciglet>, ref_in_alignment: &[u8], query: &ScalarProfile<S>,
+    ciglets: impl IntoIterator<Item = crate::data::types::cigar::Ciglet>, ref_in_alignment: &[u8], query: &ScalarProfile<S>,
 ) -> Result<u32, ScoringError> {
     let mut score = 0;
     let mut r = 0;
     let mut q = 0;
 
-    for Ciglet { inc, op } in ciglets {
+    for crate::data::types::cigar::Ciglet { inc, op } in ciglets {
         match op {
             b'M' | b'=' | b'X' => {
                 for _ in 0..inc {
@@ -306,15 +312,15 @@ pub fn sw_score_from_path<const S: usize>(
     }
 
     match q.cmp(&query.seq.len()) {
-        Less => return Err(ScoringError::FullQueryNotUsed),
-        Greater => return Err(ScoringError::QueryEnded),
-        Equal => {}
+        std::cmp::Ordering::Less => return Err(ScoringError::FullQueryNotUsed),
+        std::cmp::Ordering::Greater => return Err(ScoringError::QueryEnded),
+        std::cmp::Ordering::Equal => {}
     }
 
     match r.cmp(&ref_in_alignment.len()) {
-        Less => return Err(ScoringError::FullReferenceNotUsed),
-        Greater => return Err(ScoringError::ReferenceEnded),
-        Equal => {}
+        std::cmp::Ordering::Less => return Err(ScoringError::FullReferenceNotUsed),
+        std::cmp::Ordering::Greater => return Err(ScoringError::ReferenceEnded),
+        std::cmp::Ordering::Equal => {}
     }
 
     // score is i32, so this cast solely could fail due to it being negative
