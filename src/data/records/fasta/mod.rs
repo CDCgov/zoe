@@ -103,6 +103,10 @@ impl FastaSeq {
     }
 
     /// Translates the stored [`Vec<u8>`] to [`AminoAcids`] using a new buffer.
+    ///
+    /// See [`translate_sequence`] for more details.
+    ///
+    /// [`translate_sequence`]: nucleotides::translate_sequence
     #[must_use]
     pub fn translate(self) -> FastaAA {
         FastaAA {

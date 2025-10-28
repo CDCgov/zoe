@@ -7,7 +7,7 @@ macro_rules! fill_std_gc {
 }
 
 /// A custom, perfect hashmap for translating resolvable codons to amino acids
-/// under the _standard_ genetic code..
+/// under the _standard_ genetic code.
 ///
 /// If a codon involving ambiguous IUPAC letters translates to the same amino
 /// acid in all cases, then it is also included in the hashmap. Stop codons are
@@ -49,17 +49,19 @@ impl StdGeneticCode {
     const MASK: u32 = 0xFF_FF_FF;
     const TABLE: &[u32; Self::TABLE_SIZE] = &STD_GENETIC_CODE;
 
-    /// Retrieve the amino acid corresponding to a codon, or return `None` if
-    /// the translation cannot be resolved. To instead return 'X', see
+    /// Retrieves the amino acid corresponding to a codon, or return `None` if
+    /// the translation cannot be resolved.
+    ///
+    /// To instead return 'X', see
     /// [`translate_codon`](StdGeneticCode::translate_codon).
     ///
     /// ## Panics
     ///
     /// Panics if codon has fewer than three elements. Any additional elements
     /// past the first three are ignored.
-    #[allow(clippy::cast_possible_truncation)]
-    #[must_use]
     #[inline]
+    #[must_use]
+    #[allow(clippy::cast_possible_truncation)]
     pub const fn get(codon: &[u8]) -> Option<u8> {
         let key = Self::to_upper_u32(codon);
         let found = StdGeneticCode::TABLE[Self::get_index(key)];
@@ -75,9 +77,10 @@ impl StdGeneticCode {
         }
     }
 
-    /// Retrieve the amino acid corresponding to a codon, or return `'X'` if the
-    /// translation cannot be resolved. To instead return an `Option`, see
-    /// [`get`](StdGeneticCode::get).
+    /// Retrieves the amino acid corresponding to a codon, or return `X` if the
+    /// translation cannot be resolved.
+    ///
+    /// To instead return an `Option`, see [`get`](StdGeneticCode::get).
     ///
     /// ## Panics
     ///

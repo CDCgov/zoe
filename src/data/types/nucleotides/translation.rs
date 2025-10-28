@@ -5,7 +5,11 @@ use crate::{data::mappings::StdGeneticCode, private::Sealed};
 
 /// Provides methods for translating nucleotides into amino acids.
 pub trait Translate: NucleotidesReadable + Sealed {
-    /// Translate the DNA sequence to [`AminoAcids`].
+    /// Translates the DNA sequence to [`AminoAcids`].
+    ///
+    /// This uses a [`TranslatedNucleotidesIter`] for translation. Partial
+    /// codons are translated to `~`. See [`TranslatedNucleotidesIter`] and
+    /// [`StdGeneticCode`] for more details.
     #[inline]
     #[must_use]
     fn translate(&self) -> AminoAcids {
@@ -14,6 +18,14 @@ pub trait Translate: NucleotidesReadable + Sealed {
 
     /// Translates the DNA sequence to [`AminoAcids`] until the first stop codon
     /// in the current reading frame is found.
+    ///
+    /// The final stop codon (`*`) is included if present. To exclude this, call
+    /// [`chop_stop`] on the output.
+    ///
+    /// Partial codons are translated to `~`. See [`TranslatedNucleotidesIter`]
+    /// and [`StdGeneticCode`] for more details.
+    ///
+    /// [`chop_stop`]: AminoAcids::chop_stop
     #[inline]
     #[must_use]
     fn translate_to_stop(&self) -> AminoAcids {
@@ -22,7 +34,7 @@ pub trait Translate: NucleotidesReadable + Sealed {
         for aa in aa_iter {
             out.push(aa);
             if aa == b'*' {
-                return AminoAcids(out);
+                break;
             }
         }
         AminoAcids(out)
@@ -48,14 +60,20 @@ pub trait Translate: NucleotidesReadable + Sealed {
     }
 
     /// Creates an iterator for [`AminoAcids`] translation.
+    ///
+    /// Partial codons are translated to `~`. See [`TranslatedNucleotidesIter`]
+    /// and [`StdGeneticCode`] for more details.
     #[inline]
     #[must_use]
     fn to_aa_iter(&self) -> TranslatedNucleotidesIter<'_> {
         TranslatedNucleotidesIter::new(self.nucleotide_bytes())
     }
 
-    /// Creates an iterator for [`AminoAcids`] translation. Takes an amino acid
-    /// encoding for partial codons.
+    /// Creates an iterator for [`AminoAcids`] translation, using
+    /// `partial_codon_encoding` to encode partial codons.
+    ///
+    /// See [`TranslatedNucleotidesIter`] and [`StdGeneticCode`] for more
+    /// details.
     #[inline]
     #[must_use]
     fn to_aa_iter_with(&self, partial_codon_encoding: u8) -> TranslatedNucleotidesIter<'_> {
@@ -64,6 +82,8 @@ pub trait Translate: NucleotidesReadable + Sealed {
 
     /// Creates an iterator that translates amino acids base by base over all
     /// reading frames.
+    ///
+    /// See [`OverlappingCodonsIter`] and [`StdGeneticCode`] for more details.
     #[inline]
     #[must_use]
     fn to_overlapping_aa_iter(&self) -> OverlappingCodonsIter<'_> {
@@ -79,9 +99,20 @@ impl<T: NucleotidesReadable + Sealed> Translate for T {}
 /// This is created by [`to_aa_iter`] and [`to_aa_iter_with`]. To translate all
 /// codons regardless of the reading frame, see [`OverlappingCodonsIter`].
 ///
+/// For details about the genetic code used, see [`StdGeneticCode`]. This
+/// iterator also will translate *partial* codons to `~` (or a custom provided
+/// character, if [`new_with`] is used). A codon is considered partial if at
+/// least one of the following is true:
+///
+/// - The codon does not contain three bases (which will occur if the input
+///   sequence contains a number of bases not divisible by three).
+/// - The codon contains one or two of the characters `~`, `-`, or `.` among its
+///   three bases.
+///
 /// [`Nucleotides`]: crate::prelude::Nucleotides
 /// [`to_aa_iter`]: Translate::to_aa_iter
 /// [`to_aa_iter_with`]: Translate::to_aa_iter_with
+/// [`new_with`]: TranslatedNucleotidesIter::new_with
 pub struct TranslatedNucleotidesIter<'a> {
     codons:                 std::slice::Iter<'a, [u8; 3]>,
     has_remainder:          bool,
@@ -89,16 +120,22 @@ pub struct TranslatedNucleotidesIter<'a> {
 }
 
 impl<'a> TranslatedNucleotidesIter<'a> {
-    /// Create a new [`TranslatedNucleotidesIter`] using `~` to encode partial
+    /// Creates a new [`TranslatedNucleotidesIter`] using `~` to encode partial
     /// codons.
+    ///
+    /// See the documentation for [`TranslatedNucleotidesIter`] for more details
+    /// on partial codons.
     #[inline]
     #[must_use]
     fn new(seq: &'a [u8]) -> Self {
         Self::new_with(seq, b'~')
     }
 
-    /// Create a new [`TranslatedNucleotidesIter`], using
+    /// Creates a new [`TranslatedNucleotidesIter`], using
     /// `partial_codon_encoding` to encode partial codons.
+    ///
+    /// See the documentation for [`TranslatedNucleotidesIter`] for more details
+    /// on partial codons.
     #[inline]
     #[must_use]
     fn new_with(seq: &'a [u8], partial_codon_encoding: u8) -> Self {
@@ -150,6 +187,8 @@ impl std::iter::FusedIterator for TranslatedNucleotidesIter<'_> {}
 /// This is created by [`to_overlapping_aa_iter`]. To translate non-overlapping
 /// codons in the current reading frame, see [`TranslatedNucleotidesIter`].
 ///
+/// For details about the genetic code used, see [`StdGeneticCode`].
+///
 /// [`Nucleotides`]: crate::prelude::Nucleotides
 /// [`to_overlapping_aa_iter`]: Translate::to_overlapping_aa_iter
 pub struct OverlappingCodonsIter<'a> {
@@ -182,8 +221,8 @@ impl Iterator for OverlappingCodonsIter<'_> {
 impl ExactSizeIterator for OverlappingCodonsIter<'_> {}
 impl std::iter::FusedIterator for OverlappingCodonsIter<'_> {}
 
-/// A codon is considered *partial* if it has fewer than 3 IUPAC bases
-/// (non-gap).
+/// Checks whether a codon is *partial* (if it has one or two bases that are
+/// `-`, `~`, or `.`).
 #[inline]
 #[must_use]
 fn is_partial_codon(codon: [u8; 3]) -> bool {
@@ -192,6 +231,10 @@ fn is_partial_codon(codon: [u8; 3]) -> bool {
 }
 
 /// Translates a byte slice into an amino acid byte vector.
+///
+/// This uses a [`TranslatedNucleotidesIter`] for translation. Partial codons
+/// are translated to `~`. See [`TranslatedNucleotidesIter`] and
+/// [`StdGeneticCode`] for more details.
 #[inline]
 #[must_use]
 pub fn translate_sequence(s: &[u8]) -> Vec<u8> {

@@ -99,14 +99,15 @@ impl AminoAcids {
         *self = Self(self.0.drain(new_start..).collect());
     }
 
-    /// Clear the sequence so that it is empty.
+    /// Clears the sequence.
     #[inline]
     pub fn clear(&mut self) {
         self.0.clear();
     }
 
-    /// If the end has a stop codon, remove it. Takes and gives ownership for
-    /// chaining.
+    /// Removes the final stop codon if present.
+    ///
+    /// This method takes and gives ownership to support chaining.
     #[inline]
     #[must_use]
     pub fn chop_stop(mut self) -> Self {
@@ -120,11 +121,22 @@ impl AminoAcids {
 
     // Associated functions
 
-    /// Generates a random AA sequence of given `length` and using a random
-    /// `seed`.  Contains only uppercase, unaligned, non-ambiguous IUPAC codes.
-    /// Requires `rand` feature to be enabled.
-    #[cfg(feature = "rand")]
+    /// Generates a random amino acid sequence from the 20 uppercase canonical
+    /// amino acids.
+    ///
+    /// The sequence is of the specified length, and a seed is passed for
+    /// reproducibility.
+    ///
+    /// <div class="warning note">
+    ///
+    /// **Note**
+    ///
+    /// You must enable the *rand* feature in your `Cargo.toml` to use this
+    /// function.
+    ///
+    /// </div>
     #[must_use]
+    #[cfg(feature = "rand")]
     pub fn generate_random_aa(length: usize, seed: u64) -> Self {
         AminoAcids(crate::generate::rand_sequence(
             crate::data::constants::alphas::AA_IUPAC_NO_GAPS_UC,
