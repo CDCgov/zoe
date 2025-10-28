@@ -248,7 +248,7 @@
 use super::*;
 use std::simd::prelude::*;
 
-/// Compute the Smith-Waterman score for a given alignment.
+/// Computes the score for a local alignment.
 ///
 /// When scoring an alignment, this function expects the full `query` to be
 /// passed as a [`ScalarProfile`], as well as the slice of the reference which
@@ -261,9 +261,13 @@ use std::simd::prelude::*;
 ///
 /// ## Errors
 ///
-/// - The `ciglets` must contain valid operations.
+/// - The `ciglets` must contain valid operations in `MIDNSHP=X`.
 /// - All of `query`, `ref_in_alignment`, and `cigar` must be fully consumed.
 /// - The final score should be nonnegative.
+///
+/// ## Panics
+///
+/// - All increments must be nonzero.
 ///
 /// <div class="warning note">
 ///

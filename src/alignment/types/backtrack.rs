@@ -351,6 +351,64 @@ pub(crate) trait BackTrackable {
         }
     }
 
+    /// Creates an [`Alignment`] representing a global alignment from a
+    /// backtrack matrix.
+    fn to_alignment_global<T>(&mut self, score: T, ref_len: usize, query_len: usize) -> Alignment<T> {
+        let mut states = AlignmentStates::new();
+        let mut op = 0;
+
+        let Some(mut r) = ref_len.checked_sub(1) else {
+            // reference is empty
+            states.add_inc_op(query_len, b'I');
+            return Alignment::new_global(score, states, ref_len, query_len);
+        };
+
+        let Some(mut c) = query_len.checked_sub(1) else {
+            // query is empty
+            states.add_inc_op(ref_len, b'D');
+            return Alignment::new_global(score, states, ref_len, query_len);
+        };
+
+        self.move_to(r, c); // 0-based move to max
+
+        // 1-based as though we had a padded matrix
+        r += 1;
+        c += 1;
+
+        loop {
+            if op == b'D' && self.is_up_extending() {
+                op = b'D';
+                r -= 1;
+            } else if op == b'I' && self.is_left_extending() {
+                op = b'I';
+                c -= 1;
+            } else if self.is_up() {
+                op = b'D';
+                r -= 1;
+            } else if self.is_left() {
+                op = b'I';
+                c -= 1;
+            } else {
+                op = b'M';
+                r -= 1;
+                c -= 1;
+            }
+            states.add_state(op);
+
+            if r == 0 {
+                states.add_inc_op(c, b'I');
+                states.make_reverse();
+                return Alignment::new_global(score, states, ref_len, query_len);
+            } else if c == 0 {
+                states.add_inc_op(r, b'D');
+                states.make_reverse();
+                return Alignment::new_global(score, states, ref_len, query_len);
+            }
+
+            self.move_to(r - 1, c - 1); // 0-based next position
+        }
+    }
+
     /// Prints the backtracking matrix in a human-readable format
     #[allow(dead_code)]
     fn print(&self);

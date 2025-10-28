@@ -1,7 +1,7 @@
-use crate::alignment::pairwise_align_with;
-use crate::alignment::{AlignmentIter, AlignmentStates};
-use crate::data::cigar::Ciglet;
-use crate::data::views::IndexAdjustable;
+use crate::{
+    alignment::{AlignmentIter, AlignmentStates, pairwise_align_with},
+    data::{cigar::Ciglet, views::IndexAdjustable},
+};
 use std::ops::Range;
 
 /// The output of an alignment algorithm, allowing unmapped and overflowed
@@ -98,7 +98,7 @@ impl<T> MaybeAligned<T> {
 // For the `Alignment` struct below, both ranges are 0-based and end-exclusive.
 // For a global alignment, the ranges will each be encompass the full length of
 // the sequences. For local alignment, `query_range` does NOT include hard or
-// soft clipped bases, even though `cigar` does contain this information.
+// soft clipped bases, even though `states` does contain this information.
 
 /// A struct representing the information for an alignment, such as its score
 /// and where in the sequences it occurs.
@@ -122,6 +122,23 @@ pub struct Alignment<T> {
 }
 
 impl<T> Alignment<T> {
+    /// Returns an [`Alignment`] struct representing a global alignment.
+    ///
+    /// This sets `ref_range` to `0..ref_len` and `query_range` to
+    /// `0..query_len`.
+    #[inline]
+    #[must_use]
+    pub fn new_global(score: T, states: AlignmentStates, ref_len: usize, query_len: usize) -> Self {
+        Self {
+            score,
+            ref_range: 0..ref_len,
+            query_range: 0..query_len,
+            states,
+            ref_len,
+            query_len,
+        }
+    }
+
     /// Given the output of an alignment algorithm, generate the aligned
     /// sequences, using `-` as a gap character.
     ///

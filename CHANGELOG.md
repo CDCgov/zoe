@@ -8,10 +8,12 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ### Added
 
+- Added `nw_scalar_score` and `nw_scalar_alignment` for performing global sequence alignment
 - Added `get_aligned_query`, similar to `get_aligned_seqs` but returning only the query sequence
 - Added `to_eq_x` to `Alignment` and `AlignmentStates`, which converts `M` to either `=` or `X` in the alignment
 - Added `from_ciglets_unchecked` and `from_cigar_unchecked` to `AlignmentStates`
 - Added `decode_iter` to `KmerEncoder`
+- Added `nw_score_from_path` for rescoring a global alignment (behind `alignment-diagnostics` feature gate)
 - Introduced the `AlignmentAndSeqs` arbitrary wrapper (behind `fuzzing` feature gate)
 - Added `visit_params` methods to pHMMs as a diagnostic tool for inspecting the parameters that are visited along a given path (behind `dev-phmm` and `alignment-diagnostics` feature gates)
 - Added the ability to remove layers from a pHMM (behind `dev-phmm` and `alignment-diagnostics` feature gates)

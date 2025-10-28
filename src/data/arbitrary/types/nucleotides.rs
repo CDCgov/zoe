@@ -72,6 +72,26 @@ impl<'a> Arbitrary<'a> for NucleotidesAcgtun {
 
 /// A wrapper around [`Nucleotides`] such that the implementation of
 /// [`Arbitrary`](https://docs.rs/arbitrary/latest/arbitrary/trait.Arbitrary.html)
+/// only generates bases in `ACGTNacgtn`.
+#[derive(Debug, Clone)]
+pub struct NucleotidesAcgtn(pub Nucleotides);
+
+impl_deref! {NucleotidesAcgtn, Nucleotides}
+
+impl<'a> Arbitrary<'a> for NucleotidesAcgtn {
+    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
+        const ALPHA: &[u8] = b"ACGTNacgtn";
+        Ok(NucleotidesAcgtn(
+            u.arbitrary_iter::<u8>()?
+                .flatten()
+                .map(|b| ALPHA[b as usize % ALPHA.len()])
+                .collect(),
+        ))
+    }
+}
+
+/// A wrapper around [`Nucleotides`] such that the implementation of
+/// [`Arbitrary`](https://docs.rs/arbitrary/latest/arbitrary/trait.Arbitrary.html)
 /// only generates bases in `ACGTUacgtu`.
 #[derive(Debug, Clone)]
 pub struct NucleotidesAcgtu(pub Nucleotides);
