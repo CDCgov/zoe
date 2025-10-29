@@ -1,19 +1,39 @@
-use super::{EncodedKmerCollection, KmerCollectionContains, KmerEncode, SupportedMismatchNumber};
+//! Defines a collection representing a set of encoded k-mers.
+
 use crate::{
-    kmer::{Kmer, KmerEncoder, KmerError},
+    kmer::{EncodedKmerCollection, FindKmersInSeq, Kmer, KmerEncode, KmerEncoder, KmerError, SupportedMismatchNumber},
     prelude::Len,
 };
 use std::{
-    collections::HashSet,
+    collections::{HashSet, hash_set},
     hash::{BuildHasher, RandomState},
+    iter::Copied,
 };
 
-/// A [`KmerSet`] holds a set of encoded k-mers and provides methods for
-/// efficiently using them. For instance, a [`KmerSet`] can be used to find the
-/// leftmost or rightmost occurrence of k-mers in a sequence, using
-/// [`find_in_seq`] or [`find_in_seq_rev`]. A [`KmerSet`] can also be
-/// constructed using [`insert_from_sequence`] or
-/// [`insert_from_sequence_with_variants`].
+/// A [`HashSet`] of k-mers, stored in an encoded format.
+///
+/// K-mers can be inserted into a [`KmerSet`] multiple ways:
+///
+/// 1. A single k-mer can be inserted with [`insert_kmer`]
+/// 2. A k-mer as well as similar k-mers (up to `N` mismatches) can be inserted
+///    with [`insert_kmer_with_variants`]
+/// 3. Multiple k-mers from an iterator can be inserted with
+///    [`insert_from_iter`]
+/// 4. Overlapping k-mers from a sequence can be inserted with
+///    [`insert_from_sequence`]
+/// 5. Overlapping k-mers from a sequence with mismatches can be inserted with
+///    [`insert_from_sequence_with_variants`]
+///
+/// After a k-mer set is populated, it can be used in multiple ways:
+///
+/// 1. Check for k-mer with [`contains`]
+/// 2. Iteration: [`iter_encoded`] and [`iter_decoded`] provide the k-mers
+///    without duplicates
+/// 3. Set operations: encoded and decoded iterators for set operations are
+///    implemented, including difference, intersection, symmetric difference,
+///    and union
+/// 4. Search for the k-mers within a sequence using [`FindKmersInSeq`] (or the
+///    related trait [`FindKmers`]).
 ///
 /// Consider using the alias [`ThreeBitKmerSet`], unless you are using a custom
 /// [`KmerEncoder`].
@@ -31,8 +51,15 @@ use std::{
 /// [`insert_from_sequence`]: KmerSet::insert_from_sequence
 /// [`insert_from_sequence_with_variants`]:
 ///     KmerSet::insert_from_sequence_with_variants
-/// [`ThreeBitKmerSet`]: super::ThreeBitKmerSet
+/// [`ThreeBitKmerSet`]: crate::kmer::encoders::three_bit::ThreeBitKmerSet
 /// [`SupportedKmerLen`]: super::SupportedKmerLen
+/// [`insert_kmer`]: KmerSet::insert_kmer
+/// [`FindKmers`]: super::FindKmers
+/// [`contains`]: KmerSet::contains
+/// [`iter_encoded`]: KmerSet::iter_encoded
+/// [`iter_decoded`]: KmerSet::iter_decoded
+/// [`insert_from_iter`]: KmerSet::insert_from_iter
+/// [`insert_kmer_with_variants`]: KmerSet::insert_kmer_with_variants
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct KmerSet<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S = RandomState>
 where
@@ -74,42 +101,42 @@ impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> KmerSet<MAX_
 }
 
 impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> KmerSet<MAX_LEN, E, S> {
-    /// Insert an already encoded k-mer into the set. The encoded k-mer must
-    /// have been generated using the [`KmerEncoder`] associated with this
-    /// [`KmerSet`].
-    #[inline]
-    pub fn insert_encoded_kmer(&mut self, encoded_kmer: E::EncodedKmer) {
-        self.set.insert(encoded_kmer);
-    }
-
-    /// Insert a k-mer into the set. The bases and k-mer length are assumed to be
-    /// valid for the [`KmerEncoder`] associated with this [`KmerSet`]. Consider
-    /// [`insert_kmer_checked`] when it is not known whether the bases and k-mer
-    /// length will be valid.
+    /// Inserts a k-mer into the [`KmerSet`].
     ///
-    /// [`insert_kmer_checked`]: KmerSet::insert_kmer_checked
-    #[inline]
-    pub fn insert_kmer(&mut self, kmer: impl AsRef<[u8]>) {
-        self.insert_encoded_kmer(self.encoder.encode_kmer(kmer));
+    /// The k-mer can be either encoded or decoded (in which case it is encoded
+    /// before insertion). If it is encoded, it must have been generated using
+    /// the [`KmerEncoder`] associated with this [`KmerSet`]. If it is decoded,
+    /// it must be of length `self.kmer_length()`.
+    pub fn insert_kmer<K>(&mut self, kmer: &K)
+    where
+        K: KmerEncode<MAX_LEN, E>, {
+        self.set.insert(kmer.encode_kmer(&self.encoder));
     }
 
-    /// Insert a k-mer into the set. If the bases and k-mer length are not valid
-    /// for the [`KmerEncoder`] associated with this [`KmerSet`], then `false`
-    /// is returned and no insertion is performed.
+    /// Inserts all k-mers into the [`KmerSet`] with at most `N` mismatches
+    /// compared to the provided k-mer.
+    ///
+    /// The original k-mer is also inserted. The original k-mer can be either
+    /// encoded or decoded (in which case it is encoded before insertion and
+    /// variant generation). If it is encoded, it must have been generated using
+    /// the [`KmerEncoder`] associated with this [`KmerSet`]. If it is decoded,
+    /// it must be of length `self.kmer_length()`.
     #[inline]
-    pub fn insert_kmer_checked(&mut self, kmer: impl AsRef<[u8]>) -> bool {
-        let Some(encoded_kmer) = self.encoder.encode_kmer_checked(kmer) else {
-            return false;
-        };
-        self.insert_encoded_kmer(encoded_kmer);
-        true
+    pub fn insert_kmer_with_variants<K, const N: usize>(&mut self, kmer: &K)
+    where
+        K: KmerEncode<MAX_LEN, E>,
+        E::MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, E>, {
+        self.encoder
+            .get_variants::<N>(kmer.encode_kmer(&self.encoder))
+            .for_each(|variant| self.insert_kmer(&variant));
     }
 
-    /// Insert k-mers from an iterator into the [`KmerSet`]. The k-mers can be
-    /// either encoded or decoded. Encoded k-mers must have been generated using
-    /// the [`KmerEncoder`] associated with this [`KmerSet`]. Decoded k-mers
-    /// must have bases and k-mer lengths which are valid for the
-    /// [`KmerEncoder`].
+    /// Inserts k-mers from an iterator into the [`KmerSet`].
+    ///
+    /// The k-mers can be either encoded or decoded (in which case it is encoded
+    /// before insertion). If it is encoded, it must have been generated using
+    /// the [`KmerEncoder`] associated with this [`KmerSet`]. If it is decoded,
+    /// it must be of length `self.kmer_length()`.
     ///
     /// <div class="warning note">
     ///
@@ -121,154 +148,22 @@ impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> KmerSet<MAX_
     /// </div>
     #[inline]
     pub fn insert_from_iter<I: IntoIterator<Item: KmerEncode<MAX_LEN, E>>>(&mut self, iter: I) {
-        for kmer in iter {
-            self.insert_encoded_kmer(kmer.encode_kmer(&self.encoder));
-        }
+        iter.into_iter().for_each(|kmer| self.insert_kmer(&kmer));
     }
 
-    /// Visits the decoded k-mers in an iterator of encoded k-mers
-    #[inline]
-    fn decode_iter<'a>(&self, iter: impl Iterator<Item = &'a E::EncodedKmer>) -> impl Iterator<Item = Kmer<MAX_LEN>>
-    where
-        <E as KmerEncoder<MAX_LEN>>::EncodedKmer: 'a, {
-        iter.map(|encoded_kmer| self.encoder.decode_kmer(*encoded_kmer))
-    }
-
-    /// Visits the encoded k-mers in the set.
-    #[inline]
-    pub fn iter_encoded(&self) -> impl Iterator<Item = &E::EncodedKmer> {
-        self.set.iter()
-    }
-
-    /// Visits the decoded k-mers in the set.
-    #[inline]
-    pub fn iter_decoded(&self) -> impl Iterator<Item = Kmer<MAX_LEN>> {
-        self.decode_iter(self.iter_encoded())
-    }
-
-    /// Visits the encoded k-mers representing the difference, i.e., the k-mers
-    /// that are in `self` but not in `other`.
-    #[inline]
-    pub fn difference_encoded<'a>(&'a self, other: &'a KmerSet<MAX_LEN, E, S>) -> impl Iterator<Item = &'a E::EncodedKmer> {
-        self.set.difference(&other.set)
-    }
-
-    /// Visits the decoded k-mers representing the difference, i.e., the k-mers
-    /// that are in `self` but not in `other`.
-    #[inline]
-    pub fn difference_decoded<'a>(&'a self, other: &'a KmerSet<MAX_LEN, E, S>) -> impl Iterator<Item = Kmer<MAX_LEN>> {
-        self.decode_iter(self.set.difference(&other.set))
-    }
-
-    /// Visits the encoded k-mers representing the intersection, i.e., the
-    /// k-mers that are both in `self` and `other`.
-    #[inline]
-    pub fn intersection<'a>(&'a self, other: &'a KmerSet<MAX_LEN, E, S>) -> impl Iterator<Item = &'a E::EncodedKmer> {
-        self.set.intersection(&other.set)
-    }
-
-    /// Visits the decoded k-mers representing the intersection, i.e., the
-    /// k-mers that are both in `self` and `other`.
-    #[inline]
-    pub fn intersection_decoded<'a>(&'a self, other: &'a KmerSet<MAX_LEN, E, S>) -> impl Iterator<Item = Kmer<MAX_LEN>> {
-        self.decode_iter(self.intersection(other))
-    }
-
-    /// Visits the encoded k-mers representing the symmetric difference, i.e.,
-    /// the k-mers that are in `self` or in `other` but not in both.
-    #[inline]
-    pub fn symmetric_difference<'a>(
-        &'a self, other: &'a KmerSet<MAX_LEN, E, S>,
-    ) -> impl Iterator<Item = &'a E::EncodedKmer> {
-        self.set.symmetric_difference(&other.set)
-    }
-
-    /// Visits the decoded k-mers representing the symmetric difference, i.e.,
-    /// the k-mers that are in `self` or in `other` but not in both.
-    #[inline]
-    pub fn symmetric_difference_decoded<'a>(
-        &'a self, other: &'a KmerSet<MAX_LEN, E, S>,
-    ) -> impl Iterator<Item = Kmer<MAX_LEN>> {
-        self.decode_iter(self.symmetric_difference(other))
-    }
-
-    /// Visits the encoded k-mers representing the union, i.e., the k-mers that
-    /// are in `self` or `other`, without duplicates.
-    #[inline]
-    pub fn union<'a>(&'a self, other: &'a KmerSet<MAX_LEN, E, S>) -> impl Iterator<Item = &'a E::EncodedKmer> {
-        self.set.union(&other.set)
-    }
-
-    /// Visits the decoded k-mers representing the union, i.e., the k-mers that
-    /// are in `self` or `other`, without duplicates.
-    #[inline]
-    pub fn union_decoded<'a>(&'a self, other: &'a KmerSet<MAX_LEN, E, S>) -> impl Iterator<Item = Kmer<MAX_LEN>> {
-        self.decode_iter(self.union(other))
-    }
-
-    /// Insert all k-mers into the set with at most `N` mismatches compared to the
-    /// provided, already encoded k-mer. The original k-mer is also inserted.
-    /// The encoded k-mer must have been generated using the encoder associated
-    /// with this [`KmerSet`].
-    ///
-    /// `N` must be a supported number of mismatches. See
-    /// [`SupportedMismatchNumber`] for more details.
-    #[inline]
-    pub fn insert_encoded_kmer_with_variants<const N: usize>(&mut self, encoded_kmer: E::EncodedKmer)
-    where
-        E::MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, E>, {
-        for variant in self.encoder.get_variants::<N>(encoded_kmer) {
-            self.insert_encoded_kmer(variant);
-        }
-    }
-
-    /// Insert all k-mers into the set with at most N mismatches compared to the
-    /// provided k-mer. The original k-mer is also inserted. The bases and k-mer
-    /// length are assumed to be valid for the [`KmerEncoder`] associated with
-    /// this [`KmerSet`]. Consider [`insert_kmer_with_variants_checked`] when it
-    /// is not known whether the bases and k-mer length will be valid.
-    ///
-    /// [`insert_kmer_with_variants_checked`]:
-    ///     KmerSet::insert_kmer_with_variants_checked
-    #[inline]
-    pub fn insert_kmer_with_variants<const N: usize>(&mut self, kmer: impl AsRef<[u8]>)
-    where
-        E::MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, E>, {
-        self.insert_encoded_kmer_with_variants::<N>(self.encoder.encode_kmer(kmer));
-    }
-
-    /// Insert all k-mers into the set with at most N mismatches compared to the
-    /// provided k-mer. The original k-mer is also inserted. If the bases and
-    /// k-mer length are not valid for the [`KmerEncoder`] associated with this
-    /// [`KmerSet`], then `false` is returned and no insertion is performed.
-    #[inline]
-    pub fn insert_kmer_with_variants_checked<const N: usize>(&mut self, kmer: impl AsRef<[u8]>) -> bool
-    where
-        E::MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, E>, {
-        let Some(encoded_kmer) = self.encoder.encode_kmer_checked(kmer) else {
-            return false;
-        };
-        self.insert_encoded_kmer_with_variants::<N>(encoded_kmer);
-        true
-    }
-
-    /// Insert all k-mers from a sequence into the [`KmerSet`]. The bases in the
-    /// sequence must be valid for the [`KmerEncoder`] associated with this
-    /// [`KmerSet`].
+    /// Inserts all overlapping k-mers from a sequence into the [`KmerSet`].
     #[inline]
     pub fn insert_from_sequence(&mut self, seq: impl AsRef<[u8]>) {
-        for encoded_kmer in self.encoder.iter_from_sequence(&seq) {
-            self.insert_encoded_kmer(encoded_kmer);
-        }
+        self.encoder.iter_from_sequence(&seq).for_each(|kmer| self.insert_kmer(&kmer));
     }
 
     /// Insert all k-mers from a sequence into the [`KmerSet`], in addition to
-    /// all k-mers with up to N mismatches from those in the sequence. The bases
-    /// in the sequence must be valid for the [`KmerEncoder`] associated with
-    /// this [`KmerSet`].
+    /// all k-mers with up to `N` mismatches from those in the sequence.
+    ///
+    /// ## Example
     ///
     /// ```
-    /// # use zoe::kmer::ThreeBitKmerSet;
+    /// # use zoe::kmer::encoders::three_bit::ThreeBitKmerSet;
     /// let mut set = ThreeBitKmerSet::<8>::new(8).unwrap();
     /// let seq = b"GATAGGGGATTGT";
     /// set.insert_from_sequence_with_variants::<2>(seq);
@@ -278,8 +173,120 @@ impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> KmerSet<MAX_
     where
         E::MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, E>, {
         for encoded_kmer in self.encoder.iter_from_sequence(&seq) {
-            self.insert_encoded_kmer_with_variants::<N>(encoded_kmer);
+            self.insert_kmer_with_variants::<_, N>(&encoded_kmer);
         }
+    }
+
+    /// Checks whether the [`KmerSet`] contains a k-mer.
+    ///
+    /// The k-mers can be either encoded or decoded (in which case it is encoded
+    /// before checking). If it is encoded, it must have been generated using
+    /// the [`KmerEncoder`] associated with this [`KmerSet`]. If it is decoded,
+    /// it must be of length `self.kmer_length()`.
+    #[inline]
+    #[must_use]
+    pub fn contains<K>(&self, kmer: &K) -> bool
+    where
+        K: KmerEncode<MAX_LEN, E>, {
+        self.set.contains(&kmer.encode_kmer(&self.encoder))
+    }
+
+    /// Returns an iterator over the encoded k-mers in the set.
+    #[inline]
+    pub fn iter_encoded(&self) -> Copied<hash_set::Iter<'_, E::EncodedKmer>> {
+        self.set.iter().copied()
+    }
+
+    /// Returns an iterator over the decoded k-mers in the set.
+    #[inline]
+    pub fn iter_decoded(&self) -> impl Iterator<Item = Kmer<MAX_LEN>> {
+        self.encoder.decode_iter(self.iter_encoded())
+    }
+
+    /// Returns an iterator over the encoded k-mers representing a set
+    /// difference.
+    ///
+    /// In other words, this returns the k-mers that are in `self` but not in
+    /// `other`. The two sets must have the same k-mer length.
+    #[inline]
+    pub fn difference_encoded<'a>(
+        &'a self, other: &'a KmerSet<MAX_LEN, E, S>,
+    ) -> Copied<hash_set::Difference<'a, E::EncodedKmer, S>> {
+        self.set.difference(&other.set).copied()
+    }
+
+    /// Returns an iterator over the decoded k-mers representing a set
+    /// difference.
+    ///
+    /// In other words, this returns the k-mers that are in `self` but not in
+    /// `other`. The two sets must have the same k-mer length.
+    #[inline]
+    pub fn difference_decoded<'a>(&'a self, other: &'a KmerSet<MAX_LEN, E, S>) -> impl Iterator<Item = Kmer<MAX_LEN>> {
+        self.encoder.decode_iter(self.difference_encoded(other))
+    }
+
+    /// Returns an iterator over the encoded k-mers representing a set
+    /// intersection.
+    ///
+    /// In other words, this returns the k-mers that are in both `self` and
+    /// `other`. The two sets must have the same k-mer length.
+    #[inline]
+    pub fn intersection<'a>(
+        &'a self, other: &'a KmerSet<MAX_LEN, E, S>,
+    ) -> Copied<hash_set::Intersection<'a, E::EncodedKmer, S>> {
+        self.set.intersection(&other.set).copied()
+    }
+
+    /// Returns an iterator over the decoded k-mers representing a set
+    /// intersection.
+    ///
+    /// In other words, this returns the k-mers that are in both `self` and
+    /// `other`. The two sets must have the same k-mer length.
+    #[inline]
+    pub fn intersection_decoded<'a>(&'a self, other: &'a KmerSet<MAX_LEN, E, S>) -> impl Iterator<Item = Kmer<MAX_LEN>> {
+        self.encoder.decode_iter(self.intersection(other))
+    }
+
+    /// Returns an iterator over the encoded k-mers representing a set symmetric
+    /// difference.
+    ///
+    /// In other words, this returns the k-mers that are in `self` or in `other`
+    /// but not in both. The two sets must have the same k-mer length.
+    #[inline]
+    pub fn symmetric_difference<'a>(
+        &'a self, other: &'a KmerSet<MAX_LEN, E, S>,
+    ) -> Copied<hash_set::SymmetricDifference<'a, E::EncodedKmer, S>> {
+        self.set.symmetric_difference(&other.set).copied()
+    }
+
+    /// Returns an iterator over the decoded k-mers representing a set symmetric
+    /// difference.
+    ///
+    /// In other words, this returns the k-mers that are in `self` or in `other`
+    /// but not in both. The two sets must have the same k-mer length.
+    #[inline]
+    pub fn symmetric_difference_decoded<'a>(
+        &'a self, other: &'a KmerSet<MAX_LEN, E, S>,
+    ) -> impl Iterator<Item = Kmer<MAX_LEN>> {
+        self.encoder.decode_iter(self.symmetric_difference(other))
+    }
+
+    /// Returns an iterator over the encoded k-mers representing a set union.
+    ///
+    /// In other words, this returns the k-mers that are in `self` or `other`,
+    /// without duplicates. The two sets must have the same k-mer length.
+    #[inline]
+    pub fn union<'a>(&'a self, other: &'a KmerSet<MAX_LEN, E, S>) -> Copied<hash_set::Union<'a, E::EncodedKmer, S>> {
+        self.set.union(&other.set).copied()
+    }
+
+    /// Returns an iterator over the decoded k-mers representing a set union.
+    ///
+    /// In other words, this returns the k-mers that are in `self` or `other`,
+    /// without duplicates. The two sets must have the same k-mer length.
+    #[inline]
+    pub fn union_decoded<'a>(&'a self, other: &'a KmerSet<MAX_LEN, E, S>) -> impl Iterator<Item = Kmer<MAX_LEN>> {
+        self.encoder.decode_iter(self.union(other))
     }
 }
 
@@ -295,12 +302,12 @@ impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> EncodedKmerC
     }
 }
 
-impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> KmerCollectionContains<MAX_LEN>
-    for KmerSet<MAX_LEN, E, S>
-{
+impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> FindKmersInSeq<MAX_LEN> for KmerSet<MAX_LEN, E, S> {
     #[inline]
-    fn contains_encoded(&self, kmer: Self::EncodedKmer) -> bool {
-        self.set.contains(&kmer)
+    fn contains<K>(&self, kmer: &K) -> bool
+    where
+        K: KmerEncode<MAX_LEN, Self::Encoder>, {
+        self.contains(kmer)
     }
 }
 

@@ -1,12 +1,12 @@
-use std::hash::BuildHasher;
-
-use arbitrary::{Arbitrary, Result, Unstructured};
-
-use crate::kmer::{
-    EncodedKmerCollection, Kmer, KmerEncoder, SupportedKmerLen, ThreeBitKmerEncoder, ThreeBitKmerLen, ThreeBitKmerSet,
+use crate::{
+    data::arbitrary::{AsciiByte, SameSizeVecs, VecBounded},
+    kmer::{
+        EncodedKmerCollection, Kmer, KmerEncoder, SupportedKmerLen,
+        encoders::three_bit::{ThreeBitKmerEncoder, ThreeBitKmerLen, ThreeBitKmerSet},
+    },
 };
-
-use super::{AsciiByte, SameSizeVecs, VecBounded};
+use arbitrary::{Arbitrary, Result, Unstructured};
+use std::hash::BuildHasher;
 
 impl<'a, const MAX_LEN: usize> Arbitrary<'a> for Kmer<MAX_LEN> {
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {

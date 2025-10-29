@@ -1,5 +1,5 @@
 use std::env;
-use zoe::{kmer::ThreeBitKmerSet, prelude::*};
+use zoe::{kmer::encoders::three_bit::ThreeBitKmerSet, prelude::*};
 
 // A toy example for performing several subsequent trimming operations cheaply
 // using views:

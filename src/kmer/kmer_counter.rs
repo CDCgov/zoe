@@ -1,13 +1,39 @@
-use super::{EncodedKmerCollection, Kmer, KmerCollectionContains, KmerEncode, KmerError, SupportedMismatchNumber};
-use crate::{kmer::encoder::KmerEncoder, prelude::Len};
+//! Defines a collection storing encoded k-mers and their counts.
+
+use crate::{
+    kmer::{
+        EncodedKmerCollection, FindKmersInSeq, Kmer, KmerEncode, KmerError, SupportedMismatchNumber, encoders::KmerEncoder,
+    },
+    prelude::Len,
+};
 use std::{
-    collections::HashMap,
+    collections::{HashMap, hash_map},
     hash::{BuildHasher, RandomState},
     ops::Index,
 };
 
-/// A [`KmerCounter`] stores counts of encoded k-mers, or it can be considered
-/// as a multiset. [`KmerCounter`] has many of the same methods as [`KmerSet`].
+/// A [`HashMap`] of k-mers and their counts, with k-mers stored in an encoded
+/// format.
+///
+/// K-mers can be tallied into a [`KmerCounter`] multiple ways:
+///
+/// 1. A single k-mer can be tallied with [`tally_kmer`]
+/// 2. A k-mer as well as similar k-mers (up to `N` mismatches) can be tallied
+///    with [`tally_kmer_with_variants`]
+/// 3. Multiple k-mers from an iterator can be tallied with [`tally_from_iter`]
+/// 4. Overlapping k-mers from a sequence can be tallied with
+///    [`tally_from_sequence`]
+/// 5. Overlapping k-mers from a sequence with mismatches can be tallied with
+///    [`tally_from_sequence_with_variants`]
+///
+/// After a k-mer counter is populated, it can be used in multiple ways:
+///
+/// 1. Check for k-mer with [`contains`], or get its count with [`get`]
+/// 2. Iteration: [`iter_encoded`] and [`iter_decoded`] provide the k-mers and
+///    counts, while [`keys_encoded`] and [`keys_decoded`] provide just the
+///    k-mers
+/// 3. Search for the k-mers within a sequence using [`FindKmersInSeq`] (or the
+///    related trait [`FindKmers`]).
 ///
 /// Consider using the alias [`ThreeBitKmerCounter`], unless you are using a
 /// custom [`KmerEncoder`].
@@ -21,8 +47,21 @@ use std::{
 /// </div>
 ///
 /// [`KmerSet`]: super::KmerSet
-/// [`ThreeBitKmerCounter`]: super::ThreeBitKmerCounter
+/// [`ThreeBitKmerCounter`]: crate::kmer::encoders::three_bit::ThreeBitKmerCounter
 /// [`SupportedKmerLen`]: super::SupportedKmerLen
+/// [`tally_kmer`]: KmerCounter::tally_kmer
+/// [`tally_kmer_with_variants`]: KmerCounter::tally_kmer_with_variants
+/// [`tally_from_iter`]: KmerCounter::tally_from_iter
+/// [`tally_from_sequence`]: KmerCounter::tally_from_sequence
+/// [`tally_from_sequence_with_variants`]:
+///     KmerCounter::tally_from_sequence_with_variants
+/// [`contains`]: KmerCounter::contains
+/// [`get`]: KmerCounter::get
+/// [`iter_encoded`]: KmerCounter::iter_encoded
+/// [`iter_decoded`]: KmerCounter::iter_decoded
+/// [`keys_encoded`]: KmerCounter::keys_encoded
+/// [`keys_decoded`]: KmerCounter::keys_decoded
+/// [`FindKmers`]: super::FindKmers
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct KmerCounter<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S = RandomState>
 where
@@ -74,45 +113,45 @@ impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> Index<E::Enc
 }
 
 impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> KmerCounter<MAX_LEN, E, S> {
-    /// If the already encoded k-mer is present in this counter, then increment
-    /// its count. Otherwise, add it to the counter with a count of 1. The
-    /// encoded k-mer must have been generated using the [`KmerEncoder`]
-    /// associated with this [`KmerCounter`].
-    #[inline]
-    pub fn insert_encoded_kmer(&mut self, encoded_kmer: E::EncodedKmer) {
-        *self.map.entry(encoded_kmer).or_default() += 1;
-    }
-
-    /// If the k-mer is present in this counter, then increment its count.
-    /// Otherwise, add it to the counter with a count of 1. The bases and k-mer
-    /// length are assumed to be valid for the [`KmerEncoder`] associated with
-    /// this [`KmerCounter`]. Consider [`insert_kmer_checked`] when it is not known
-    /// whether the bases and k-mer length will be valid.
+    /// Tallies the k-mer in the [`KmerCounter`].
     ///
-    /// [`insert_kmer_checked`]: KmerCounter::insert_kmer_checked
-    #[inline]
-    pub fn insert_kmer(&mut self, kmer: impl AsRef<[u8]>) {
-        self.insert_encoded_kmer(self.encoder.encode_kmer(kmer));
+    /// If the k-mer is not present in the counter, this inserts it with a count
+    /// of 1. Otherwise, this increments its count.
+    ///
+    /// The k-mer can be either encoded or decoded (in which case it is encoded
+    /// before tallying). If it is encoded, it must have been generated using
+    /// the [`KmerEncoder`] associated with this [`KmerCounter`]. If it is
+    /// decoded, it must be of length `self.kmer_length()`.
+    pub fn tally_kmer<K>(&mut self, kmer: &K)
+    where
+        K: KmerEncode<MAX_LEN, E>, {
+        *self.map.entry(kmer.encode_kmer(&self.encoder)).or_default() += 1;
     }
 
-    /// If the k-mer is present in this counter, then increment its count.
-    /// Otherwise, add it to the counter with a count of 1. If the bases and
-    /// k-mer length are not valid for the [`KmerEncoder`] associated with this
-    /// [`KmerCounter`], then `false` is returned and no insertion is performed.
+    /// Tallies all k-mers into the [`KmerCounter`] with at most `N` mismatches
+    /// compared to the provided k-mer.
+    ///
+    /// The original k-mer is also tallied. The original k-mer can be either
+    /// encoded or decoded (in which case it is encoded before tallying and
+    /// variant generation). If it is encoded, it must have been generated using
+    /// the [`KmerEncoder`] associated with this [`KmerCounter`]. If it is decoded,
+    /// it must be of length `self.kmer_length()`.
     #[inline]
-    pub fn insert_kmer_checked(&mut self, kmer: impl AsRef<[u8]>) -> bool {
-        let Some(encoded_kmer) = self.encoder.encode_kmer_checked(kmer) else {
-            return false;
-        };
-        self.insert_encoded_kmer(encoded_kmer);
-        true
+    pub fn tally_kmer_with_variants<K, const N: usize>(&mut self, kmer: &K)
+    where
+        K: KmerEncode<MAX_LEN, E>,
+        E::MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, E>, {
+        self.encoder
+            .get_variants::<N>(kmer.encode_kmer(&self.encoder))
+            .for_each(|variant| self.tally_kmer(&variant));
     }
 
-    /// Insert k-mers from an iterator into the [`KmerCounter`]. The k-mers can
-    /// be either encoded or decoded. Encoded k-mers must have been generated
-    /// using the [`KmerEncoder`] associated with this [`KmerCounter`]. Decoded
-    /// k-mers must have bases and k-mer lengths which are valid for the
-    /// [`KmerEncoder`].
+    /// Tallies k-mers from an iterator in the [`KmerCounter`].
+    ///
+    /// The k-mers can be either encoded or decoded (in which case it is encoded
+    /// before insertion). If it is encoded, it must have been generated using
+    /// the [`KmerEncoder`] associated with this [`KmerCounter`]. If it is
+    /// decoded, it must be of length `self.kmer_length()`.
     ///
     /// <div class="warning note">
     ///
@@ -123,143 +162,89 @@ impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> KmerCounter<
     ///
     /// </div>
     #[inline]
-    pub fn insert_from_iter<I: IntoIterator<Item: KmerEncode<MAX_LEN, E>>>(&mut self, iter: I) {
-        for kmer in iter {
-            self.insert_encoded_kmer(kmer.encode_kmer(&self.encoder));
+    pub fn tally_from_iter<I: IntoIterator<Item: KmerEncode<MAX_LEN, E>>>(&mut self, iter: I) {
+        iter.into_iter().for_each(|kmer| self.tally_kmer(&kmer));
+    }
+
+    /// Tallies all overlapping k-mers from a sequence in the [`KmerCounter`].
+    #[inline]
+    pub fn tally_from_sequence(&mut self, seq: impl AsRef<[u8]>) {
+        self.encoder.iter_from_sequence(&seq).for_each(|kmer| self.tally_kmer(&kmer));
+    }
+
+    /// Tallies all k-mers from a sequence in the [`KmerCounter`], in addition
+    /// to all k-mers with up to N mismatches from those in the sequence.
+    ///
+    /// ## Example
+    ///
+    /// ```
+    /// # use zoe::kmer::encoders::three_bit::ThreeBitKmerCounter;
+    /// let mut counter = ThreeBitKmerCounter::<8>::new(8).unwrap();
+    /// let seq = b"GATAGGGGATTGT";
+    /// counter.tally_from_sequence_with_variants::<2>(seq);
+    /// ```
+    #[inline]
+    pub fn tally_from_sequence_with_variants<const N: usize>(&mut self, seq: impl AsRef<[u8]>)
+    where
+        E::MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, E>, {
+        for encoded_kmer in self.encoder.iter_from_sequence(&seq) {
+            self.tally_kmer_with_variants::<_, N>(&encoded_kmer);
         }
     }
 
-    /// Get the count of an already encoded k-mer. If the k-mer is not present
-    /// in the counter, then `0` is returned. The encoded k-mer must have been
-    /// generated using the [`KmerEncoder`] associated with this
-    /// [`KmerCounter`].
-    #[inline]
-    pub fn get_encoded(&self, encoded_kmer: E::EncodedKmer) -> usize {
-        self.map.get(&encoded_kmer).copied().unwrap_or_default()
-    }
-
-    /// Get the count of a k-mer. If the k-mer is not present in the counter,
-    /// then `0` is returned. The bases and k-mer length are assumed to be valid
-    /// for the [`KmerEncoder`] associated with this [`KmerCounter`]. Consider
-    /// [`get_checked`] when it is not known whether the bases and k-mer length
-    /// will be valid.
+    /// Checks whether the [`KmerCounter`] contains a k-mer with a nonzero
+    /// count.
     ///
-    /// [`get_checked`]: KmerCounter::get_checked
+    /// The k-mer can be either encoded or decoded (in which case it is encoded
+    /// before checking). If it is encoded, it must have been generated using
+    /// the [`KmerEncoder`] associated with this [`KmerCounter`]. If it is
+    /// decoded, it must be of length `self.kmer_length()`.
     #[inline]
-    pub fn get(&self, kmer: impl AsRef<[u8]>) -> usize {
-        self.get_encoded(self.encoder.encode_kmer(kmer))
+    #[must_use]
+    pub fn contains<K>(&self, kmer: &K) -> bool
+    where
+        K: KmerEncode<MAX_LEN, E>, {
+        self.map.contains_key(&kmer.encode_kmer(&self.encoder))
     }
 
-    /// Get the count of a k-mer. If the k-mer is not present in the counter,
-    /// then `0` is returned. If the bases and k-mer length are not valid for
-    /// the [`KmerEncoder`] associated with this [`KmerCounter`], then `None` is
-    /// returned.
+    /// Gets the count of a k-mer.
+    ///
+    /// If the k-mer is not present in the counter, then `0` is returned. The
+    /// k-mer can be either encoded or decoded (in which case it is encoded
+    /// before checking). If it is encoded, it must have been generated using
+    /// the [`KmerEncoder`] associated with this [`KmerCounter`]. If it is
+    /// decoded, it must be of length `self.kmer_length()`.
     #[inline]
-    pub fn get_checked(&self, kmer: impl AsRef<[u8]>) -> Option<usize> {
-        Some(self.get_encoded(self.encoder.encode_kmer_checked(kmer)?))
+    pub fn get<K>(&self, kmer: &K) -> usize
+    where
+        K: KmerEncode<MAX_LEN, E>, {
+        self.map.get(&kmer.encode_kmer(&self.encoder)).copied().unwrap_or_default()
     }
 
-    /// Visits the decoded k-mers and counts in the counter.
+    /// Returns an iterator over the encoded k-mers and their counts.
+    #[inline]
+    pub fn iter_encoded(&self) -> hash_map::Iter<'_, E::EncodedKmer, usize> {
+        self.map.iter()
+    }
+
+    /// Returns an iterator over the decoded k-mers and their counts.
     #[inline]
     pub fn iter_decoded(&self) -> impl Iterator<Item = (Kmer<MAX_LEN>, &usize)> {
         self.map.iter().map(|(k, c)| (self.encoder.decode_kmer(*k), c))
     }
 
-    /// Visits the encoded k-mers and counts in the counter.
-    #[inline]
-    pub fn iter_encoded(&self) -> impl Iterator<Item = (&E::EncodedKmer, &usize)> {
-        self.map.iter()
-    }
-
-    /// Visits the decoded k-mers in the counter. Each unique k-mer is yielded
-    /// once regardless of count.
+    /// Returns an iterator over the decoded k-mers in the counter without
+    /// duplicates.
     #[inline]
     pub fn keys_decoded(&self) -> impl Iterator<Item = Kmer<MAX_LEN>> {
         self.map.keys().map(|encoded_kmer| self.encoder().decode_kmer(*encoded_kmer))
     }
 
-    /// Visits the encoded k-mers in the counter. Each unique k-mer is yielded
-    /// once regardless of count.
+    /// Returns an iterator over the encoded k-mers in the counter without
+    /// duplicates.
     #[inline]
     pub fn keys_encoded(&self) -> impl Iterator<Item = &E::EncodedKmer> {
         self.map.keys()
-    }
-
-    /// Insert all k-mers into the counter with at most `N` mismatches compared
-    /// to the provided, already encoded k-mer. The original k-mer is also
-    /// tallied. The encoded k-mer must have been generated using the
-    /// [`KmerEncoder`] associated with this [`KmerCounter`].
-    ///
-    /// `N` must be a supported number of mismatches. See
-    /// [`SupportedMismatchNumber`] for more details.
-    #[inline]
-    pub fn insert_encoded_kmer_with_variants<const N: usize>(&mut self, encoded_kmer: E::EncodedKmer)
-    where
-        E::MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, E>, {
-        for variant in self.encoder.get_variants::<N>(encoded_kmer) {
-            self.insert_encoded_kmer(variant);
-        }
-    }
-
-    /// Insert all k-mers into the counter with at most N mismatches compared to
-    /// the provided k-mer. The original k-mer is also tallied. The bases and
-    /// k-mer length are assumed to be valid for the [`KmerEncoder`] associated
-    /// with this [`KmerCounter`]. Consider
-    /// [`insert_kmer_with_variants_checked`] when it is not known whether the
-    /// bases and k-mer length will be valid.
-    ///
-    /// [`insert_kmer_with_variants_checked`]:
-    ///     KmerCounter::insert_kmer_with_variants_checked
-    #[inline]
-    pub fn insert_kmer_with_variants<const N: usize>(&mut self, kmer: impl AsRef<[u8]>)
-    where
-        E::MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, E>, {
-        self.insert_encoded_kmer_with_variants::<N>(self.encoder.encode_kmer(kmer));
-    }
-
-    /// Insert all k-mers into the counter with at most N mismatches compared to
-    /// the provided k-mer. The original k-mer is also tallied. If the bases and
-    /// k-mer length are not valid for the [`KmerEncoder`] associated with this
-    /// [`KmerCounter`], then `false` is returned and no insertion is performed.
-    #[inline]
-    pub fn insert_kmer_with_variants_checked<const N: usize>(&mut self, kmer: impl AsRef<[u8]>) -> bool
-    where
-        E::MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, E>, {
-        let Some(encoded_kmer) = self.encoder.encode_kmer_checked(kmer) else {
-            return false;
-        };
-        self.insert_encoded_kmer_with_variants::<N>(encoded_kmer);
-        true
-    }
-
-    /// Insert all k-mers from a sequence into the [`KmerCounter`]. The bases in
-    /// the sequence must be valid for the [`KmerEncoder`] associated with this
-    /// [`KmerCounter`].
-    #[inline]
-    pub fn insert_from_sequence(&mut self, seq: impl AsRef<[u8]>) {
-        for encoded_kmer in self.encoder.iter_from_sequence(&seq) {
-            self.insert_encoded_kmer(encoded_kmer);
-        }
-    }
-
-    /// Insert all k-mers from a sequence into the [`KmerCounter`], in addition
-    /// to all k-mers with up to N mismatches from those in the sequence. The
-    /// bases in the sequence must be valid for the [`KmerEncoder`] associated
-    /// with this [`KmerCounter`].
-    ///
-    /// ```
-    /// # use zoe::kmer::ThreeBitKmerCounter;
-    /// let mut counter = ThreeBitKmerCounter::<8>::new(8).unwrap();
-    /// let seq = b"GATAGGGGATTGT";
-    /// counter.insert_from_sequence_with_variants::<2>(seq);
-    /// ```
-    #[inline]
-    pub fn insert_from_sequence_with_variants<const N: usize>(&mut self, seq: impl AsRef<[u8]>)
-    where
-        E::MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, E>, {
-        for encoded_kmer in self.encoder.iter_from_sequence(&seq) {
-            self.insert_encoded_kmer_with_variants::<N>(encoded_kmer);
-        }
     }
 }
 
@@ -275,12 +260,12 @@ impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> EncodedKmerC
     }
 }
 
-impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> KmerCollectionContains<MAX_LEN>
-    for KmerCounter<MAX_LEN, E, S>
-{
+impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> FindKmersInSeq<MAX_LEN> for KmerCounter<MAX_LEN, E, S> {
     #[inline]
-    fn contains_encoded(&self, kmer: Self::EncodedKmer) -> bool {
-        self.map.contains_key(&kmer)
+    fn contains<K>(&self, kmer: &K) -> bool
+    where
+        K: KmerEncode<MAX_LEN, Self::Encoder>, {
+        self.contains(kmer)
     }
 }
 

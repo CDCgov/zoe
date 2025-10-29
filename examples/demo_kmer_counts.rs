@@ -1,5 +1,5 @@
 use std::env;
-use zoe::{kmer::ThreeBitKmerCounter, prelude::*};
+use zoe::{kmer::encoders::three_bit::ThreeBitKmerCounter, prelude::*};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -15,7 +15,7 @@ fn main() {
 
     for record in fasta_reader {
         let nt = record.unwrap_or_die("FastaReader error.").sequence;
-        kmer_counts.insert_from_sequence(&nt);
+        kmer_counts.tally_from_sequence(&nt);
     }
 
     for (kmer, count) in kmer_counts {

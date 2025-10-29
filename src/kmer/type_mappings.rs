@@ -1,14 +1,18 @@
-use super::{ThreeBitMismatchIter, ThreeBitOneMismatchIter};
 use crate::{
-    kmer::{KmerEncoder, ThreeBitKmerEncoder, ThreeBitMismatchNumber},
+    kmer::{
+        KmerEncoder,
+        encoders::three_bit::{ThreeBitKmerEncoder, ThreeBitMismatchIter, ThreeBitMismatchNumber, ThreeBitOneMismatchIter},
+    },
     math::Uint,
 };
 use std::marker::PhantomData;
 
 /// A zero-size struct used to hold both a `MAX_LEN` argument and a
-/// [`KmerEncoder`]. For valid values of `MAX_LEN`, [`SupportedKmerLen`] will be
-/// implemented, and will provide the appropriate integer type to use for the
-/// encoded k-mer. See [`SupportedKmerLen`] for more details.
+/// [`KmerEncoder`].
+///
+/// For valid values of `MAX_LEN`, [`SupportedKmerLen`] will be implemented, and
+/// will provide the appropriate integer type to use for the encoded k-mer. See
+/// [`SupportedKmerLen`] for more details.
 pub struct KmerLen<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>>(PhantomData<E>);
 
 /// Statically guarantees that a max k-mer length is marked as supported for the
@@ -25,9 +29,10 @@ pub struct KmerLen<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>>(PhantomData<E>
 /// This must never be implemented on any [`KmerLen`] where `MAX_LEN > 255`,
 /// since [`Kmer`] uses a `u8` to store the kmer length.
 ///
-/// [`ThreeBitKmerEncoder`]: super::ThreeBitKmerEncoder
+/// [`ThreeBitKmerEncoder`]: crate::kmer::encoders::three_bit::ThreeBitKmerEncoder
 /// [`Kmer`]: super::Kmer
 pub trait SupportedKmerLen {
+    /// The integer type used to store the encoded k-mer.
     type T: Uint;
 }
 
@@ -98,10 +103,14 @@ pub(crate) type MaxLenToType<const MAX_LEN: usize, E> = <KmerLen<MAX_LEN, E> as 
 /// Supported number of mismatches for [`ThreeBitKmerEncoder`] include 1-10. 1
 /// uses a specialized implementation.
 ///
-/// [`ThreeBitKmerEncoder`]: super::ThreeBitKmerEncoder
+/// [`ThreeBitKmerEncoder`]:
+///     crate::kmer::encoders::three_bit::ThreeBitKmerEncoder
 pub trait SupportedMismatchNumber<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>> {
+    /// The iterator type for the k-mer variants.
     type MismatchIter: Iterator<Item = E::EncodedKmer>;
 
+    /// Returns the iterator over the k-mer variants, given the encoded k-mer
+    /// and the encoder.
     fn get_iterator(encoded_kmer: E::EncodedKmer, encoder: &E) -> Self::MismatchIter;
 }
 

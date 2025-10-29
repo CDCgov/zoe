@@ -57,7 +57,7 @@ pub mod prelude {
     };
     #[cfg(feature = "rand")]
     pub use crate::generate::rand_sequence;
-    pub use crate::kmer::{EncodedKmerCollection, FindKmers, KmerCollectionContains, KmerCounter, KmerEncoder, KmerSet};
+    pub use crate::kmer::{EncodedKmerCollection, FindKmers, FindKmersInSeq, KmerCounter, KmerEncoder, KmerSet};
     pub use crate::search::{ByteSubstring, ByteSubstringMut};
 }
 

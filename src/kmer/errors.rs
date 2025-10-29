@@ -1,8 +1,10 @@
 use crate::data::err::GetCode;
 use std::{error::Error, fmt};
 
+/// A k-mer related error.
 #[non_exhaustive]
 pub enum KmerError {
+    /// The specified k-mer length was invalid (not between `2` and `MAX_LEN`)
     InvalidLength,
 }
 

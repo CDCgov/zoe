@@ -1,7 +1,11 @@
-use super::SupportedMismatchNumber;
+//! A module providing a k-mer encoder using three bits per base.
+//!
+//! See [`ThreeBitKmerEncoder`] for more details. This also provides the type
+//! aliases [`ThreeBitKmerSet`] and [`ThreeBitKmerCounter`].
+
 use crate::{
     data::mappings::THREE_BIT_MAPPING,
-    kmer::{Kmer, KmerEncoder, KmerError, KmerLen, KmerSet, MaxLenToType, SupportedKmerLen},
+    kmer::{Kmer, KmerEncoder, KmerError, KmerLen, KmerSet, MaxLenToType, SupportedKmerLen, SupportedMismatchNumber},
     math::{AnyInt, Uint},
     prelude::KmerCounter,
 };
@@ -53,8 +57,9 @@ pub type ThreeBitKmerCounter<const MAX_LEN: usize, S = RandomState> = KmerCounte
 /// Note that the ordering given by [`Ord`] and [`PartialOrd`] is different
 /// between [`ThreeBitEncodedKmer`] and the corresponding decoded [`Kmer`].
 ///
-/// [`ThreeBitKmerSet`]: super::ThreeBitKmerSet
-/// [`ThreeBitKmerCounter`]: super::ThreeBitKmerCounter
+/// [`ThreeBitKmerSet`]: crate::kmer::encoders::three_bit::ThreeBitKmerSet
+/// [`ThreeBitKmerCounter`]:
+///     crate::kmer::encoders::three_bit::ThreeBitKmerCounter
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 #[repr(transparent)]
 pub struct ThreeBitEncodedKmer<const MAX_LEN: usize>(ThreeBitMaxLenToType<MAX_LEN>)
@@ -92,10 +97,11 @@ where
     }
 }
 
-/// A [`KmerEncoder`] using three bits to represent each base. This allows for
-/// `A`, `C`, `G`, `T`, and `N` to all be represented. This encoder does not
-/// preserve case or the distinction between `T` and `U`. `N` is used as a
-/// catch-all for bases that are not `ACGTUNacgtun`.
+/// A [`KmerEncoder`] using three bits to represent each base.
+///
+/// This allows for `A`, `C`, `G`, `T`, and `N` to all be represented. This
+/// encoder does not preserve case or the distinction between `T` and `U`. `N`
+/// is used as a catch-all for bases that are not `ACGTUNacgtun`.
 ///
 /// <div class="warning tip">
 ///
@@ -140,6 +146,8 @@ where
     }
 }
 
+/// A zero-sized type for use with [`SupportedMismatchNumber`], holding the
+/// number of mismatches as parameter `N`.
 pub struct ThreeBitMismatchNumber<const N: usize>;
 
 impl<const MAX_LEN: usize, T: Uint> KmerEncoder<MAX_LEN> for ThreeBitKmerEncoder<MAX_LEN>
@@ -173,63 +181,26 @@ where
         }
     }
 
-    /// Retrieves the k-mer length associated with this [`ThreeBitKmerEncoder`].
     #[inline]
     fn kmer_length(&self) -> usize {
         self.kmer_length
     }
 
-    /// Encodes a single base. The encoder can handle any u8 input without
-    /// panic. Five unique bases are represented by the encoder: `Aa`, `Cc`,
-    /// `Gg`, `TUtu`, or `N` as a catch-all for any other input.
+    /// Encodes a single base.
+    ///
+    /// Five unique bases are represented by the encoder: `Aa`, `Cc`, `Gg`,
+    /// `TUtu`, or `N` as a catch-all for any other input.
     #[inline]
     fn encode_base(base: u8) -> Self::EncodedBase {
         T::from(THREE_BIT_MAPPING[base])
     }
 
-    /// The [`ThreeBitKmerEncoder`] can handle all `u8` inputs, so this function
-    /// is equivalent to [`encode_base`]. It will never return `None`.
-    ///
-    /// [`encode_base`]: ThreeBitKmerEncoder::encode_base
-    #[inline]
-    fn encode_base_checked(base: u8) -> Option<Self::EncodedBase> {
-        Some(Self::encode_base(base))
-    }
-
-    /// Decodes a single base. The base must be in `3..=8` (an invariant upheld
-    /// by [`ThreeBitKmerEncoder`]), and may panic or have unexpected behavior
-    /// otherwise. Consider [`decode_base_checked`] when it is not known whether
-    /// the base will be valid.
-    ///
-    /// ## Panics
-    ///
-    /// The [`ThreeBitKmerEncoder`] represents each base by a `u8` in `3..=8`.
-    /// Other inputs may panic or cause unexpected behavior.
-    ///
-    /// [`decode_base_checked`]: ThreeBitKmerEncoder::decode_base_checked
     #[inline]
     fn decode_base(encoded_base: Self::EncodedBase) -> u8 {
         // as_usize is valid since encoded_base will be in `3..=8`
         b"000NACGT"[encoded_base.cast_as::<usize>()]
     }
 
-    /// Decodes a single base. If the base is not in `3..=8`, then `None` is
-    /// returned.
-    #[inline]
-    fn decode_base_checked(encoded_base: Self::EncodedBase) -> Option<u8> {
-        if (T::from(3)..=T::from(7)).contains(&encoded_base) {
-            Some(Self::decode_base(encoded_base))
-        } else {
-            None
-        }
-    }
-
-    /// Encodes a k-mer. The length of `kmer` must match the `kmer_length` of
-    /// the [`ThreeBitKmerEncoder`], otherwise unexpected results can occur.
-    /// Consider [`encode_kmer_checked`] when it is not known whether `kmer` has
-    /// the appropriate length.
-    ///
-    /// [`encode_kmer_checked`]: ThreeBitKmerEncoder::encode_kmer_checked
     #[inline]
     fn encode_kmer<S: AsRef<[u8]>>(&self, kmer: S) -> Self::EncodedKmer {
         let mut encoded_kmer = T::ZERO;
@@ -241,32 +212,6 @@ where
         ThreeBitEncodedKmer(encoded_kmer)
     }
 
-    /// Encodes a k-mer. If the length of `kmer` does not match the
-    /// `kmer_length` of the [`ThreeBitKmerEncoder`], then `None` is returned.
-    #[inline]
-    fn encode_kmer_checked<S: AsRef<[u8]>>(&self, kmer: S) -> Option<Self::EncodedKmer> {
-        if kmer.as_ref().len() == self.kmer_length {
-            Some(self.encode_kmer(kmer))
-        } else {
-            None
-        }
-    }
-
-    /// Decodes a k-mer. The bases and k-mer length are assumed to be valid for
-    /// the given [`ThreeBitKmerEncoder`]. If an invalid base is encountered (a
-    /// three-bit value outside `3..=8`), then this function may panic or have
-    /// unexpected behavior. If the length of the encoded k-mer does not agree
-    /// with the `kmer_length` of the [`ThreeBitKmerEncoder`], then either some
-    /// bases may be truncated, or erroneous extra bases may appear in the
-    /// output. Consider [`decode_kmer_checked`] when it is not known whether
-    /// the bases and k-mer length will be valid.
-    ///
-    /// ## Panics
-    ///
-    /// If an invalid base is encountered (a three-bit value outside `3..=8`),
-    /// then this function will panic or cause unexpected behavior.
-    ///
-    /// [`decode_kmer_checked`]: ThreeBitKmerEncoder::decode_kmer_checked
     fn decode_kmer(&self, mut encoded_kmer: Self::EncodedKmer) -> Kmer<MAX_LEN> {
         let mut buffer = [0; MAX_LEN];
         for i in (0..self.kmer_length).rev() {
@@ -280,33 +225,12 @@ where
         unsafe { Kmer::new_unchecked(self.kmer_length, buffer) }
     }
 
-    /// Decodes a k-mer. If an erroneous base outside `3..=8` is found, or if
-    /// the encoding represents a longer k-mer than the `kmer_length` of the
-    /// [`ThreeBitKmerEncoder`], then `None` is returned.
-    fn decode_kmer_checked(&self, mut encoded_kmer: Self::EncodedKmer) -> Option<Kmer<MAX_LEN>> {
-        let mut buffer = [0; MAX_LEN];
-        for i in (0..self.kmer_length).rev() {
-            let encoded_base = encoded_kmer.0 & T::from_literal(0b111);
-            buffer[i] = Self::decode_base_checked(encoded_base)?;
-            encoded_kmer.0 >>= 3;
-        }
-        if encoded_kmer.0 == T::ZERO {
-            // Safety: The buffer only contains valid ASCII because it is
-            // initialized with 0 and ThreeBitKmerEncoder::decode_base always
-            // returns a char in b"000NACGT"
-            Some(unsafe { Kmer::new_unchecked(self.kmer_length, buffer) })
-        } else {
-            None
-        }
-    }
-
-    /// Gets an iterator over all encoded k-mers that are at most a Hamming
-    /// distance of N away from the provided k-mer. This involves replacing each
-    /// base with the other bases in `ACGTN`. The original k-mer is included in
-    /// the iterator.
+    /// Returns an iterator over all encoded k-mers that are at most a Hamming
+    /// distance of `N` away from the provided k-mer.
     ///
-    /// `N` must be a supported number of mismatches. See
-    /// [`SupportedMismatchNumber`] for more details.
+    /// This involves replacing each base with the other bases in `ACGTN`. The
+    /// original k-mer is included in the iterator. `N` must be a supported
+    /// number of mismatches. See [`SupportedMismatchNumber`] for more details.
     #[inline]
     fn get_variants<const N: usize>(
         &self, encoded_kmer: Self::EncodedKmer,
@@ -316,50 +240,21 @@ where
         ThreeBitMismatchNumber::<N>::get_iterator(encoded_kmer, self)
     }
 
-    /// Gets an iterator over the encoded overlapping k-mers in a sequence, from
-    /// left to right. If the sequence is shorter than the `kmer_length` of the
-    /// [`ThreeBitKmerEncoder`], then the iterator will be empty.
     #[inline]
     fn iter_from_sequence<'a, S: AsRef<[u8]> + ?Sized>(&self, seq: &'a S) -> Self::SeqIter<'a> {
         ThreeBitKmerIterator::new(self, seq.as_ref())
     }
 
-    /// Gets a consuming iterator over the encoded overlapping k-mers in a
-    /// sequence, from left to right. If the sequence is shorter than the
-    /// `kmer_length` of the [`ThreeBitKmerEncoder`], then the iterator will be
-    /// empty.
-    ///
-    /// This is similar to [`iter_from_sequence`], but the iterator
-    /// consumes/stores the sequence. This is useful when attempting to map an
-    /// iterator of sequences to an iterator of kmers, in which case
-    /// [`iter_from_sequence`] would not work because the sequence would be
-    /// dropped too soon.
-    ///
-    /// [`iter_from_sequence`]: ThreeBitKmerEncoder::iter_from_sequence
     #[inline]
     fn iter_consuming_seq<S: Into<Vec<u8>>>(&self, seq: S) -> Self::SeqIntoIter {
         ThreeBitKmerIntoIterator::new(self, seq.into())
     }
 
-    /// Gets an iterator over the encoded overlapping k-mers in a sequence, from
-    /// right to left. If the sequence is shorter than the `kmer_length` of the
-    /// [`ThreeBitKmerEncoder`], then the iterator will be empty.
     #[inline]
     fn iter_from_sequence_rev<'a, S: AsRef<[u8]> + ?Sized>(&self, seq: &'a S) -> Self::SeqIterRev<'a> {
         ThreeBitKmerIteratorRev::new(self, seq.as_ref())
     }
 
-    /// Gets an iterator over the encoded overlapping k-mers in a sequence, from
-    /// right to left. If the sequence is shorter than the `kmer_length` of the
-    /// [`ThreeBitKmerEncoder`], then the iterator will be empty.
-    ///
-    /// This is similar to [`iter_from_sequence_rev`], but the iterator
-    /// consumes/stores the sequence. This is useful when attempting to map an
-    /// iterator of sequences to an iterator of kmers, in which case
-    /// [`iter_from_sequence_rev`] would not work because the sequence would be
-    /// dropped too soon.
-    ///
-    /// [`iter_from_sequence_rev`]: ThreeBitKmerEncoder::iter_from_sequence_rev
     #[inline]
     fn iter_consuming_seq_rev<'a, S: Into<Vec<u8>>>(&self, seq: S) -> Self::SeqIntoIterRev {
         ThreeBitKmerIntoIteratorRev::new(self, seq.into())
@@ -391,7 +286,7 @@ where
             }
         } else {
             let index = encoder.kmer_length - 1;
-            // Safety: This code does not conform to the assumptions of the kmer
+            // Validity: This code does not conform to the assumptions of the kmer
             // API, since it uses `encode_kmer` on a kmer that is one base too
             // short. However, each iteration of the loop adds another base as
             // the first operation, so this is corrected when the iterator
@@ -475,7 +370,7 @@ where
             }
         } else {
             let index = encoder.kmer_length - 1;
-            // Safety: This code does not conform to the assumptions of the kmer
+            // Validity: This code does not conform to the assumptions of the kmer
             // API, since it uses `encode_kmer` on a kmer that is one base too
             // short. However, each iteration of the loop adds another base as
             // the first operation, so this is corrected when the iterator
@@ -542,7 +437,7 @@ where
             }
         } else {
             let index = seq.len() + 1 - encoder.kmer_length;
-            // Safety: This code does not conform to the assumptions of the kmer
+            // Validity: This code does not conform to the assumptions of the kmer
             // API, since it uses `encode_kmer` on a kmer that is one base too
             // short. However, each iteration of the loop adds another base as
             // the first operation, so this is corrected when the iterator
@@ -625,7 +520,7 @@ where
             }
         } else {
             let index = seq.len() + 1 - encoder.kmer_length;
-            // Safety: This code does not conform to the assumptions of the kmer
+            // Validity: This code does not conform to the assumptions of the kmer
             // API, since it uses `encode_kmer` on a kmer that is one base too
             // short. However, each iteration of the loop adds another base as
             // the first operation, so this is corrected when the iterator
