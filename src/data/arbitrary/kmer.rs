@@ -37,11 +37,7 @@ where
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
         let mut set = ThreeBitKmerSet::with_hasher(u.int_in_range(2..=MAX_LEN)?, S::default()).unwrap();
         let kmers = SameSizeVecs::<2, MAX_LEN, AsciiByte>::arbitrary_with_len(u, set.kmer_length())?.vecs;
-        set.insert_from_iter(
-            kmers
-                .into_iter()
-                .map(|x| Kmer::new(x.0.into_iter().map(|x| x.0).collect::<Vec<_>>())),
-        );
+        set.insert_from_iter(kmers.into_iter().map(|x| x.0.into_iter().map(|x| x.0).collect::<Vec<_>>()));
         Ok(set)
     }
 }

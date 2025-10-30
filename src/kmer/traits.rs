@@ -1,6 +1,6 @@
 use crate::{
     kmer::{
-        Kmer, KmerEncoder, SupportedKmerLen,
+        KmerEncoder, SupportedKmerLen,
         encoders::three_bit::{ThreeBitEncodedKmer, ThreeBitKmerLen},
     },
     private::Sealed,
@@ -11,8 +11,8 @@ use std::{iter::Enumerate, ops::Range};
 /// can accept either.
 ///
 /// The trait provides a way to convert an encoded or decoded k-mer into an
-/// encoded k-mer. It is implemented on [`Kmer`], as well as each potential type
-/// used as an encoded k-mer.
+/// encoded k-mer. It is implemented on anything implementing `AsRef<[u8]>` (a
+/// decoded k-mer), as well as each potential type used as an encoded k-mer.
 ///
 /// ## Parameters
 ///
@@ -21,6 +21,9 @@ use std::{iter::Enumerate, ops::Range};
 pub trait KmerEncode<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>> {
     /// Ensures the provided k-mer is encoded. If the k-mer is already encoded,
     /// returns the input value.
+    ///
+    /// If the k-mer is decoded, then it must be of the correct length for the
+    /// `encoder`.
     #[must_use]
     fn encode_kmer(&self, encoder: &E) -> E::EncodedKmer;
 }
@@ -47,7 +50,7 @@ where
     }
 }
 
-impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>> KmerEncode<MAX_LEN, E> for Kmer<MAX_LEN> {
+impl<T: AsRef<[u8]>, const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>> KmerEncode<MAX_LEN, E> for T {
     #[inline]
     fn encode_kmer(&self, encoder: &E) -> E::EncodedKmer {
         encoder.encode_kmer(self)

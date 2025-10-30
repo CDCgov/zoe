@@ -122,9 +122,8 @@ impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> KmerSet<MAX_
     /// the [`KmerEncoder`] associated with this [`KmerSet`]. If it is decoded,
     /// it must be of length `self.kmer_length()`.
     #[inline]
-    pub fn insert_kmer_with_variants<K, const N: usize>(&mut self, kmer: &K)
+    pub fn insert_kmer_with_variants<const N: usize>(&mut self, kmer: &impl KmerEncode<MAX_LEN, E>)
     where
-        K: KmerEncode<MAX_LEN, E>,
         E::MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, E>, {
         self.encoder
             .get_variants::<N>(kmer.encode_kmer(&self.encoder))
@@ -173,7 +172,7 @@ impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> KmerSet<MAX_
     where
         E::MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, E>, {
         for encoded_kmer in self.encoder.iter_from_sequence(&seq) {
-            self.insert_kmer_with_variants::<_, N>(&encoded_kmer);
+            self.insert_kmer_with_variants::<N>(&encoded_kmer);
         }
     }
 
