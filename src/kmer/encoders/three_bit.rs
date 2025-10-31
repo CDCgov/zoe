@@ -97,6 +97,16 @@ where
     }
 }
 
+impl<const MAX_LEN: usize, T: Uint> std::fmt::Binary for ThreeBitEncodedKmer<MAX_LEN>
+where
+    ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen<T = T>,
+{
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Binary::fmt(&self.0, f)
+    }
+}
+
 /// A [`KmerEncoder`] using three bits to represent each base.
 ///
 /// This allows for `A`, `C`, `G`, `T`, and `N` to all be represented. This

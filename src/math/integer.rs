@@ -1,5 +1,5 @@
 use std::{
-    fmt::{Debug, Display},
+    fmt::{Binary, Debug, Display},
     hash::Hash,
     ops::{Add, AddAssign, BitAnd, BitOr, Mul, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign},
     simd::SimdElement,
@@ -22,6 +22,7 @@ pub trait AnyInt:
     + Copy
     + Debug
     + Display
+    + Binary
     + ToString
     + Ord
     + Hash
