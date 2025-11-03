@@ -39,6 +39,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Refactored the organization and visibility of pHMM structs/fields/modules (behind `dev-phmm` feature gate)
 - Modified Viterbi algorithm to use compact bit representation instead of array (behind `dev-phmm` feature gate)
 - `next_index` and `prev_index` now evaluate eagerly and require a pHMM as an argument (behind `dev-phmm` and `alignment-diagnostics` feature gates)
+- The internal `sam_reader` field of the `SAMReader` struct is now private.
+
 
 ### Fixed
 

@@ -65,7 +65,7 @@ impl std::fmt::Display for SamRow {
 /// [`QualityScores`]: crate::data::types::phred::QualityScores
 #[derive(Debug)]
 pub struct SAMReader<R: std::io::Read, const TAGS: bool> {
-    pub sam_reader: std::io::Lines<std::io::BufReader<R>>,
+    sam_reader: std::io::Lines<std::io::BufReader<R>>,
 }
 
 impl<R: std::io::Read> SAMReader<R, true> {
