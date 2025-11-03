@@ -9,11 +9,14 @@ use std::{
 };
 
 /// A buffered reader for reading
-/// [FASTQ](https://en.wikipedia.org/wiki/FASTQ_format)
+/// [FASTQ](https://en.wikipedia.org/wiki/FASTQ_format).
+///
+/// This does not support multiline FASTQ files. In other words, each sequence
+/// must be on a single line, and the quality scores must be on a single line.
 #[derive(Debug)]
 pub struct FastQReader<R: std::io::Read> {
-    pub fastq_reader: std::io::BufReader<R>,
-    pub fastq_buffer: Vec<u8>,
+    fastq_reader: std::io::BufReader<R>,
+    fastq_buffer: Vec<u8>,
 }
 
 impl<R: std::io::Read> FastQReader<R> {
