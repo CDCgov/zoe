@@ -286,10 +286,10 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
 /// Similar to [`sw_scalar_alignment`], but allows the user to pass a closure to
 /// selectively alter certain scores in the DP table.
 ///
-/// The closure `f` accepts the row index, the column index, and the old score
-/// as arguments and should yield the new score.
+/// The closure `alter_score` accepts the row index, the column index, and the
+/// old score as arguments and should yield the new score.
 #[must_use]
-#[cfg(feature = "fuzzing")]
+#[cfg(feature = "alignment-diagnostics")]
 #[allow(clippy::cast_sign_loss)]
 pub fn sw_scalar_alignment_override<F, const S: usize>(
     reference: &[u8], query: &ScalarProfile<S>, mut alter_score: F,
