@@ -448,7 +448,6 @@ impl DoubleEndedIterator for CigletIterator<'_> {
             } else {
                 return (num > 0).then_some(Ciglet { inc: num, op });
             }
-            index += 1;
         }
 
         Some(Ciglet { inc: num, op })

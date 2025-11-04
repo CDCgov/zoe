@@ -35,7 +35,10 @@
 //! use zoe::iter_utils::sampling::DownsampleMethodD;
 //!
 //! let target: usize = 4;
-//! let mut rng = Xoshiro256StarStar::from_os_rng();
+//!
+//! // Hint: use from_os_rng() normally.
+//! let seed = 42;
+//! let mut rng = Xoshiro256StarStar::seed_from_u64(seed);
 //!
 //! let nums: Vec<usize> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 //!
@@ -53,7 +56,10 @@
 //! use zoe::iter_utils::sampling::method_l;
 //!
 //! let target: usize = 4;
-//! let mut rng = Xoshiro256StarStar::from_os_rng();
+//!
+//! // Hint: use from_os_rng() normally.
+//! let seed = 42;
+//! let mut rng = Xoshiro256StarStar::seed_from_u64(seed);
 //!
 //! let nums: Vec<usize> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 //! let filtered = nums.iter().filter(|num| *num % 2 == 0);

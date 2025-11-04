@@ -61,7 +61,7 @@ dev-3pass = []
 arbitrary = { version = "1", optional = true, features = ["derive"] }
 multiversion = { version = "0.8", optional = true }
 rand_xoshiro = { version = "0.7", optional = true }
-rand = { version = "0.9", optional = true }
+rand = { version = "0.9", default-features = false, optional = true }
 itoa = "1"
 visibility = { version = "0.1.1", optional = true }
 

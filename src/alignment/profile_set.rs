@@ -158,7 +158,7 @@ where
     /// ## Example
     ///
     /// ```
-    /// # use zoe::{alignment::{LocalProfiles, sw::sw_simd_score}, data::matrices::WeightMatrix};
+    /// # use zoe::{alignment::{LocalProfiles, ProfileSets, sw::sw_simd_score}, data::matrices::WeightMatrix};
     /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///
@@ -167,7 +167,7 @@ where
     /// const GAP_EXTEND: i8 = -1;
     ///
     /// let profile = LocalProfiles::new_with_w256(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-    /// let score = profile.smith_waterman_alignment_from_i8_3pass(reference).unwrap();
+    /// let score = profile.smith_waterman_alignment_from_i8_3pass(reference).unwrap().score;
     /// assert_eq!(score, 26);
     /// ```
     fn smith_waterman_alignment_from_i8_3pass<T: AsRef<[u8]> + ?Sized>(

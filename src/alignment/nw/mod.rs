@@ -48,10 +48,7 @@
 //! [`Alignment::get_aligned_seqs`]: super::Alignment::get_aligned_seqs
 
 use crate::alignment::{Alignment, BackTrackable, BacktrackMatrix, ScalarProfile};
-use std::{
-    cmp::Ordering::{Equal, Greater, Less},
-    ops::Add,
-};
+use std::ops::Add;
 
 /// Needleman–Wunsch algorithm (non-vectorized), yielding the optimal score.
 ///
@@ -315,6 +312,8 @@ pub fn nw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
 pub fn nw_score_from_path<const S: usize>(
     ciglets: impl IntoIterator<Item = crate::data::cigar::Ciglet>, reference: &[u8], query: &ScalarProfile<S>,
 ) -> Result<i32, super::ScoringError> {
+    use std::cmp::Ordering::{Equal, Greater, Less};
+
     let mut score = 0;
     let mut r = 0;
     let mut q = 0;
@@ -347,7 +346,6 @@ pub fn nw_score_from_path<const S: usize>(
             op => return Err(super::ScoringError::InvalidCigarOp(op)),
         }
     }
-
     match q.cmp(&query.seq.len()) {
         Less => return Err(super::ScoringError::FullQueryNotUsed),
         Greater => return Err(super::ScoringError::QueryEnded),

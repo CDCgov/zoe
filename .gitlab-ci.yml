@@ -14,7 +14,9 @@ zoe-build:
     - scicomp
   image: rustlang/rust:nightly
   script:
+    - cargo build --all-features --verbose
     - cargo build --verbose
+    - cargo build --no-default-features --verbose
 
 zoe-test:
   stage: test
@@ -24,7 +26,7 @@ zoe-test:
   image: rustlang/rust:nightly
   script:
     - perl .github/scripts/check_versions_changelog.pl
-    - cargo test --verbose
+    - cargo test --verbose --all-features
     - cargo doc --no-deps --document-private-items --all-features
 
 pages:
