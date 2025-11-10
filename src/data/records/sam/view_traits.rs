@@ -1,22 +1,16 @@
 use super::*;
 use crate::{
-    data::{sam::SamData, views::impl_len_for_views},
+    data::{
+        sam::SamData,
+        views::{impl_len_for_views, impl_view_assoc_types},
+    },
     prelude::{DataOwned, DataView, DataViewMut},
 };
 
 impl_len_for_views!(SamData, SamDataView, SamDataViewMut, seq);
+impl_view_assoc_types!(SamData, SamDataView, SamDataViewMut);
 
 impl DataOwned for SamData {
-    type View<'a>
-        = SamDataView<'a>
-    where
-        Self: 'a;
-
-    type ViewMut<'a>
-        = SamDataViewMut<'a>
-    where
-        Self: 'a;
-
     #[inline]
     fn as_view(&self) -> Self::View<'_> {
         SamDataView::new(
@@ -46,32 +40,46 @@ impl DataOwned for SamData {
     }
 }
 
-impl DataView for SamDataView<'_> {
-    type Owned = SamData;
-
+impl<'a> DataView<'a> for SamDataView<'a> {
     #[inline]
     fn to_owned_data(&self) -> Self::Owned {
-        SamData::new(
-            self.qname.to_string(),
-            self.flag,
-            self.rname.to_string(),
-            self.pos,
-            self.mapq,
-            self.cigar.to_owned_data(),
-            self.seq.to_owned_data(),
-            self.qual.to_owned_data(),
-        )
+        SamData {
+            qname: self.qname.to_string(),
+            flag:  self.flag,
+            rname: self.rname.to_string(),
+            pos:   self.pos,
+            mapq:  self.mapq,
+            cigar: self.cigar.to_owned_data(),
+            rnext: self.rnext,
+            pnext: self.pnext,
+            tlen:  self.tlen,
+            seq:   self.seq.to_owned_data(),
+            qual:  self.qual.to_owned_data(),
+            tags:  SamTags::new(),
+        }
+    }
+
+    #[inline]
+    fn reborrow_view<'b>(&'b self) -> Self::View<'b>
+    where
+        'a: 'b, {
+        SamDataView {
+            qname: self.qname,
+            flag:  self.flag,
+            rname: self.rname,
+            pos:   self.pos,
+            mapq:  self.mapq,
+            cigar: self.cigar.reborrow_view(),
+            rnext: self.rnext,
+            pnext: self.pnext,
+            tlen:  self.tlen,
+            seq:   self.seq.reborrow_view(),
+            qual:  self.qual.reborrow_view(),
+        }
     }
 }
 
-impl<'b> DataViewMut<'b> for SamDataViewMut<'b> {
-    type View<'a>
-        = SamDataView<'a>
-    where
-        Self: 'a;
-
-    type Owned = SamData;
-
+impl<'a> DataViewMut<'a> for SamDataViewMut<'a> {
     #[inline]
     fn as_view(&self) -> Self::View<'_> {
         SamDataView::new(
@@ -87,7 +95,7 @@ impl<'b> DataViewMut<'b> for SamDataViewMut<'b> {
     }
 
     #[inline]
-    fn to_view(self) -> Self::View<'b> {
+    fn to_view(self) -> Self::View<'a> {
         SamDataView::new(
             self.qname,
             self.flag,
@@ -112,5 +120,24 @@ impl<'b> DataViewMut<'b> for SamDataViewMut<'b> {
             self.seq.to_owned_data(),
             self.qual.to_owned_data(),
         )
+    }
+
+    #[inline]
+    fn reborrow_view_mut<'b>(&'b mut self) -> Self::ViewMut<'b>
+    where
+        'a: 'b, {
+        SamDataViewMut {
+            qname: self.qname,
+            flag:  self.flag,
+            rname: self.rname,
+            pos:   self.pos,
+            mapq:  self.mapq,
+            cigar: self.cigar.reborrow_view_mut(),
+            rnext: self.rnext,
+            pnext: self.pnext,
+            tlen:  self.tlen,
+            seq:   self.seq.reborrow_view_mut(),
+            qual:  self.qual.reborrow_view_mut(),
+        }
     }
 }

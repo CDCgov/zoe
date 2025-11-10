@@ -3,7 +3,7 @@
 ///
 /// [`Len`]: crate::data::views::Len
 macro_rules! impl_len_for_wrapper {
-    ($type:ident, $lenfield:tt) => {
+    ($type:ty, $lenfield:tt) => {
         impl $crate::data::views::Len for $type {
             #[inline]
             fn is_empty(&self) -> bool {
@@ -25,46 +25,47 @@ macro_rules! impl_len_for_wrapper {
 macro_rules! impl_len_for_views {
     ($owned:ident, $view:ident, $viewmut:ident, $lenfield:tt) => {
         $crate::data::views::impl_len_for_wrapper! {$owned, $lenfield}
+        $crate::data::views::impl_len_for_wrapper! {$view<'_>, $lenfield}
+        $crate::data::views::impl_len_for_wrapper! {$viewmut<'_>, $lenfield}
+    };
+}
 
-        impl<'a> $crate::data::views::Len for $view<'a> {
-            #[inline]
-            fn is_empty(&self) -> bool {
-                self.$lenfield.is_empty()
-            }
-
-            #[inline]
-            fn len(&self) -> usize {
-                self.$lenfield.len()
-            }
+/// A macro for implementing [`ViewAssocTypes`], given the three types.
+///
+/// [`ViewAssocTypes`]: crate::data::views::ViewAssocTypes
+macro_rules! impl_view_assoc_types {
+    ($owned:ident, $view:ident, $viewmut:ident) => {
+        impl $crate::data::views::ViewAssocTypes for $owned {
+            type Owned = $owned;
+            type View<'a> = $view<'a>;
+            type ViewMut<'a> = $viewmut<'a>;
         }
 
-        impl<'a> $crate::data::views::Len for $viewmut<'a> {
-            #[inline]
-            fn is_empty(&self) -> bool {
-                self.$lenfield.is_empty()
-            }
+        impl $crate::data::views::ViewAssocTypes for $view<'_> {
+            type Owned = $owned;
+            type View<'a> = $view<'a>;
+            type ViewMut<'a> = $viewmut<'a>;
+        }
 
-            #[inline]
-            fn len(&self) -> usize {
-                self.$lenfield.len()
-            }
+        impl $crate::data::views::ViewAssocTypes for $viewmut<'_> {
+            type Owned = $owned;
+            type View<'a> = $view<'a>;
+            type ViewMut<'a> = $viewmut<'a>;
         }
     };
 }
 
-/// A macro for implementing the conversions between the owned types and views,
-/// given the owning type, the view type, and the mutable view type. Also
-/// implements [`Slice`] and [`SliceMut`]. It is assumed that the types are all
-/// wrappers around a single field.
+/// Implements the conversions between the owned types and views for wrapper
+/// types around byte slices/vectors.
 ///
-/// [`Slice`]: crate::data::views::traits::Slice
-/// [`SliceMut`]: crate::data::views::traits::SliceMut
+/// This also automatically calls [`impl_view_assoc_types`].
+///
+/// The arguments are the owned type, the view type, and the mutable view type.
 macro_rules! impl_views_for_wrapper {
     ($owned:ident, $view:ident, $viewmut:ident) => {
-        impl $crate::data::views::DataOwned for $owned {
-            type View<'a> = $view<'a>;
-            type ViewMut<'a> = $viewmut<'a>;
+        $crate::data::views::impl_view_assoc_types!($owned, $view, $viewmut);
 
+        impl $crate::data::views::DataOwned for $owned {
             #[inline]
             fn as_view(&self) -> $view<'_> {
                 $view(&self.0)
@@ -76,36 +77,41 @@ macro_rules! impl_views_for_wrapper {
             }
         }
 
-        impl<'a> $crate::data::views::DataView for $view<'a> {
-            type Owned = $owned;
-
+        impl<'a> $crate::data::views::DataView<'a> for $view<'a> {
             #[inline]
             fn to_owned_data(&self) -> $owned {
                 $owned(self.0.into())
             }
+
+            #[inline]
+            fn reborrow_view<'b>(&'b self) -> Self::View<'b>
+            where
+                'a: 'b, {
+                $view(self.0)
+            }
         }
 
-        impl<'b> $crate::data::views::DataViewMut<'b> for $viewmut<'b> {
-            type View<'a>
-                = $view<'a>
-            where
-                Self: 'a;
-
-            type Owned = $owned;
-
+        impl<'a> $crate::data::views::DataViewMut<'a> for $viewmut<'a> {
             #[inline]
             fn as_view(&self) -> $view<'_> {
                 $view(&self.0)
             }
 
             #[inline]
-            fn to_view(self) -> $view<'b> {
+            fn to_view(self) -> $view<'a> {
                 $view(self.0)
             }
 
             #[inline]
             fn to_owned_data(&self) -> $owned {
                 $owned(self.0.to_vec())
+            }
+
+            #[inline]
+            fn reborrow_view_mut<'b>(&'b mut self) -> $viewmut<'b>
+            where
+                'a: 'b, {
+                $viewmut(self.0)
             }
         }
     };
@@ -118,8 +124,6 @@ macro_rules! impl_views_for_wrapper {
 macro_rules! impl_slice_for_wrapper {
     ($owned:ident, $view:ident, $viewmut:ident) => {
         impl $crate::data::views::Slice for $owned {
-            type View<'a> = $view<'a>;
-
             #[inline]
             fn slice<R: $crate::data::views::SliceRange>(&self, range: R) -> $view<'_> {
                 $view(&self.0[range])
@@ -132,11 +136,6 @@ macro_rules! impl_slice_for_wrapper {
         }
 
         impl $crate::data::views::Slice for $view<'_> {
-            type View<'a>
-                = $view<'a>
-            where
-                Self: 'a;
-
             #[inline]
             fn slice<R: $crate::data::views::SliceRange>(&self, range: R) -> $view<'_> {
                 $view(&self.0[range])
@@ -149,11 +148,6 @@ macro_rules! impl_slice_for_wrapper {
         }
 
         impl $crate::data::views::Slice for $viewmut<'_> {
-            type View<'a>
-                = $view<'a>
-            where
-                Self: 'a;
-
             #[inline]
             fn slice<R: $crate::data::views::SliceRange>(&self, range: R) -> $view<'_> {
                 $view(&self.0[range])
@@ -166,8 +160,6 @@ macro_rules! impl_slice_for_wrapper {
         }
 
         impl $crate::data::views::SliceMut for $owned {
-            type ViewMut<'a> = $viewmut<'a>;
-
             #[inline]
             fn slice_mut<R: $crate::data::views::SliceRange>(&mut self, range: R) -> $viewmut<'_> {
                 $viewmut(&mut self.0[range])
@@ -180,11 +172,6 @@ macro_rules! impl_slice_for_wrapper {
         }
 
         impl $crate::data::views::SliceMut for $viewmut<'_> {
-            type ViewMut<'a>
-                = $viewmut<'a>
-            where
-                Self: 'a;
-
             #[inline]
             fn slice_mut<R: $crate::data::views::SliceRange>(&mut self, range: R) -> $viewmut<'_> {
                 $viewmut(&mut self.0[range])
@@ -231,4 +218,5 @@ pub(crate) use impl_len_for_views;
 pub(crate) use impl_len_for_wrapper;
 pub(crate) use impl_restrict_for_wrapper;
 pub(crate) use impl_slice_for_wrapper;
+pub(crate) use impl_view_assoc_types;
 pub(crate) use impl_views_for_wrapper;

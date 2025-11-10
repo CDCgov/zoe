@@ -23,6 +23,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ### Changed
 
+- The view traits have been refactored so that all associated types are defined in the `ViewAssocTypes` trait
+- `reborrow_view` has been added to allow invariant lifetimes to be shortened in views
 - `CigletIteratorChecked` now requires that adjacent ciglets have differing operations. This also impacts `TryFrom` impls and `is_valid`
 - An iterator of ciglets now collects into a `Result<AlignmentStates, CigarError>` instead of `AlignmentStates`
 - Pairs of methods accepting encoded and decoded k-mers have been merged
