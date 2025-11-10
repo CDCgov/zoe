@@ -101,7 +101,7 @@ impl<T: NucleotidesReadable + Sealed> Translate for T {}
 ///
 /// For details about the genetic code used, see [`StdGeneticCode`]. This
 /// iterator also will translate *partial* codons to `~` (or a custom provided
-/// character, if [`new_with`] is used). A codon is considered partial if at
+/// character, if [`to_aa_iter_with`] is used). A codon is considered partial if at
 /// least one of the following is true:
 ///
 /// - The codon does not contain three bases (which will occur if the input
@@ -112,7 +112,6 @@ impl<T: NucleotidesReadable + Sealed> Translate for T {}
 /// [`Nucleotides`]: crate::prelude::Nucleotides
 /// [`to_aa_iter`]: Translate::to_aa_iter
 /// [`to_aa_iter_with`]: Translate::to_aa_iter_with
-/// [`new_with`]: TranslatedNucleotidesIter::new_with
 pub struct TranslatedNucleotidesIter<'a> {
     codons:                 std::slice::Iter<'a, [u8; 3]>,
     has_remainder:          bool,
