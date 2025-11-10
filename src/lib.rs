@@ -83,8 +83,9 @@ mod private {
     pub trait Sealed {}
     sealed!(String, &String, &str, str);
     impl<T> Sealed for Vec<T> {}
-    impl<T> Sealed for &[T] {}
     impl<T> Sealed for [T] {}
+    impl<T> Sealed for &[T] {}
+    impl<T> Sealed for &mut [T] {}
     impl<T, const N: usize> Sealed for &[T; N] {}
     impl<T, const N: usize> Sealed for [T; N] {}
     impl Sealed for crate::search::RangeSearch<'_> {}

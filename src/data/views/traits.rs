@@ -1,3 +1,5 @@
+use crate::{data::views::SliceRange, private::Sealed};
+
 /// A trait for types which have a length. The benefit of including this in a
 /// trait is that it can be used in a trait bound, such as [`Slice`].
 pub trait Len {
@@ -109,4 +111,191 @@ pub trait SliceMut: Slice {
     fn get_slice_mut<R: SliceRange>(&mut self, range: R) -> Option<Self::ViewMut<'_>>;
 }
 
-use crate::{data::views::SliceRange, private::Sealed};
+impl Len for Vec<u8> {
+    #[inline]
+    fn is_empty(&self) -> bool {
+        self.is_empty()
+    }
+
+    #[inline]
+    fn len(&self) -> usize {
+        self.len()
+    }
+}
+
+impl Len for &[u8] {
+    #[inline]
+    fn is_empty(&self) -> bool {
+        (*self).is_empty()
+    }
+
+    #[inline]
+    fn len(&self) -> usize {
+        (*self).len()
+    }
+}
+
+impl Len for &mut [u8] {
+    #[inline]
+    fn is_empty(&self) -> bool {
+        self.as_ref().is_empty()
+    }
+
+    #[inline]
+    fn len(&self) -> usize {
+        self.as_ref().len()
+    }
+}
+
+impl ViewAssocTypes for Vec<u8> {
+    type Owned = Vec<u8>;
+    type View<'a> = &'a [u8];
+    type ViewMut<'a> = &'a mut [u8];
+}
+
+impl ViewAssocTypes for &[u8] {
+    type Owned = Vec<u8>;
+    type View<'a> = &'a [u8];
+    type ViewMut<'a> = &'a mut [u8];
+}
+
+impl ViewAssocTypes for &mut [u8] {
+    type Owned = Vec<u8>;
+    type View<'a> = &'a [u8];
+    type ViewMut<'a> = &'a mut [u8];
+}
+
+impl DataOwned for Vec<u8> {
+    #[inline]
+    fn as_view(&self) -> Self::View<'_> {
+        self
+    }
+
+    #[inline]
+    fn as_view_mut(&mut self) -> Self::ViewMut<'_> {
+        self
+    }
+}
+
+impl<'a> DataView<'a> for &'a [u8] {
+    #[inline]
+    fn to_owned_data(&self) -> Self::Owned {
+        self.to_vec()
+    }
+
+    #[inline]
+    fn reborrow_view<'b>(&'b self) -> Self::View<'b>
+    where
+        'a: 'b, {
+        self
+    }
+}
+
+impl<'a> DataViewMut<'a> for &'a mut [u8] {
+    #[inline]
+    fn as_view(&self) -> Self::View<'_> {
+        self
+    }
+
+    #[inline]
+    fn to_view(self) -> Self::View<'a> {
+        self
+    }
+
+    #[inline]
+    fn to_owned_data(&self) -> Self::Owned {
+        self.to_vec()
+    }
+
+    #[inline]
+    fn reborrow_view_mut<'b>(&'b mut self) -> Self::ViewMut<'b>
+    where
+        'a: 'b, {
+        self
+    }
+}
+
+impl Restrict for &[u8] {
+    #[inline]
+    fn restrict<R: SliceRange>(&mut self, range: R) {
+        *self = &self[range];
+    }
+
+    #[inline]
+    fn clear(&mut self) {
+        *self = &[];
+    }
+}
+
+impl Restrict for &mut [u8] {
+    #[inline]
+    fn restrict<R: SliceRange>(&mut self, range: R) {
+        let data = std::mem::take(self);
+        *self = &mut data[range];
+    }
+
+    #[inline]
+    fn clear(&mut self) {
+        *self = &mut [];
+    }
+}
+
+impl Slice for Vec<u8> {
+    #[inline]
+    fn slice<R: SliceRange>(&self, range: R) -> Self::View<'_> {
+        &self[range]
+    }
+
+    #[inline]
+    fn get_slice<R: SliceRange>(&self, range: R) -> Option<Self::View<'_>> {
+        self.get(range)
+    }
+}
+
+impl Slice for &[u8] {
+    #[inline]
+    fn slice<R: SliceRange>(&self, range: R) -> Self::View<'_> {
+        &self[range]
+    }
+
+    #[inline]
+    fn get_slice<R: SliceRange>(&self, range: R) -> Option<Self::View<'_>> {
+        self.get(range)
+    }
+}
+
+impl Slice for &mut [u8] {
+    #[inline]
+    fn slice<R: SliceRange>(&self, range: R) -> Self::View<'_> {
+        &self[range]
+    }
+
+    #[inline]
+    fn get_slice<R: SliceRange>(&self, range: R) -> Option<Self::View<'_>> {
+        self.get(range)
+    }
+}
+
+impl SliceMut for Vec<u8> {
+    #[inline]
+    fn slice_mut<R: SliceRange>(&mut self, range: R) -> &mut [u8] {
+        &mut self[range]
+    }
+
+    #[inline]
+    fn get_slice_mut<R: SliceRange>(&mut self, range: R) -> Option<&mut [u8]> {
+        self.get_mut(range)
+    }
+}
+
+impl SliceMut for &mut [u8] {
+    #[inline]
+    fn slice_mut<R: SliceRange>(&mut self, range: R) -> &mut [u8] {
+        &mut self[range]
+    }
+
+    #[inline]
+    fn get_slice_mut<R: SliceRange>(&mut self, range: R) -> Option<&mut [u8]> {
+        self.get_mut(range)
+    }
+}
