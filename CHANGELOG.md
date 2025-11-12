@@ -34,6 +34,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - The `kmer` module has been restructured to simplify the docs
 - Implemented `std::fmt::Binary` for `ThreeBitEncodedKmer`
 - `AnyInt` now has `std::fmt::Binary` as an additional trait bound
+- `SliceRange` is now publicly exposed
 - `sw_score_from_path` is now behind the `alignment-diagnostics` feature gate
 - Modified the behavior of `AlignmentArbitrary` (behind `fuzzing` feature gate)
 - Refactored the organization and visibility of pHMM structs/fields/modules (behind `dev-phmm` feature gate)
