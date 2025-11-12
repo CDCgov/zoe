@@ -311,17 +311,75 @@ impl<'a> SamDataViewMut<'a> {
 pub struct SamTags(Vec<String>);
 
 impl SamTags {
+    /// Returns a new empty [`SamTags`] vector.
     #[inline]
     #[must_use]
     pub fn new() -> Self {
         SamTags(Vec::new())
     }
 
+    /// Returns a [`SamTags`] vector with a single tag containing the alignment
+    /// score.
+    ///
+    /// The score is represented as an integer using the `AS` tag.
     #[inline]
+    #[must_use]
     pub fn new_with_score<T: AnyInt + Into<i64>>(score: T) -> Self {
         let mut inner = Vec::with_capacity(1);
-        inner.push(format!("AS:i:{score}"));
+        inner.push(format!("AS:i:{score}", score = score.into()));
         SamTags(inner)
+    }
+
+    /// Returns whether the [`SamTags`] vector is empty.
+    #[inline]
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    /// Returns the number of tags present.
+    #[inline]
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Provides an iterator over the tag names and parsed values.
+    ///
+    /// ## Limitations
+    ///
+    /// This iterator parses the tags lazily. If the [`SamTags`] struct will be
+    /// iterated over many times, consider parsing the tags once and collecting
+    /// them.
+    ///
+    /// ## Errors
+    ///
+    /// The tag in the SAM record must be of the form `TAG:TYPE:VALUE`. `TAG`
+    /// cannot contain a colon. `TYPE` must be supported by *Zoe* (either `A`,
+    /// `i`, or `f`). `VALUE` must successfully parse into the corresponding
+    /// type.
+    #[inline]
+    pub fn iter(&self) -> impl Iterator<Item = std::io::Result<(&str, SamTagValue)>> {
+        self.0.iter().map(|tag| {
+            let Some((tag_name, rest)) = tag.split_once(':') else {
+                return Err(std::io::Error::other(format!("Tag is missing first colon: {tag}")));
+            };
+
+            let Some((tag_type, tag_value)) = rest.split_once(':') else {
+                return Err(std::io::Error::other(format!("Tag is missing second colon: {tag}")));
+            };
+
+            let tag_value = match SamTagValue::parse(tag_type, tag_value) {
+                Ok(value) => value,
+                Err(e) => {
+                    return Err(std::io::Error::other(format!(
+                        "Failed to parse tag '{tag}' due to error: {e}"
+                    )));
+                }
+            };
+
+            Ok((tag_name, tag_value))
+        })
     }
 
     /// Retrieves and parses the value for an optional tag in the SAM file
@@ -336,9 +394,10 @@ impl SamTags {
     ///
     /// ## Errors
     ///
-    /// The tag in the SAM record must be of the form `TAG:TYPE:VALUE`, with no
-    /// other colons. `TYPE` must be supported by *Zoe* (either `A`, `i`, or
-    /// `f`). `VALUE` must successfully parse into the corresponding type.
+    /// The tag in the SAM record must be of the form `TAG:TYPE:VALUE`. `TAG`
+    /// cannot contain a colon. `TYPE` must be supported by *Zoe* (either `A`,
+    /// `i`, or `f`). `VALUE` must successfully parse into the corresponding
+    /// type.
     ///
     /// [`get`]: SamTags::get
     pub fn get(&self, name: &str) -> std::io::Result<Option<SamTagValue>> {
@@ -363,16 +422,6 @@ impl SamTags {
         }
         Ok(None)
     }
-
-    // /// Adds a tag without checking if it already exists.
-    // ///
-    // /// ## Validity
-    // ///
-    // /// In order to conform with the SAM format, the name should consist of two
-    // /// uppercase letters.
-    // pub fn push(&mut self, name: &str, value: SamTagValue) {
-    //     let
-    // }
 }
 
 impl FromIterator<String> for SamTags {
@@ -384,6 +433,7 @@ impl FromIterator<String> for SamTags {
 
 /// A parsed optional tag in the SAM file format
 #[non_exhaustive]
+#[derive(Clone, PartialEq, Debug)]
 pub enum SamTagValue {
     /// A printable character in the range `! ..= ~`.
     Char(u8),
@@ -430,6 +480,39 @@ impl SamTagValue {
             }
         };
         Ok(out)
+    }
+
+    /// Returns the stored character from the [`SamTagValue`], or [`None`] if a
+    /// different variant is present.
+    #[inline]
+    #[must_use]
+    pub fn char(self) -> Option<u8> {
+        match self {
+            SamTagValue::Char(c) => Some(c),
+            _ => None,
+        }
+    }
+
+    /// Returns the stored integer from the [`SamTagValue`], or [`None`] if a
+    /// different variant is present.
+    #[inline]
+    #[must_use]
+    pub fn int(self) -> Option<i64> {
+        match self {
+            SamTagValue::Int(i) => Some(i),
+            _ => None,
+        }
+    }
+
+    /// Returns the stored floating point number from the [`SamTagValue`], or
+    /// [`None`] if a different variant is present.
+    #[inline]
+    #[must_use]
+    pub fn float(self) -> Option<f32> {
+        match self {
+            SamTagValue::Float(f) => Some(f),
+            _ => None,
+        }
     }
 }
 
