@@ -168,19 +168,8 @@ pub fn nw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 #[must_use]
 #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
 pub fn nw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfile<S>) -> Alignment<i32> {
-    // Definitions:
-    // * Q[c] = c-th base in the query, zero-indexed
-    // * R[r] = r-th base in the reference, zero-indexed
-    // * W[r,c] = contribution to score of aligning Q[c] and R[r]
-    // * H[r,c] = maximum score for aligning Q[0..c] to R[0..r]
-    // * E[r,c] = maximum score for aligning Q[0..c] to R[0..r] such that the
-    //   alignment ends with a gap consuming a base in the reference
-    // * F[r,c] = maximum score for aligning Q[0..c] to R[0..r] such that the
-    //   alignment ends with a gap consuming a base in the query
+    // See dev comments in nw_scalar_score for more details
 
-    // A row H[r, ..] of H. Initialized for row -1 (no bases in the reference
-    // consumed). H[-1, 0] is gap_open (consuming one base of query). Each
-    // subsequent value adds gap_extend to the previous.
     let mut h_row = vec![0; query.seq.len()];
     let mut h = query.gap_open;
     for h_val in &mut h_row {
@@ -188,10 +177,6 @@ pub fn nw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
         h += query.gap_extend;
     }
 
-    // A row E[r, ..] of E. Initialized for row 0 (one base in the reference
-    // consumed, via a gap). E[0,0] is only reached by consuming a base in the
-    // query via a gap_open, then conuming a base in the reference via a
-    // gap_open. Each subsequent value adds gap_extend to the previous.
     let mut e_row = vec![0; query.seq.len()];
     let mut e = 2 * query.gap_open;
     for e_val in &mut e_row {
@@ -201,36 +186,21 @@ pub fn nw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
 
     let mut backtrack = BacktrackMatrix::new(reference.len(), query.seq.len());
 
-    // Iterate over R (index=r)
     for (r, reference_base) in reference.iter().copied().enumerate() {
-        // A value in F, initialized to F[r,0]. F[r,0] is reached by consuming
-        // r+1 bases in the reference via a gap, then consuming a base in the
-        // query via a gap.
         let mut f = 2 * query.gap_open + r as i32 * query.gap_extend;
-        // A value of H. Initialized to H[r-1,-1] (r bases consumed in R and no
-        // bases consumed in Q)
         let mut h = if r == 0 {
-            // H[-1,-1]: The alignment has just begun (no bases consumed in R or
-            // Q)
             0
         } else {
-            // H[r-1,-1]: Reached by a gap in the reference consuming r bases
             query.gap_open + query.gap_extend * (r - 1) as i32
         };
 
-        // Iterate over Q (index=c). Assumes that h contains H[r-1,c-1].
         for c in 0..query.seq.len() {
             backtrack.move_to(r, c);
 
-            // W[r,c]
             let match_score = i32::from(query.matrix.get_weight(reference_base, query.seq[c]));
-            // Temporarily update to H[r-1,c-1] + W[r,c]
             h += match_score;
 
-            // Extract E[r,c]
             let mut e = e_row[c];
-            // Update H[r-1,c-1] to H[r,c] by computing the maximum of
-            // H[r-1,c-1] + W[r,c], E[r,c], and F[r,c]
             h = h.max(e).max(f);
 
             if e == h {
@@ -271,7 +241,6 @@ pub fn nw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
 
             // Store H[r-1,c] in h (becomes H[r-1,c-1] next iteration)
             h = next_diag;
-            // Update E[r,c] in e_row
             e_row[c] = e;
         }
     }
