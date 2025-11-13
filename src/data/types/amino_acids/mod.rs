@@ -1,5 +1,6 @@
+use crate::data::types::impl_std_traits_for_sequence;
+
 mod getter_traits;
-mod std_traits;
 mod view_traits;
 
 pub use getter_traits::*;
@@ -239,5 +240,28 @@ impl<'a> AminoAcidsViewMut<'a> {
     #[inline]
     pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, u8> {
         self.0.iter_mut()
+    }
+}
+
+impl_std_traits_for_sequence!(AminoAcids, AminoAcidsView, AminoAcidsViewMut);
+
+impl std::fmt::Debug for AminoAcids {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{self}")
+    }
+}
+
+impl std::fmt::Debug for AminoAcidsView<'_> {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{self}")
+    }
+}
+
+impl std::fmt::Debug for AminoAcidsViewMut<'_> {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{self}")
     }
 }

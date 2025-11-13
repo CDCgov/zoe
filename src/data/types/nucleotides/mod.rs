@@ -1,6 +1,6 @@
 use crate::{
     alignment::{LocalProfiles, SharedProfiles},
-    data::{err::QueryProfileError, matrices::WeightMatrix},
+    data::{err::QueryProfileError, matrices::WeightMatrix, types::impl_std_traits_for_sequence},
     prelude::*,
 };
 
@@ -10,8 +10,6 @@ mod getter_traits;
 mod rev_comp;
 /// Traits and methods for sanitizing and validating nucleotide data.
 mod sanitize;
-/// Standard library implementations.
-mod std_traits;
 /// Amino acid translation implementations.
 mod translation;
 /// Nucleotide view types.
@@ -346,5 +344,28 @@ impl<'a> NucleotidesViewMut<'a> {
     #[inline]
     pub fn make_reverse_complement(&mut self) {
         make_reverse_complement(self.0);
+    }
+}
+
+impl_std_traits_for_sequence!(Nucleotides, NucleotidesView, NucleotidesViewMut);
+
+impl std::fmt::Debug for Nucleotides {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{self}")
+    }
+}
+
+impl std::fmt::Debug for NucleotidesView<'_> {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{self}")
+    }
+}
+
+impl std::fmt::Debug for NucleotidesViewMut<'_> {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{self}")
     }
 }
