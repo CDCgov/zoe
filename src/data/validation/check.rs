@@ -37,7 +37,7 @@ where
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "rand"))]
 mod test {
     use super::CheckSequence;
     use crate::data::alphas::AA_DAIS_WITH_GAPS_X;
@@ -49,7 +49,7 @@ mod test {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "rand"))]
 mod bench {
     use super::CheckSequence;
     use crate::data::alphas::AA_DAIS_WITH_GAPS_X;

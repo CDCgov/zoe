@@ -46,7 +46,7 @@ pub fn gc_content(s: &[u8]) -> usize {
         .count()
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "rand"))]
 mod test {
     use super::*;
 
@@ -60,7 +60,7 @@ mod test {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "rand"))]
 mod bench {
     use super::*;
     use std::sync::LazyLock;

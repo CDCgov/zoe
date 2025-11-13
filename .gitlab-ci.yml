@@ -3,9 +3,10 @@ stages:
   - test
   - deploy
 
-cache:
-  paths:
-    - target
+cache: {}
+
+variables:
+  CARGO_HOME: $CI_PROJECT_DIR/.cargo
 
 zoe-build:
   stage: build
@@ -14,9 +15,13 @@ zoe-build:
     - scicomp
   image: rustlang/rust:nightly
   script:
-    - cargo build --all-features --verbose
-    - cargo build --verbose
-    - cargo build --no-default-features --verbose
+    - cargo build --all-features
+    - cargo check
+    - cargo check --no-default-features
+  artifacts:
+    paths:
+      - .cargo
+      - target
 
 zoe-test:
   stage: test
@@ -24,20 +29,28 @@ zoe-test:
     - docker
     - scicomp
   image: rustlang/rust:nightly
+  dependencies:
+    - zoe-build
   script:
     - perl .github/scripts/check_versions_changelog.pl
-    - cargo test --verbose --all-features
+    - cargo test --all-features
+    - cargo test --no-run
+    - cargo test --no-run --no-default-features
     - cargo doc --no-deps --document-private-items --all-features
+  artifacts:
+    paths:
+      - target/doc
 
 pages:
   stage: deploy
   image: rustlang/rust:nightly
   tags:
     - pages
+  dependencies:
+    - zoe-test
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
   script:
-    - cargo doc --no-deps --document-private-items --all-features
     - mv target/doc public/
     - echo "<meta http-equiv=\"refresh\" content=\"0; url=${CI_PROJECT_TITLE}\">" > public/index.html
   artifacts:

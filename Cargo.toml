@@ -72,3 +72,7 @@ lto = "thin"
 [package.metadata.docs.rs]
 features = ["rand", "fuzzing", "dev-phmm", "dev-3pass", "alignment-diagnostics"]
 rustdoc-args = ["--html-in-header", "./assets/docs-header.html"]
+
+[[example]]
+name = "demo_random"
+required-features = ["rand"]

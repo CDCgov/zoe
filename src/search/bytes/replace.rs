@@ -34,7 +34,7 @@ where
     replace_all_bytes(sfx, needle, replacement);
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "rand"))]
 mod bench {
     extern crate test;
     use super::*;

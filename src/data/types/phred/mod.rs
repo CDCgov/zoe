@@ -380,7 +380,7 @@ impl std::fmt::Display for QScoreInt {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "rand"))]
 mod bench {
     use std::sync::LazyLock;
     extern crate test;
@@ -420,7 +420,7 @@ mod bench {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "rand"))]
 mod test {
     #![allow(clippy::type_complexity)]
     use super::*;

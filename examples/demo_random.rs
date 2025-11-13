@@ -1,3 +1,5 @@
+// Requires the `random` feature.
+
 use std::env;
 use zoe::prelude::*;
 

@@ -22,10 +22,10 @@ pub use rev_comp::*;
 pub use sanitize::*;
 pub use translation::*;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "rand"))]
 mod bench;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "rand"))]
 mod test;
 
 /// [`Nucleotides`] is a transparent, new-type wrapper around [`Vec<u8>`] that
