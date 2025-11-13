@@ -168,12 +168,15 @@ fn collect_ciglets() {
         AlignmentStates::from_ciglets_unchecked(vec![
             Ciglet { inc: 10, op: b'M' },
             Ciglet { inc: 5, op: b'I' },
-            Ciglet { inc: 12, op: b'I' }
+            Ciglet { inc: 12, op: b'I' },
         ])
         .iter()
         .copied()
         .collect::<Result<AlignmentStates, _>>(),
-        Err(CigarError::RepeatedOp)
+        Ok(AlignmentStates::from_ciglets_unchecked(vec![
+            Ciglet { inc: 10, op: b'M' },
+            Ciglet { inc: 17, op: b'I' },
+        ]))
     );
     assert_eq!(
         AlignmentStates::from_ciglets_unchecked(vec![

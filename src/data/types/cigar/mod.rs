@@ -137,7 +137,8 @@ impl Cigar {
     /// - Every increment must be followed by an operation
     /// - The increment for each operation must be non-zero and less than
     ///   [`usize::MAX`]
-    /// - Two adjacent operations must be distinct
+    ///
+    /// This does not confirm that adjacent operations are distinct.
     #[inline]
     #[must_use]
     pub fn is_valid(&self) -> bool {
@@ -512,22 +513,19 @@ impl FromIterator<Ciglet> for Result<Cigar, CigarError> {
 /// - Every increment must be followed by an operation
 /// - The increment for each operation must be non-zero and less than
 ///   [`usize::MAX`]
-/// - Two adjacent operations must be distinct
 ///
-/// If any of these are not valid, a [`CigarError`] is returned.
+/// If any of these are not valid, a [`CigarError`] is returned. Note that this
+/// iterator does not confirm that adjacent operations are distinct.
 pub(crate) struct CigletIteratorChecked<'a> {
     /// The bytes remaining to decode
-    buffer:  &'a [u8],
-    /// The last CIGAR operation encountered (or 0 if at the beginning)
-    last_op: u8,
+    buffer: &'a [u8],
 }
 
 impl<'a> CigletIteratorChecked<'a> {
+    /// Creates a new [`CigletIteratorChecked`] from the provided bytes.
+    #[inline]
     pub(crate) fn new(bytes: &'a [u8]) -> CigletIteratorChecked<'a> {
-        Self {
-            buffer:  bytes,
-            last_op: 0,
-        }
+        Self { buffer: bytes }
     }
 }
 
@@ -551,10 +549,7 @@ impl Iterator for CigletIteratorChecked<'_> {
                     return Some(Err(CigarError::MissingInc));
                 } else if num == 0 {
                     return Some(Err(CigarError::IncZero));
-                } else if b == self.last_op {
-                    return Some(Err(CigarError::RepeatedOp));
                 }
-                self.last_op = b;
                 self.buffer = &self.buffer[index + 1..];
                 return Some(Ok(Ciglet { inc: num, op: b }));
             } else {
@@ -578,10 +573,7 @@ impl Iterator for CigletIteratorChecked<'_> {
                     return Some(Err(CigarError::MissingInc));
                 } else if num == 0 {
                     return Some(Err(CigarError::IncZero));
-                } else if b == self.last_op {
-                    return Some(Err(CigarError::RepeatedOp));
                 }
-                self.last_op = b;
                 self.buffer = &self.buffer[index + 1..];
                 return Some(Ok(Ciglet { inc: num, op: b }));
             } else {
@@ -603,7 +595,8 @@ impl Iterator for CigletIteratorChecked<'_> {
 pub(crate) struct ExpandedCigar(Vec<u8>);
 
 impl ExpandedCigar {
-    /// Condenses the [`ExpandedCigar`] back to its standard form,  e.g. `MMM` → `3M`.
+    /// Condenses the [`ExpandedCigar`] back to its standard form,  e.g. `MMM` →
+    /// `3M`.
     #[inline]
     #[must_use]
     pub(crate) fn condense_to_cigar(self) -> Cigar {

@@ -26,8 +26,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - The view traits have been refactored so that all associated types are defined in the `ViewAssocTypes` trait
 - `reborrow_view` has been added to allow invariant lifetimes to be shortened in views
 - `Vec<u8>`, `&[u8]`, and `&mut [u8]` now implement the various view traits
-- `CigletIteratorChecked` now requires that adjacent ciglets have differing operations. This also impacts `TryFrom` impls and `is_valid`
-- An iterator of ciglets now collects into a `Result<AlignmentStates, CigarError>` instead of `AlignmentStates`
+- `TryFrom` for `AlignmentStates` now merges adjacent ciglets with the same operation
+- An iterator of ciglets now collects into a `Result<AlignmentStates, CigarError>` instead of `AlignmentStates`, and performs merging as above
 - Pairs of methods accepting encoded and decoded k-mers have been merged
 - `KmerCounter` has had its methods renamed from `insert` to `tally`
 - Iterators over encoded k-mers from `KmerSet` now return owned values
@@ -37,7 +37,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - `AnyInt` now has `std::fmt::Binary` as an additional trait bound
 - `SliceRange` is now publicly exposed
 - `sw_score_from_path` is now behind the `alignment-diagnostics` feature gate
-- Modified the behavior of `AlignmentArbitrary` (behind `fuzzing` feature gate)
+- Modified the behavior of `AlignmentArbitrary` and `AlignmentStatesArbitrary` (behind `fuzzing` feature gate)
 - Refactored the organization and visibility of pHMM structs/fields/modules (behind `dev-phmm` feature gate)
 - Modified Viterbi algorithm to use compact bit representation instead of array (behind `dev-phmm` feature gate)
 - `next_index` and `prev_index` now evaluate eagerly and require a pHMM as an argument (behind `dev-phmm` and `alignment-diagnostics` feature gates)

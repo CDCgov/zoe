@@ -20,7 +20,7 @@ use crate::{
 /// unchecked functions which may invalidate this, although those functions have
 /// documented validity sections. Any arbitrary implementations may ignore these
 /// assumptions as well.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Eq, PartialEq, Default)]
 pub struct AlignmentStates(pub(crate) Vec<Ciglet>);
 
 impl AlignmentStates {
@@ -519,6 +519,14 @@ impl StatesSequence for &[Ciglet] {
 pub trait CheckedCigar
 where
     for<'a> &'a Self: IntoIterator<Item: std::borrow::Borrow<Ciglet>>, {
+    #[inline]
+    #[must_use]
+    fn total_increments_checked(&self) -> Option<usize> {
+        self.into_iter()
+            .map(|ciglet| *std::borrow::Borrow::borrow(&ciglet))
+            .try_fold(0usize, |sum, ciglet| sum.checked_add(ciglet.inc))
+    }
+
     /// Sums the lengths for operations consuming the reference (`M`, `D`, `N`,
     /// `=`, and `X`), returning `None` for overflow.
     #[inline]

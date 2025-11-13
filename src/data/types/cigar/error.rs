@@ -15,8 +15,6 @@ pub enum CigarError {
     MissingInc,
     /// The CIGAR increment must be followed by operation
     MissingOp,
-    /// The CIGAR string cannot have two adjacent operations which are the same
-    RepeatedOp,
 }
 
 impl fmt::Display for CigarError {
@@ -28,7 +26,6 @@ impl fmt::Display for CigarError {
             CigarError::IncOverflow => write!(f, "CIGAR increment must be smaller than {}", usize::MAX),
             CigarError::MissingInc => f.write_str("CIGAR operation must have preceding increment"),
             CigarError::MissingOp => f.write_str("CIGAR increment must be followed by operator"),
-            CigarError::RepeatedOp => f.write_str("The CIGAR string cannot have two adjacent operations which are the same"),
         }
     }
 }

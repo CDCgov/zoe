@@ -128,6 +128,6 @@ fn test_try_from() {
     assert_eq!(Cigar::try_from("18446744073709551616M"), Err(CigarError::IncOverflow));
     assert_eq!(Cigar::try_from(""), Ok(Cigar::new()));
     assert_eq!(Cigar::try_from("10M5I20*5D"), Err(CigarError::InvalidOperation));
-    assert_eq!(Cigar::try_from("10M3I2M4M"), Err(CigarError::RepeatedOp));
-    assert_eq!(Cigar::try_from("10S6S"), Err(CigarError::RepeatedOp));
+    assert!(Cigar::try_from("10M3I2M4M").is_ok());
+    assert!(Cigar::try_from("10S6S").is_ok());
 }

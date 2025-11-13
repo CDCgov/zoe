@@ -125,19 +125,27 @@ where
 ///   alignment is not over [`usize::MAX`]
 /// - `R`: If true, ensures the number of residues of the reference consumed by
 ///   the alignment is not over [`usize::MAX`]
+/// - `L`: If true, ensures the sum of all increments is not over
+///   [`usize::MAX`].
 #[derive(Debug)]
-pub struct AlignmentStatesArbitrary<C, const D: bool, const Q: bool, const R: bool>(pub AlignmentStates, pub PhantomData<C>);
+pub struct AlignmentStatesArbitrary<C, const D: bool, const Q: bool, const R: bool, const L: bool>(
+    pub AlignmentStates,
+    pub PhantomData<C>,
+);
 
-impl_deref! {AlignmentStatesArbitrary<C, D, Q, R>, AlignmentStates, <C, const D: bool, const Q: bool, const R: bool>}
+impl_deref! {AlignmentStatesArbitrary<C, D, Q, R, L>, AlignmentStates, <C, const D: bool, const Q: bool, const R: bool, const L: bool>}
 
-impl<C, const D: bool, const Q: bool, const R: bool> From<AlignmentStatesArbitrary<C, D, Q, R>> for AlignmentStates {
+impl<C, const D: bool, const Q: bool, const R: bool, const L: bool> From<AlignmentStatesArbitrary<C, D, Q, R, L>>
+    for AlignmentStates
+{
     #[inline]
-    fn from(value: AlignmentStatesArbitrary<C, D, Q, R>) -> Self {
+    fn from(value: AlignmentStatesArbitrary<C, D, Q, R, L>) -> Self {
         value.0
     }
 }
 
-impl<'a, C, const D: bool, const Q: bool, const R: bool> Arbitrary<'a> for AlignmentStatesArbitrary<C, D, Q, R>
+impl<'a, C, const D: bool, const Q: bool, const R: bool, const L: bool> Arbitrary<'a>
+    for AlignmentStatesArbitrary<C, D, Q, R, L>
 where
     C: Arbitrary<'a> + Into<Ciglet>,
 {
@@ -170,6 +178,10 @@ where
 
         let mut states = AlignmentStates(vec);
 
+        if L {
+            clamp_total(&mut states, usize::MAX);
+        }
+
         if Q {
             clamp_query_len(&mut states, usize::MAX);
         }
@@ -179,6 +191,32 @@ where
         }
 
         Ok(AlignmentStatesArbitrary(states, PhantomData))
+    }
+}
+
+/// Removes ciglets from [`AlignmentStates`] to ensure summing all the
+/// increments does not exceed `max_total`.
+pub(crate) fn clamp_total(states: &mut AlignmentStates, max_total: usize) {
+    let needs_shrink = match states.total_increments_checked() {
+        Some(total) => total > max_total,
+        None => true,
+    };
+
+    if needs_shrink {
+        let mut new_vec = Vec::new();
+        let mut total = 0usize;
+        for ciglet in states.iter().copied() {
+            total = match total.checked_add(ciglet.inc) {
+                Some(query_len) => query_len,
+                None => break,
+            };
+            if total > max_total {
+                break;
+            }
+
+            new_vec.push(ciglet);
+        }
+        *states = AlignmentStates(new_vec);
     }
 }
 
