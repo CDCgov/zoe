@@ -1,7 +1,10 @@
-use std::{error::Error, fs::File, io::ErrorKind, path::Path};
+use std::{fs::File, io::ErrorKind, path::Path};
 
 use crate::{
-    data::fasta::{FastaAA, FastaNT, FastaNTAnnot, FastaSeq},
+    data::{
+        err::WithErrorContext,
+        fasta::{FastaAA, FastaNT, FastaNTAnnot, FastaSeq},
+    },
     prelude::{
         AminoAcids, AminoAcidsView, AminoAcidsViewMut, FastQ, FastQView, FastQViewMut, Nucleotides, NucleotidesView,
         NucleotidesViewMut,
@@ -18,28 +21,6 @@ pub mod fastq;
 /// [SAM](https://samtools.github.io/hts-specs/SAMv1.pdf) files. Provides some
 /// special-case functions used by [IRMA](https://wonder.cdc.gov/amd/flu/irma/).
 pub mod sam;
-
-/// A wrapper around an error with a new message, and the original error
-/// accessible via [`Error::source`].
-#[derive(Debug)]
-struct RecordErrorContext {
-    description: String,
-    source:      Box<dyn Error + Send + Sync>,
-}
-
-impl std::fmt::Display for RecordErrorContext {
-    #[inline]
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.description)
-    }
-}
-
-impl Error for RecordErrorContext {
-    #[inline]
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        Some(self.source.as_ref())
-    }
-}
 
 /// A trait providing helper functions when implementing a reader for a record
 /// type (e.g., [`FastQReader`], [`FastaReader`], or [`SAMReader`]).
@@ -91,24 +72,22 @@ trait RecordReader {
     /// context provided.
     ///
     /// Specifically, the original error `err` is first wrapped in a
-    /// [`RecordErrorContext`], with the `source` field pointing to the original error.
-    /// This is then put into an [`std::io::Error`], since this is the main
-    /// error type used by *Zoe*'s readers.
+    /// [`ErrorWithContext`], with the `source` field pointing to the original
+    /// error. This is then put into an [`std::io::Error`], since this is the
+    /// main error type used by *Zoe*'s readers.
     ///
     /// The error message will contain a description, the name of the record
     /// [`RECORD_NAME`], and the path to the file for which the error occurred.
     ///
     /// [`RECORD_NAME`]: RecordReader::RECORD_NAME
+    /// [`ErrorWithContext`]: crate::data::err::ErrorWithContext
     fn new_wrapped(description: &str, path: &Path, err: std::io::Error) -> std::io::Error {
-        std::io::Error::other(RecordErrorContext {
-            description: format!(
-                "{desc} for {name}: '{path}'",
-                desc = description,
-                name = Self::RECORD_NAME,
-                path = path.display()
-            ),
-            source:      Box::new(err),
-        })
+        std::io::Error::other(err.with_context(format!(
+            "{desc} for {name}: '{path}'",
+            desc = description,
+            name = Self::RECORD_NAME,
+            path = path.display()
+        )))
     }
 }
 

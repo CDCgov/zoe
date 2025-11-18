@@ -50,7 +50,12 @@ impl GetCode for std::io::Error {
 /// Trait for providing more graceful [`expect()`](std::result::Result::expect)
 /// behavior but with a status code provided by [`GetCode`].
 pub trait OrFail<T> {
+    /// Unwraps the result, writing the error and any information in
+    /// [`Error::source`] to stderr.
     fn unwrap_or_fail(self) -> T;
+
+    /// Unwraps the result, writing the provided message, the error, and any
+    /// information in [`Error::source`] to stderr.
     fn unwrap_or_die(self, msg: &str) -> T;
 }
 
@@ -95,6 +100,52 @@ where
                 }
                 std::process::exit(e.get_code());
             }
+        }
+    }
+}
+
+/// A wrapper around an error with a new message, and the original error
+/// accessible via [`Error::source`].
+///
+/// When [`unwrap_or_fail`] or [`unwrap_or_die`] is used, this will display the
+/// information for the original error as well.
+///
+/// [`unwrap_or_fail`]: OrFail::unwrap_or_fail
+/// [`unwrap_or_die`]: OrFail::unwrap_or_die
+#[must_use]
+#[derive(Debug)]
+pub struct ErrorWithContext {
+    description: String,
+    source:      Box<dyn Error + Send + Sync>,
+}
+
+impl std::fmt::Display for ErrorWithContext {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.description)
+    }
+}
+
+impl Error for ErrorWithContext {
+    #[inline]
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(self.source.as_ref())
+    }
+}
+
+/// An extension trait for [`Error`] allowing additional context to be added via
+/// a [`ErrorWithContext`].
+pub trait WithErrorContext {
+    /// Wraps the error in a [`ErrorWithContext`] with the given description.
+    fn with_context(self, description: String) -> ErrorWithContext;
+}
+
+impl<E: Error + Send + Sync + 'static> WithErrorContext for E {
+    #[inline]
+    fn with_context(self, description: String) -> ErrorWithContext {
+        ErrorWithContext {
+            description,
+            source: Box::new(self),
         }
     }
 }
