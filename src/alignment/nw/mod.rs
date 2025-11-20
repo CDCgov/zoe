@@ -1,9 +1,9 @@
 //! ## Needleman–Wunsch Alignment
 //!
-//! For generating the optimal, global score use [`nw_scalar_score`].
-//!
-//! For generating the two locally aligned sequences, first create an
-//! [`Alignment`], then use [`Alignment::get_aligned_seqs`].
+//! For generating the optimal, global score use [`nw_scalar_score`]. For
+//! computing the global alignment between, use [`nw_scalar_alignment`]. To then
+//! obtain the aligned sequences (with gap characters inserted), use
+//! [`Alignment::get_aligned_seqs`].
 //!
 //! ### Affine Gap Penalties
 //!
@@ -31,19 +31,42 @@
 //!    invalid, a [`QueryProfileError`] is returned.
 //!
 //! 4. Use the query profile to align against any number of different references
-//!    using [`nw_scalar_score`].
+//!    using [`nw_scalar_score`] or [`nw_scalar_alignment`].
+//!
+//! Below is an example using DNA. We use a match score of 4 and a mismatch
+//! score of -2, as defined in `WEIGHTS`.
+//!
+//! ```
+//! # use zoe::{
+//! #     alignment::{Alignment, AlignmentStates, ScalarProfile, nw::nw_scalar_alignment},
+//! #     data::matrices::WeightMatrix
+//! # };
+//! let reference: &[u8] = b"GGCCACAGGATTGAG";
+//! let query: &[u8] = b"TACCACAGTATTAG";
+//!
+//! const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
+//! const GAP_OPEN: i8 = -3;
+//! const GAP_EXTEND: i8 = -1;
+//!
+//! let profile = ScalarProfile::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+//! let alignment = nw_scalar_alignment(&reference, &profile);
+//!
+//! let Alignment {
+//!     score,
+//!     ref_range,
+//!     query_range,
+//!     states,
+//!     ..
+//! } = alignment;
+//! assert_eq!(score, 35);
+//! assert_eq!(states, AlignmentStates::try_from(b"12M1D2M").unwrap());
+//! ```
 //!
 //! [`ByteIndexMap::new`]: crate::data::ByteIndexMap::new
 //! [`WeightMatrix`]: crate::data::matrices::WeightMatrix
 //! [`WeightMatrix::new`]: crate::data::matrices::WeightMatrix::new
-//! [`new_biased_dna_matrix`]:
-//!     crate::data::matrices::WeightMatrix::new_biased_dna_matrix
 //! [`new_dna_matrix`]: crate::data::matrices::WeightMatrix::new_dna_matrix
 //! [`QueryProfileError`]: crate::data::err::QueryProfileError
-//! [`Nucleotides::into_local_profile`]:
-//!     crate::data::types::nucleotides::Nucleotides::into_local_profile
-//! [`Nucleotides::into_shared_profile`]:
-//!     crate::data::types::nucleotides::Nucleotides::into_shared_profile
 //! [`Alignment`]: super::Alignment
 //! [`Alignment::get_aligned_seqs`]: super::Alignment::get_aligned_seqs
 
@@ -52,8 +75,8 @@ use std::ops::Add;
 
 /// Needleman–Wunsch algorithm (non-vectorized), yielding the optimal score.
 ///
-/// Provides the globally optimal sequence alignment score (TODO) using affine
-/// gap penalties (TODO). Our implementation is derived as an adaptation of
+/// Provides the globally optimal sequence alignment score using affine gap
+/// penalties. Our implementation is derived as an adaptation of
 /// [`sw_scalar_score`].
 ///
 /// ## Complexity
@@ -71,17 +94,21 @@ use std::ops::Add;
 /// ## Example
 ///
 /// ```
-/// # use zoe::{alignment::{ScalarProfile, nw::nw_scalar_score}, data::matrices::WeightMatrix};
+/// # use zoe::{
+/// #     alignment::{Alignment, AlignmentStates, ScalarProfile, nw::nw_scalar_score},
+/// #     data::matrices::WeightMatrix
+/// # };
 /// let reference: &[u8] = b"GGCCACAGGATTGAG";
-/// let query: &[u8] = b"CTCAGATTG";
+/// let query: &[u8] = b"TACCACAGTATTAG";
 ///
 /// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
 /// const GAP_OPEN: i8 = -3;
 /// const GAP_EXTEND: i8 = -1;
 ///
-/// let profile = ScalarProfile::<5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+/// let profile = ScalarProfile::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
 /// let score = nw_scalar_score(&reference, &profile);
-/// assert_eq!(score, 18);
+///
+/// assert_eq!(score, 35);
 /// ```
 ///
 /// [`sw_scalar_score`]: super::sw::sw_scalar_score
@@ -165,6 +192,52 @@ pub fn nw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
     h_row[h_row.len() - 1]
 }
 
+/// Needleman–Wunsch algorithm (non-vectorized), yielding the optimal alignment.
+///
+/// Provides the globally optimal sequence alignment using affine gap penalties.
+/// Our implementation is derived as an adaptation of [`sw_scalar_alignment`].
+///
+/// ## Complexity
+///
+/// For query length $m$ and reference length $n$:
+///
+/// - Time: $O(mn)$
+/// - Space: $O(mn)$
+///
+/// ## Limitations
+///
+/// - Not suitable for production due to high runtimes.
+/// - Useful for testing correctness.
+///
+/// ## Example
+///
+/// ```
+/// # use zoe::{
+/// #     alignment::{Alignment, AlignmentStates, ScalarProfile, nw::nw_scalar_alignment},
+/// #     data::matrices::WeightMatrix
+/// # };
+/// let reference: &[u8] = b"GGCCACAGGATTGAG";
+/// let query: &[u8] = b"TACCACAGTATTAG";
+///
+/// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
+/// const GAP_OPEN: i8 = -3;
+/// const GAP_EXTEND: i8 = -1;
+///
+/// let profile = ScalarProfile::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+/// let alignment = nw_scalar_alignment(&reference, &profile);
+///
+/// let Alignment {
+///     score,
+///     ref_range,
+///     query_range,
+///     states,
+///     ..
+/// } = alignment;
+/// assert_eq!(score, 35);
+/// assert_eq!(states, AlignmentStates::try_from(b"12M1D2M").unwrap());
+/// ```
+///
+/// [`sw_scalar_alignment`]: super::sw::sw_scalar_alignment
 #[must_use]
 #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
 pub fn nw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfile<S>) -> Alignment<i32> {
@@ -262,7 +335,6 @@ pub fn nw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
 ///
 /// - The `ciglets` must contain valid operations in `MIDNP=X`,
 /// - All of `query`, `ref_in_alignment`, and `cigar` must be fully consumed.
-/// - The final score should be nonnegative.
 ///
 /// ## Panics
 ///
