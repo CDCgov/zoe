@@ -3,36 +3,43 @@
 //! *Zoe* provides the ability to efficiently and randomly downsample iterators
 //! (with and without a known size). The following methods are provided:
 //!
-//! - Vitter's [Method
-//!   D](https://www.ittc.ku.edu/~jsv/Papers/Vit87.RandomSampling.pdf): This
-//!   method operates by iterating through the collection, and calculating
+//! - Vitter's [**Method
+//!   D**](https://www.ittc.ku.edu/~jsv/Papers/Vit87.RandomSampling.pdf):
+//!   [`downsample_known_size`] or [`SkipSampler::new`]
+//!
+//!   This method operates by iterating through the collection, and calculating
 //!   random values used to skip over multiple elements as it iterates through
 //!   the collection. This method is very efficient, but requires knowing the
 //!   length of the collection.
 //!
-//! - Vitter's [Method L](https://dl.acm.org/doi/pdf/10.1145/198429.198435):
+//! - **Reservoir sampling** (or Vitter's [Method
+//!   L](https://dl.acm.org/doi/pdf/10.1145/198429.198435)):
+//!   [`downsample_reservoir`]
+//!
 //!   This method uses a reservoir to hold downsampled elements, and moves
 //!   through an iterator of elements, randomly inserting elements into the
-//!   reservoir. Method L requires allocating a the elements in the reservoir,
-//!   but has the advantage of not requiring knowledge of the length of the
-//!   iterator.
+//!   reservoir. Reservoir sampling requires allocating all the elements in the
+//!   reservoir, but has the advantage of not requiring knowledge of the length
+//!   of the iterator.
 //!
-//! - Bernoulli Sampling: This method keeps each element with a given
-//!   probability. Unlike Method L, the number of yielded elements may
-//!   fluctuate.
+//! - **Bernoulli Sampling**: [`downsample_bernoulli`]
 //!
-//! Both methods require a random number generator, for which Zoe uses
-//! `rand_xoshiro`'s `Xoshiro256StarStar`
+//!   This method keeps each element with a given probability. Unlike reservoir
+//!   sampling or *Method D*, the number of yielded elements may fluctuate.
+//!
+//! All methods require a random number generator, for which *Zoe* uses
+//! `rand_xoshiro`'s [`Xoshiro256StarStar`].
 //!
 //! ### Example
 //!
-//! The following example shows downsampling of a `Vec<usize>`. For convenience,
-//! an extension trait, [`DownsampleMethodD`] is provided with a method,
-//! downsample.
+//! The following example shows downsampling of a `Vec<usize>`. Since the
+//! iterator over `Vec<usize>` implements [`ExactSizeIterator`], the
+//! [`downsample_known_size`] method can be used. Otherwise,
+//! [`SkipSampler::new`] would have to be manually called.
 //!
 //! ```
 //! # use rand_xoshiro::{Xoshiro256StarStar, rand_core::SeedableRng};
-//! use zoe::iter_utils::sampling::DownsampleMethodD;
+//! use zoe::iter_utils::sampling::DownsampleKnownSize;
 //!
 //! let target: usize = 4;
 //!
@@ -42,18 +49,18 @@
 //!
 //! let nums: Vec<usize> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 //!
-//! let downsampled = nums.iter().downsample(&mut rng, target).unwrap();
+//! let downsampled = nums.iter().downsample_known_size(&mut rng, target).unwrap();
 //!
 //! assert_eq!(downsampled.count(), target);
 //! ```
 //!
 //! The following example shows downsampling of a `Vec<usize>`, but first, a
 //! filter is applied, which leaves an iterator of unknown size, requiring use
-//! of Method L for downsampling.
+//! of reservoir sampling.
 //!
 //! ```
 //! # use rand_xoshiro::{Xoshiro256StarStar, rand_core::SeedableRng};
-//! use zoe::iter_utils::sampling::method_l;
+//! use zoe::iter_utils::sampling::downsample_reservoir;
 //!
 //! let target: usize = 4;
 //!
@@ -64,7 +71,7 @@
 //! let nums: Vec<usize> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 //! let filtered = nums.iter().filter(|num| *num % 2 == 0);
 //!
-//! let downsampled = method_l(filtered, &mut rng, target);
+//! let downsampled = downsample_reservoir(filtered, &mut rng, target);
 //! assert_eq!(downsampled.len(), target);
 //! ```
 //!
@@ -76,13 +83,17 @@
 //! functions. This feature is enabled by default.
 //!
 //! </div>
+//!
+//! [`downsample_known_size`]: DownsampleKnownSize::downsample_known_size
+//! [`downsample_bernoulli`]: DownsampleBernoulli::downsample_bernoulli
+
 #![allow(clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 use rand::{Rng, seq::IndexedMutRandom};
 use rand_xoshiro::Xoshiro256StarStar;
 
-/// Struct for subsampling using Method D, which wraps an iterator and holds the
-/// variables used in the Method D calculations for generating skips.
-pub struct MethodDSampler<'a, I: Iterator> {
+/// An iterator that efficiently downsampler from another iterator using *Method
+/// D*.
+pub struct SkipSampler<'a, I: Iterator> {
     iterator:             I,
     rng:                  &'a mut Xoshiro256StarStar,
     remaining_samples:    usize,
@@ -94,16 +105,15 @@ pub struct MethodDSampler<'a, I: Iterator> {
     threshold:            usize,
 }
 
-impl<'a, I: Iterator> MethodDSampler<'a, I> {
+impl<'a, I: Iterator> SkipSampler<'a, I> {
     const ALPHAINV: usize = 13;
 
-    /// Create a new [`MethodDSampler`] iterator that wraps and randomly
-    /// subsamples another iterator of known size.
+    /// Creates a new [`SkipSampler`] iterator that wraps and randomly
+    /// subsamples another iterator of known size using *Method D*.
     ///
-    /// # Errors
+    /// ## Errors
     ///
-    /// The sample target size must be smaller than the total population,
-    /// otherwise, an error is returned.
+    /// The sample target size must be smaller than the total population.
     pub fn new(iterator: I, target: usize, total_items: usize, rng: &'a mut Xoshiro256StarStar) -> std::io::Result<Self> {
         if target > total_items {
             return Err(std::io::Error::other(format!(
@@ -117,7 +127,7 @@ impl<'a, I: Iterator> MethodDSampler<'a, I> {
         let rem_samples_inv = (remaining_samples as f32).recip();
         let vprime = rng.random::<f32>().powf(rem_samples_inv);
 
-        Ok(MethodDSampler {
+        Ok(SkipSampler {
             iterator,
             remaining_samples,
             remaining_population,
@@ -192,7 +202,7 @@ impl<'a, I: Iterator> MethodDSampler<'a, I> {
         }
     }
 
-    /// Given a skip to return, update the remaining population and sample, and
+    /// Given a skip to return, updates the remaining population and sample, and
     /// update any cached values.
     fn yield_skip(&mut self, skip: usize, rem_samples_min1_inv: f32) -> usize {
         // Decrement due to skip, and due to the item yielded
@@ -206,16 +216,16 @@ impl<'a, I: Iterator> MethodDSampler<'a, I> {
         skip
     }
 
-    /// Similar to [`next_skip`], but uses Algorithm A which is faster when
+    /// Similar to [`next_skip`], but uses *Algorithm A* which is faster when
     /// `remaining_samples` is large relative to `remaining_population`.
     ///
-    /// Rather than using rejection sampling (Algorithm D) which has overhead,
-    /// Algorithm A uses inverse transform sampling. This requires checking each
-    /// value of `skips` from 0 until the final value returned, so when
+    /// Rather than using rejection sampling (*Method D*) which has overhead,
+    /// *Algorithm A* uses inverse transform sampling. This requires checking
+    /// each value of `skips` from 0 until the final value returned, so when
     /// `remaining_samples` is large (and hence skips tend to be small), this
     /// may be more efficient.
     ///
-    /// [`next_skip`]: MethodDSampler::next_skip
+    /// [`next_skip`]: SkipSampler::next_skip
     fn next_skip_method_a(&mut self) -> usize {
         if self.remaining_samples > 1 {
             let mut top = self.remaining_population - self.remaining_samples;
@@ -246,7 +256,7 @@ impl<'a, I: Iterator> MethodDSampler<'a, I> {
     }
 }
 
-impl<I: Iterator> Iterator for MethodDSampler<'_, I> {
+impl<I: Iterator> Iterator for SkipSampler<'_, I> {
     type Item = I::Item;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -300,11 +310,14 @@ where
     }
 }
 
-/// Method L (<https://dl.acm.org/doi/pdf/10.1145/198429.198435>)
+/// Performs reservoir sampling on an iterator.
 ///
-/// Creates an owned [`Vec`] that is a randomly downsampled subset of an
-/// iterator of unknown size.
-pub fn method_l<I, T>(iter: I, rng: &mut Xoshiro256StarStar, target: usize) -> Vec<T>
+/// This returns an owned [`Vec`] that is a randomly downsampled subset of an
+/// iterator (typically of unknown length). If the length of the iterator is
+/// known, consider using [`downsample_known_size`].
+///
+/// [`downsample_known_size`]: DownsampleKnownSize::downsample_known_size
+pub fn downsample_reservoir<I, T>(iter: I, rng: &mut Xoshiro256StarStar, target: usize) -> Vec<T>
 where
     I: Iterator<Item = T>, {
     let mut reservoir = Vec::with_capacity(target);
@@ -359,26 +372,28 @@ pub trait DownsampleBernoulli: Iterator + Sized {
 
 impl<I: Iterator> DownsampleBernoulli for I {}
 
-/// Extension trait for [`ExactSizeIterator`] that allows for `downsample` to be
-/// called directly on an iterator of known size.
-pub trait DownsampleMethodD: ExactSizeIterator + Sized {
-    /// Create a new [`MethodDSampler`] iterator that wraps and randomly
-    /// subsamples an [`ExactSizeIterator`] using Method D.
+/// Extension trait for [`ExactSizeIterator`] that allows for *Method D*
+/// sampling to be conducted on an iterator of known size.
+pub trait DownsampleKnownSize: ExactSizeIterator + Sized {
+    /// Creates a new [`SkipSampler`] iterator that wraps and randomly
+    /// subsamples an [`ExactSizeIterator`] using *Method D*.
+    ///
+    /// If your iterator does not implement [`ExactSizeIterator`], then
+    /// [`SkipSampler::new`] will need to be called directly.
     ///
     /// ## Errors
     ///
-    /// The sample target size must be smaller than the total population,
-    /// otherwise, an error is returned.
-    fn downsample(self, rng: &mut Xoshiro256StarStar, target: usize) -> std::io::Result<MethodDSampler<'_, Self>>;
+    /// The sample target size must be smaller than the total population.
+    fn downsample_known_size(self, rng: &mut Xoshiro256StarStar, target: usize) -> std::io::Result<SkipSampler<'_, Self>>;
 }
 
-impl<I> DownsampleMethodD for I
+impl<I> DownsampleKnownSize for I
 where
     I: ExactSizeIterator,
 {
     #[inline]
-    fn downsample(self, rng: &mut Xoshiro256StarStar, target: usize) -> std::io::Result<MethodDSampler<'_, I>> {
+    fn downsample_known_size(self, rng: &mut Xoshiro256StarStar, target: usize) -> std::io::Result<SkipSampler<'_, I>> {
         let total_items = self.len();
-        MethodDSampler::new(self, target, total_items, rng)
+        SkipSampler::new(self, target, total_items, rng)
     }
 }
