@@ -1,3 +1,8 @@
+//! ## Iterator Utilities
+//!
+//! This module provides miscellaneous iterators and tools for working with
+//! iterators.
+
 use std::{iter::FusedIterator, ops::ControlFlow};
 
 #[cfg(feature = "rand")]
@@ -195,6 +200,10 @@ where
 
 impl<T, I, E> FusedIterator for ProcessResults<'_, I, E> where I: Iterator<Item = Result<T, E>> {}
 
+/// An extension trait providing [`process_results`], a method for robustly
+/// handling iterators of results in a concise and ergonomic manner.
+///
+/// [`process_results`]: ProcessResultsExt::process_results
 pub trait ProcessResultsExt<T, E>: Iterator<Item = Result<T, E>> + Sized {
     /// Processes the `Ok` values in an iterator of results using a closure,
     /// aborting and propagating the first encountered error.

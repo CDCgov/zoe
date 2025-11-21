@@ -437,9 +437,9 @@ impl FromIterator<String> for SamTags {
 pub enum SamTagValue {
     /// A printable character in the range `! ..= ~`.
     Char(u8),
-    /// A signed integer
+    /// A signed integer.
     Int(i64),
-    /// A single-precision floating point number
+    /// A single-precision floating point number.
     Float(f32),
 }
 

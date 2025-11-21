@@ -81,7 +81,7 @@ impl<T: PhmmNumber> Default for LocalBestScore<T> {
 }
 
 impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
-    /// Obtain the best scoring local alignment along with its score via the
+    /// Computes the best scoring local alignment along with its score via the
     /// Viterbi algorithm.
     ///
     /// ## Errors

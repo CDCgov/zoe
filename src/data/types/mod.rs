@@ -7,6 +7,8 @@ pub mod nucleotides;
 /// Structs and types for processing Phred quality scores.
 pub mod phred;
 
+/// A macro for implementing standard library traits on sequence types and
+/// views.
 macro_rules! impl_std_traits_for_sequence {
     ($owned:ident, $view:ident, $viewmut:ident) => {
         impl AsRef<[u8]> for $owned {

@@ -25,20 +25,20 @@ impl<'a, T: Arbitrary<'a>> Arbitrary<'a> for Alignment<T> {
 ///
 /// ## Parameters:
 ///
-/// - `T`: The score type for the [`Alignment`]
+/// - `T`: The score type for the [`Alignment`].
 /// - `S`: [`AlignmentStates`] or arbitrary wrapper for generating the alignment
-///   states
+///   states.
 /// - `R_RANGE`: If true, ensures the length of the reference range is
-///   compatible with the generated [`AlignmentStates`]
+///   compatible with the generated [`AlignmentStates`].
 /// - `Q_RANGE`: If true, ensures the length of the query range is compatible
-///   with the generated [`AlignmentStates`]
+///   with the generated [`AlignmentStates`].
 /// - `R_LEN`: If true, ensures the length of the reference is at least the end
-///   of the reference range
+///   of the reference range.
 /// - `Q_LEN`: If true, ensures the length of the query is at least the end of
 ///   the query range plus the amount of soft clipping at the end of the
-///   [`AlignmentStates`]
+///   [`AlignmentStates`].
 /// - `CLIP`: If true, ensures the full query length is accounted for with soft
-///   clipping. If false, some or none of it may be marked with soft clipping
+///   clipping. If false, some or none of it may be marked with soft clipping.
 ///
 /// [`AlignmentStatesArbitrary`]:
 ///     crate::data::arbitrary::types::AlignmentStatesArbitrary
@@ -132,19 +132,21 @@ where
 }
 
 /// A combined arbitrary implementation for [`Alignment`] along with a
-/// corresponding query and reference sequence. This ensures that the
-/// `query_len`, `query_range`, `ref_len`, and `ref_range` fields are compatible
-/// with the generated sequences and with the [`AlignmentStates`].
+/// corresponding query and reference sequence.
+///
+/// This ensures that the `query_len`, `query_range`, `ref_len`, and `ref_range`
+/// fields are compatible with the generated sequences and with the
+/// [`AlignmentStates`].
 ///
 /// ## Parameters:
 ///
-/// - `Q`: The type for the query sequence
-/// - `R`: The type for the reference sequence
-/// - `T`: The score type for the [`Alignment`]
+/// - `Q`: The type for the query sequence.
+/// - `R`: The type for the reference sequence.
+/// - `T`: The score type for the [`Alignment`].
 /// - `S`: [`AlignmentStates`] or arbitrary wrapper for generating the alignment
-///   states
+///   states.
 /// - `CLIP`: If true, ensures the full query length is accounted for with soft
-///   clipping. If false, some or none of it may be marked with soft clipping
+///   clipping. If false, some or none of it may be marked with soft clipping.
 ///
 /// [`AlignmentStatesArbitrary`]:
 ///     crate::data::arbitrary::types::AlignmentStatesArbitrary

@@ -15,6 +15,9 @@ macro_rules! fill_std_gc {
 /// `.`, `-`, and `X` respectively.
 #[derive(Debug)]
 pub struct StdGeneticCode;
+
+/// The perfect hashmap associated with [`StdGeneticCode`], constructed at
+/// compile time.
 static STD_GENETIC_CODE: [u32; StdGeneticCode::TABLE_SIZE] = fill_std_gc!(
     b"TAA"=>b'*', b"TAG"=>b'*', b"TAR"=>b'*', b"TGA"=>b'*', b"TRA"=>b'*', b"GCA"=>b'A', b"GCB"=>b'A', b"GCC"=>b'A', b"GCD"=>b'A', b"GCG"=>b'A', b"GCH"=>b'A',
     b"GCK"=>b'A', b"GCM"=>b'A', b"GCN"=>b'A', b"GCR"=>b'A', b"GCS"=>b'A', b"GCT"=>b'A', b"GCV"=>b'A', b"GCW"=>b'A', b"GCY"=>b'A', b"TGC"=>b'C', b"TGT"=>b'C',
@@ -45,8 +48,11 @@ static STD_GENETIC_CODE: [u32; StdGeneticCode::TABLE_SIZE] = fill_std_gc!(
 );
 
 impl StdGeneticCode {
+    /// The number of bins in the perfect hashmap.
     const TABLE_SIZE: usize = 2048;
+    /// The mask used to extract the codon from an entry in the perfect hashmap.
     const MASK: u32 = 0xFF_FF_FF;
+    /// The perfect hashmap used for translation in [`StdGeneticCode`].
     const TABLE: &[u32; Self::TABLE_SIZE] = &STD_GENETIC_CODE;
 
     /// Retrieves the amino acid corresponding to a codon, or return `None` if
@@ -109,6 +115,8 @@ impl StdGeneticCode {
             )
     }
 
+    /// Initializes the [`StdGeneticCode`] perfect hashmap such that no entries
+    /// are populated.
     #[must_use]
     const fn new_raw_table() -> [u32; Self::TABLE_SIZE] {
         let mut raw_table = [0u32; Self::TABLE_SIZE];
@@ -127,6 +135,7 @@ impl StdGeneticCode {
         raw_table
     }
 
+    /// Inserts an entry into the [`StdGeneticCode`] perfect hashmap.
     #[inline]
     const fn insert(raw_table: &mut [u32; Self::TABLE_SIZE], codon: &[u8], aa: u8) {
         let num = Self::to_upper_u32(codon);
@@ -140,16 +149,21 @@ impl StdGeneticCode {
         raw_table[index] = ((aa as u32) << 24) | num;
     }
 
-    #[must_use]
+    /// For an encoded codon with [`to_upper_u32`], convert it to its bin index
+    /// in the perfect hashmap.
+    ///
+    /// [`to_upper_u32`]: StdGeneticCode::to_upper_u32
     #[inline]
+    #[must_use]
     const fn get_index(num: u32) -> usize {
         let hash = num ^ (num >> 9) ^ (num >> 12);
         // The compiler seems to be smart enough to optimize this
         hash as usize % Self::TABLE_SIZE
     }
 
-    #[must_use]
+    /// Convert a codon (with three bases) to an encoded `u32`.
     #[inline]
+    #[must_use]
     const fn to_upper_u32(codon: &[u8]) -> u32 {
         (codon[2].to_ascii_uppercase() as u32)
             | ((codon[1].to_ascii_uppercase() as u32) << 8)

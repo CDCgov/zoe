@@ -31,7 +31,6 @@ pub mod search;
 #[cfg(feature = "rand")]
 /// Generate sequences and other data.
 pub(crate) mod generate;
-/// Iterator utilities.
 pub mod iter_utils;
 
 /// Common structures and traits re-exported

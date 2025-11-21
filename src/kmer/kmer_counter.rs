@@ -33,7 +33,7 @@ use std::{
 ///    counts, while [`keys_encoded`] and [`keys_decoded`] provide just the
 ///    k-mers
 /// 3. Search for the k-mers within a sequence using [`FindKmersInSeq`] (or the
-///    related trait [`FindKmers`]).
+///    related trait [`FindKmers`])
 ///
 /// Consider using the alias [`ThreeBitKmerCounter`], unless you are using a
 /// custom [`KmerEncoder`].
@@ -47,7 +47,8 @@ use std::{
 /// </div>
 ///
 /// [`KmerSet`]: super::KmerSet
-/// [`ThreeBitKmerCounter`]: crate::kmer::encoders::three_bit::ThreeBitKmerCounter
+/// [`ThreeBitKmerCounter`]:
+///     crate::kmer::encoders::three_bit::ThreeBitKmerCounter
 /// [`SupportedKmerLen`]: super::SupportedKmerLen
 /// [`tally_kmer`]: KmerCounter::tally_kmer
 /// [`tally_kmer_with_variants`]: KmerCounter::tally_kmer_with_variants
@@ -66,7 +67,9 @@ use std::{
 pub struct KmerCounter<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S = RandomState>
 where
     S: BuildHasher, {
+    /// The hashmap storing the encoded k-mers and their counts.
     map:     HashMap<E::EncodedKmer, usize, S>,
+    /// The encoder used to encode the k-mers.
     encoder: E,
 }
 

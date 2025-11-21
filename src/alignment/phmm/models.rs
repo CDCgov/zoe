@@ -209,12 +209,11 @@ impl<T: PhmmNumber, const S: usize> Default for LayerParams<T, S> {
 /// [`LocalPhmm`], [`DomainPhmm`], and [`SemiLocalPhmm`].
 ///
 /// This includes the layers of the pHMM without any modules at the beginning or
-/// end.
-///
-/// This struct guarantees that at least two layers are present (corresponding
-/// to a reference length of one).
+/// end. This struct guarantees that at least two layers are present
+/// (corresponding to a reference length of one).
 ///
 /// Internally, each element stores:
+///
 /// - The transition probabilities into the insert state within the current
 ///   layer, as well as the insert state's emission probabilities
 /// - The transition probabilities from the current layer's states into the next
@@ -227,6 +226,7 @@ impl<T: PhmmNumber, const S: usize> Default for LayerParams<T, S> {
 /// Note that this is different from
 /// [SAM](https://tr.soe.ucsc.edu/sites/default/files/technical-reports/UCSC-CRL-96-22.pdf),
 /// which instead has:
+///
 /// - The emission probabilities for the insert and match states are stored in
 ///   that layer
 /// - The transition probabilities from the previous layer to the current layer

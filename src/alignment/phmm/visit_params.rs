@@ -1,12 +1,15 @@
-//! Functions for examining the parameters encountered when following a given
-//! alignment through a pHMM.
+//! Implementations for examining the parameters encountered when following a
+//! given alignment through a pHMM.
+//!
+//! See [`GlobalPhmm::visit_params`], [`LocalPhmm::visit_params`],
+//! [`SemiLocalPhmm::visit_params`], and [`DomainPhmm::visit_params`].
 //!
 //! <div class="warning note">
 //!
 //! **Note**
 //!
 //! You must enable the *alignment-diagnostics* feature in your `Cargo.toml` to
-//! use these functions.
+//! use these methods.
 //!
 //! </div>
 
@@ -184,51 +187,51 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
 /// A wrapper around a pHMM parameter of type `T` which also contains metadata
 /// about that parameter.
 pub struct PhmmParam<T> {
-    /// The parameter value, in negative log space
+    /// The parameter value, in negative log space.
     pub param: T,
-    /// Information about the parameter and where it occurred in the model
+    /// Information about the parameter and where it occurred in the model.
     pub kind:  PhmmParamKind<T>,
 }
 
 /// Metadata about a pHMM parameter, used in [`PhmmParam`].
 pub enum PhmmParamKind<T> {
-    /// An emission parameter from a match state
+    /// An emission parameter from a match state.
     EmissionMatch {
-        /// The layer index of the match state
+        /// The layer index of the match state.
         layer_idx:   DpIndex,
-        /// The residue index that was emitted
+        /// The residue index that was emitted.
         residue_idx: usize,
     },
-    /// An emission parameter from an insert state
+    /// An emission parameter from an insert state.
     EmissionInsert {
-        /// The layer index of the insert state
+        /// The layer index of the insert state.
         layer_idx:   DpIndex,
-        /// The residue index that was emitted
+        /// The residue index that was emitted.
         residue_idx: usize,
     },
-    /// A transition parameter between two states in the [`CorePhmm`]
+    /// A transition parameter between two states in the [`CorePhmm`].
     Transition {
-        /// The index of the layer that is being transitioned out of
+        /// The index of the layer that is being transitioned out of.
         starting_layer: DpIndex,
-        /// The state that is being transitioned out of
+        /// The state that is being transitioned out of.
         starting_state: PhmmState,
-        /// The state that is being transitioned into
+        /// The state that is being transitioned into.
         ending_state:   PhmmState,
     },
     /// The (composite) parameter emitted by a [`LocalModule`] at the beginning
-    /// of a [`LocalPhmm`]
+    /// of a [`LocalPhmm`].
     ///
     /// [`LocalModule`]: super::modules::LocalModule
     BeginLocal {
         /// The (composite) parameter within the module, associated with
-        /// skipping residues at the beginning of the query
+        /// skipping residues at the beginning of the query.
         internal_param: T,
-        /// The skipped residues at the beginning of the query
+        /// The skipped residues at the beginning of the query.
         skipped:        Vec<u8>,
         /// The parameter connecting the module to the [`CorePhmm`], associated
-        /// with skipping to a layer in the pHMM
+        /// with skipping to a layer in the pHMM.
         external_param: T,
-        /// The layer in the [`CorePhmm`] which is entered
+        /// The layer in the [`CorePhmm`] which is entered.
         to_layer:       DpIndex,
     },
     /// The (composite) parameter emitted by a [`LocalModule`] at the end of a
@@ -237,34 +240,34 @@ pub enum PhmmParamKind<T> {
     /// [`LocalModule`]: super::modules::LocalModule
     EndLocal {
         /// The (composite) parameter within the module, associated with
-        /// skipping residues at the end of the query
+        /// skipping residues at the end of the query.
         internal_param: T,
-        /// The skipped residues at the end of the query
+        /// The skipped residues at the end of the query.
         skipped:        Vec<u8>,
         /// The parameter connecting the module to the [`CorePhmm`], associated
-        /// with exiting early from a layer in the pHMM
+        /// with exiting early from a layer in the pHMM.
         external_param: T,
-        /// The layer in the [`CorePhmm`] which is exited
+        /// The layer in the [`CorePhmm`] which is exited.
         from_layer:     DpIndex,
     },
     /// The (composite) parameter emitted by a [`DomainModule`] at the beginning
-    /// of a [`DomainPhmm`]
+    /// of a [`DomainPhmm`].
     ///
     /// [`DomainModule`]: super::modules::DomainModule
     BeginDomain {
-        /// The skipped residues at the beginning of the query
+        /// The skipped residues at the beginning of the query.
         skipped: Vec<u8>,
     },
     /// The (composite) parameter emitted by a [`DomainModule`] at the end of a
-    /// [`DomainPhmm`]
+    /// [`DomainPhmm`].
     ///
     /// [`DomainModule`]: super::modules::DomainModule
     EndDomain {
-        /// The skipped residues at the end of the query
+        /// The skipped residues at the end of the query.
         skipped: Vec<u8>,
     },
     /// The parameter emitted by a [`SemiLocalModule`] at the beginning
-    /// of a [`SemiLocalPhmm`]
+    /// of a [`SemiLocalPhmm`].
     ///
     /// [`SemiLocalModule`]: super::modules::SemiLocalModule
     BeginSemilocal {
@@ -272,11 +275,11 @@ pub enum PhmmParamKind<T> {
         to_layer: DpIndex,
     },
     /// The parameter emitted by a [`SemiLocalModule`] at the end of a
-    /// [`SemiLocalPhmm`]
+    /// [`SemiLocalPhmm`].
     ///
     /// [`SemiLocalModule`]: super::modules::SemiLocalModule
     EndSemilocal {
-        /// The layer in the [`CorePhmm`] which is exited
+        /// The layer in the [`CorePhmm`] which is exited.
         from_layer: DpIndex,
     },
 }
@@ -422,10 +425,10 @@ where
 /// The return value is the state from which the [`CorePhmm`] is exited (which
 /// is the last one before the END state if there is no early exit).
 ///
-/// `ref_range` specifies the range of the PHMM's underlying "reference" that
+/// `ref_range` specifies the range of the pHMM's underlying "reference" that
 /// should be consumed while scoring. For global alignment or domain alignment,
-/// this is the full length of the pHMM (as can be found with [`seq_len`]).
-/// For other forms of alignment, this may be a smaller range.
+/// this is the full length of the pHMM (as can be found with [`seq_len`]). For
+/// other forms of alignment, this may be a smaller range.
 ///
 /// `seq_in_alignment` should contain exactly the portion of the sequence
 /// matched by the model in the given alignment.
@@ -609,8 +612,8 @@ fn resolve_ambiguous_start<T: PhmmNumber, const S: usize>(
             Some(transition_from_begin),
         ),
         Match => {
-            // Handle ambiguity: it is unclear whether we pass through
-            // the BEGIN state of the core PHMM or not
+            // Handle ambiguity: it is unclear whether we pass through the BEGIN
+            // state of the core pHMM or not
             let external_begin_param_skip_begin = begin_module.get_score(FirstMatch);
             let score_skipping_begin = score + external_begin_param_skip_begin;
 
@@ -671,7 +674,7 @@ fn resolve_ambiguous_end<T: PhmmNumber, const S: usize>(
         Delete | Insert => (Some(transition_to_end), external_end_param_through_end, core.to_dp_index(End)),
         Match => {
             // Handle ambiguity: it is unclear whether we pass through
-            // the END state of the core PHMM or not
+            // the END state of the core pHMM or not
             let external_end_param_skip_end = end_module.get_score(LastMatch);
             let end_param_skip_end = if let Some(internal_end_param) = internal_end_param {
                 internal_end_param + external_end_param_skip_end
@@ -708,7 +711,16 @@ impl<T: PhmmNumber, const S: usize> GlobalPhmm<T, S> {
     /// ## Errors
     ///
     /// The CIGAR string must consume the entire model and sequence, and the
-    /// only supported operations are M, =, X, I, and D.
+    /// only supported operations are `M`, `=`, `X`, `I`, and `D`.
+    ///
+    /// <div class="warning note">
+    ///
+    /// **Note**
+    ///
+    /// You must enable the *alignment-diagnostics* feature in your `Cargo.toml`
+    /// to use this method.
+    ///
+    /// </div>
     ///
     /// [`viterbi`]: GlobalPhmm::viterbi
     pub fn visit_params<Q, A, F>(&self, seq: Q, alignment: A, f: F) -> Result<T, PhmmError>
@@ -795,9 +807,18 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
     /// ## Errors
     ///
     /// The CIGAR string must consume the entire model and sequence, and the
-    /// only supported operations are M, =, X, I, and D. If `path` does not
-    /// correspond to a valid path through a [`LocalPhmm`], then
+    /// only supported operations are `M`, `=`, `X`, `I`, and `D`. If `path`
+    /// does not correspond to a valid path through a [`LocalPhmm`], then
     /// [`PhmmError::InvalidPath`] is returned.
+    ///
+    /// <div class="warning note">
+    ///
+    /// **Note**
+    ///
+    /// You must enable the *alignment-diagnostics* feature in your `Cargo.toml`
+    /// to use this method.
+    ///
+    /// </div>
     ///
     /// [`viterbi`]: LocalPhmm::viterbi
     #[allow(clippy::too_many_lines)]
@@ -1018,9 +1039,18 @@ impl<T: PhmmNumber, const S: usize> DomainPhmm<T, S> {
     /// ## Errors
     ///
     /// The CIGAR string must consume the entire model and sequence, and the
-    /// only supported operations are M, =, X, I, and D. If `path` does not
-    /// correspond to a valid path through a [`DomainPhmm`], then
+    /// only supported operations are `M`, `=`, `X`, `I`, and `D`. If `path`
+    /// does not correspond to a valid path through a [`DomainPhmm`], then
     /// [`PhmmError::InvalidPath`] is returned.
+    ///
+    /// <div class="warning note">
+    ///
+    /// **Note**
+    ///
+    /// You must enable the *alignment-diagnostics* feature in your `Cargo.toml`
+    /// to use this method.
+    ///
+    /// </div>
     ///
     /// [`viterbi`]: DomainPhmm::viterbi
     pub fn visit_params<Q, F>(&self, seq: Q, alignment: &AlignmentStates, f: F) -> Result<T, PhmmError>
@@ -1129,9 +1159,18 @@ impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
     /// ## Errors
     ///
     /// The CIGAR string must consume the entire model and sequence, and the
-    /// only supported operations are M, =, X, I, and D. If `path` does not
-    /// correspond to a valid path through a [`SemiLocalPhmm`], then
+    /// only supported operations are `M`, `=`, `X`, `I`, and `D`. If `path`
+    /// does not correspond to a valid path through a [`SemiLocalPhmm`], then
     /// [`PhmmError::InvalidPath`] is returned.
+    ///
+    /// <div class="warning note">
+    ///
+    /// **Note**
+    ///
+    /// You must enable the *alignment-diagnostics* feature in your `Cargo.toml`
+    /// to use this method.
+    ///
+    /// </div>
     ///
     /// [`viterbi`]: SemiLocalPhmm::viterbi
     pub fn visit_params<Q, F>(

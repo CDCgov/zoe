@@ -114,7 +114,7 @@ impl PhmmState {
     }
 }
 
-/// A [`PhmmState`] or [`PhmmStateOrEnter`] represented as a u8.
+/// A [`PhmmState`] or [`PhmmStateOrEnter`] represented as a `u8`.
 ///
 /// `Match` corresponds to 0, `Delete` corresponds to 1, `Insert` corresponds to
 /// 2, and `Enter` corresponds to 3.

@@ -139,7 +139,7 @@ where
     /// sequence, from right to left.
     ///
     /// If the sequence is shorter than the k-mer length of the [`KmerEncoder`],
-    /// then the iterator will be empty
+    /// then the iterator will be empty.
     ///
     /// This is similar to [`iter_from_sequence_rev`], but the iterator
     /// consumes/stores the sequence (which must be able to be converted to a

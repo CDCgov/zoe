@@ -33,6 +33,7 @@ impl SamHmmParser {
     ///
     /// ## Errors
     ///
+    /// - Any IO errors from reading the data are propagated
     /// - The data must meet the SAM model specifications
     /// - The data must be a model (not a regularizer or null model)
     /// - The specified alphabet must be `dna`
@@ -54,11 +55,12 @@ impl SamHmmParser {
         SupportedConfig::parse_sam_model(File::open(filename)?)
     }
 
-    /// Parses a protein pHMM from a SAM model file.
+    /// Parses a protein pHMM from SAM model specifications in a type
+    /// implementing [`Read`].
     ///
     /// ## Errors
     ///
-    /// - Any IO errors from reading the file are propagated
+    /// - Any IO errors from reading the data are propagated
     /// - The data must meet the SAM model specifications
     /// - The data must be a model (not a regularizer or null model)
     /// - The specified alphabet must be `protein`

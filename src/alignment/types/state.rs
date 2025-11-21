@@ -519,6 +519,7 @@ impl StatesSequence for &[Ciglet] {
 pub trait CheckedCigar
 where
     for<'a> &'a Self: IntoIterator<Item: std::borrow::Borrow<Ciglet>>, {
+    /// Sums the lengths for all operations, returning `None` for overflow.
     #[inline]
     #[must_use]
     fn total_increments_checked(&self) -> Option<usize> {

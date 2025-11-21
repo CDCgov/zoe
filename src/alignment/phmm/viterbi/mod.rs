@@ -42,12 +42,12 @@ fn update_delete<T: PhmmNumber, const S: usize>(
 
 /// A traceback matrix for Viterbi alignment.
 ///
-/// The data is arranged with the query residues as the columns and the PHMM
+/// The data is arranged with the query residues as the columns and the pHMM
 /// layers as the rows, and then row-major order is used.
 ///
 /// The number of columns is one more than the query length (to allow the
 /// condition of no bases in the query being matched to be represented). The
-/// number of rows is one more than the number of PHMM match states (i.e., the
+/// number of rows is one more than the number of pHMM match states (i.e., the
 /// number of match states along with the BEGIN state).
 struct ViterbiTraceback<T> {
     data: Vec<T>,

@@ -4,46 +4,41 @@ All notable changes to this project will be documented in this file. The format
 is roughly based on [Keep a Changelog], and this project tries to adheres to
 [Semantic Versioning].
 
-## [0.0.23] - TBD
+## [0.0.23] - 2025-11-24
 
 ### Added
 
 - Added `nw_scalar_score` and `nw_scalar_alignment` for performing global sequence alignment
+- Added random downsampling for iterators of known and unknown lengths in `iter_utils::sampling`
 - Added the method `process_results` to more robustly work with iterators of results
 - Added `get_aligned_query`, similar to `get_aligned_seqs` but returning only the query sequence
 - Added additional getters and convenience methods on `SamTags` and `SamTagValue`
 - Added `to_eq_x` to `Alignment` and `AlignmentStates`, which converts `M` to either `=` or `X` in the alignment
+- Added `SequenceReadable` getter trait to record types and sequence types
 - Added `from_ciglets_unchecked` and `from_cigar_unchecked` to `AlignmentStates`
 - Added `decode_iter` to `KmerEncoder`
-- Added `SequenceReadable` getter trait to record types and sequence types
 - Added `nw_score_from_path` for rescoring a global alignment (behind `alignment-diagnostics` feature gate)
-- Introduced the `AlignmentAndSeqs` arbitrary wrapper (behind `fuzzing` feature gate)
-- Added `AminoAcidsIupacX` arbitrary wrapper (behind `fuzzing` feature gate)
+- Introduced the `AlignmentAndSeqs` and `AminoAcidsIupacX` arbitrary wrappers (behind `fuzzing` feature gate)
 - Added `visit_params` methods to pHMMs as a diagnostic tool for inspecting the parameters that are visited along a given path (behind `dev-phmm` and `alignment-diagnostics` feature gates)
 - Added the ability to remove layers from a pHMM (behind `dev-phmm` and `alignment-diagnostics` feature gates)
-- Added random downsampling for sized and non-sized iterators using `MethodDSampler`, `method_l`, and `BernoulliSampler`
 
 ### Changed
 
+- `TryFrom` for `AlignmentStates` now merges adjacent ciglets with the same operation
+- An iterator of ciglets now collects into a `Result<AlignmentStates, CigarError>` instead of `AlignmentStates`, and performs merging as above
 - The view traits have been refactored so that all associated types are defined in the `ViewAssocTypes` trait
 - `reborrow_view` has been added to allow invariant lifetimes to be shortened in views
 - `Vec<u8>`, `&[u8]`, and `&mut [u8]` now implement the various view traits
-- `TryFrom` for `AlignmentStates` now merges adjacent ciglets with the same operation
-- An iterator of ciglets now collects into a `Result<AlignmentStates, CigarError>` instead of `AlignmentStates`, and performs merging as above
 - Pairs of methods accepting encoded and decoded k-mers have been merged
 - `KmerCounter` has had its methods renamed from `insert` to `tally`
 - Iterators over encoded k-mers from `KmerSet` now return owned values
 - `KmerCollectionContains` is renamed to `FindKmersInSeq`
 - The `kmer` module has been restructured to simplify the docs
-- Implemented `std::fmt::Binary` for `ThreeBitEncodedKmer`
-- `AnyInt` now has `std::fmt::Binary` as an additional trait bound
-- `SliceRange` is now publicly exposed
-- `sw_score_from_path` is now behind the `alignment-diagnostics` feature gate
+- Implemented `std::fmt::Binary` for `ThreeBitEncodedKmer`, and added it as a trait bound to `AnyInt`
+- `sw_score_from_path` and `sw_scalar_alignment_override` are now behind the `alignment-diagnostics` feature gate
 - Modified the behavior of `AlignmentArbitrary` and `AlignmentStatesArbitrary` (behind `fuzzing` feature gate)
-- Refactored the organization and visibility of pHMM structs/fields/modules (behind `dev-phmm` feature gate)
-- Modified Viterbi algorithm to use compact bit representation instead of array (behind `dev-phmm` feature gate)
-- `next_index` and `prev_index` now evaluate eagerly and require a pHMM as an argument (behind `dev-phmm` and `alignment-diagnostics` feature gates)
-- The inner fields of `SAMReader` and `FastQReader` are now properly private.
+- Refactored the organization/visibility of pHMM code; modified `SamHmmParser` constructors; applied compact bit representation for Viterbi traceback; switched to eager evaluation for `next_index` and `prev_index` (behind `dev-phmm` feature gate)
+- The inner fields of `SAMReader` and `FastQReader` are now properly private, and `SliceRange` is properly public
 
 ### Fixed
 

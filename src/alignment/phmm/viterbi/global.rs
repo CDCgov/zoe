@@ -50,7 +50,7 @@ impl<T: PhmmNumber> Default for GlobalBestScore<T> {
 }
 
 impl<T: PhmmNumber, const S: usize> GlobalPhmm<T, S> {
-    /// Obtain the best scoring global alignment along with its score via the
+    /// Computes the best scoring global alignment along with its score via the
     /// Viterbi algorithm.
     ///
     /// ## Errors

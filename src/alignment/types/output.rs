@@ -142,8 +142,8 @@ impl<T> Alignment<T> {
     /// Given the output of an alignment algorithm, generate the aligned
     /// sequences, using `-` as a gap character.
     ///
-    /// `reference` and `query` should be the full sequences originally passed
-    /// to the alignment algorithm.
+    /// The arguments `reference` and `query` should be the full sequences
+    /// originally passed to the alignment algorithm.
     ///
     /// The first output is the aligned reference, and the second is the aligned
     /// query. Portions of the reference that were not matched are not included
@@ -200,7 +200,7 @@ impl<T> Alignment<T> {
     /// Note that any [`Alignment`] struct returned by a *Zoe* alignment
     /// function will satisfy these.
     ///
-    /// - All operations must be valid state, e.g, bytes in `MIDNSHP=X`.
+    /// - All operations must be valid state (bytes in `MIDNSHP=X`).
     /// - The query must be at least as long as the length implied by the
     ///   alignment operations.
     ///

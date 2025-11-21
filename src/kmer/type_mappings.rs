@@ -1,3 +1,5 @@
+//! Helper traits/structs for supporting compile time dispatch and type mappings
+
 use crate::{
     kmer::{
         KmerEncoder,
@@ -27,9 +29,10 @@ pub struct KmerLen<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>>(PhantomData<E>
 /// - `22..=42`: uses a `u128`
 ///
 /// This must never be implemented on any [`KmerLen`] where `MAX_LEN > 255`,
-/// since [`Kmer`] uses a `u8` to store the kmer length.
+/// since [`Kmer`] uses a `u8` to store the k-mer length.
 ///
-/// [`ThreeBitKmerEncoder`]: crate::kmer::encoders::three_bit::ThreeBitKmerEncoder
+/// [`ThreeBitKmerEncoder`]:
+///     crate::kmer::encoders::three_bit::ThreeBitKmerEncoder
 /// [`Kmer`]: super::Kmer
 pub trait SupportedKmerLen {
     /// The integer type used to store the encoded k-mer.
@@ -114,6 +117,7 @@ pub trait SupportedMismatchNumber<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>>
     fn get_iterator(encoded_kmer: E::EncodedKmer, encoder: &E) -> Self::MismatchIter;
 }
 
+/// A macro for implementing [`SupportedMismatchNumber`].
 macro_rules! impl_select_mismatch_iter {
     ($encoder:ident, $mismatch:ident, $($n:expr => $iter:ty),*) => {
         $(

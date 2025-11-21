@@ -3,23 +3,23 @@ use std::{
     slice::SliceIndex,
 };
 
-/// A trait alias for range types (with usize bounds, used to index into
+/// A trait alias for range types (with `usize` bounds, used to index into
 /// `&[u8]`).
 pub trait SliceRange: SliceIndex<[u8], Output = [u8]> + Clone + RangeBounds<usize> {}
 impl<T: SliceIndex<[u8], Output = [u8]> + Clone + RangeBounds<usize>> SliceRange for T {}
 
-/// Helper trait for adding a constant value to an index or range
+/// Helper trait for adding a constant value to an index or range.
 pub(crate) trait IndexAdjustable {
-    /// Add a constant value to the range or index
+    /// Adds a constant value to the range or index.
     #[must_use]
     fn add(&self, n: usize) -> Self;
 
-    /// Subtract a constant value to the range or index
+    /// Subtracts a constant value to the range or index.
     #[must_use]
     #[allow(dead_code)]
     fn sub(&self, n: usize) -> Self;
 
-    /// Subtract a constant value to the range or index, saturating at bounds
+    /// Subtracts a constant value to the range or index, saturating at bounds.
     #[must_use]
     #[allow(dead_code)]
     fn saturating_sub(&self, n: usize) -> Self;

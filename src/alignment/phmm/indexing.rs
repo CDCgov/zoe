@@ -21,9 +21,9 @@ use std::ops::{Bound, Range, RangeBounds, RangeFrom, RangeInclusive, RangeTo, Ra
 
 /// A trait similar to [`RangeBounds`] but for ranges of [`PhmmIndex`] values.
 pub trait PhmmIndexRange: Clone {
-    /// The type of the starting index
+    /// The type of the starting index.
     type Start: PhmmIndex;
-    /// The type of the ending index
+    /// The type of the ending index.
     type End: PhmmIndex;
 
     /// Returns the starting index in the range as a [`Bound`].

@@ -1,3 +1,5 @@
+//! Traits providing generic k-mer functionality to collections
+
 use crate::{
     kmer::{
         KmerEncoder, SupportedKmerLen,

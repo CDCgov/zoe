@@ -33,7 +33,7 @@ use std::{
 ///    implemented, including difference, intersection, symmetric difference,
 ///    and union
 /// 4. Search for the k-mers within a sequence using [`FindKmersInSeq`] (or the
-///    related trait [`FindKmers`]).
+///    related trait [`FindKmers`])
 ///
 /// Consider using the alias [`ThreeBitKmerSet`], unless you are using a custom
 /// [`KmerEncoder`].
@@ -64,7 +64,9 @@ use std::{
 pub struct KmerSet<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S = RandomState>
 where
     S: BuildHasher, {
+    /// The hashset storing the encoded k-mers and their counts.
     set:     HashSet<E::EncodedKmer, S>,
+    /// The encoder used to encode the k-mers.
     encoder: E,
 }
 
