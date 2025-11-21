@@ -306,12 +306,14 @@ impl<T: Copy> Alignment<T> {
     /// the alignment, then this will panic due to out of bounds indexing.
     #[inline]
     #[must_use]
-    pub fn to_eq_x(&self, reference: &[u8], query: &[u8]) -> Self {
+    pub fn to_verbose_sequence_matching(&self, reference: &[u8], query: &[u8]) -> Self {
         Self {
             score:       self.score,
             ref_range:   self.ref_range.clone(),
             query_range: self.query_range.clone(),
-            states:      self.states.to_eq_x(reference, query, self.ref_range.start),
+            states:      self
+                .states
+                .to_verbose_sequence_matching(reference, query, self.ref_range.start),
             ref_len:     self.ref_len,
             query_len:   self.query_len,
         }

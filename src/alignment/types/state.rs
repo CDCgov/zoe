@@ -208,22 +208,22 @@ impl AlignmentStates {
     /// Generates a new alignment states replacing `M` with either `=` for
     /// matches and `X` for mismatches.
     ///
-    /// Consider using [`Alignment::to_eq_x`] if you have an [`Alignment`]
-    /// object.
+    /// Consider using [`Alignment::to_verbose_sequence_matching`] if you have
+    /// an [`Alignment`] object.
     ///
     /// The `reference` should be the entire reference, and `ref_index` is the
     /// starting position of the alignment within the passed reference.
     ///
     /// ## Panics
     ///
-    /// If either `reference` or `query` are of a shorter length than
-    /// implied by the alignment, then this will panic due to out of bounds
-    /// indexing.
+    /// If either `reference` or `query` are of a shorter length than implied by
+    /// the alignment, then this will panic due to out of bounds indexing.
     ///
     /// [`Alignment`]: super::Alignment
-    /// [`Alignment::to_eq_x`]: super::Alignment::to_eq_x
+    /// [`Alignment::to_verbose_sequence_matching`]:
+    ///     super::Alignment::to_verbose_sequence_matching
     #[must_use]
-    pub fn to_eq_x(&self, reference: &[u8], query: &[u8], mut ref_index: usize) -> Self {
+    pub fn to_verbose_sequence_matching(&self, reference: &[u8], query: &[u8], mut ref_index: usize) -> Self {
         let mut out = AlignmentStates::with_capacity(self.0.len());
         let mut query_index = 0;
 
