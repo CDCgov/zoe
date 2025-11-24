@@ -20,6 +20,13 @@ pub struct CigarView<'a>(&'a [u8]);
 pub struct CigarViewMut<'a>(&'a mut [u8]);
 
 impl<'a> CigarView<'a> {
+    /// Retrieves the underlying byte string from the CIGAR string.
+    #[inline]
+    #[must_use]
+    pub fn as_bytes(&self) -> &'a [u8] {
+        self.0
+    }
+
     /// Creates a new [`CigarView`] from `v` without checking for validity.
     #[inline]
     #[must_use]
@@ -36,6 +43,13 @@ impl<'a> CigarView<'a> {
 }
 
 impl<'a> CigarViewMut<'a> {
+    /// Retrieves the underlying byte string from the CIGAR string.
+    #[inline]
+    #[must_use]
+    pub fn as_bytes(&self) -> &[u8] {
+        self.0
+    }
+
     /// Creates a new [`CigarViewMut`] from `v` without checking for validity.
     #[inline]
     #[must_use]

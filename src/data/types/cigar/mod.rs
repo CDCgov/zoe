@@ -42,14 +42,15 @@ const USIZE_WIDTH: usize = 10;
 const USIZE_WIDTH: usize = 20;
 
 impl Cigar {
-    /// Retrieves the underlying byte string from the CIGAR string
+    /// Retrieves the underlying byte string from the CIGAR string.
     #[inline]
     #[must_use]
     pub fn as_bytes(&self) -> &[u8] {
         self.0.as_slice()
     }
 
-    /// Creates a CIGAR string from a Vec of bytes without checking for validity
+    /// Creates a CIGAR string from a Vec of bytes without checking for
+    /// validity.
     #[inline]
     #[must_use]
     pub fn from_vec_unchecked(v: Vec<u8>) -> Self {
@@ -511,8 +512,8 @@ impl FromIterator<Ciglet> for Result<Cigar, CigarError> {
 /// - The CIGAR operations must be among `M, I, D, N, S, H, P, X, =`
 /// - Every operation in the CIGAR string must have a preceding increment
 /// - Every increment must be followed by an operation
-/// - The increment for each operation must be non-zero and less than
-///   [`usize::MAX`]
+/// - The increment for each operation must be non-zero and less than or equal
+///   to [`usize::MAX`]
 ///
 /// If any of these are not valid, a [`CigarError`] is returned. Note that this
 /// iterator does not confirm that adjacent operations are distinct.

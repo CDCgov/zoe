@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file. The format
 is roughly based on [Keep a Changelog], and this project tries to adheres to
 [Semantic Versioning].
 
+## [0.0.24] - TBD
+
+### Added
+
+- Added `to_alignment` to convert `SamData` to `Alignment`
+- Added ability to push tags to `SamTags`
+
 ## [0.0.23] - 2025-11-24
 
 ### Added
@@ -365,6 +372,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - **Added**: Initial internal release. Provides various readers and types for bioinformatics data manipulation.
 
 <!-- Versions -->
+[0.0.24]: https://github.com/CDCgov/zoe/compare/v0.0.23...v0.0.24
 [0.0.23]: https://github.com/CDCgov/zoe/compare/v0.0.22...v0.0.23
 [0.0.22]: https://github.com/CDCgov/zoe/compare/v0.0.21...v0.0.22
 [0.0.21]: https://github.com/CDCgov/zoe/compare/v0.0.20...v0.0.21

@@ -1,6 +1,6 @@
 use super::AlignmentStates;
 use crate::data::{
-    cigar::is_valid_op,
+    cigar::{CigarView, is_valid_op},
     types::cigar::{Cigar, CigarError, Ciglet, CigletIteratorChecked},
 };
 use std::fmt::Write;
@@ -111,6 +111,18 @@ impl std::fmt::Display for AlignmentStates {
 impl TryFrom<&[u8]> for AlignmentStates {
     type Error = CigarError;
 
+    /// Tries to convert a byte slice into an [`AlignmentStates`].
+    ///
+    /// Note that this will allocate a new vector. `*` is converted to an empty
+    /// alignment states struct.
+    ///
+    /// ## Errors
+    ///
+    /// - The CIGAR operations must be among `M, I, D, N, S, H, P, X, =`
+    /// - Every operation in the CIGAR string must have a preceding increment
+    /// - Every increment must be followed by an operation
+    /// - The increment for each operation must be non-zero and less than or
+    ///   equal to [`usize::MAX`]
     fn try_from(v: &[u8]) -> Result<Self, CigarError> {
         let mut states = AlignmentStates::new();
 
@@ -149,6 +161,18 @@ impl TryFrom<&[u8]> for AlignmentStates {
 impl TryFrom<String> for AlignmentStates {
     type Error = CigarError;
 
+    /// Tries to convert a string into [`AlignmentStates`].
+    ///
+    /// Note that this will allocate a new vector. `*` is converted to an empty
+    /// alignment states struct.
+    ///
+    /// ## Errors
+    ///
+    /// - The CIGAR operations must be among `M, I, D, N, S, H, P, X, =`
+    /// - Every operation in the CIGAR string must have a preceding increment
+    /// - Every increment must be followed by an operation
+    /// - The increment for each operation must be non-zero and less than or
+    ///   equal to [`usize::MAX`]
     #[inline]
     fn try_from(s: String) -> Result<Self, Self::Error> {
         AlignmentStates::try_from(s.as_bytes())
@@ -158,6 +182,18 @@ impl TryFrom<String> for AlignmentStates {
 impl TryFrom<Vec<u8>> for AlignmentStates {
     type Error = CigarError;
 
+    /// Tries to convert a vector of bytes into [`AlignmentStates`].
+    ///
+    /// Note that this will allocate a new vector. `*` is converted to an empty
+    /// alignment states struct.
+    ///
+    /// ## Errors
+    ///
+    /// - The CIGAR operations must be among `M, I, D, N, S, H, P, X, =`
+    /// - Every operation in the CIGAR string must have a preceding increment
+    /// - Every increment must be followed by an operation
+    /// - The increment for each operation must be non-zero and less than or
+    ///   equal to [`usize::MAX`]
     #[inline]
     fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
         AlignmentStates::try_from(bytes.as_slice())
@@ -167,6 +203,18 @@ impl TryFrom<Vec<u8>> for AlignmentStates {
 impl<const N: usize> TryFrom<[u8; N]> for AlignmentStates {
     type Error = CigarError;
 
+    /// Tries to convert an array of bytes into [`AlignmentStates`].
+    ///
+    /// Note that this will allocate a new vector. `*` is converted to an empty
+    /// alignment states struct.
+    ///
+    /// ## Errors
+    ///
+    /// - The CIGAR operations must be among `M, I, D, N, S, H, P, X, =`
+    /// - Every operation in the CIGAR string must have a preceding increment
+    /// - Every increment must be followed by an operation
+    /// - The increment for each operation must be non-zero and less than or
+    ///   equal to [`usize::MAX`]
     #[inline]
     fn try_from(v: [u8; N]) -> Result<Self, Self::Error> {
         AlignmentStates::try_from(v.as_slice())
@@ -176,6 +224,18 @@ impl<const N: usize> TryFrom<[u8; N]> for AlignmentStates {
 impl TryFrom<&mut [u8]> for AlignmentStates {
     type Error = CigarError;
 
+    /// Tries to convert a mutable slice of bytes into [`AlignmentStates`].
+    ///
+    /// Note that this will allocate a new vector. `*` is converted to an empty
+    /// alignment states struct.
+    ///
+    /// ## Errors
+    ///
+    /// - The CIGAR operations must be among `M, I, D, N, S, H, P, X, =`
+    /// - Every operation in the CIGAR string must have a preceding increment
+    /// - Every increment must be followed by an operation
+    /// - The increment for each operation must be non-zero and less than or
+    ///   equal to [`usize::MAX`]
     #[inline]
     fn try_from(v: &mut [u8]) -> Result<Self, Self::Error> {
         AlignmentStates::try_from(&*v)
@@ -185,6 +245,18 @@ impl TryFrom<&mut [u8]> for AlignmentStates {
 impl<const N: usize> TryFrom<&[u8; N]> for AlignmentStates {
     type Error = CigarError;
 
+    /// Tries to convert an array of bytes into [`AlignmentStates`].
+    ///
+    /// Note that this will allocate a new vector. `*` is converted to an empty
+    /// alignment states struct.
+    ///
+    /// ## Errors
+    ///
+    /// - The CIGAR operations must be among `M, I, D, N, S, H, P, X, =`
+    /// - Every operation in the CIGAR string must have a preceding increment
+    /// - Every increment must be followed by an operation
+    /// - The increment for each operation must be non-zero and less than or
+    ///   equal to [`usize::MAX`]
     #[inline]
     fn try_from(v: &[u8; N]) -> Result<Self, Self::Error> {
         AlignmentStates::try_from(v.as_slice())
@@ -194,6 +266,18 @@ impl<const N: usize> TryFrom<&[u8; N]> for AlignmentStates {
 impl<const N: usize> TryFrom<&mut [u8; N]> for AlignmentStates {
     type Error = CigarError;
 
+    /// Tries to convert an array of bytes into [`AlignmentStates`].
+    ///
+    /// Note that this will allocate a new vector. `*` is converted to an empty
+    /// alignment states struct.
+    ///
+    /// ## Errors
+    ///
+    /// - The CIGAR operations must be among `M, I, D, N, S, H, P, X, =`
+    /// - Every operation in the CIGAR string must have a preceding increment
+    /// - Every increment must be followed by an operation
+    /// - The increment for each operation must be non-zero and less than or
+    ///   equal to [`usize::MAX`]
     #[inline]
     fn try_from(v: &mut [u8; N]) -> Result<Self, Self::Error> {
         AlignmentStates::try_from(v.as_slice())
@@ -203,8 +287,83 @@ impl<const N: usize> TryFrom<&mut [u8; N]> for AlignmentStates {
 impl TryFrom<&str> for AlignmentStates {
     type Error = CigarError;
 
+    /// Tries to convert a string slice into [`AlignmentStates`].
+    ///
+    /// Note that this will allocate a new vector. `*` is converted to an empty
+    /// alignment states struct.
+    ///
+    /// ## Errors
+    ///
+    /// - The CIGAR operations must be among `M, I, D, N, S, H, P, X, =`
+    /// - Every operation in the CIGAR string must have a preceding increment
+    /// - Every increment must be followed by an operation
+    /// - The increment for each operation must be non-zero and less than or
+    ///   equal to [`usize::MAX`]
     #[inline]
     fn try_from(s: &str) -> Result<Self, Self::Error> {
         AlignmentStates::try_from(s.as_bytes())
+    }
+}
+
+impl TryFrom<Cigar> for AlignmentStates {
+    type Error = CigarError;
+
+    /// Tries to convert a CIGAR string into [`AlignmentStates`].
+    ///
+    /// Note that this will allocate a new vector. `*` is converted to an empty
+    /// alignment states struct.
+    ///
+    /// ## Errors
+    ///
+    /// - The CIGAR operations must be among `M, I, D, N, S, H, P, X, =`
+    /// - Every operation in the CIGAR string must have a preceding increment
+    /// - Every increment must be followed by an operation
+    /// - The increment for each operation must be non-zero and less than or
+    ///   equal to [`usize::MAX`]
+    #[inline]
+    fn try_from(value: Cigar) -> Result<Self, Self::Error> {
+        AlignmentStates::try_from(value.as_bytes())
+    }
+}
+
+impl TryFrom<&Cigar> for AlignmentStates {
+    type Error = CigarError;
+
+    /// Tries to convert a CIGAR string into [`AlignmentStates`].
+    ///
+    /// Note that this will allocate a new vector. `*` is converted to an empty
+    /// alignment states struct.
+    ///
+    /// ## Errors
+    ///
+    /// - The CIGAR operations must be among `M, I, D, N, S, H, P, X, =`
+    /// - Every operation in the CIGAR string must have a preceding increment
+    /// - Every increment must be followed by an operation
+    /// - The increment for each operation must be non-zero and less than or
+    ///   equal to [`usize::MAX`]
+    #[inline]
+    fn try_from(value: &Cigar) -> Result<Self, Self::Error> {
+        AlignmentStates::try_from(value.as_bytes())
+    }
+}
+
+impl<'a> TryFrom<CigarView<'a>> for AlignmentStates {
+    type Error = CigarError;
+
+    /// Tries to convert a CIGAR string into [`AlignmentStates`].
+    ///
+    /// Note that this will allocate a new vector. `*` is converted to an empty
+    /// alignment states struct.
+    ///
+    /// ## Errors
+    ///
+    /// - The CIGAR operations must be among `M, I, D, N, S, H, P, X, =`
+    /// - Every operation in the CIGAR string must have a preceding increment
+    /// - Every increment must be followed by an operation
+    /// - The increment for each operation must be non-zero and less than or
+    ///   equal to [`usize::MAX`]
+    #[inline]
+    fn try_from(value: CigarView<'a>) -> Result<Self, Self::Error> {
+        AlignmentStates::try_from(value.as_bytes())
     }
 }

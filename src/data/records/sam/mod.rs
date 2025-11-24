@@ -1,5 +1,5 @@
 use crate::{
-    alignment::Alignment,
+    alignment::{Alignment, AlignmentStates, MaybeAligned, StatesSequence},
     data::types::cigar::{Cigar, CigarView, CigarViewMut},
     math::AnyInt,
     prelude::*,
@@ -204,7 +204,9 @@ impl SamData {
     }
 
     /// Constructs a new [`SamData`] record from an [`Alignment`] struct as well
-    /// as the other provided fields.
+    /// as the other provided fields. The score is included as a tag under `AS`.
+    ///
+    /// For the opposite transformation, see [`SamData::to_alignment`].
     #[inline]
     #[must_use]
     pub fn from_alignment<T: AnyInt + Into<i64>>(
@@ -229,6 +231,105 @@ impl SamData {
             qual,
             tags,
         }
+    }
+
+    /// Converts the [`SamData`] record into an [`Alignment`] struct (wrapped in
+    /// [`MaybeAligned`]).
+    ///
+    /// Any hard clipped bases in the query are not included in the resulting
+    /// `query_range` or `query_len`. The `query_len` field is equal to the
+    /// length of the incoming `seq` field in the SAM record, and `query_range`
+    /// represents the entire `seq` except for soft clipping.
+    ///
+    /// The `score` must be provided as an argument. If the score is present
+    /// under the `AS` tag, then it can be retrieved with:
+    ///
+    /// ```
+    /// # use zoe::{
+    /// #     data::{cigar::Cigar, sam::SamData},
+    /// #     prelude::{Nucleotides, QualityScores},
+    /// # };
+    /// #
+    /// # let mut sam_data = SamData::new(
+    /// #     String::new(),
+    /// #     0,
+    /// #     String::new(),
+    /// #     0,
+    /// #     255,
+    /// #     Cigar::new(),
+    /// #     Nucleotides::new(),
+    /// #     QualityScores::new(),
+    /// # );
+    /// #
+    /// # sam_data.tags.push("AS", 0i64);
+    /// #
+    /// let score = sam_data
+    ///     .tags
+    ///     .get("AS")
+    ///     .expect("The tags must be formatted properly")
+    ///     .expect("The score tag must be present")
+    ///     .int()
+    ///     .expect("The score tag should be an integer");
+    /// ```
+    ///
+    /// For the opposite transformation, see [`SamData::from_alignment`].
+    ///
+    /// ## Errors
+    ///
+    /// For any mapped read:
+    ///
+    /// - The `seq` field of the record must be populated (i.e., not `*`).
+    /// - The CIGAR operations must be among `M, I, D, N, S, H, P, X, =`
+    /// - Every operation in the CIGAR string must have a preceding increment
+    /// - Every increment must be followed by an operation
+    /// - The increment for each operation must be non-zero and less than
+    ///   [`usize::MAX`]
+    ///
+    /// ## Validity
+    ///
+    /// For any mapped read, the length of the `seq` field should equal the sum
+    /// of the increments for the operations `MIS=X`. Note that this includes
+    /// soft clipped regions but not hard clipped.
+    #[inline]
+    pub fn to_alignment<T: AnyInt>(&self, score: T, ref_len: usize) -> std::io::Result<MaybeAligned<Alignment<T>>> {
+        if self.is_unmapped() {
+            return Ok(MaybeAligned::Unmapped);
+        }
+
+        if self.seq == Nucleotides::from(b"*") {
+            return Err(std::io::Error::other(
+                "The seq field in the SAM data record was not populated.",
+            ));
+        }
+
+        let query_len = self.seq.len();
+
+        let ref_range_start = self.pos - 1;
+        let ref_range_end = ref_range_start + self.cigar.match_length();
+        let ref_range = ref_range_start..ref_range_end;
+
+        let mut ciglets = self.cigar.iter();
+        ciglets.next_if_op(|op| op == b'H');
+        let soft_clipping_front = ciglets.next_if_op(|op| op == b'S').map_or(0, |c| c.inc);
+        ciglets.next_back_if_op(|op| op == b'H');
+        let soft_clipping_back = ciglets.next_back_if_op(|op| op == b'S').map_or(0, |c| c.inc);
+
+        let soft_clipping = soft_clipping_front + soft_clipping_back;
+
+        let query_range_start = soft_clipping_front;
+        let query_range_end = query_range_start + (query_len - soft_clipping);
+        let query_range = query_range_start..query_range_end;
+
+        let states = AlignmentStates::try_from(&self.cigar).map_err(std::io::Error::other)?;
+
+        Ok(MaybeAligned::Some(Alignment {
+            score,
+            ref_range,
+            query_range,
+            states,
+            ref_len,
+            query_len,
+        }))
     }
 
     /// Tests if the [`SamData`] is unmapped.
@@ -422,6 +523,18 @@ impl SamTags {
         }
         Ok(None)
     }
+
+    /// Adds a tag to the [`SamTags`] struct.
+    ///
+    /// ## Validity
+    ///
+    /// The tag name being pushed should not already be present in the tags.
+    #[inline]
+    pub fn push<T>(&mut self, name: &str, tag: T)
+    where
+        T: Into<SamTagValue>, {
+        self.0.push(format!("{name}:{tag}", tag = tag.into()));
+    }
 }
 
 impl FromIterator<String> for SamTags {
@@ -523,5 +636,26 @@ impl Display for SamTagValue {
             SamTagValue::Int(val) => write!(f, "i:{val}"),
             SamTagValue::Float(val) => write!(f, "f:{val}"),
         }
+    }
+}
+
+impl From<u8> for SamTagValue {
+    #[inline]
+    fn from(value: u8) -> Self {
+        SamTagValue::Char(value)
+    }
+}
+
+impl From<i64> for SamTagValue {
+    #[inline]
+    fn from(value: i64) -> Self {
+        SamTagValue::Int(value)
+    }
+}
+
+impl From<f32> for SamTagValue {
+    #[inline]
+    fn from(value: f32) -> Self {
+        SamTagValue::Float(value)
     }
 }

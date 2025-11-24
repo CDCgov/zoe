@@ -9,7 +9,7 @@ pub enum CigarError {
     InvalidOperation,
     /// The CIGAR increment must be a non-zero positive integer
     IncZero,
-    /// The CIGAR increment must be smaller than [`usize::MAX`]
+    /// The CIGAR increment must be less than or equal to [`usize::MAX`]
     IncOverflow,
     /// The CIGAR operation must have preceding increment
     MissingInc,
@@ -23,7 +23,7 @@ impl fmt::Display for CigarError {
         match self {
             CigarError::InvalidOperation => f.write_str("CIGAR operation must be one of: M, I, D, N, S, H, P, X, ="),
             CigarError::IncZero => f.write_str("CIGAR increment must be a non-zero positive integer"),
-            CigarError::IncOverflow => write!(f, "CIGAR increment must be smaller than {}", usize::MAX),
+            CigarError::IncOverflow => write!(f, "CIGAR increment must be less than or equal to {}", usize::MAX),
             CigarError::MissingInc => f.write_str("CIGAR operation must have preceding increment"),
             CigarError::MissingOp => f.write_str("CIGAR increment must be followed by operator"),
         }

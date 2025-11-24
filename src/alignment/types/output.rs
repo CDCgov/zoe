@@ -102,6 +102,14 @@ impl<T> MaybeAligned<T> {
 
 /// A struct representing the information for an alignment, such as its score
 /// and where in the sequences it occurs.
+///
+/// To convert this to a [`SamData`] record, see [`SamData::from_alignment`].
+/// Some additional information will need to be provided, such as any flags, the
+/// query sequence and quality scores if present, etc.
+///
+/// [`SamData`]: crate::data::records::sam::SamData
+/// [`SamData::from_alignment`]:
+///     crate::data::records::sam::SamData::from_alignment
 #[non_exhaustive]
 #[derive(Clone, Eq, PartialEq, Debug, Default)]
 pub struct Alignment<T> {
