@@ -1,133 +1,53 @@
+//! An arbitrary implementations and specification struct for [`Nucleotides`].
+
 use crate::{
-    data::{
-        arbitrary::{VecAsciiGraphic, VecAsciiGraphicBashSafe, impl_deref},
-        views::impl_len_for_wrapper,
-    },
+    data::arbitrary::{ArbitrarySpecs, ByteSet, ByteSpecs, Case, VecSpecs},
     prelude::Nucleotides,
 };
 use arbitrary::{Arbitrary, Result, Unstructured};
 
 impl<'a> Arbitrary<'a> for Nucleotides {
+    #[inline]
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        Ok(Nucleotides(Vec::<u8>::arbitrary(u)?))
+        u.arbitrary().map(Nucleotides)
     }
 }
 
-/// A wrapper around [`Nucleotides`] such that the implementation of
-/// [`Arbitrary`](https://docs.rs/arbitrary/latest/arbitrary/trait.Arbitrary.html)
-/// only generates graphic ASCII in the range `!`..=`~`.
-#[derive(Debug, Clone)]
-pub struct NucleotidesAsciiGraphic(pub Nucleotides);
+/// Specifications for generating an arbitrary [`Nucleotides`] sequence.
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
+pub struct NucleotidesSpecs {
+    /// The character set to which the `u8` bytes must belong.
+    ///
+    /// Consider using [`ByteSet::NucleotidesCanonical`] or
+    /// [`ByteSet::NucleotidesIupac`] if needed.
+    pub set: ByteSet,
 
-impl_deref! {NucleotidesAsciiGraphic, Nucleotides}
-impl_len_for_wrapper! {NucleotidesAsciiGraphic, 0}
+    /// The case of the ASCII characters.
+    pub case: Case,
+}
 
-impl<'a> Arbitrary<'a> for NucleotidesAsciiGraphic {
-    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        Ok(NucleotidesAsciiGraphic(Nucleotides(VecAsciiGraphic::arbitrary(u)?.0)))
+impl From<NucleotidesSpecs> for ByteSpecs {
+    #[inline]
+    fn from(value: NucleotidesSpecs) -> Self {
+        Self {
+            set:  value.set,
+            case: value.case,
+        }
     }
 }
 
-/// A wrapper around [`Nucleotides`] such that the implementation of
-/// [`Arbitrary`](https://docs.rs/arbitrary/latest/arbitrary/trait.Arbitrary.html)
-/// only generates graphic ASCII in the range `!`..=`~` which also is not a
-/// special character in bash.
-///
-/// The allowed symbols are
-/// `%+,-./0123456789:@ABCDEFGHIJKLMNOPQRSTUVWXYZ^_abcdefghijklmnopqrstuvwxyz`.
-#[derive(Debug, Clone)]
-pub struct NucleotidesAsciiGraphicBashSafe(pub Nucleotides);
+impl<'a> ArbitrarySpecs<'a> for NucleotidesSpecs {
+    type Output = Nucleotides;
 
-impl_deref! {NucleotidesAsciiGraphicBashSafe, Nucleotides}
-impl_len_for_wrapper! {NucleotidesAsciiGraphicBashSafe, 0}
+    #[inline]
+    fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {
+        let vec_specs = VecSpecs {
+            element_specs: ByteSpecs::from(*self),
+            min_len:       0,
+            len:           None,
+            max_len:       usize::MAX,
+        };
 
-impl<'a> Arbitrary<'a> for NucleotidesAsciiGraphicBashSafe {
-    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        Ok(NucleotidesAsciiGraphicBashSafe(Nucleotides(
-            VecAsciiGraphicBashSafe::arbitrary(u)?.0,
-        )))
-    }
-}
-
-/// A wrapper around [`Nucleotides`] such that the implementation of
-/// [`Arbitrary`](https://docs.rs/arbitrary/latest/arbitrary/trait.Arbitrary.html)
-/// only generates bases in `ACGTUNacgtun`.
-#[derive(Debug, Clone)]
-pub struct NucleotidesAcgtun(pub Nucleotides);
-
-impl_deref! {NucleotidesAcgtun, Nucleotides}
-impl_len_for_wrapper! {NucleotidesAcgtun, 0}
-
-impl<'a> Arbitrary<'a> for NucleotidesAcgtun {
-    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        const ALPHA: &[u8] = b"ACGTUNacgtun";
-        Ok(NucleotidesAcgtun(
-            u.arbitrary_iter::<u8>()?
-                .flatten()
-                .map(|b| ALPHA[b as usize % ALPHA.len()])
-                .collect(),
-        ))
-    }
-}
-
-/// A wrapper around [`Nucleotides`] such that the implementation of
-/// [`Arbitrary`](https://docs.rs/arbitrary/latest/arbitrary/trait.Arbitrary.html)
-/// only generates bases in `ACGTNacgtn`.
-#[derive(Debug, Clone)]
-pub struct NucleotidesAcgtn(pub Nucleotides);
-
-impl_deref! {NucleotidesAcgtn, Nucleotides}
-
-impl<'a> Arbitrary<'a> for NucleotidesAcgtn {
-    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        const ALPHA: &[u8] = b"ACGTNacgtn";
-        Ok(NucleotidesAcgtn(
-            u.arbitrary_iter::<u8>()?
-                .flatten()
-                .map(|b| ALPHA[b as usize % ALPHA.len()])
-                .collect(),
-        ))
-    }
-}
-
-/// A wrapper around [`Nucleotides`] such that the implementation of
-/// [`Arbitrary`](https://docs.rs/arbitrary/latest/arbitrary/trait.Arbitrary.html)
-/// only generates bases in `ACGTUacgtu`.
-#[derive(Debug, Clone)]
-pub struct NucleotidesAcgtu(pub Nucleotides);
-
-impl_deref! {NucleotidesAcgtu, Nucleotides}
-impl_len_for_wrapper! {NucleotidesAcgtu, 0}
-
-impl<'a> Arbitrary<'a> for NucleotidesAcgtu {
-    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        const ALPHA: &[u8] = b"ACGTUacgtu";
-        Ok(NucleotidesAcgtu(
-            u.arbitrary_iter::<u8>()?
-                .flatten()
-                .map(|b| ALPHA[b as usize % ALPHA.len()])
-                .collect(),
-        ))
-    }
-}
-
-/// A wrapper around [`Nucleotides`] such that the implementation of
-/// [`Arbitrary`](https://docs.rs/arbitrary/latest/arbitrary/trait.Arbitrary.html)
-/// only generates bases in `ACGT`.
-#[derive(Debug, Clone)]
-pub struct NucleotidesAcgtUpper(pub Nucleotides);
-
-impl_deref! {NucleotidesAcgtUpper, Nucleotides}
-impl_len_for_wrapper! {NucleotidesAcgtUpper, 0}
-
-impl<'a> Arbitrary<'a> for NucleotidesAcgtUpper {
-    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        const ALPHA: &[u8] = b"ACGT";
-        Ok(NucleotidesAcgtUpper(
-            u.arbitrary_iter::<u8>()?
-                .flatten()
-                .map(|b| ALPHA[b as usize % ALPHA.len()])
-                .collect(),
-        ))
+        vec_specs.make_arbitrary(u).map(Nucleotides)
     }
 }

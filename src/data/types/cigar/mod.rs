@@ -302,7 +302,7 @@ pub struct Ciglet {
 ///   iterator ends early.
 /// - If adjacent operations are the same, this iterator will yield them
 ///   separately as two [`Ciglet`] values.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct CigletIterator<'a> {
     buffer: &'a [u8],
     valid:  bool,

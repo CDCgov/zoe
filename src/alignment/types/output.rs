@@ -165,7 +165,7 @@ impl<T> Alignment<T> {
     ///
     /// - All operations must be valid state, e.g, bytes in `MIDNSHP=X`.
     /// - The query and reference must be at least as long as the length implied
-    ///   by the alignment operations.
+    ///   by the alignment operations (and the start of `self.ref_range`).
     #[inline]
     #[must_use]
     pub fn get_aligned_seqs(&self, reference: &[u8], query: &[u8]) -> (Vec<u8>, Vec<u8>) {
@@ -213,7 +213,6 @@ impl<T> Alignment<T> {
     ///   alignment operations.
     ///
     /// [`get_aligned_seqs`]: Alignment::get_aligned_seqs
-    #[allow(clippy::missing_panics_doc)]
     pub fn get_aligned_query(&self, query: &[u8]) -> Vec<u8> {
         let mut query_index = 0;
         let mut query_aln = Vec::with_capacity(query.len() + (self.ref_range.len() / 2));
@@ -333,6 +332,15 @@ impl<T: Copy> Alignment<T> {
     /// If the reference range is out of bounds, then `None` is returned. The
     /// `score`, `ref_len`, and `query_len` fields are not changed.
     ///
+    /// ## Panics
+    ///
+    /// This function requires the following assumptions to avoid panicking.
+    /// Note that any [`Alignment`] struct returned by a *Zoe* alignment
+    /// function will satisfy these.
+    ///
+    /// - The `query_len` field must be greater than or equal to the number of
+    ///   residues that the `states` field consumes in the query.
+    ///
     /// ## Example
     ///
     /// ```
@@ -374,7 +382,9 @@ impl<T: Copy> Alignment<T> {
         let mut ciglets = self.states.iter().copied();
         let mut states = AlignmentStates::new();
 
-        // Find the first ciglet overlapping the reference range
+        // Find the first ciglet overlapping the reference range. Strict
+        // inequality ensures that any hard or soft clipping ciglets are
+        // skipped.
         let Some(mut first_ciglet) = ciglets.find_map(|ciglet| {
             (query_idx, ref_idx) = (query_idx, ref_idx).increment_idxs_by(ciglet);
             let num_in_range = ref_idx.saturating_sub(rel_ref_range.start);

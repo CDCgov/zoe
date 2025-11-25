@@ -1,3 +1,6 @@
+//! Arbitrary implementations and specification structs for alignment-related
+//! structs.
+
 mod output;
 #[cfg(feature = "dev-phmm")]
 mod phmm;

@@ -1,3 +1,6 @@
+//! Arbitrary implementations and specification structs for profile Hidden
+//! Markov Models.
+
 use crate::{
     alignment::phmm::{
         CorePhmm, DomainPhmm, EmissionParams, GetLayer, GlobalPhmm, LayerParams, LocalPhmm, PhmmState, SemiLocalPhmm,
@@ -5,27 +8,38 @@ use crate::{
         indexing::{Begin, End, PhmmIndexable},
         modules::{DomainModule, LocalModule, SemiLocalModule},
     },
-    data::{arbitrary::impl_deref, mappings::DNA_UNAMBIG_PROFILE_MAP},
+    data::{
+        arbitrary::{ArbitrarySpecs, ArraySpecs, FloatSpecs, VecSpecs},
+        mappings::DNA_UNAMBIG_PROFILE_MAP,
+    },
     math::Float,
 };
 use arbitrary::{Arbitrary, Result, Unstructured};
-use std::{fmt::Debug, marker::PhantomData};
 
-impl<'a, T: Arbitrary<'a>, const S: usize> Arbitrary<'a> for EmissionParams<T, S> {
+impl<'a, T, const S: usize> Arbitrary<'a> for EmissionParams<T, S>
+where
+    T: Arbitrary<'a>,
+{
     #[inline]
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
         Ok(EmissionParams::from_array(<[T; S]>::arbitrary(u)?))
     }
 }
 
-impl<'a, T: Arbitrary<'a>> Arbitrary<'a> for TransitionParams<T> {
+impl<'a, T> Arbitrary<'a> for TransitionParams<T>
+where
+    T: Arbitrary<'a>,
+{
     #[inline]
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
         Ok(TransitionParams(<[[T; 3]; 3]>::arbitrary(u)?))
     }
 }
 
-impl<'a, T: Arbitrary<'a>, const S: usize> Arbitrary<'a> for LayerParams<T, S> {
+impl<'a, T, const S: usize> Arbitrary<'a> for LayerParams<T, S>
+where
+    T: Arbitrary<'a>,
+{
     #[inline]
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
         Ok(LayerParams {
@@ -36,7 +50,10 @@ impl<'a, T: Arbitrary<'a>, const S: usize> Arbitrary<'a> for LayerParams<T, S> {
     }
 }
 
-impl<'a, T: Arbitrary<'a>, const S: usize> Arbitrary<'a> for CorePhmm<T, S> {
+impl<'a, T, const S: usize> Arbitrary<'a> for CorePhmm<T, S>
+where
+    T: Arbitrary<'a>,
+{
     #[inline]
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
         let mut layers = vec![LayerParams::<T, S>::arbitrary(u)?, LayerParams::<T, S>::arbitrary(u)?];
@@ -45,13 +62,21 @@ impl<'a, T: Arbitrary<'a>, const S: usize> Arbitrary<'a> for CorePhmm<T, S> {
     }
 }
 
-impl<'a, T: Arbitrary<'a>> Arbitrary<'a> for SemiLocalModule<T> {
+impl<'a, T> Arbitrary<'a> for SemiLocalModule<T>
+where
+    T: Arbitrary<'a>,
+{
+    #[inline]
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
         Ok(Self(Vec::<T>::arbitrary(u)?))
     }
 }
 
-impl<'a, T: Arbitrary<'a>, const S: usize> Arbitrary<'a> for DomainModule<T, S> {
+impl<'a, T, const S: usize> Arbitrary<'a> for DomainModule<T, S>
+where
+    T: Arbitrary<'a>,
+{
+    #[inline]
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
         Ok(Self {
             start_to_insert:     T::arbitrary(u)?,
@@ -63,7 +88,11 @@ impl<'a, T: Arbitrary<'a>, const S: usize> Arbitrary<'a> for DomainModule<T, S> 
     }
 }
 
-impl<'a, T: Arbitrary<'a>, const S: usize> Arbitrary<'a> for LocalModule<T, S> {
+impl<'a, T, const S: usize> Arbitrary<'a> for LocalModule<T, S>
+where
+    T: Arbitrary<'a>,
+{
+    #[inline]
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
         Ok(Self {
             external_params: SemiLocalModule::arbitrary(u)?,
@@ -72,410 +101,375 @@ impl<'a, T: Arbitrary<'a>, const S: usize> Arbitrary<'a> for LocalModule<T, S> {
     }
 }
 
-/// A wrapper type for [`EmissionParams`] offering more flexibility on the
-/// [`Arbitrary`] implementation.
-///
-/// ## Parameters:
-///
-/// - `T`: The floating point type for the parameters
-/// - `F`: The floating point type or arbitrary wrapper for generating the
-///   parameters
-/// - `S`: The number of parameters (size of the pHMM alphabet)
-pub struct EmissionParamsArbitrary<T, F, const S: usize>(pub EmissionParams<T, S>, PhantomData<F>);
+/// Specifications for generating an arbitrary [`EmissionParams`] struct.
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
+pub struct EmissionParamsSpecs<T, const S: usize> {
+    /// The specifications for generating the floating point parameters.
+    pub float_specs: FloatSpecs<T>,
+}
 
-impl_deref! {EmissionParamsArbitrary<T, F, S>, EmissionParams<T, S>, <T, F, const S: usize>}
-
-impl<'a, T, const S: usize, F> Arbitrary<'a> for EmissionParamsArbitrary<T, F, S>
+impl<'a, T, const S: usize> ArbitrarySpecs<'a> for EmissionParamsSpecs<T, S>
 where
-    [F; S]: Arbitrary<'a>,
-    F: Into<T>,
+    T: Float + Arbitrary<'a>,
 {
+    type Output = EmissionParams<T, S>;
+
     #[inline]
-    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        Ok(EmissionParamsArbitrary(
-            EmissionParams::from_array(<[F; S]>::arbitrary(u)?.map(std::convert::Into::into)),
-            PhantomData,
-        ))
+    fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {
+        let specs = ArraySpecs {
+            element_specs: self.float_specs,
+        };
+
+        Ok(EmissionParams::from_array(specs.make_arbitrary(u)?))
     }
 }
 
-/// A wrapper type for [`TransitionParams`] offering more flexibility on the
-/// [`Arbitrary`] implementation.
-///
-/// ## Parameters:
-///
-/// - `T`: The floating point type for the parameters
-/// - `F`: The floating point type or arbitrary wrapper for generating the
-///   parameters
-pub(crate) struct TransitionParamsArbitrary<T, F>(pub TransitionParams<T>, pub PhantomData<F>);
-
-impl_deref! {TransitionParamsArbitrary<T, F>, TransitionParams<T>, <T, F>}
-
-impl<'a, T: Float + Arbitrary<'a>, F> Arbitrary<'a> for TransitionParamsArbitrary<T, F>
-where
-    [[F; 3]; 3]: Arbitrary<'a>,
-    F: Into<T>,
-{
-    #[inline]
-    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        Ok(TransitionParamsArbitrary(
-            TransitionParams(<[[F; 3]; 3]>::arbitrary(u)?.map(|x| x.map(std::convert::Into::into))),
-            PhantomData,
-        ))
-    }
+/// Specifications for generating an arbitrary [`TransitionParamsSpecs`] struct.
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
+struct TransitionParamsSpecs<T> {
+    /// The specifications for generating the floating point parameters.
+    float_specs: FloatSpecs<T>,
 }
 
-/// A wrapper type for [`LayerParams`] offering more flexibility on the
-/// [`Arbitrary`] implementation.
-///
-/// ## Parameters:
-///
-/// - `T`: The floating point type for the parameters
-/// - `F`: The floating point type or arbitrary wrapper for generating the
-///   parameters
-/// - `S`: The size of the pHMM alphabet
-pub(crate) struct LayerParamsArbitrary<T, F, const S: usize>(LayerParams<T, S>, PhantomData<F>);
-
-impl_deref! {LayerParamsArbitrary<T, F, S>, LayerParams<T, S>, <T, F, const S: usize>}
-
-impl<'a, T: Arbitrary<'a>, F, const S: usize> Arbitrary<'a> for LayerParamsArbitrary<T, F, S>
+impl<'a, T> ArbitrarySpecs<'a> for TransitionParamsSpecs<T>
 where
-    TransitionParamsArbitrary<T, F>: Arbitrary<'a>,
-    EmissionParamsArbitrary<T, F, S>: Arbitrary<'a>,
+    T: Float + Arbitrary<'a>,
 {
+    type Output = TransitionParams<T>;
+
     #[inline]
-    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        Ok(LayerParamsArbitrary(
-            LayerParams {
-                transition:      TransitionParamsArbitrary::<T, F>::arbitrary(u)?.0,
-                emission_match:  EmissionParamsArbitrary::<T, F, S>::arbitrary(u)?.0,
-                emission_insert: EmissionParamsArbitrary::<T, F, S>::arbitrary(u)?.0,
+    fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {
+        let specs = ArraySpecs {
+            element_specs: ArraySpecs {
+                element_specs: self.float_specs,
             },
-            PhantomData,
-        ))
+        };
+
+        Ok(TransitionParams(specs.make_arbitrary(u)?))
     }
 }
 
-/// A wrapper type for [`CorePhmm`] offering more flexibility on the
-/// [`Arbitrary`] implementation.
-///
-/// Parameters:
-///
-/// - `T`: The floating point type for the parameters
-/// - `F`: The floating point type or arbitrary wrapper for generating the
-///   parameters
-/// - `S`: The size of the pHMM alphabet
-/// - `R`: If true, ensure invalid transitions are set to infinity
-#[derive(Debug)]
+/// Specifications for generating an arbitrary [`LayerParams`] struct.
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
+struct LayerParamsSpecs<T, const S: usize> {
+    /// The specifications for generating the floating point parameters.
+    float_specs: FloatSpecs<T>,
+}
+
+impl<'a, T, const S: usize> ArbitrarySpecs<'a> for LayerParamsSpecs<T, S>
+where
+    T: Float + Arbitrary<'a>,
+{
+    type Output = LayerParams<T, S>;
+
+    #[inline]
+    fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {
+        let transition_specs = TransitionParamsSpecs {
+            float_specs: self.float_specs,
+        };
+
+        let emission_specs = EmissionParamsSpecs {
+            float_specs: self.float_specs,
+        };
+
+        Ok(LayerParams {
+            transition:      transition_specs.make_arbitrary(u)?,
+            emission_match:  emission_specs.make_arbitrary(u)?,
+            emission_insert: emission_specs.make_arbitrary(u)?,
+        })
+    }
+}
+
+/// Specifications for generating an arbitrary [`CorePhmm`].
 #[cfg_attr(feature = "alignment-diagnostics", visibility::make(pub))]
-pub(crate) struct CorePhmmArbitrary<T, F, const S: usize, const R: bool>(pub CorePhmm<T, S>, PhantomData<F>);
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
+pub(crate) struct CorePhmmSpecs<T, const S: usize> {
+    /// The specifications for generating the floating point parameters.
+    pub float_specs: FloatSpecs<T>,
 
-impl_deref! {CorePhmmArbitrary<T, F, S, R>, CorePhmm<T, S>, <T: Float, F, const S: usize, const R: bool>}
-
-// Basic implementation: no correction for invalid transitions, no minimum on
-// layers
-impl<'a, T: Float + Arbitrary<'a>, F, const S: usize> Arbitrary<'a> for CorePhmmArbitrary<T, F, S, false>
-where
-    LayerParamsArbitrary<T, F, S>: Arbitrary<'a>,
-{
-    #[inline]
-    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        let mut layers = vec![
-            LayerParamsArbitrary::<T, F, S>::arbitrary(u)?.0,
-            LayerParamsArbitrary::<T, F, S>::arbitrary(u)?.0,
-        ];
-        layers.extend(Vec::<LayerParamsArbitrary<T, F, S>>::arbitrary(u)?.into_iter().map(|x| x.0));
-        Ok(CorePhmmArbitrary(CorePhmm::new_unchecked(layers), PhantomData))
-    }
+    /// Whether to disallow invalid transitions for the first and last layers by
+    /// setting the parameters to infinity (probability zero).
+    pub disallow_invalid: bool,
 }
 
-// Implementation that corrects for invalid transitions (calls off to previous
-// implementation)
-impl<'a, T: Float + Arbitrary<'a>, F, const S: usize> Arbitrary<'a> for CorePhmmArbitrary<T, F, S, true>
+impl<'a, T, const S: usize> ArbitrarySpecs<'a> for CorePhmmSpecs<T, S>
 where
-    CorePhmmArbitrary<T, F, S, false>: Arbitrary<'a>,
+    T: Float + Arbitrary<'a>,
 {
+    type Output = CorePhmm<T, S>;
+
     #[inline]
-    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
+    fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {
         use PhmmState::*;
 
-        let mut core = CorePhmmArbitrary::<T, F, S, false>::arbitrary(u)?.0;
-
-        let first_layer = core.get_layer_mut(Begin);
-        first_layer.transition[(Delete, Delete)] = T::INFINITY;
-        first_layer.transition[(Delete, Match)] = T::INFINITY;
-        first_layer.transition[(Delete, Insert)] = T::INFINITY;
-
-        let last_layer = core.get_layer_mut(End);
-        last_layer.transition[(Delete, Delete)] = T::INFINITY;
-        last_layer.transition[(Insert, Delete)] = T::INFINITY;
-        last_layer.transition[(Match, Delete)] = T::INFINITY;
-
-        Ok(CorePhmmArbitrary(core, PhantomData))
-    }
-}
-
-/// A wrapper type for [`SemiLocalModule`] offering more flexibility on the
-/// [`Arbitrary`] implementation.
-///
-/// ## Parameters:
-///
-/// - `T`: The floating point type for the parameters
-/// - `F`: The floating point type or arbitrary wrapper for generating the
-///   parameters
-pub struct SemiLocalModuleArbitrary<T, F>(SemiLocalModule<T>, PhantomData<F>);
-
-impl_deref! {SemiLocalModuleArbitrary<T, F>, SemiLocalModule<T>, <T, F>}
-
-impl<'a, T, F> Arbitrary<'a> for SemiLocalModuleArbitrary<T, F>
-where
-    T: Arbitrary<'a>,
-    F: Into<T> + Arbitrary<'a>,
-{
-    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        Ok(Self(
-            SemiLocalModule(
-                Vec::<F>::arbitrary(u)?
-                    .into_iter()
-                    .map(std::convert::Into::into)
-                    .collect::<Vec<_>>(),
-            ),
-            PhantomData,
-        ))
-    }
-}
-
-impl<'a, T, F> SemiLocalModuleArbitrary<T, F>
-where
-    T: Arbitrary<'a>,
-    F: Into<T> + Arbitrary<'a>,
-{
-    /// Generates an arbitrary [`SemiLocalModule`] which is compatible with
-    /// `core` (there are the correct number of pseudomatch states).
-    #[allow(clippy::missing_errors_doc)]
-    pub fn arbitrary_compatible<const S: usize>(u: &mut Unstructured<'a>, core: &CorePhmm<T, S>) -> Result<Self>
-    where
-        T: Arbitrary<'a>, {
-        Ok(Self(
-            SemiLocalModule(
-                std::iter::from_fn(|| Some(F::arbitrary(u).map(Into::into)))
-                    .take(core.num_pseudomatch())
-                    .collect::<Result<Vec<_>, _>>()?,
-            ),
-            PhantomData,
-        ))
-    }
-}
-
-/// A wrapper type for [`DomainModule`] offering more flexibility on the
-/// [`Arbitrary`] implementation.
-///
-/// ## Parameters:
-///
-/// - `T`: The floating point type for the parameters
-/// - `F`: The floating point type or arbitrary wrapper for generating the
-///   parameters
-/// - `S`: The size of the pHMM alphabet
-pub struct DomainModuleArbitrary<T, F, const S: usize>(DomainModule<T, S>, PhantomData<F>);
-
-impl_deref! {DomainModuleArbitrary<T, F, S>, DomainModule<T, S>, <T, F, const S: usize>}
-
-impl<'a, T, F, const S: usize> Arbitrary<'a> for DomainModuleArbitrary<T, F, S>
-where
-    T: Arbitrary<'a>,
-    F: Into<T> + Arbitrary<'a>,
-{
-    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        Ok(Self(
-            DomainModule {
-                start_to_insert:     F::arbitrary(u)?.into(),
-                insert_to_insert:    F::arbitrary(u)?.into(),
-                insert_to_end:       F::arbitrary(u)?.into(),
-                start_to_end:        F::arbitrary(u)?.into(),
-                background_emission: EmissionParamsArbitrary::<T, F, S>::arbitrary(u)?.0,
+        let specs = VecSpecs {
+            element_specs: LayerParamsSpecs {
+                float_specs: self.float_specs,
             },
-            PhantomData,
-        ))
+            min_len:       2,
+            len:           None,
+            max_len:       usize::MAX,
+        };
+
+        let mut core = CorePhmm::new_unchecked(specs.make_arbitrary(u)?);
+
+        if self.disallow_invalid {
+            let first_layer = core.get_layer_mut(Begin);
+            first_layer.transition[(Delete, Delete)] = T::INFINITY;
+            first_layer.transition[(Delete, Match)] = T::INFINITY;
+            first_layer.transition[(Delete, Insert)] = T::INFINITY;
+
+            let last_layer = core.get_layer_mut(End);
+            last_layer.transition[(Delete, Delete)] = T::INFINITY;
+            last_layer.transition[(Insert, Delete)] = T::INFINITY;
+            last_layer.transition[(Match, Delete)] = T::INFINITY;
+        }
+
+        Ok(core)
     }
 }
 
-/// A wrapper type for [`LocalModule`] offering more flexibility on the
-/// [`Arbitrary`] implementation.
-///
-/// ## Parameters:
-///
-/// - `T`: The floating point type for the parameters
-/// - `F`: The floating point type or arbitrary wrapper for generating the
-///   parameters
-/// - `S`: The size of the pHMM alphabet
-pub struct LocalModuleArbitrary<T, F, const S: usize>(LocalModule<T, S>, PhantomData<F>);
+/// Specifications for generating an arbitrary [`SemiLocalModule`].
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
+pub struct SemiLocalModuleSpecs<T> {
+    /// The specifications for generating the floating point parameters.
+    pub float_specs: FloatSpecs<T>,
 
-impl_deref! {LocalModuleArbitrary<T, F, S>, LocalModule<T, S>, <T, F, const S: usize>}
-
-impl<'a, T, F, const S: usize> Arbitrary<'a> for LocalModuleArbitrary<T, F, S>
-where
-    T: Arbitrary<'a>,
-    F: Into<T> + Arbitrary<'a>,
-{
-    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        Ok(Self(
-            LocalModule {
-                external_params: SemiLocalModuleArbitrary::<T, F>::arbitrary(u)?.0,
-                internal_params: DomainModuleArbitrary::<T, F, S>::arbitrary(u)?.0,
-            },
-            PhantomData,
-        ))
-    }
+    /// The number of match states (including BEGIN and END) to include.
+    pub num_pseudomatch: Option<usize>,
 }
 
-impl<'a, T, F, const S: usize> LocalModuleArbitrary<T, F, S>
+impl<'a, T> ArbitrarySpecs<'a> for SemiLocalModuleSpecs<T>
 where
-    T: Arbitrary<'a>,
-    F: Into<T> + Arbitrary<'a>,
+    T: Float + Arbitrary<'a>,
 {
-    /// Generates an arbitrary [`SemiLocalModule`] which is compatible with
-    /// `core` (there are the correct number of pseudomatch states).
-    #[allow(clippy::missing_errors_doc)]
-    pub fn arbitrary_compatible(u: &mut Unstructured<'a>, core: &CorePhmm<T, S>) -> Result<Self>
-    where
-        T: Arbitrary<'a>, {
-        Ok(Self(
-            LocalModule {
-                external_params: SemiLocalModuleArbitrary::<T, F>::arbitrary_compatible(u, core)?.0,
-                internal_params: DomainModuleArbitrary::<T, F, S>::arbitrary(u)?.0,
-            },
-            PhantomData,
-        ))
-    }
-}
+    type Output = SemiLocalModule<T>;
 
-/// A wrapper type for [`GlobalPhmm`] using a DNA alphabet and offering more
-/// flexibility on the [`Arbitrary`] implementation.
-///
-/// Parameters:
-///
-/// - `T`: The floating point type for the parameters
-/// - `F`: The floating point type or arbitrary wrapper for generating the
-///   parameters
-/// - `R`: If true, ensure invalid transitions are set to infinity
-#[derive(Debug)]
-pub struct DnaGlobalPhmm<T, F, const R: bool>(pub GlobalPhmm<T, 4>, PhantomData<F>);
-
-impl_deref! {DnaGlobalPhmm<T, F, R>, GlobalPhmm<T, 4>, <T: Float, F, const R: bool>}
-
-impl<'a, T: Float + Arbitrary<'a>, F, const R: bool> Arbitrary<'a> for DnaGlobalPhmm<T, F, R>
-where
-    CorePhmmArbitrary<T, F, 4, R>: Arbitrary<'a>,
-{
     #[inline]
-    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        Ok(DnaGlobalPhmm(
-            GlobalPhmm::new(&DNA_UNAMBIG_PROFILE_MAP, CorePhmmArbitrary::<T, F, 4, R>::arbitrary(u)?.0),
-            PhantomData,
-        ))
+    fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {
+        let specs = VecSpecs {
+            element_specs: self.float_specs,
+            min_len:       0,
+            len:           self.num_pseudomatch,
+            max_len:       usize::MAX,
+        };
+
+        specs.make_arbitrary(u).map(SemiLocalModule)
     }
 }
 
-/// A wrapper type for [`LocalPhmm`] using a DNA alphabet and offering more
-/// flexibility on the [`Arbitrary`] implementation.
-///
-/// Parameters:
-/// - `T`: The floating point type for the parameters
-/// - `F`: The floating point type or arbitrary wrapper for generating the
-///   parameters
-/// - `M`: If true, ensure there are the [`LocalModule`]s are compatible with
-///   the pHMM
-/// - `R`: If true, ensure invalid transitions are set to infinity
-#[derive(Debug)]
-pub struct DnaLocalPhmm<T, F, const M: bool, const R: bool>(pub LocalPhmm<T, 4>, pub PhantomData<F>);
+/// Specifications for generating an arbitrary [`DomainModule`].
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
+pub struct DomainModuleSpecs<T, const S: usize> {
+    /// The specifications for generating the floating point parameters.
+    pub float_specs: FloatSpecs<T>,
+}
 
-impl_deref! {DnaLocalPhmm<T, F, M, R>, LocalPhmm<T, 4>, <T: Float, F, const M: bool, const R: bool>}
-
-impl<'a, T: Float + Arbitrary<'a>, F, const R: bool> Arbitrary<'a> for DnaLocalPhmm<T, F, false, R>
+impl<'a, T, const S: usize> ArbitrarySpecs<'a> for DomainModuleSpecs<T, S>
 where
-    CorePhmmArbitrary<T, F, 4, R>: Arbitrary<'a>,
-    LocalModuleArbitrary<T, F, 4>: Arbitrary<'a>,
+    T: Float + Arbitrary<'a>,
 {
-    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        Ok(Self(
-            LocalPhmm::new(
-                &DNA_UNAMBIG_PROFILE_MAP,
-                CorePhmmArbitrary::<T, F, 4, R>::arbitrary(u)?.0,
-                LocalModuleArbitrary::<T, F, 4>::arbitrary(u)?.0,
-                LocalModuleArbitrary::<T, F, 4>::arbitrary(u)?.0,
-            ),
-            PhantomData,
-        ))
+    type Output = DomainModule<T, S>;
+
+    #[inline]
+    fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {
+        let emission_specs = EmissionParamsSpecs {
+            float_specs: self.float_specs,
+        };
+
+        Ok(DomainModule {
+            start_to_insert:     self.float_specs.make_arbitrary(u)?,
+            insert_to_insert:    self.float_specs.make_arbitrary(u)?,
+            insert_to_end:       self.float_specs.make_arbitrary(u)?,
+            start_to_end:        self.float_specs.make_arbitrary(u)?,
+            background_emission: emission_specs.make_arbitrary(u)?,
+        })
     }
 }
 
-impl<'a, T: Float + Arbitrary<'a>, F, const R: bool> Arbitrary<'a> for DnaLocalPhmm<T, F, true, R>
-where
-    T: Arbitrary<'a>,
-    F: Into<T> + Arbitrary<'a>,
-    CorePhmmArbitrary<T, F, 4, R>: Arbitrary<'a>,
-{
-    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        let core = CorePhmmArbitrary::<T, F, 4, R>::arbitrary(u)?.0;
-        let begin = LocalModuleArbitrary::<T, F, 4>::arbitrary_compatible(u, &core)?.0;
-        let end = LocalModuleArbitrary::<T, F, 4>::arbitrary_compatible(u, &core)?.0;
+/// Specification for generating an arbitrary [`LocalModule`].
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
+pub struct LocalModuleSpecs<T, const S: usize> {
+    /// The specifications for generating the floating point parameters.
+    pub float_specs: FloatSpecs<T>,
 
-        Ok(Self(LocalPhmm::new(&DNA_UNAMBIG_PROFILE_MAP, core, begin, end), PhantomData))
+    /// The number of match states (including BEGIN and END) to include.
+    pub num_pseudomatch: Option<usize>,
+}
+
+impl<'a, T, const S: usize> ArbitrarySpecs<'a> for LocalModuleSpecs<T, S>
+where
+    T: Float + Arbitrary<'a>,
+{
+    type Output = LocalModule<T, S>;
+
+    #[inline]
+    fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {
+        let semilocal_specs = SemiLocalModuleSpecs {
+            float_specs:     self.float_specs,
+            num_pseudomatch: self.num_pseudomatch,
+        };
+
+        let domain_specs = DomainModuleSpecs {
+            float_specs: self.float_specs,
+        };
+
+        Ok(LocalModule {
+            external_params: semilocal_specs.make_arbitrary(u)?,
+            internal_params: domain_specs.make_arbitrary(u)?,
+        })
     }
 }
 
-/// Parameters:
-/// - `T`: The floating point type for the parameters
-/// - `F`: The floating point type or arbitrary wrapper for generating the
-///   parameters
-/// - `R`: If true, ensure invalid transitions are set to infinity
-#[derive(Debug)]
-pub struct DnaDomainPhmm<T, F, const R: bool>(pub DomainPhmm<T, 4>, pub PhantomData<F>);
+/// Specifications for generating an arbitrary [`GlobalPhmm`] with a DNA
+/// alphabet.
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
+pub struct DnaGlobalPhmmSpecs<T> {
+    /// The specifications for generating the floating point parameters.
+    pub float_specs: FloatSpecs<T>,
 
-impl_deref! {DnaDomainPhmm<T, F, R>, DomainPhmm<T, 4>, <T: Float, F, const R: bool>}
+    /// Whether to disallow invalid transitions for the first and last layers by
+    /// setting the parameters to infinity (probability zero).
+    pub disallow_invalid: bool,
+}
 
-impl<'a, T: Float + Arbitrary<'a>, F, const R: bool> Arbitrary<'a> for DnaDomainPhmm<T, F, R>
+impl<'a, T> ArbitrarySpecs<'a> for DnaGlobalPhmmSpecs<T>
 where
-    CorePhmmArbitrary<T, F, 4, R>: Arbitrary<'a>,
-    DomainModuleArbitrary<T, F, 4>: Arbitrary<'a>,
+    T: Float + Arbitrary<'a>,
 {
-    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        Ok(Self(
-            DomainPhmm::new(
-                &DNA_UNAMBIG_PROFILE_MAP,
-                CorePhmmArbitrary::<T, F, 4, R>::arbitrary(u)?.0,
-                DomainModuleArbitrary::<T, F, 4>::arbitrary(u)?.0,
-                DomainModuleArbitrary::<T, F, 4>::arbitrary(u)?.0,
-            ),
-            PhantomData,
-        ))
+    type Output = GlobalPhmm<T, 4>;
+
+    #[inline]
+    fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {
+        let specs = CorePhmmSpecs {
+            float_specs:      self.float_specs,
+            disallow_invalid: self.disallow_invalid,
+        };
+
+        Ok(GlobalPhmm::new(&DNA_UNAMBIG_PROFILE_MAP, specs.make_arbitrary(u)?))
     }
 }
 
-/// Parameters:
-/// - `T`: The floating point type for the parameters
-/// - `F`: The floating point type or arbitrary wrapper for generating the
-///   parameters
-/// - `R`: If true, ensure invalid transitions are set to infinity
-#[derive(Debug)]
-pub struct DnaSemiLocalPhmm<T, F, const R: bool>(pub SemiLocalPhmm<T, 4>, pub PhantomData<F>);
+/// Specifications for generating an arbitrary [`LocalPhmm`] with a DNA
+/// alphabet.
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
+pub struct DnaLocalPhmmSpecs<T> {
+    /// The specifications for generating the floating point parameters.
+    pub float_specs: FloatSpecs<T>,
 
-impl_deref! {DnaSemiLocalPhmm<T, F, R>, SemiLocalPhmm<T, 4>, <T: Float, F, const R: bool>}
+    /// Whether to disallow invalid transitions for the first and last layers by
+    /// setting the parameters to infinity (probability zero).
+    pub disallow_invalid: bool,
 
-impl<'a, T: Float + Arbitrary<'a>, F, const R: bool> Arbitrary<'a> for DnaSemiLocalPhmm<T, F, R>
+    /// Whether to ensure that the modules have a compatible size with the core
+    /// pHMM.
+    pub compatible_modules: bool,
+}
+
+impl<'a, T> ArbitrarySpecs<'a> for DnaLocalPhmmSpecs<T>
 where
-    CorePhmmArbitrary<T, F, 4, R>: Arbitrary<'a>,
-    SemiLocalModuleArbitrary<T, F>: Arbitrary<'a>,
+    T: Float + Arbitrary<'a>,
 {
-    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        Ok(Self(
-            SemiLocalPhmm::new(
-                &DNA_UNAMBIG_PROFILE_MAP,
-                CorePhmmArbitrary::<T, F, 4, R>::arbitrary(u)?.0,
-                SemiLocalModuleArbitrary::<T, F>::arbitrary(u)?.0,
-                SemiLocalModuleArbitrary::<T, F>::arbitrary(u)?.0,
-            ),
-            PhantomData,
-        ))
+    type Output = LocalPhmm<T, 4>;
+
+    #[inline]
+    fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {
+        let core_specs = CorePhmmSpecs {
+            float_specs:      self.float_specs,
+            disallow_invalid: self.disallow_invalid,
+        };
+
+        let core = core_specs.make_arbitrary(u)?;
+
+        let module_specs = LocalModuleSpecs {
+            float_specs:     self.float_specs,
+            num_pseudomatch: self.compatible_modules.then_some(core.num_pseudomatch()),
+        };
+
+        let begin = module_specs.make_arbitrary(u)?;
+        let end = module_specs.make_arbitrary(u)?;
+
+        Ok(LocalPhmm::new(&DNA_UNAMBIG_PROFILE_MAP, core, begin, end))
+    }
+}
+
+/// Specifications for generating an arbitrary [`DomainPhmm`] with a DNA
+/// alphabet.
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
+pub struct DnaDomainPhmmSpecs<T> {
+    /// The specifications for generating the floating point parameters.
+    pub float_specs: FloatSpecs<T>,
+
+    /// Whether to disallow invalid transitions for the first and last layers by
+    /// setting the parameters to infinity (probability zero).
+    pub disallow_invalid: bool,
+}
+
+impl<'a, T> ArbitrarySpecs<'a> for DnaDomainPhmmSpecs<T>
+where
+    T: Float + Arbitrary<'a>,
+{
+    type Output = DomainPhmm<T, 4>;
+
+    #[inline]
+    fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {
+        let core_specs = CorePhmmSpecs {
+            float_specs:      self.float_specs,
+            disallow_invalid: self.disallow_invalid,
+        };
+
+        let core = core_specs.make_arbitrary(u)?;
+
+        let module_specs = DomainModuleSpecs {
+            float_specs: self.float_specs,
+        };
+
+        let begin = module_specs.make_arbitrary(u)?;
+        let end = module_specs.make_arbitrary(u)?;
+
+        Ok(DomainPhmm::new(&DNA_UNAMBIG_PROFILE_MAP, core, begin, end))
+    }
+}
+
+/// Specifications for generating an arbitrary [`SemiLocalPhmm`] with a DNA
+/// alphabet.
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
+pub struct DnaSemiLocalPhmmSpecs<T> {
+    /// The specifications for generating the floating point parameters.
+    pub float_specs: FloatSpecs<T>,
+
+    /// Whether to disallow invalid transitions for the first and last layers by
+    /// setting the parameters to infinity (probability zero).
+    pub disallow_invalid: bool,
+
+    /// Whether to ensure that the modules have a compatible size with the core
+    /// pHMM.
+    pub compatible_modules: bool,
+}
+
+impl<'a, T> ArbitrarySpecs<'a> for DnaSemiLocalPhmmSpecs<T>
+where
+    T: Float + Arbitrary<'a>,
+{
+    type Output = SemiLocalPhmm<T, 4>;
+
+    #[inline]
+    fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {
+        let core_specs = CorePhmmSpecs {
+            float_specs:      self.float_specs,
+            disallow_invalid: self.disallow_invalid,
+        };
+
+        let core = core_specs.make_arbitrary(u)?;
+
+        let module_specs = SemiLocalModuleSpecs {
+            float_specs:     self.float_specs,
+            num_pseudomatch: self.compatible_modules.then_some(core.num_pseudomatch()),
+        };
+
+        let begin = module_specs.make_arbitrary(u)?;
+        let end = module_specs.make_arbitrary(u)?;
+
+        Ok(SemiLocalPhmm::new(&DNA_UNAMBIG_PROFILE_MAP, core, begin, end))
     }
 }

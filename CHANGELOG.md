@@ -15,9 +15,11 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `smith_waterman_alignment_from_i16_3pass` and `smith_waterman_alignment_from_i32_3pass` (behind `dev-3pass` feature gate)
 - Added `get_first_codon`, `get_last_codon`, and `get_tail_codon` to `GetCodons` trait, with mutable equivalents in `GetCodonsMut`
 - Added `CodonExtension` trait for `[u8; 3]` with convenience codon characterization methods
+- Added `ConsumingCheckedCigar` (similar to `CheckedCigar`) which is implemented on `CigletIterator` (behind `fuzzing` feature gate)
 
 ### Changed
 
+- The `arbitrary` module now uses specification structs to allow various restrictions to be enforced when generating *Zoe* data types. See the module level documentation for more details.
 - `CheckedCigar` no longer has a blanket implementation, and is instead manually implemented on relevant types (behind `fuzzing` feature gate)
 
 ### Fixes

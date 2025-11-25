@@ -1,54 +1,50 @@
-use super::{VecAsciiGraphic, VecAsciiGraphicBashSafe, VecAsciiGraphicOrSpace, impl_deref};
-use arbitrary::{Arbitrary, Result, Unstructured};
+//! A specification struct for generating arbitrary [`String`] values.
 
-/// A wrapper around [`String`] such that the implementation of
-/// [`Arbitrary`](https://docs.rs/arbitrary/latest/arbitrary/trait.Arbitrary.html)
-/// only generates graphic ASCII in the range `!`..=`~`.
-#[derive(Debug)]
-pub struct StringAsciiGraphic(pub String);
+use crate::data::arbitrary::{ArbitrarySpecs, ByteSet, ByteSpecs, Case, VecSpecs};
+use arbitrary::{Result, Unstructured};
 
-impl_deref! {StringAsciiGraphic, String}
+/// Specifications for generating an arbitrary [`String`].
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
+pub struct StringSpecs {
+    /// The character set to which the `u8` bytes must belong.
+    pub set: ByteSet,
 
-impl<'a> Arbitrary<'a> for StringAsciiGraphic {
-    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        Ok(StringAsciiGraphic(
-            String::from_utf8_lossy(&VecAsciiGraphic::arbitrary(u)?).to_string(),
-        ))
+    /// The case of the ASCII characters.
+    pub case: Case,
+}
+
+impl From<ByteSpecs> for StringSpecs {
+    #[inline]
+    fn from(value: ByteSpecs) -> Self {
+        Self {
+            set:  value.set,
+            case: value.case,
+        }
     }
 }
 
-/// A wrapper around [`String`] such that the implementation of
-/// [`Arbitrary`](https://docs.rs/arbitrary/latest/arbitrary/trait.Arbitrary.html)
-/// only generates graphic ASCII in the range `!`..=`~` or spaces.
-#[derive(Debug)]
-pub struct StringAsciiGraphicOrSpace(pub String);
-
-impl_deref! {StringAsciiGraphicOrSpace, String}
-
-impl<'a> Arbitrary<'a> for StringAsciiGraphicOrSpace {
-    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        Ok(StringAsciiGraphicOrSpace(
-            String::from_utf8_lossy(&VecAsciiGraphicOrSpace::arbitrary(u)?).to_string(),
-        ))
+impl From<StringSpecs> for ByteSpecs {
+    #[inline]
+    fn from(value: StringSpecs) -> Self {
+        Self {
+            set:  value.set,
+            case: value.case,
+        }
     }
 }
 
-/// A wrapper around [`String`] such that the implementation of
-/// [`Arbitrary`](https://docs.rs/arbitrary/latest/arbitrary/trait.Arbitrary.html)
-/// only generates graphic ASCII in the range `!`..=`~` which also is not a
-/// special character in bash.
-///
-/// The allowed characters are
-/// `%+,-./0123456789:@ABCDEFGHIJKLMNOPQRSTUVWXYZ^_abcdefghijklmnopqrstuvwxyz`.
-#[derive(Debug)]
-pub struct StringAsciiGraphicBashSafe(pub String);
+impl<'a> ArbitrarySpecs<'a> for StringSpecs {
+    type Output = String;
 
-impl_deref! {StringAsciiGraphicBashSafe, String}
-
-impl<'a> Arbitrary<'a> for StringAsciiGraphicBashSafe {
-    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        Ok(StringAsciiGraphicBashSafe(
-            String::from_utf8_lossy(&VecAsciiGraphicBashSafe::arbitrary(u)?).to_string(),
-        ))
+    #[inline]
+    fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {
+        let byte_specs = ByteSpecs::from(*self);
+        let vec_specs = VecSpecs {
+            element_specs: byte_specs,
+            min_len:       0,
+            len:           None,
+            max_len:       usize::MAX,
+        };
+        Ok(String::from_utf8_lossy(&vec_specs.make_arbitrary(u)?).to_string())
     }
 }

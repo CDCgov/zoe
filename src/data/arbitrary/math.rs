@@ -1,42 +1,55 @@
-use crate::math::Float;
+//! Specification structs for generating arbitrary numbers with additional
+//! guarantees.
+
+use crate::{data::arbitrary::ArbitrarySpecs, math::Float};
 use arbitrary::{Arbitrary, Unstructured};
+use std::marker::PhantomData;
 
-use super::{impl_deref, impl_from};
-
-/// A wrapper around a float such that the [`Arbitrary`] implementation is
-/// always not a NaN value.
+/// Specifications for generating an arbitrary floating point number.
 ///
 /// ## Parameters
 ///
-/// - `T`: The type of the float (`f32` or `f64`)
-#[derive(Debug, Clone, Copy)]
-pub struct FloatNotNan<T>(pub T);
+/// `T` is the type of the float (`f32` or `f64`).
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub struct FloatSpecs<T> {
+    /// Whether to include `NaN` as a possible output.
+    pub include_nan: bool,
 
-impl_deref! {FloatNotNan<T>, T, <T>}
-impl_from! {FloatNotNan, f32, f64}
+    /// Whether to restrict the output to be nonnegative.
+    pub nonnegative: bool,
 
-impl<'a, T: Float + Arbitrary<'a>> Arbitrary<'a> for FloatNotNan<T> {
-    fn arbitrary(u: &mut Unstructured<'a>) -> arbitrary::Result<Self> {
-        let val: T = Arbitrary::arbitrary(u)?;
-        let cleaned = if val.is_nan() { T::ZERO } else { val };
-        Ok(FloatNotNan(cleaned))
+    /// The desired floating point type.
+    pub float: PhantomData<T>,
+}
+
+impl<T> Default for FloatSpecs<T> {
+    fn default() -> Self {
+        Self {
+            include_nan: true,
+            nonnegative: false,
+            float:       PhantomData,
+        }
     }
 }
 
-/// A wrapper around a float such that the [`Arbitrary`] implementation is
-/// always nonnegative (and not a NaN).
-///
-/// ## Parameters
-///
-/// - `T`: The type of the float (`f32` or `f64`)
-#[derive(Debug, Clone, Copy)]
-pub struct NonnegativeFloat<T>(pub T);
+impl<'a, T> ArbitrarySpecs<'a> for FloatSpecs<T>
+where
+    T: Float + Arbitrary<'a>,
+{
+    type Output = T;
 
-impl_deref! {NonnegativeFloat<T>, T, <T>}
-impl_from! {NonnegativeFloat, f32, f64}
+    #[inline]
+    fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> arbitrary::Result<Self::Output> {
+        let mut float = T::arbitrary(u)?;
 
-impl<'a, T: Float + Arbitrary<'a>> Arbitrary<'a> for NonnegativeFloat<T> {
-    fn arbitrary(u: &mut Unstructured<'a>) -> arbitrary::Result<Self> {
-        Ok(NonnegativeFloat(u.arbitrary::<FloatNotNan<T>>()?.0.abs()))
+        if !self.include_nan && float.is_nan() {
+            float = T::ZERO;
+        }
+
+        if self.nonnegative {
+            float = float.abs();
+        }
+
+        Ok(float)
     }
 }

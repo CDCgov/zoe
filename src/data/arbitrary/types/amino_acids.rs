@@ -1,32 +1,50 @@
+//! An arbitrary implementation and specification struct for [`AminoAcids`].
+
 use crate::{
-    data::{arbitrary::impl_deref, views::impl_len_for_wrapper},
+    data::arbitrary::{ArbitrarySpecs, ByteSet, ByteSpecs, Case, VecSpecs},
     prelude::AminoAcids,
 };
 use arbitrary::{Arbitrary, Result, Unstructured};
 
 impl<'a> Arbitrary<'a> for AminoAcids {
+    #[inline]
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
         Ok(AminoAcids(Vec::<u8>::arbitrary(u)?))
     }
 }
 
-/// A wrapper around [`AminoAcids`] such that the implementation of
-/// [`Arbitrary`](https://docs.rs/arbitrary/latest/arbitrary/trait.Arbitrary.html)
-/// only generates bases in `ACDEFGHIKLMNPQRSTVWYXacdefghiklmnpqrstvwyx`.
-#[derive(Debug, Clone)]
-pub struct AminoAcidsIupacX(pub AminoAcids);
+/// Specifications for generating an arbitrary [`AminoAcids`] sequence.
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
+pub struct AminoAcidsSpecs {
+    /// The character set to which the `u8` bytes must belong.
+    ///
+    /// Consider using [`ByteSet::AminoAcidsCanonical`] if needed.
+    pub set: ByteSet,
 
-impl_deref! {AminoAcidsIupacX, AminoAcids}
-impl_len_for_wrapper! {AminoAcidsIupacX, 0}
+    /// The case of the ASCII characters.
+    pub case: Case,
+}
 
-impl<'a> Arbitrary<'a> for AminoAcidsIupacX {
-    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        const ALPHA: &[u8] = b"ACDEFGHIKLMNPQRSTVWYXacdefghiklmnpqrstvwyx";
-        Ok(AminoAcidsIupacX(
-            u.arbitrary_iter::<u8>()?
-                .flatten()
-                .map(|b| ALPHA[b as usize % ALPHA.len()])
-                .collect(),
-        ))
+impl From<AminoAcidsSpecs> for ByteSpecs {
+    #[inline]
+    fn from(value: AminoAcidsSpecs) -> Self {
+        Self {
+            set:  value.set,
+            case: value.case,
+        }
+    }
+}
+
+impl<'a> ArbitrarySpecs<'a> for AminoAcidsSpecs {
+    type Output = AminoAcids;
+
+    #[inline]
+    fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {
+        let vec_specs = VecSpecs {
+            element_specs: ByteSpecs::from(*self),
+            ..Default::default()
+        };
+
+        vec_specs.make_arbitrary(u).map(AminoAcids)
     }
 }

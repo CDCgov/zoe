@@ -1,3 +1,5 @@
+#[cfg(feature = "fuzzing")]
+use crate::data::cigar::CigletIterator;
 use crate::{
     alignment::AlignmentIndices,
     data::types::cigar::{Cigar, Ciglet},
@@ -633,6 +635,38 @@ pub trait CheckedCigar {
     fn num_query_consumed_checked(&self) -> Option<usize>;
 }
 
+/// A trait for computing the number of residues consumed in the reference or
+/// query for a given CIGAR string iterator, while checking for overflow. This
+/// is helpful for randomly generated alignments.
+///
+/// This is similar to [`CheckedCigar`], but is implemented on types which must
+/// be consumed during these computations.
+///
+/// <div class="warning note">
+///
+/// **Note**
+///
+/// You must enable the *fuzzing* feature in your `Cargo.toml` to use this
+/// trait.
+///
+/// </div>
+#[cfg(feature = "fuzzing")]
+pub trait ConsumingCheckedCigar {
+    /// Sums the lengths for all operations, returning `None` for overflow.
+    #[must_use]
+    fn total_increments_checked(self) -> Option<usize>;
+
+    /// Sums the lengths for operations consuming the reference (`M`, `D`, `N`,
+    /// `=`, and `X`), returning `None` for overflow.
+    #[must_use]
+    fn num_ref_consumed_checked(self) -> Option<usize>;
+
+    /// Sums the lengths for operations consuming the query (`M`, `I`, `S`, `=`,
+    /// and `X`), returning `None` for overflow.
+    #[must_use]
+    fn num_query_consumed_checked(self) -> Option<usize>;
+}
+
 #[cfg(feature = "fuzzing")]
 impl CheckedCigar for AlignmentStates {
     #[inline]
@@ -718,5 +752,25 @@ impl CheckedCigar for &mut [Ciglet] {
     #[inline]
     fn num_query_consumed_checked(&self) -> Option<usize> {
         self.as_ref().num_query_consumed_checked()
+    }
+}
+
+#[cfg(feature = "fuzzing")]
+impl ConsumingCheckedCigar for CigletIterator<'_> {
+    #[inline]
+    fn total_increments_checked(mut self) -> Option<usize> {
+        self.try_fold(0usize, |sum, ciglet| sum.checked_add(ciglet.inc))
+    }
+
+    #[inline]
+    fn num_ref_consumed_checked(self) -> Option<usize> {
+        self.filter_map(|Ciglet { inc, op }| matches!(op, b'M' | b'D' | b'N' | b'=' | b'X').then_some(inc))
+            .try_fold(0, usize::checked_add)
+    }
+
+    #[inline]
+    fn num_query_consumed_checked(self) -> Option<usize> {
+        self.filter_map(|Ciglet { inc, op }| matches!(op, b'M' | b'I' | b'S' | b'=' | b'X').then_some(inc))
+            .try_fold(0, usize::checked_add)
     }
 }
