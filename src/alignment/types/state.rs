@@ -50,6 +50,20 @@ impl AlignmentStates {
         self.0.as_slice()
     }
 
+    /// Returns the [`Ciglet`] elements as a mutable slice.
+    ///
+    /// ## Validity
+    ///
+    /// Any mutations performed should ensure that increments are non-zero and
+    /// that adjacent [`Ciglet`] values have distinct operations. Otherwise, the
+    /// assumptions of [`AlignmentStates`](AlignmentStates#validity) may be
+    /// invalidated.
+    #[inline]
+    #[must_use]
+    pub fn as_mut_slice(&mut self) -> &mut [Ciglet] {
+        self.0.as_mut_slice()
+    }
+
     /// Adds a state to the rightmost end of the alignment, merging state where
     /// appropriate.
     pub fn add_state(&mut self, op: u8) {
@@ -408,7 +422,7 @@ where
 }
 
 /// A trait representing a sequence of alignment states, where each element is
-/// represented as a [`Ciglet`].
+/// represented as a [`Ciglet`] which can be read.
 ///
 /// This provides iterator-like functionality, allowing the [`Ciglet`] elements
 /// to be consumed (such as with [`next_ciglet`] and [`next_ciglet_back`]) or
@@ -462,8 +476,8 @@ pub trait StatesSequence {
     /// Removes clipping from the start of the iterator.
     ///
     /// First, a hard clipping ciglet is removed if present. Then a soft
-    /// clipping ciglet is removed if present. The total number of bases
-    /// clipping is returned.
+    /// clipping ciglet is removed if present. The total number of bases clipped
+    /// is returned.
     #[inline]
     fn remove_clipping_front(&mut self) -> usize {
         if let Some(ciglet1) = self.next_if_op(|op| op == b'H' || op == b'S') {
@@ -482,8 +496,8 @@ pub trait StatesSequence {
     /// Removes clipping from the end of the iterator.
     ///
     /// First, a hard clipping ciglet is removed if present. Then a soft
-    /// clipping ciglet is removed if present. The total number of bases
-    /// clipping is returned.
+    /// clipping ciglet is removed if present. The total number of bases clipped
+    /// is returned.
     #[inline]
     fn remove_clipping_back(&mut self) -> usize {
         if let Some(ciglet1) = self.next_back_if_op(|op| op == b'H' || op == b'S') {
@@ -496,6 +510,46 @@ pub trait StatesSequence {
             }
         } else {
             0
+        }
+    }
+}
+
+/// A trait representing a sequence of alignment states, where each element is
+/// represented as a [`Ciglet`] which can be mutated.
+///
+/// This provides iterator-like functionality, allowing the [`Ciglet`] elements
+/// to be consumed (such as with [`next_ciglet_mut`] and
+/// [`next_ciglet_back_mut`]).
+///
+/// [`next_ciglet_mut`]: StatesSequenceMut::next_ciglet_mut
+/// [`next_ciglet_back_mut`]: StatesSequenceMut::next_ciglet_back_mut
+pub trait StatesSequenceMut<'a>: StatesSequence {
+    /// Retrieves a mutable reference to next [`Ciglet`] and removes it from the
+    /// [`StatesSequence`], similar to [`Iterator::next`].
+    fn next_ciglet_mut(&mut self) -> Option<&'a mut Ciglet>;
+
+    /// Retrieves a mutable reference to the next [`Ciglet`] from the end and
+    /// removes it from the [`StatesSequence`], similar to
+    /// [`DoubleEndedIterator::next_back`].
+    fn next_ciglet_back_mut(&mut self) -> Option<&'a mut Ciglet>;
+
+    /// Gets a mutable reference to the next ciglet if the operator meets the
+    /// specified predicate (and then remove it from the [`StatesSequence`]).
+    /// Otherwise the [`StatesSequence`] is not modified.
+    #[inline]
+    fn next_if_op_mut(&mut self, f: impl FnOnce(u8) -> bool) -> Option<&'a mut Ciglet> {
+        if f(self.peek_op()?) { self.next_ciglet_mut() } else { None }
+    }
+
+    /// Gets a mutable reference to the last ciglet if the operator meets the
+    /// specified predicat (and then remove it from the [`StatesSequence`]).
+    /// Otherwise the [`StatesSequence`] is not modified.
+    #[inline]
+    fn next_back_if_op_mut(&mut self, f: impl FnOnce(u8) -> bool) -> Option<&'a mut Ciglet> {
+        if f(self.peek_back_op()?) {
+            self.next_ciglet_back_mut()
+        } else {
+            None
         }
     }
 }
@@ -518,16 +572,51 @@ impl StatesSequence for &[Ciglet] {
 
     #[inline]
     fn next_ciglet(&mut self) -> Option<Ciglet> {
-        let (first, rest) = self.split_first()?;
-        *self = rest;
-        Some(*first)
+        self.split_off_first().copied()
     }
 
     #[inline]
     fn next_ciglet_back(&mut self) -> Option<Ciglet> {
-        let (last, rest) = self.split_last()?;
-        *self = rest;
-        Some(*last)
+        self.split_off_last().copied()
+    }
+}
+
+impl StatesSequence for &mut [Ciglet] {
+    #[inline]
+    fn peek_op(&self) -> Option<u8> {
+        self.as_ref().peek_op()
+    }
+
+    #[inline]
+    fn peek_back_op(&self) -> Option<u8> {
+        self.as_ref().peek_back_op()
+    }
+
+    #[inline]
+    fn is_empty(&self) -> bool {
+        self.as_ref().is_empty()
+    }
+
+    #[inline]
+    fn next_ciglet(&mut self) -> Option<Ciglet> {
+        self.split_off_first_mut().copied()
+    }
+
+    #[inline]
+    fn next_ciglet_back(&mut self) -> Option<Ciglet> {
+        self.split_off_last_mut().copied()
+    }
+}
+
+impl<'a> StatesSequenceMut<'a> for &'a mut [Ciglet] {
+    #[inline]
+    fn next_ciglet_mut(&mut self) -> Option<&'a mut Ciglet> {
+        self.split_off_first_mut()
+    }
+
+    #[inline]
+    fn next_ciglet_back_mut(&mut self) -> Option<&'a mut Ciglet> {
+        self.split_off_last_mut()
     }
 }
 
@@ -544,39 +633,106 @@ impl StatesSequence for &[Ciglet] {
 ///
 /// </div>
 #[cfg(feature = "fuzzing")]
-pub trait CheckedCigar
-where
-    for<'a> &'a Self: IntoIterator<Item: std::borrow::Borrow<Ciglet>>, {
+pub trait CheckedCigar {
     /// Sums the lengths for all operations, returning `None` for overflow.
-    #[inline]
     #[must_use]
-    fn total_increments_checked(&self) -> Option<usize> {
-        self.into_iter()
-            .map(|ciglet| *std::borrow::Borrow::borrow(&ciglet))
-            .try_fold(0usize, |sum, ciglet| sum.checked_add(ciglet.inc))
-    }
+    fn total_increments_checked(&self) -> Option<usize>;
 
     /// Sums the lengths for operations consuming the reference (`M`, `D`, `N`,
     /// `=`, and `X`), returning `None` for overflow.
-    #[inline]
     #[must_use]
-    fn num_ref_consumed_checked(&self) -> Option<usize> {
-        self.into_iter()
-            .map(|ciglet| *std::borrow::Borrow::borrow(&ciglet))
-            .filter_map(|Ciglet { inc, op }| matches!(op, b'M' | b'D' | b'N' | b'=' | b'X').then_some(inc))
-            .try_fold(0, usize::checked_add)
-    }
+    fn num_ref_consumed_checked(&self) -> Option<usize>;
 
     /// Sums the lengths for operations consuming the query (`M`, `I`, `S`, `=`,
     /// and `X`), returning `None` for overflow.
     #[must_use]
+    fn num_query_consumed_checked(&self) -> Option<usize>;
+}
+
+#[cfg(feature = "fuzzing")]
+impl CheckedCigar for AlignmentStates {
+    #[inline]
+    fn total_increments_checked(&self) -> Option<usize> {
+        self.into_iter().try_fold(0usize, |sum, ciglet| sum.checked_add(ciglet.inc))
+    }
+
+    #[inline]
+    fn num_ref_consumed_checked(&self) -> Option<usize> {
+        self.into_iter()
+            .filter_map(|Ciglet { inc, op }| matches!(op, b'M' | b'D' | b'N' | b'=' | b'X').then_some(inc))
+            .try_fold(0, usize::checked_add)
+    }
+
+    #[inline]
     fn num_query_consumed_checked(&self) -> Option<usize> {
         self.into_iter()
-            .map(|ciglet| *std::borrow::Borrow::borrow(&ciglet))
             .filter_map(|Ciglet { inc, op }| matches!(op, b'M' | b'I' | b'S' | b'=' | b'X').then_some(inc))
             .try_fold(0, usize::checked_add)
     }
 }
 
 #[cfg(feature = "fuzzing")]
-impl<T> CheckedCigar for T where for<'a> &'a T: IntoIterator<Item: std::borrow::Borrow<Ciglet>> {}
+impl CheckedCigar for Cigar {
+    #[inline]
+    fn total_increments_checked(&self) -> Option<usize> {
+        self.into_iter().try_fold(0usize, |sum, ciglet| sum.checked_add(ciglet.inc))
+    }
+
+    #[inline]
+    fn num_ref_consumed_checked(&self) -> Option<usize> {
+        self.into_iter()
+            .filter_map(|Ciglet { inc, op }| matches!(op, b'M' | b'D' | b'N' | b'=' | b'X').then_some(inc))
+            .try_fold(0, usize::checked_add)
+    }
+
+    #[inline]
+    fn num_query_consumed_checked(&self) -> Option<usize> {
+        self.into_iter()
+            .filter_map(|Ciglet { inc, op }| matches!(op, b'M' | b'I' | b'S' | b'=' | b'X').then_some(inc))
+            .try_fold(0, usize::checked_add)
+    }
+}
+
+#[cfg(feature = "fuzzing")]
+impl CheckedCigar for &[Ciglet] {
+    #[inline]
+    fn total_increments_checked(&self) -> Option<usize> {
+        self.iter()
+            .copied()
+            .try_fold(0usize, |sum, ciglet| sum.checked_add(ciglet.inc))
+    }
+
+    #[inline]
+    fn num_ref_consumed_checked(&self) -> Option<usize> {
+        self.iter()
+            .copied()
+            .filter_map(|Ciglet { inc, op }| matches!(op, b'M' | b'D' | b'N' | b'=' | b'X').then_some(inc))
+            .try_fold(0, usize::checked_add)
+    }
+
+    #[inline]
+    fn num_query_consumed_checked(&self) -> Option<usize> {
+        self.iter()
+            .copied()
+            .filter_map(|Ciglet { inc, op }| matches!(op, b'M' | b'I' | b'S' | b'=' | b'X').then_some(inc))
+            .try_fold(0, usize::checked_add)
+    }
+}
+
+#[cfg(feature = "fuzzing")]
+impl CheckedCigar for &mut [Ciglet] {
+    #[inline]
+    fn total_increments_checked(&self) -> Option<usize> {
+        self.as_ref().total_increments_checked()
+    }
+
+    #[inline]
+    fn num_ref_consumed_checked(&self) -> Option<usize> {
+        self.as_ref().num_ref_consumed_checked()
+    }
+
+    #[inline]
+    fn num_query_consumed_checked(&self) -> Option<usize> {
+        self.as_ref().num_query_consumed_checked()
+    }
+}

@@ -11,6 +11,11 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `to_alignment` to convert `SamData` to `Alignment`
 - Added ability to push tags to `SamTags`
 - Added `prepend_state`, `prepend_ciglet`, and `prepend_inc_op` to `AlignmentStates`
+- Added `StatesSequenceMut` trait and `AlignmentStates::as_mut_slice` to provide mutable access to ciglets while iterating/processing
+
+### Changed
+
+- `CheckedCigar` no longer has a blanket implementation, and is instead manually implemented on relevant types (behind `fuzzing` feature gate)
 
 ### Fixes
 
