@@ -20,6 +20,11 @@ use crate::{
 /// unchecked functions which may invalidate this, although those functions have
 /// documented validity sections. Any arbitrary implementations may ignore these
 /// assumptions as well.
+///
+/// ## Limitations
+///
+/// Prepending methods do a simple [`Vec::insert`] on the first index, which
+/// copies elements.
 #[derive(Clone, Eq, PartialEq, Default)]
 pub struct AlignmentStates(pub(crate) Vec<Ciglet>);
 
@@ -45,18 +50,20 @@ impl AlignmentStates {
         self.0.as_slice()
     }
 
-    /// Adds a state to the right end of the alignment.
-    ///
-    /// If the operation is the same as the rightmost operation, this state is
-    /// included in the previous [`Ciglet`].
+    /// Adds a state to the rightmost end of the alignment, merging state where
+    /// appropriate.
     pub fn add_state(&mut self, op: u8) {
         self.add_ciglet(Ciglet { inc: 1, op });
     }
 
-    /// Adds a [`Ciglet`] to the right end of the alignment.
-    ///
-    /// If the operation is the same as the rightmost operation, the ciglet is
-    /// merged with the last one. If the increment is 0, no change occurs.
+    /// Adds a state to the leftmost end of the alignment, merging state where
+    /// appropriate.
+    pub fn prepend_state(&mut self, op: u8) {
+        self.prepend_ciglet(Ciglet { inc: 1, op });
+    }
+
+    /// Adds a [`Ciglet`] to the right end of the alignment, merging [`Ciglet`]s
+    /// where appropriate.
     pub fn add_ciglet(&mut self, ciglet: Ciglet) {
         if ciglet.inc > 0 {
             if let Some(c) = self.0.last_mut()
@@ -65,6 +72,20 @@ impl AlignmentStates {
                 c.inc += ciglet.inc;
             } else {
                 self.0.push(ciglet);
+            }
+        }
+    }
+
+    /// Adds a [`Ciglet`] to the leftmost end of the alignment, merging
+    /// [`Ciglet`]s where appropriate.
+    pub fn prepend_ciglet(&mut self, ciglet: Ciglet) {
+        if ciglet.inc > 0 {
+            if let Some(c) = self.0.first_mut()
+                && c.op == ciglet.op
+            {
+                c.inc += ciglet.inc;
+            } else {
+                self.0.insert(0, ciglet);
             }
         }
     }
@@ -82,6 +103,21 @@ impl AlignmentStates {
     #[inline]
     pub fn add_inc_op(&mut self, inc: usize, op: u8) {
         self.add_ciglet(Ciglet { inc, op });
+    }
+
+    /// Prepends an increment-operation pair.
+    ///
+    /// This is equivalent to calling [`prepend_state`] `inc` times, or calling
+    /// [`prepend_ciglet`] after combining the information into a [`Ciglet`].
+    ///
+    /// If the operation is the same as the leftmost operation, the ciglet is
+    /// merged with the first one. If the increment is 0, no change occurs.
+    ///
+    /// [`prepend_state`]: AlignmentStates::prepend_state
+    /// [`prepend_ciglet`]: AlignmentStates::prepend_ciglet
+    #[inline]
+    pub fn prepend_inc_op(&mut self, inc: usize, op: u8) {
+        self.prepend_ciglet(Ciglet { inc, op });
     }
 
     /// Creates an alignment consisting only of `M` (match states) without any
@@ -136,15 +172,7 @@ impl AlignmentStates {
     /// If the leftmost operation is `S`, `inc` is added to its `increment`. If
     /// `inc` is 0, no change occurs.
     pub fn prepend_soft_clip(&mut self, inc: usize) {
-        if inc > 0 {
-            if let Some(c) = self.0.first_mut()
-                && c.op == b'S'
-            {
-                c.inc += inc;
-            } else {
-                self.0.insert(0, Ciglet { inc, op: b'S' });
-            }
-        }
+        self.prepend_ciglet(Ciglet { inc, op: b'S' });
     }
 
     /// Converts the [`AlignmentStates`] struct to a [`Cigar`] string, without

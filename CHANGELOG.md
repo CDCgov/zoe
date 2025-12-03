@@ -10,6 +10,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 - Added `to_alignment` to convert `SamData` to `Alignment`
 - Added ability to push tags to `SamTags`
+- Added `prepend_state`, `prepend_ciglet`, and `prepend_inc_op` to `AlignmentStates`
 
 ## [0.0.23] - 2025-11-24
 
