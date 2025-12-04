@@ -12,6 +12,10 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added ability to push tags to `SamTags`
 - Added `prepend_state`, `prepend_ciglet`, and `prepend_inc_op` to `AlignmentStates`
 
+### Fixes
+
+- Fixed spelling of `filter_to_dna_uanligned` to `filter_to_dna_unaligned` in trait `ToDNA`
+
 ## [0.0.23] - 2025-11-24
 
 ### Added

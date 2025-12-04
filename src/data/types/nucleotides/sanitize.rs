@@ -20,7 +20,7 @@ pub trait ToDNA: Into<Nucleotides> + Sealed {
     }
 
     /// Filters and recodes to uppercase IUPAC without gaps.
-    fn filter_to_dna_uanligned(self) -> Nucleotides {
+    fn filter_to_dna_unaligned(self) -> Nucleotides {
         let mut n = self.into();
         n.retain_and_recode_dna(RefineDNAStrat::IupacNoGapsUc);
         n

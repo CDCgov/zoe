@@ -90,7 +90,7 @@ impl FastaSeq {
     pub fn filter_to_dna_unaligned(self) -> FastaNT {
         FastaNT {
             name:     self.name,
-            sequence: self.sequence.filter_to_dna_uanligned(),
+            sequence: self.sequence.filter_to_dna_unaligned(),
         }
     }
 
