@@ -144,6 +144,34 @@ where
             .or_else_overflowed(|| self.get_i32().smith_waterman_alignment(query))
     }
 
+    /// Lazily execute [`StripedProfile::smith_waterman_alignment`] starting
+    /// with the `i16` profile, skipping the `i8` profile.
+    ///
+    /// Lazily initializes the profiles and works its way up to the `i32`
+    /// profile. Execution stops when the alignment returned no longer overflows
+    /// the profile's integer range.
+    ///
+    /// See [`LocalProfiles::smith_waterman_alignment_from_i8`] for an example.
+    #[inline]
+    #[must_use]
+    fn smith_waterman_alignment_from_i16<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<Alignment<u32>> {
+        let query = query.as_ref();
+        self.get_i16()
+            .smith_waterman_alignment(query)
+            .or_else_overflowed(|| self.get_i32().smith_waterman_alignment(query))
+    }
+
+    /// Execute [`StripedProfile::smith_waterman_alignment`] with the `i32`
+    /// profile, skipping the `i8` and `i16` profiles.
+    ///
+    /// See [`LocalProfiles::smith_waterman_alignment_from_i8`] for an example.
+    #[inline]
+    #[must_use]
+    fn smith_waterman_alignment_from_i32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<Alignment<u32>> {
+        let query = query.as_ref();
+        self.get_i32().smith_waterman_alignment(query)
+    }
+
     #[inline]
     #[must_use]
     #[cfg(feature = "dev-3pass")]
@@ -196,32 +224,66 @@ where
             })
     }
 
-    /// Lazily execute [`StripedProfile::smith_waterman_alignment`] starting
-    /// with the `i16` profile, skipping the `i8` profile.
+    #[inline]
+    #[must_use]
+    #[cfg(feature = "dev-3pass")]
+    // TODO: we will add dispatching instead if the method needs to be hybrid based on size considerations
+    /// Lazily execute [`StripedProfile::smith_waterman_alignment_3pass`]
+    /// starting with the `i16` profile.
     ///
     /// Lazily initializes the profiles and works its way up to the `i32`
-    /// profile. Execution stops when the alignment returned no longer overflows
-    /// the profile's integer range.
+    /// profile. Execution stops when the score returned no longer overflows the
+    /// profile's integer range.
     ///
-    /// See [`LocalProfiles::smith_waterman_alignment_from_i8`] for an example.
-    #[inline]
-    #[must_use]
-    fn smith_waterman_alignment_from_i16<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<Alignment<u32>> {
-        let query = query.as_ref();
+    /// See [`smith_waterman_alignment_from_i8_3pass`] for an example.
+    ///
+    /// [`smith_waterman_alignment_from_i8_3pass`]:
+    ///     ProfileSets::smith_waterman_alignment_from_i8_3pass
+    fn smith_waterman_alignment_from_i16_3pass<T: AsRef<[u8]> + ?Sized>(
+        &self, reference: &T,
+    ) -> MaybeAligned<Alignment<u32>> {
+        let reference = reference.as_ref();
+
         self.get_i16()
-            .smith_waterman_alignment(query)
-            .or_else_overflowed(|| self.get_i32().smith_waterman_alignment(query))
+            .smith_waterman_alignment_3pass(reference, self.query(), self.matrix(), self.gap_open(), self.gap_extend())
+            .or_else_overflowed(|| {
+                self.get_i32().smith_waterman_alignment_3pass(
+                    reference,
+                    self.query(),
+                    self.matrix(),
+                    self.gap_open(),
+                    self.gap_extend(),
+                )
+            })
     }
 
-    /// Execute [`StripedProfile::smith_waterman_alignment`] with the `i32`
-    /// profile, skipping the `i8` and `i16` profiles.
-    ///
-    /// See [`LocalProfiles::smith_waterman_alignment_from_i8`] for an example.
     #[inline]
     #[must_use]
-    fn smith_waterman_alignment_from_i32<T: AsRef<[u8]> + ?Sized>(&self, query: &T) -> MaybeAligned<Alignment<u32>> {
-        let query = query.as_ref();
-        self.get_i32().smith_waterman_alignment(query)
+    #[cfg(feature = "dev-3pass")]
+    // TODO: we will add dispatching instead if the method needs to be hybrid based on size considerations
+    /// Execute [`StripedProfile::smith_waterman_alignment_3pass`] using the
+    /// `i32` profile.
+    ///
+    /// If the score overflows the range allowed by an `i32`, then
+    /// [`MaybeAligned::Overflowed`] is returned, since this is the highest
+    /// profile supported by *Zoe*'s profile sets.
+    ///
+    /// See [`smith_waterman_alignment_from_i8_3pass`] for an example.
+    ///
+    /// [`smith_waterman_alignment_from_i8_3pass`]:
+    ///     ProfileSets::smith_waterman_alignment_from_i8_3pass
+    fn smith_waterman_alignment_from_i32_3pass<T: AsRef<[u8]> + ?Sized>(
+        &self, reference: &T,
+    ) -> MaybeAligned<Alignment<u32>> {
+        let reference = reference.as_ref();
+
+        self.get_i32().smith_waterman_alignment_3pass(
+            reference,
+            self.query(),
+            self.matrix(),
+            self.gap_open(),
+            self.gap_extend(),
+        )
     }
 }
 
