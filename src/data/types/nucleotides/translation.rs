@@ -428,3 +428,55 @@ pub trait GetCodonsMut: NucleotidesMutable + Sealed {
 
 impl GetCodonsMut for Nucleotides {}
 impl GetCodonsMut for NucleotidesViewMut<'_> {}
+
+/// Extension trait for codon-like objects (in Zoe `[u8;3]`) providing common
+/// classification methods.
+pub trait CodonExtension {
+    /// Returns `true` if the codon is a standard stop codon (TAA, TAG, TGA, or
+    /// RNA equivalents including some ambiguous forms).
+    fn is_std_stop_codon(&self) -> bool;
+
+    /// Returns `true` if the codon translates to an amino acid (not a stop
+    /// codon, missing codon, or deletion).
+    fn is_amino_acid(&self) -> bool;
+
+    /// Like [`Self::is_amino_acid`] but excludes 'X'. Codes 'B', 'J', and 'Z'
+    /// are not translated from nucleotides.
+    fn is_known_amino_acid(&self) -> bool;
+
+    /// Returns `true` if the codon can be resolved to a translation (amino
+    /// acid, deletion, missing codon, or stop codon) under the standard genetic
+    /// code.
+    fn is_valid_codon(&self) -> bool;
+
+    /// Returns `true` if the codon is *partial* (contains one or two gap-like
+    /// characters: `-`, `~`, or `.`).
+    fn is_partial_codon(&self) -> bool;
+}
+
+impl CodonExtension for [u8; 3] {
+    #[inline]
+    fn is_std_stop_codon(&self) -> bool {
+        StdGeneticCode::is_stop_codon(self)
+    }
+
+    #[inline]
+    fn is_amino_acid(&self) -> bool {
+        matches!(StdGeneticCode::get(self), Some(aa) if aa.is_ascii_alphabetic())
+    }
+
+    #[inline]
+    fn is_known_amino_acid(&self) -> bool {
+        matches!(StdGeneticCode::get(self), Some(aa) if aa.is_ascii_alphabetic() && aa != b'X')
+    }
+
+    #[inline]
+    fn is_valid_codon(&self) -> bool {
+        StdGeneticCode::get(self).is_some()
+    }
+
+    #[inline]
+    fn is_partial_codon(&self) -> bool {
+        is_partial_codon(*self)
+    }
+}
