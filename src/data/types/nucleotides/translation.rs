@@ -305,6 +305,30 @@ pub trait GetCodons: NucleotidesReadable + Sealed {
         // try_into will never fail
         self.nucleotide_bytes().get(3 * index..3 * index + 3)?.try_into().ok()
     }
+
+    /// Gets the first 3 bases as a codon, returning `None` if no such codon
+    /// exists.
+    #[inline]
+    #[must_use]
+    fn get_first_codon(&self) -> Option<[u8; 3]> {
+        self.nucleotide_bytes().first_chunk().copied()
+    }
+
+    /// Gets the last in-frame codon (from start) for the sequence, returning
+    /// `None` if no such codon exists.
+    #[inline]
+    #[must_use]
+    fn get_last_codon(&self) -> Option<[u8; 3]> {
+        self.as_codons().0.last().copied()
+    }
+
+    /// Gets the last 3 bases as a codon regardless of frame, returning `None`
+    /// if no such codon exists.
+    #[inline]
+    #[must_use]
+    fn get_tail_codon(&self) -> Option<[u8; 3]> {
+        self.nucleotide_bytes().last_chunk().copied()
+    }
 }
 
 impl GetCodons for Nucleotides {}
@@ -375,6 +399,30 @@ pub trait GetCodonsMut: NucleotidesMutable + Sealed {
     #[must_use]
     fn get_nth_codon_mut(&mut self, index: usize) -> Option<&mut [u8; 3]> {
         self.nucleotide_mut_bytes().get_mut(3 * index..3 * index + 3)?.try_into().ok()
+    }
+
+    /// Gets a mutable reference to the first 3 bases as a codon, returning
+    /// `None` if no such codon exists.
+    #[inline]
+    #[must_use]
+    fn get_first_codon_mut(&mut self) -> Option<&mut [u8; 3]> {
+        self.nucleotide_mut_bytes().first_chunk_mut()
+    }
+
+    /// Gets a mutable reference to the last in-frame (from start) codon for the
+    /// sequence relative to, returning `None` if no such codon exists.
+    #[inline]
+    #[must_use]
+    fn get_last_codon_mut(&mut self) -> Option<&mut [u8; 3]> {
+        self.as_codons_mut().0.last_mut()
+    }
+
+    /// Gets a mutable reference to the last 3 bases as a codon regardless of
+    /// frame, returning `None` if no such codon exists.
+    #[inline]
+    #[must_use]
+    fn get_tail_codon_mut(&mut self) -> Option<&mut [u8; 3]> {
+        self.nucleotide_mut_bytes().last_chunk_mut()
     }
 }
 

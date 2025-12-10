@@ -13,6 +13,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `prepend_state`, `prepend_ciglet`, and `prepend_inc_op` to `AlignmentStates`
 - Added `StatesSequenceMut` trait and `AlignmentStates::as_mut_slice` to provide mutable access to ciglets while iterating/processing
 - Added `smith_waterman_alignment_from_i16_3pass` and `smith_waterman_alignment_from_i32_3pass` (behind `dev-3pass` feature gate)
+- Added `get_first_codon`, `get_last_codon`, and `get_tail_codon` to `GetCodons` trait, with mutable equivalents in `GetCodonsMut`
 
 ### Changed
 
