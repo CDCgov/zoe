@@ -195,10 +195,10 @@ impl Nucleotides {
     /// ```
     #[inline]
     pub fn into_shared_profile<'a, const S: usize>(
-        &self, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
+        &'a self, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
     ) -> Result<SharedProfiles<'a, 32, 16, 8, S>, QueryProfileError>
 where {
-        SharedProfiles::new_with_w256(self.as_bytes().into(), matrix, gap_open, gap_extend)
+        SharedProfiles::new_with_w256(self.as_bytes(), matrix, gap_open, gap_extend)
     }
 
     /// Returns the reverse complement of the sequence as a new record.

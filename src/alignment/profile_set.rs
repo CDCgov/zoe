@@ -483,7 +483,7 @@ where
     LaneCount<M>: SupportedLaneCount,
     LaneCount<N>: SupportedLaneCount,
     LaneCount<O>: SupportedLaneCount, {
-    pub(crate) query:       Box<[u8]>,
+    pub(crate) query:       &'a [u8],
     pub(crate) matrix:      &'a WeightMatrix<'a, i8, S>,
     pub(crate) gap_open:    i8,
     pub(crate) gap_extend:  i8,
@@ -514,9 +514,9 @@ where
     ///   `gap_open`
     #[inline]
     pub fn new(
-        query: Box<[u8]>, matrix: &'a WeightMatrix<'a, i8, S>, gap_open: i8, gap_extend: i8,
+        query: &'a [u8], matrix: &'a WeightMatrix<'a, i8, S>, gap_open: i8, gap_extend: i8,
     ) -> Result<Self, QueryProfileError> {
-        validate_profile_args(&query, gap_open, gap_extend)?;
+        validate_profile_args(query, gap_open, gap_extend)?;
 
         Ok(SharedProfiles {
             query,
@@ -541,7 +541,7 @@ impl<'a, const S: usize> SharedProfiles<'a, 16, 8, 4, S> {
     /// Same as [`SharedProfiles::new`]
     #[inline]
     pub fn new_with_w128(
-        query: Box<[u8]>, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
+        query: &'a [u8], matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
     ) -> Result<SharedProfiles<'a, 16, 8, 4, S>, QueryProfileError> {
         Self::new(query, matrix, gap_open, gap_extend)
     }
@@ -558,7 +558,7 @@ impl<'a, const S: usize> SharedProfiles<'a, 32, 16, 8, S> {
     /// Same as [`SharedProfiles::new`]
     #[inline]
     pub fn new_with_w256(
-        query: Box<[u8]>, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
+        query: &'a [u8], matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
     ) -> Result<SharedProfiles<'a, 32, 16, 8, S>, QueryProfileError> {
         Self::new(query, matrix, gap_open, gap_extend)
     }
@@ -575,7 +575,7 @@ impl<'a, const S: usize> SharedProfiles<'a, 64, 32, 16, S> {
     /// Same as [`SharedProfiles::new`]
     #[inline]
     pub fn new_with_w512(
-        query: Box<[u8]>, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
+        query: &'a [u8], matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
     ) -> Result<SharedProfiles<'a, 64, 32, 16, S>, QueryProfileError> {
         Self::new(query, matrix, gap_open, gap_extend)
     }
@@ -592,7 +592,7 @@ where
     fn get_i8(&self) -> &StripedProfile<'a, i8, M, S> {
         // Validity: We already validated profile
         self.profile_i8.get_or_init(|| {
-            StripedProfile::<i8, M, S>::new_unchecked(&self.query, self.matrix, self.gap_open, self.gap_extend)
+            StripedProfile::<i8, M, S>::new_unchecked(self.query, self.matrix, self.gap_open, self.gap_extend)
         })
     }
 
@@ -600,7 +600,7 @@ where
     fn get_i16(&self) -> &StripedProfile<'a, i16, N, S> {
         // Validity: We already validated profile
         self.profile_i16.get_or_init(|| {
-            StripedProfile::<i16, N, S>::new_unchecked(&self.query, self.matrix, self.gap_open, self.gap_extend)
+            StripedProfile::<i16, N, S>::new_unchecked(self.query, self.matrix, self.gap_open, self.gap_extend)
         })
     }
 
@@ -608,13 +608,13 @@ where
     fn get_i32(&self) -> &StripedProfile<'a, i32, O, S> {
         // Validity: We already validated profile
         self.profile_i32.get_or_init(|| {
-            StripedProfile::<i32, O, S>::new_unchecked(&self.query, self.matrix, self.gap_open, self.gap_extend)
+            StripedProfile::<i32, O, S>::new_unchecked(self.query, self.matrix, self.gap_open, self.gap_extend)
         })
     }
 
     #[inline]
     fn query(&self) -> &[u8] {
-        &self.query
+        self.query
     }
 
     #[inline]
