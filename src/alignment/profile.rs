@@ -124,8 +124,8 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// ```
     #[inline]
     #[must_use]
-    pub fn smith_waterman_score(&self, seq: &[u8]) -> MaybeAligned<u32> {
-        sw_scalar_score(seq, self)
+    pub fn smith_waterman_score(&self, reference: &[u8]) -> MaybeAligned<u32> {
+        sw_scalar_score(reference, self)
     }
 
     /// Computes the Smith-Waterman local alignment between the profile and a
@@ -156,8 +156,8 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// ```
     #[inline]
     #[must_use]
-    pub fn smith_waterman_alignment(&self, seq: &[u8]) -> MaybeAligned<Alignment<u32>> {
-        sw_scalar_alignment(seq, self)
+    pub fn smith_waterman_alignment(&self, reference: &[u8]) -> MaybeAligned<Alignment<u32>> {
+        sw_scalar_alignment(reference, self)
     }
 }
 
@@ -366,8 +366,8 @@ where
     T: AlignableIntWidth,
     Simd<T, N>: SimdAnyInt<T, N>,
 {
-    /// Computes the Smith-Waterman local alignment score between the `u8`
-    /// profile and a passed sequence.
+    /// Computes the Smith-Waterman local alignment score between the query
+    /// profile and the passed reference.
     ///
     /// Returns [`Overflowed`] if the score overflowed and [`Unmapped`] if no
     /// portion of the query mapped to the reference.
@@ -394,8 +394,8 @@ where
     /// [`Unmapped`]: MaybeAligned::Unmapped
     #[inline]
     #[must_use]
-    pub fn smith_waterman_score(&self, seq: &[u8]) -> MaybeAligned<u32> {
-        sw_simd_score::<T, N, S>(seq, self)
+    pub fn smith_waterman_score(&self, reference: &[u8]) -> MaybeAligned<u32> {
+        sw_simd_score::<T, N, S>(reference, self)
     }
 
     /// Similar to [`smith_waterman_score`] but includes reference and query
@@ -406,8 +406,8 @@ where
     /// [`smith_waterman_score`]: Self::smith_waterman_score
     #[inline]
     #[must_use]
-    pub fn smith_waterman_score_ends(&self, seq: &[u8]) -> MaybeAligned<(u32, usize, usize)> {
-        sw_simd_score_ends::<T, N, S>(seq, self)
+    pub fn smith_waterman_score_ends(&self, reference: &[u8]) -> MaybeAligned<(u32, usize, usize)> {
+        sw_simd_score_ends::<T, N, S>(reference, self)
     }
 
     /// Similar to [`sw_simd_score`], but includes the reference and query
@@ -426,13 +426,12 @@ where
     #[inline]
     #[must_use]
     #[cfg(feature = "dev-3pass")]
-    pub(crate) fn smith_waterman_score_ends_reverse(&self, seq: &[u8]) -> MaybeAligned<(u32, usize, usize)> {
-        crate::alignment::sw::sw_simd_score_ends_reverse::<T, N, S>(seq, self)
+    pub(crate) fn smith_waterman_score_ends_reverse(&self, reference: &[u8]) -> MaybeAligned<(u32, usize, usize)> {
+        crate::alignment::sw::sw_simd_score_ends_reverse::<T, N, S>(reference, self)
     }
 
-    /// Computes the Smith-Waterman local alignment between the profile and a
-    /// passed sequence, yielding the reference starting position, cigar, and
-    /// optimal score.
+    /// Computes the Smith-Waterman local alignment between the query profile
+    /// and the passed reference.
     ///
     /// Returns [`Overflowed`] if the score overflowed and [`Unmapped`] if no
     /// portion of the query mapped to the reference.
@@ -462,8 +461,8 @@ where
     /// [`Unmapped`]: MaybeAligned::Unmapped
     #[inline]
     #[must_use]
-    pub fn smith_waterman_alignment(&self, seq: &[u8]) -> MaybeAligned<Alignment<u32>> {
-        sw_simd_alignment::<T, N, S>(seq, self)
+    pub fn smith_waterman_alignment(&self, reference: &[u8]) -> MaybeAligned<Alignment<u32>> {
+        sw_simd_alignment::<T, N, S>(reference, self)
     }
 
     /// Similar to [`smith_waterman_score`] but includes the reference and query
@@ -476,9 +475,9 @@ where
     #[must_use]
     #[cfg(feature = "dev-3pass")]
     pub fn smith_waterman_score_ranges(
-        &self, seq: &[u8],
+        &self, reference: &[u8],
     ) -> MaybeAligned<(u32, std::ops::Range<usize>, std::ops::Range<usize>)> {
-        sw_simd_score_ranges::<T, N, S>(seq, self)
+        sw_simd_score_ranges::<T, N, S>(reference, self)
     }
 
     /// Similar to [`smith_waterman_alignment`] but computes the Smith-Waterman
