@@ -33,31 +33,37 @@ pub mod search;
 pub(crate) mod generate;
 pub mod iter_utils;
 
-/// Common structures and traits re-exported
+/// Common structures and traits re-exported for convenience.
+///
+/// As a quick way to import the most commonly used *Zoe* structs and traits,
+/// you may include `use zoe::prelude::*` in a Rust script.
 pub mod prelude {
-    pub use crate::alignment::{PairwiseSequence, ProfileSets};
-    pub use crate::composition::{AlignmentComposition, CreateConsensus, GcContent, NucleotideCounts, ToBaseCounts};
-    pub use crate::data::{
-        StdForSequences,
-        err::OrFail,
-        records::{
-            fasta::FastaReader,
-            fastq::{FastQ, FastQReader, FastQView, FastQViewMut},
-        },
-        types::{
-            amino_acids::{AminoAcids, AminoAcidsView, AminoAcidsViewMut},
-            nucleotides::{
-                CheckNucleotides, GetCodons, GetCodonsMut, IsValidDNA, Nucleotides, NucleotidesView, NucleotidesViewMut,
-                RecodeDNAStrat, RecodeNucleotides, RefineDNAStrat, RetainNucleotides, Translate,
+    pub use crate::{
+        alignment::{AsSeqSrc, IntoSeqSrc, PairwiseSequence, ProfileSets, SeqSrc},
+        composition::{AlignmentComposition, CreateConsensus, GcContent, NucleotideCounts, ToBaseCounts},
+        data::{
+            StdForSequences,
+            err::OrFail,
+            records::{
+                fasta::FastaReader,
+                fastq::{FastQ, FastQReader, FastQView, FastQViewMut},
             },
-            phred::{QualityScores, QualityScoresView, QualityScoresViewMut, QualityStats},
+            types::{
+                amino_acids::{AminoAcids, AminoAcidsView, AminoAcidsViewMut},
+                nucleotides::{
+                    CheckNucleotides, GetCodons, GetCodonsMut, IsValidDNA, Nucleotides, NucleotidesView, NucleotidesViewMut,
+                    RecodeDNAStrat, RecodeNucleotides, RefineDNAStrat, RetainNucleotides, Translate,
+                },
+                phred::{QualityScores, QualityScoresView, QualityScoresViewMut, QualityStats},
+            },
+            views::{DataOwned, DataView, DataViewMut, Len, Restrict, Slice, SliceMut},
         },
-        views::{DataOwned, DataView, DataViewMut, Len, Restrict, Slice, SliceMut},
+        kmer::{EncodedKmerCollection, FindKmers, FindKmersInSeq, KmerCounter, KmerEncoder, KmerSet},
+        search::{ByteSubstring, ByteSubstringMut},
     };
+
     #[cfg(feature = "rand")]
     pub use crate::generate::rand_sequence;
-    pub use crate::kmer::{EncodedKmerCollection, FindKmers, FindKmersInSeq, KmerCounter, KmerEncoder, KmerSet};
-    pub use crate::search::{ByteSubstring, ByteSubstringMut};
 }
 
 pub(crate) use crate::data::extension::simd;

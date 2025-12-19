@@ -409,6 +409,13 @@ impl<'a, const S: usize> WeightMatrix<'a, i8, S> {
     /// represent the query residue. For simpler weight matrices depending only
     /// on matches/mismatches, consider using [`new`].
     ///
+    /// ## Validity
+    ///
+    /// If a asymmetric weight matrix is provided, then the alignment profile
+    /// must be built from the query sequence, and all alignment functions must
+    /// then be provided the reference sequence. Otherwise, the scores for `A →
+    /// B` and `B → A` will be erroneously swapped.
+    ///
     /// [`new`]: WeightMatrix::new
     #[must_use]
     pub const fn new_custom(mapping: &'a ByteIndexMap<S>, weights: [[i8; S]; S]) -> Self {
@@ -423,6 +430,13 @@ impl<'a, const S: usize> WeightMatrix<'a, i8, S> {
     ///
     /// The closure should accept the reference residue as the first argument
     /// and the query residue as the second.
+    ///
+    /// ## Validity
+    ///
+    /// If a asymmetric weight matrix is provided, then the profile must be
+    /// built from the query sequence, and all alignment functions must then be
+    /// provided the reference sequence. Otherwise, the scores for `A → B` and
+    /// `B → A` will be erroneously swapped.
     pub fn new_from_fn<F>(mapping: &'a ByteIndexMap<S>, weight_fn: F) -> Self
     where
         F: Fn(u8, u8) -> i8, {

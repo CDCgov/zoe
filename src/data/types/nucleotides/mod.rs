@@ -1,5 +1,5 @@
 use crate::{
-    alignment::{LocalProfiles, QueryProfileError, SharedProfiles},
+    alignment::{LocalProfiles, ProfileError, SharedProfiles},
     data::{matrices::WeightMatrix, types::impl_std_traits_for_sequence},
     prelude::*,
 };
@@ -144,13 +144,17 @@ impl Nucleotides {
     ///
     /// ## Errors
     ///
-    /// Returns an [`QueryProfileError`] if the profile creation fails due to
-    /// invalid sequence data or unsupported parameters.
+    /// Returns an [`ProfileError`] if the profile creation fails due to invalid
+    /// sequence data or unsupported parameters.
     ///
     /// ## Example
     ///
     /// ```
-    /// # use zoe::{alignment::ProfileSets, data::matrices::WeightMatrix, prelude::Nucleotides};
+    /// # use zoe::{
+    /// #    alignment::{ProfileSets, SeqSrc},
+    /// #    data::matrices::WeightMatrix,
+    /// #    prelude::Nucleotides
+    /// # };
     /// let reference: &[u8] = b"GGCCACAGGATTGAG";
     /// let query: Nucleotides = b"CTCAGATTG".into();
     ///
@@ -163,11 +167,9 @@ impl Nucleotides {
     /// assert_eq!(score, 27);
     /// ```
     #[inline]
-    pub fn into_local_profile<'a, 'b, const S: usize>(
-        &'b self, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
-    ) -> Result<LocalProfiles<'a, 32, 16, 8, S>, QueryProfileError>
-    where
-        'b: 'a, {
+    pub fn into_local_profile<'a, const S: usize>(
+        &'a self, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
+    ) -> Result<LocalProfiles<'a, 32, 16, 8, S>, ProfileError> {
         LocalProfiles::new_with_w256(&self.0, matrix, gap_open, gap_extend)
     }
 
@@ -175,13 +177,17 @@ impl Nucleotides {
     ///
     /// ## Errors
     ///
-    /// Returns an [`QueryProfileError`] if the profile creation fails due to invalid
+    /// Returns an [`ProfileError`] if the profile creation fails due to invalid
     /// sequence data or unsupported parameters.
     ///
     /// ## Example
     ///
     /// ```
-    /// # use zoe::{alignment::ProfileSets, data::matrices::WeightMatrix, prelude::Nucleotides};
+    /// # use zoe::{
+    /// #    alignment::{ProfileSets, SeqSrc},
+    /// #    data::matrices::WeightMatrix,
+    /// #    prelude::Nucleotides
+    /// # };
     /// let reference: &[u8] = b"GGCCACAGGATTGAG";
     /// let query: Nucleotides = b"CTCAGATTG".into();
     ///
@@ -196,7 +202,7 @@ impl Nucleotides {
     #[inline]
     pub fn into_shared_profile<'a, const S: usize>(
         &'a self, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
-    ) -> Result<SharedProfiles<'a, 32, 16, 8, S>, QueryProfileError>
+    ) -> Result<SharedProfiles<'a, 32, 16, 8, S>, ProfileError>
 where {
         SharedProfiles::new_with_w256(self.as_bytes(), matrix, gap_open, gap_extend)
     }

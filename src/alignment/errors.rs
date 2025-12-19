@@ -1,11 +1,11 @@
 use crate::data::err::GetCode;
 use std::{error::Error, fmt};
 
-/// Errors that can occur when constructing a query profile for alignment.
+/// Errors that can occur when constructing a profile for alignment.
 #[derive(Debug)]
-pub enum QueryProfileError {
-    /// The alignment query was empty.
-    EmptyQuery,
+pub enum ProfileError {
+    /// The provided sequence was empty.
+    EmptySequence,
     /// The gap open weight was out of range (must be between -127 and 0).
     GapOpenOutOfRange { gap_open: i8 },
     /// The gap extend weight was out of range (must be between -127 and 0).
@@ -14,23 +14,23 @@ pub enum QueryProfileError {
     BadGapWeights { gap_open: i8, gap_extend: i8 },
 }
 
-impl fmt::Display for QueryProfileError {
+impl fmt::Display for ProfileError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            QueryProfileError::EmptyQuery => write!(f, "The alignment query was empty"),
-            QueryProfileError::GapOpenOutOfRange { gap_open } => {
+            ProfileError::EmptySequence => write!(f, "The provided sequence was empty"),
+            ProfileError::GapOpenOutOfRange { gap_open } => {
                 write!(
                     f,
                     "The gap open weight must be between -127 and 0, but {gap_open} was provided"
                 )
             }
-            QueryProfileError::GapExtendOutOfRange { gap_extend } => {
+            ProfileError::GapExtendOutOfRange { gap_extend } => {
                 write!(
                     f,
                     "The gap extend weight must be between -127 and 0, but {gap_extend} was provided"
                 )
             }
-            QueryProfileError::BadGapWeights { gap_open, gap_extend } => write!(
+            ProfileError::BadGapWeights { gap_open, gap_extend } => write!(
                 f,
                 "The gap open weight must be less than or equal to the gap extend weight, but {gap_open} (gap open) and {gap_extend} (gap extend) were provided"
             ),
@@ -38,8 +38,8 @@ impl fmt::Display for QueryProfileError {
     }
 }
 
-impl Error for QueryProfileError {}
-impl GetCode for QueryProfileError {}
+impl Error for ProfileError {}
+impl GetCode for ProfileError {}
 
 /// An enum representing errors that can happen when calculating an alignment
 /// score for a particular CIGAR string.

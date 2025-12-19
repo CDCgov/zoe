@@ -1,5 +1,4 @@
-use super::*;
-use crate::alignment::BackTrackable;
+use crate::alignment::{Alignment, BackTrackable, BandedBacktrackMatrix, MaybeAligned, ScalarProfile};
 use std::ops::Add;
 
 /// Banded Smith-Waterman algorithm, yielding a local alignment.

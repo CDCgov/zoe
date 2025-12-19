@@ -9,7 +9,9 @@ use std::ops::Add;
 /// et al.*](https://cme.h-its.org/exelixis/web/software/alignment/correct.html)
 /// (4).
 ///
-/// This implementation will not return [`MaybeAligned::Overflowed`].
+/// The signature and description of this function assumes the profile is built
+/// from the query sequence. However, the same score is yielded if the profile
+/// is instead built from the reference.
 ///
 /// See **[module citations](crate::alignment::sw#module-citations)**.
 ///
@@ -24,6 +26,11 @@ use std::ops::Add;
 ///
 /// - Not suitable for production due to high runtimes.
 /// - Useful for testing correctness.
+///
+/// ## Panics
+///
+/// This implementation will not return [`MaybeAligned::Overflowed`], and
+/// instead panics on overflow of an `i32`.
 ///
 /// ## Example
 ///

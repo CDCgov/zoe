@@ -202,16 +202,17 @@ impl<E: Error + Send + Sync + 'static> WithErrorContext for E {
 
     #[inline]
     fn with_file_context(self, msg: &str, file: impl AsRef<Path>) -> ErrorWithContext {
-        Self::with_context(self, format!("{msg}: {path}", path = file.as_ref().display()))
+        Self::with_context(self, format!("{msg}: '{path}'", path = file.as_ref().display()))
     }
 }
 
 /// Opens a file, checking that it is non-empty, and wrapping any errors with
 /// the file path for context.
 ///
-/// # Errors
+/// ## Errors
 ///
 /// Returns an error if:
+///
 /// - The file cannot be opened
 /// - File metadata cannot be read
 /// - The file is empty

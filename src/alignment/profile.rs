@@ -1,8 +1,6 @@
-#[cfg(feature = "dev-3pass")]
-use crate::alignment::sw::{sw_banded_alignment, sw_simd_score_ranges};
 use crate::{
     alignment::{
-        Alignment, MaybeAligned, QueryProfileError,
+        Alignment, MaybeAligned, ProfileError, ScoreAndIndices, SeqSrc,
         sw::{sw_scalar_alignment, sw_scalar_score, sw_simd_alignment, sw_simd_score, sw_simd_score_ends},
     },
     data::{mappings::ByteIndexMap, matrices::WeightMatrix},
@@ -15,30 +13,32 @@ use std::{
     vec,
 };
 
+#[cfg(feature = "dev-3pass")]
+use crate::alignment::{
+    ScoreAndRanges,
+    sw::{sw_alignment_3pass, sw_simd_score_ranges},
+};
+
 /// Validate the arguments for [`ScalarProfile`] or [`StripedProfile`].
 ///
 /// ## Errors
 ///
-/// The following errors are possible:
-/// - [`QueryProfileError::EmptyQuery`] if `query` is empty
-/// - [`QueryProfileError::GapOpenOutOfRange`] if `gap_open` is not between -127
+/// - [`ProfileError::EmptySequence`] if `seq` is empty
+/// - [`ProfileError::GapOpenOutOfRange`] if `gap_open` is not between -127 and
+///   0, inclusive
+/// - [`ProfileError::GapExtendOutOfRange`] if `gap_extend` is not between -127
 ///   and 0, inclusive
-/// - [`QueryProfileError::GapExtendOutOfRange`] if `gap_extend` is not between
-///   -127 and 0, inclusive
-/// - [`QueryProfileError::BadGapWeights`] if `gap_extend` is less than
-///   `gap_open`
+/// - [`ProfileError::BadGapWeights`] if `gap_extend` is less than `gap_open`
 #[inline]
-pub(crate) fn validate_profile_args<Q: AsRef<[u8]>>(
-    query: Q, gap_open: i8, gap_extend: i8,
-) -> Result<(), QueryProfileError> {
-    if query.as_ref().is_empty() {
-        Err(QueryProfileError::EmptyQuery)
+pub(crate) fn validate_profile_args<Q: AsRef<[u8]>>(seq: Q, gap_open: i8, gap_extend: i8) -> Result<(), ProfileError> {
+    if seq.as_ref().is_empty() {
+        Err(ProfileError::EmptySequence)
     } else if !(-127..=0).contains(&gap_open) {
-        Err(QueryProfileError::GapOpenOutOfRange { gap_open })
+        Err(ProfileError::GapOpenOutOfRange { gap_open })
     } else if !(-127..=0).contains(&gap_extend) {
-        Err(QueryProfileError::GapExtendOutOfRange { gap_extend })
+        Err(ProfileError::GapExtendOutOfRange { gap_extend })
     } else if gap_extend < gap_open {
-        Err(QueryProfileError::BadGapWeights { gap_open, gap_extend })
+        Err(ProfileError::BadGapWeights { gap_open, gap_extend })
     } else {
         Ok(())
     }
@@ -46,14 +46,14 @@ pub(crate) fn validate_profile_args<Q: AsRef<[u8]>>(
 
 /// A profile for DNA sequence alignment using scalar operations.
 ///
-/// The profile stores the query, weight matrix, and gap penalties to be used in
-/// an alignment. The API mirrors that of [`StripedProfile`], but this profile
-/// does not use SIMD or create a striped layout.
+/// The profile stores a sequence, weight matrix, and gap penalties to be used
+/// in an alignment. The API mirrors that of [`StripedProfile`], but this
+/// profile does not use SIMD or create a striped layout.
 ///
 /// ## Type Parameters
 ///
-/// - `S` - The size of the alphabet (usually 5 for DNA including *N*)
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// `S` - The size of the alphabet (usually 5 for DNA including *N*)
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct ScalarProfile<'a, const S: usize> {
     pub(crate) seq:        &'a [u8],
     pub(crate) matrix:     &'a WeightMatrix<'a, i8, S>,
@@ -64,23 +64,30 @@ pub struct ScalarProfile<'a, const S: usize> {
 impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// Creates a new profile for use with the scalar alignment algorithm.
     ///
+    /// ## Validity
+    ///
+    /// The [`WeightMatrix`] is asymmetric, then `seq` must correspond to the
+    /// query sequence. Otherwise, the scores for `A → B` and `B → A` will be
+    /// erroneously swapped.
+    ///
     /// ## Errors
     ///
-    /// The following errors are possible:
-    ///
-    /// - [`QueryProfileError::EmptyQuery`] if `query` is empty
-    /// - [`QueryProfileError::GapOpenOutOfRange`] if `gap_open` is not between
+    /// - [`ProfileError::EmptySequence`] if `seq` is empty
+    /// - [`ProfileError::GapOpenOutOfRange`] if `gap_open` is not between -127
+    ///   and 0, inclusive
+    /// - [`ProfileError::GapExtendOutOfRange`] if `gap_extend` is not between
     ///   -127 and 0, inclusive
-    /// - [`QueryProfileError::GapExtendOutOfRange`] if `gap_extend` is not
-    ///   between -127 and 0, inclusive
-    /// - [`QueryProfileError::BadGapWeights`] if `gap_extend` is less than
+    /// - [`ProfileError::BadGapWeights`] if `gap_extend` is less than
     ///   `gap_open`
-    pub fn new<Q: AsRef<[u8]> + ?Sized>(
-        query: &'a Q, matrix: &'a WeightMatrix<'a, i8, S>, gap_open: i8, gap_extend: i8,
-    ) -> Result<Self, QueryProfileError> {
-        validate_profile_args(query, gap_open, gap_extend)?;
+    #[inline]
+    pub fn new<Q>(
+        seq: &'a Q, matrix: &'a WeightMatrix<'a, i8, S>, gap_open: i8, gap_extend: i8,
+    ) -> Result<Self, ProfileError>
+    where
+        Q: AsRef<[u8]> + ?Sized, {
+        validate_profile_args(seq, gap_open, gap_extend)?;
         // Validity: validate_profile_args has checked our assumptions
-        Ok(Self::new_unchecked(query, matrix, gap_open, gap_extend))
+        Ok(Self::new_unchecked(seq, matrix, gap_open, gap_extend))
     }
 
     /// Creates a new profile for use with the scalar alignment algorithm
@@ -88,14 +95,20 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     ///
     /// ## Validity
     ///
-    /// The query must be non-empty, `gap_open` and `gap_extend` must be in the
-    /// range `-127..=0`, and `gap_extend` must be greater than or equal to
-    /// `gap_open` (`gap_open` must be a worse penalty).
-    pub fn new_unchecked<Q: AsRef<[u8]> + ?Sized>(
-        query: &'a Q, matrix: &'a WeightMatrix<'a, i8, S>, gap_open: i8, gap_extend: i8,
-    ) -> Self {
+    /// - `seq` should be non-empty
+    /// - `gap_open` and `gap_extend` must be in the range `-127..=0`
+    /// - `gap_extend` must be greater than or equal to `gap_open` (`gap_open`
+    ///   must be a worse penalty)
+    /// - The [`WeightMatrix`] is asymmetric, then `seq` must correspond to the
+    ///   query sequence. Otherwise, the scores for `A → B` and `B → A` will be
+    ///   erroneously swapped.
+    #[inline]
+    #[must_use]
+    pub fn new_unchecked<Q>(seq: &'a Q, matrix: &'a WeightMatrix<'a, i8, S>, gap_open: i8, gap_extend: i8) -> Self
+    where
+        Q: AsRef<[u8]> + ?Sized, {
         ScalarProfile {
-            seq: query.as_ref(),
+            seq: seq.as_ref(),
             matrix,
             gap_open: i32::from(gap_open),
             gap_extend: i32::from(gap_extend),
@@ -105,12 +118,15 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// Computes the Smith-Waterman local alignment score between the profile
     /// and a passed sequence.
     ///
-    /// For more info, see: [`sw_scalar_score`].
+    /// For more info, see [`sw_scalar_score`].
     ///
     /// ## Example
     ///
     /// ```
-    /// # use zoe::{alignment::{ScalarProfile, sw::sw_scalar_score}, data::matrices::WeightMatrix};
+    /// # use zoe::{
+    /// #    alignment::{ScalarProfile, SeqSrc, sw::sw_scalar_score},
+    /// #    data::matrices::WeightMatrix
+    /// # };
     /// let reference: &[u8] = b"GGCCACAGGATTGAG";
     /// let query: &[u8] = b"CTCAGATTG";
     ///
@@ -118,27 +134,28 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// const GAP_OPEN: i8 = -3;
     /// const GAP_EXTEND: i8 = -1;
     ///
-    /// let profile = ScalarProfile::<5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+    /// let profile = ScalarProfile::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
     /// let score = profile.smith_waterman_score(reference).unwrap();
     /// assert_eq!(score, 27);
     /// ```
     #[inline]
     #[must_use]
-    pub fn smith_waterman_score(&self, reference: &[u8]) -> MaybeAligned<u32> {
-        sw_scalar_score(reference, self)
+    pub fn smith_waterman_score<Q>(&self, seq: &Q) -> MaybeAligned<u32>
+    where
+        Q: AsRef<[u8]> + ?Sized, {
+        sw_scalar_score(seq.as_ref(), self)
     }
 
-    /// Computes the Smith-Waterman local alignment between the profile and a
-    /// passed sequence, yielding the reference starting position (indexed from
-    /// 1), cigar, and optimal score.
+    /// Computes the Smith-Waterman local alignment between the profile and the
+    /// passed sequence.
     ///
-    /// For more info, see: [`sw_scalar_alignment`].
+    /// For more information, see [`sw_scalar_alignment`].
     ///
     /// ## Example
     ///
     /// ```
     /// # use zoe::{
-    /// #     alignment::{Alignment, ScalarProfile, sw::sw_scalar_score},
+    /// #     alignment::{Alignment, ScalarProfile, SeqSrc, sw::sw_scalar_score},
     /// #     data::{matrices::WeightMatrix, cigar::Cigar}
     /// # };
     /// let reference: &[u8] = b"GGCCACAGGATTGAG";
@@ -148,16 +165,18 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// const GAP_OPEN: i8 = -3;
     /// const GAP_EXTEND: i8 = -1;
     ///
-    /// let profile = ScalarProfile::<5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-    /// let alignment = profile.smith_waterman_alignment(reference).unwrap();
+    /// let profile = ScalarProfile::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+    /// let alignment = profile.smith_waterman_alignment(SeqSrc::Reference(reference)).unwrap();
     /// assert_eq!(alignment.ref_range.start, 3);
     /// assert_eq!(alignment.states, Cigar::from_slice_unchecked("5M1D4M"));
     /// assert_eq!(alignment.score, 27);
     /// ```
     #[inline]
     #[must_use]
-    pub fn smith_waterman_alignment(&self, reference: &[u8]) -> MaybeAligned<Alignment<u32>> {
-        sw_scalar_alignment(reference, self)
+    pub fn smith_waterman_alignment<Q>(&self, seq: SeqSrc<&Q>) -> MaybeAligned<Alignment<u32>>
+    where
+        Q: AsRef<[u8]> + ?Sized, {
+        seq.make_alignment(|reference| sw_scalar_alignment(reference.as_ref(), self))
     }
 }
 
@@ -192,48 +211,69 @@ where
     T: AnyInt + SimdElement,
     LaneCount<N>: SupportedLaneCount,
 {
-    /// Creates a new striped profile from a sequence and scoring matrix.
+    /// Creates a new striped profile from a sequence.
     ///
-    /// See: [`WeightMatrix`]
-    ///
-    /// ## Errors
-    ///
-    /// The following errors are possible:
-    ///
-    /// - [`QueryProfileError::EmptyQuery`] if `query` is empty
-    /// - [`QueryProfileError::GapOpenOutOfRange`] if `gap_open` is not between
-    ///   -127 and 0, inclusive
-    /// - [`QueryProfileError::GapExtendOutOfRange`] if `gap_extend` is not
-    ///   between -127 and 0, inclusive
-    /// - [`QueryProfileError::BadGapWeights`] if `gap_extend` is less than
-    ///   `gap_open`
-    pub fn new<U>(
-        query: &[u8], matrix: &WeightMatrix<'a, U, S>, gap_open: i8, gap_extend: i8,
-    ) -> Result<Self, QueryProfileError>
-    where
-        T: FromSameSignedness<U> + AlignableIntWidth,
-        U: AnyInt, {
-        validate_profile_args(query, gap_open, gap_extend)?;
-        // Validity: we validated the required assumptions with
-        // validate_profile_args
-        Ok(Self::new_unchecked(query, matrix, gap_open, gap_extend))
-    }
-
-    /// Creates a new striped profile from a sequence and scoring matrix.
-    ///
-    /// See: [`WeightMatrix`]
+    /// If the SIMD integer type `T` being used is signed, then [`WeightMatrix`]
+    /// should contain signed parameters. Otherwise, a biased weight matrix must
+    /// be passed, which is obtained by calling [`to_biased_matrix`] on a
+    /// regular signed weight matrix (or using the constructor
+    /// [`new_biased_dna_matrix`] if using a simple DNA weight matrix).
     ///
     /// ## Validity
     ///
-    /// The query must be non-empty, `gap_open` and `gap_extend` must be in the
-    /// range `-127..=0`, and `gap_extend` must be greater than or equal to
-    /// `gap_open` (`gap_open` must be a worse penalty).
-    pub fn new_unchecked<U>(query: &[u8], matrix: &WeightMatrix<'a, U, S>, gap_open: i8, gap_extend: i8) -> Self
+    /// The [`WeightMatrix`] is asymmetric, then `seq` must correspond to the
+    /// query sequence. Otherwise, the scores for `A → B` and `B → A` will be
+    /// erroneously swapped.
+    ///
+    /// ## Errors
+    ///
+    /// - [`ProfileError::EmptySequence`] if `seq` is empty
+    /// - [`ProfileError::GapOpenOutOfRange`] if `gap_open` is not between -127
+    ///   and 0, inclusive
+    /// - [`ProfileError::GapExtendOutOfRange`] if `gap_extend` is not between
+    ///   -127 and 0, inclusive
+    /// - [`ProfileError::BadGapWeights`] if `gap_extend` is less than
+    ///   `gap_open`
+    ///
+    /// [`to_biased_matrix`]: WeightMatrix::to_biased_matrix
+    /// [`new_biased_dna_matrix`]: WeightMatrix::new_biased_dna_matrix
+    pub fn new<U>(seq: &[u8], matrix: &WeightMatrix<'a, U, S>, gap_open: i8, gap_extend: i8) -> Result<Self, ProfileError>
+    where
+        T: FromSameSignedness<U> + AlignableIntWidth,
+        U: AnyInt, {
+        validate_profile_args(seq, gap_open, gap_extend)?;
+        // Validity: we validated the required assumptions with
+        // validate_profile_args
+        Ok(Self::new_unchecked(seq, matrix, gap_open, gap_extend))
+    }
+
+    /// Creates a new striped profile from a sequence, without checking the
+    /// validity of the parameters.
+    ///
+    /// If the SIMD integer type `T` being used is signed, then [`WeightMatrix`]
+    /// should contain signed parameters. Otherwise, a biased weight matrix must
+    /// be passed, which is obtained by calling [`to_biased_matrix`] on a
+    /// regular signed weight matrix (or using the constructor
+    /// [`new_biased_dna_matrix`] if using a simple DNA weight matrix).
+    ///
+    /// ## Validity
+    ///
+    /// - `seq` should be non-empty
+    /// - `gap_open` and `gap_extend` must be in the range `-127..=0`
+    /// - `gap_extend` must be greater than or equal to `gap_open` (`gap_open`
+    ///   must be a worse penalty)
+    /// - The [`WeightMatrix`] is asymmetric, then `seq` must correspond to the
+    ///   query sequence. Otherwise, the scores for `A → B` and `B → A` will be
+    ///   erroneously swapped.
+    ///
+    /// [`to_biased_matrix`]: WeightMatrix::to_biased_matrix
+    /// [`new_biased_dna_matrix`]: WeightMatrix::new_biased_dna_matrix
+    pub fn new_unchecked<U>(seq: &[u8], matrix: &WeightMatrix<'a, U, S>, gap_open: i8, gap_extend: i8) -> Self
     where
         T: From<U>,
         U: AnyInt, {
         // SupportedLaneCount cannot presently be zero.
-        let number_vectors = query.len().div_ceil(N);
+        let number_vectors = seq.len().div_ceil(N);
         let total_lanes = N * number_vectors;
 
         let bias = matrix.bias.into();
@@ -244,8 +284,11 @@ where
             for ref_index in 0..matrix.mapping.len() {
                 let mut vector = biases;
                 for (i, q) in (v..total_lanes).step_by(number_vectors).enumerate() {
-                    if q < query.len() {
-                        let query_index = matrix.mapping.to_index(query[q]);
+                    if q < seq.len() {
+                        // Validity: Either the matrix is symmetric in which
+                        // case index order does not matter, or seq is the query
+                        // in which case we index by that second
+                        let query_index = matrix.mapping.to_index(seq[q]);
                         vector[i] = matrix.weights[ref_index][query_index].into();
                     }
                 }
@@ -259,7 +302,7 @@ where
             gap_extend: T::from_literal(-gap_extend),
             bias,
             mapping: matrix.mapping,
-            seq_len: query.len(),
+            seq_len: seq.len(),
         }
     }
 
@@ -362,22 +405,25 @@ where
 
 impl<T, const N: usize, const S: usize> StripedProfile<'_, T, N, S>
 where
-    LaneCount<N>: SupportedLaneCount,
     T: AlignableIntWidth,
+    LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdAnyInt<T, N>,
 {
-    /// Computes the Smith-Waterman local alignment score between the query
-    /// profile and the passed reference.
+    /// Computes the Smith-Waterman local alignment score between the profile
+    /// and the passed sequence.
     ///
     /// Returns [`Overflowed`] if the score overflowed and [`Unmapped`] if no
     /// portion of the query mapped to the reference.
     ///
-    /// For more info, see: [`sw_simd_score`].
+    /// For more information, see [`sw_simd_score`].
     ///
     /// ## Example
     ///
     /// ```
-    /// # use zoe::{alignment::{StripedProfile, sw::sw_simd_score}, data::matrices::WeightMatrix};
+    /// # use zoe::{
+    /// #    alignment::{SeqSrc, StripedProfile, sw::sw_simd_score},
+    /// #    data::matrices::WeightMatrix
+    /// # };
     /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///
@@ -394,8 +440,12 @@ where
     /// [`Unmapped`]: MaybeAligned::Unmapped
     #[inline]
     #[must_use]
-    pub fn smith_waterman_score(&self, reference: &[u8]) -> MaybeAligned<u32> {
-        sw_simd_score::<T, N, S>(reference, self)
+    pub fn smith_waterman_score<Q>(&self, seq: &Q) -> MaybeAligned<u32>
+    where
+        Q: AsRef<[u8]> + ?Sized, {
+        // Validity: The order of the query and reference does not impact final
+        // output
+        sw_simd_score::<T, N, S>(seq.as_ref(), self)
     }
 
     /// Similar to [`smith_waterman_score`] but includes reference and query
@@ -406,8 +456,10 @@ where
     /// [`smith_waterman_score`]: Self::smith_waterman_score
     #[inline]
     #[must_use]
-    pub fn smith_waterman_score_ends(&self, reference: &[u8]) -> MaybeAligned<(u32, usize, usize)> {
-        sw_simd_score_ends::<T, N, S>(reference, self)
+    pub fn smith_waterman_score_ends<Q>(&self, seq: SeqSrc<&Q>) -> MaybeAligned<ScoreAndIndices<u32>>
+    where
+        Q: AsRef<[u8]> + ?Sized, {
+        seq.make_alignment(|reference| sw_simd_score_ends::<T, N, S>(reference.as_ref(), self))
     }
 
     /// Similar to [`sw_simd_score`], but includes the reference and query
@@ -417,7 +469,7 @@ where
     ///
     /// **Important**
     ///
-    /// The query profile should also be in reverse orientation, such as using
+    /// The profile should also be in reverse orientation, such as using
     /// [`reverse_from_forward`].
     ///
     /// </div>
@@ -425,9 +477,12 @@ where
     /// [`reverse_from_forward`]: StripedProfile::reverse_from_forward
     #[inline]
     #[must_use]
+    #[allow(dead_code)]
     #[cfg(feature = "dev-3pass")]
-    pub(crate) fn smith_waterman_score_ends_reverse(&self, reference: &[u8]) -> MaybeAligned<(u32, usize, usize)> {
-        crate::alignment::sw::sw_simd_score_ends_reverse::<T, N, S>(reference, self)
+    pub(crate) fn smith_waterman_score_ends_reverse<Q>(&self, seq: SeqSrc<&Q>) -> MaybeAligned<ScoreAndIndices<u32>>
+    where
+        Q: AsRef<[u8]> + ?Sized, {
+        seq.make_alignment(|reference| crate::alignment::sw::sw_simd_score_ends_reverse::<T, N, S>(reference.as_ref(), self))
     }
 
     /// Computes the Smith-Waterman local alignment between the query profile
@@ -442,7 +497,7 @@ where
     ///
     /// ```
     /// # use zoe::{
-    /// #     alignment::{StripedProfile, sw::sw_simd_score},
+    /// #     alignment::{StripedProfile, SeqSrc, sw::sw_simd_score},
     /// #     data::matrices::WeightMatrix
     /// # };
     /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
@@ -453,7 +508,7 @@ where
     /// const GAP_EXTEND: i8 = -1;
     ///
     /// let profile = StripedProfile::<u8, 32, 5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-    /// let alignment = profile.smith_waterman_alignment(reference).unwrap();
+    /// let alignment = profile.smith_waterman_alignment(SeqSrc::Reference(reference)).unwrap();
     /// // alignment contains ref_range, states (cigar), and score
     /// ```
     ///
@@ -461,8 +516,10 @@ where
     /// [`Unmapped`]: MaybeAligned::Unmapped
     #[inline]
     #[must_use]
-    pub fn smith_waterman_alignment(&self, reference: &[u8]) -> MaybeAligned<Alignment<u32>> {
-        sw_simd_alignment::<T, N, S>(reference, self)
+    pub fn smith_waterman_alignment<Q>(&self, seq: SeqSrc<&Q>) -> MaybeAligned<Alignment<u32>>
+    where
+        Q: AsRef<[u8]> + ?Sized, {
+        seq.make_alignment(|reference| sw_simd_alignment::<T, N, S>(reference.as_ref(), self))
     }
 
     /// Similar to [`smith_waterman_score`] but includes the reference and query
@@ -474,10 +531,10 @@ where
     #[inline]
     #[must_use]
     #[cfg(feature = "dev-3pass")]
-    pub fn smith_waterman_score_ranges(
-        &self, reference: &[u8],
-    ) -> MaybeAligned<(u32, std::ops::Range<usize>, std::ops::Range<usize>)> {
-        sw_simd_score_ranges::<T, N, S>(reference, self)
+    pub fn smith_waterman_score_ranges<Q>(&self, seq: SeqSrc<&Q>) -> MaybeAligned<ScoreAndRanges<u32>>
+    where
+        Q: AsRef<[u8]> + ?Sized, {
+        seq.make_alignment(|reference| sw_simd_score_ranges::<T, N, S>(reference.as_ref(), self))
     }
 
     /// Similar to [`smith_waterman_alignment`] but computes the Smith-Waterman
@@ -493,80 +550,13 @@ where
     #[must_use]
     #[cfg(feature = "dev-3pass")]
     #[allow(clippy::missing_panics_doc)]
-    pub fn smith_waterman_alignment_3pass(
-        &self, reference: &[u8], original_query: &[u8], matrix: &WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
-    ) -> MaybeAligned<Alignment<u32>> {
-        sw_simd_score_ranges::<T, N, S>(reference, self).and_then(|(score, ref_range, query_range)| {
-            use crate::data::views::IndexAdjustable;
-
-            if query_range.is_empty() {
-                return MaybeAligned::Unmapped;
-            } else if query_range.len() == ref_range.len()
-            // TODO: this incantation can likely be done better
-                && reference[ref_range.clone()]
-                    .iter()
-                    .zip(original_query[query_range.clone()].iter())
-                    .map(|(&r, &q)| i32::from(matrix.get_weight(r, q)))
-                    .sum::<i32>()
-                    .try_into()
-                    .unwrap_or(0)
-                    == score
-            {
-                let states = super::AlignmentStates::new_no_gaps(query_range.clone(), original_query.len());
-                return MaybeAligned::Some(Alignment {
-                    score,
-                    ref_range,
-                    query_range,
-                    states,
-                    ref_len: reference.len(),
-                    query_len: original_query.len(),
-                });
-            }
-
-            // Validity: query_range is non-empty per check, and weights are
-            // same as those in self
-            let query_new =
-                ScalarProfile::<S>::new_unchecked(&original_query[query_range.clone()], matrix, gap_open, gap_extend);
-            let reference_new = &reference[ref_range.clone()];
-
-            let mut band_width = ref_range.len().abs_diff(query_range.len()) + 1;
-
-            let max_bandwidth = (query_range.len() - 1) / 2;
-            let mut banded_alignment = None;
-
-            while band_width <= max_bandwidth {
-                if let MaybeAligned::Some(alignment) = sw_banded_alignment(reference_new, &query_new, band_width)
-                    && alignment.score == score
-                {
-                    banded_alignment = Some(alignment);
-                    break;
-                }
-                band_width *= 2;
-            }
-
-            let mut alignment = match banded_alignment {
-                Some(alignment) => alignment,
-                None => sw_scalar_alignment(reference_new, &query_new).unwrap(),
-            };
-
-            // The alignment found may not span the full bounding box, since
-            // multiple alignments of different lengths could have the same
-            // score
-            let adjusted_query_range = alignment.query_range.add(query_range.start);
-            let adjusted_ref_range = alignment.ref_range.add(ref_range.start);
-
-            // Note: banded alignment may not cover the full reference/query ranges like SIMD
-            alignment.states.prepend_soft_clip(adjusted_query_range.start);
-            alignment.states.soft_clip(original_query.len() - adjusted_query_range.end);
-
-            MaybeAligned::Some(Alignment {
-                score,
-                ref_range: adjusted_ref_range,
-                query_range: adjusted_query_range,
-                states: alignment.states,
-                ref_len: reference.len(),
-                query_len: original_query.len(),
-            })
+    pub fn smith_waterman_alignment_3pass<Q>(
+        &self, seq: SeqSrc<&Q>, profile_seq: &[u8], matrix: &WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
+    ) -> MaybeAligned<Alignment<u32>>
+    where
+        Q: AsRef<[u8]> + ?Sized, {
+        seq.make_alignment(|reference| {
+            sw_alignment_3pass(reference.as_ref(), self, profile_seq, matrix, gap_open, gap_extend)
         })
     }
 }

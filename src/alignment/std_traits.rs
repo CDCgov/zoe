@@ -1,4 +1,4 @@
-use super::{LocalProfiles, SharedProfiles};
+use crate::alignment::{LocalProfiles, SharedProfiles};
 use std::{
     hash::{Hash, Hasher},
     simd::{LaneCount, SupportedLaneCount},
@@ -10,8 +10,9 @@ where
     LaneCount<N>: SupportedLaneCount,
     LaneCount<O>: SupportedLaneCount,
 {
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
-        (self.query == other.query)
+        (self.seq == other.seq)
             && (self.matrix == other.matrix)
             && (self.gap_open == other.gap_open)
             && (self.gap_extend == other.gap_extend)
@@ -32,8 +33,9 @@ where
     LaneCount<N>: SupportedLaneCount,
     LaneCount<O>: SupportedLaneCount,
 {
+    #[inline]
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.query.hash(state);
+        self.seq.hash(state);
         self.matrix.hash(state);
         self.gap_open.hash(state);
         self.gap_extend.hash(state);
@@ -46,8 +48,9 @@ where
     LaneCount<N>: SupportedLaneCount,
     LaneCount<O>: SupportedLaneCount,
 {
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
-        (self.query == other.query)
+        (self.seq == other.seq)
             && (self.matrix == other.matrix)
             && (self.gap_open == other.gap_open)
             && (self.gap_extend == other.gap_extend)
@@ -68,8 +71,9 @@ where
     LaneCount<N>: SupportedLaneCount,
     LaneCount<O>: SupportedLaneCount,
 {
+    #[inline]
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.query.hash(state);
+        self.seq.hash(state);
         self.matrix.hash(state);
         self.gap_open.hash(state);
         self.gap_extend.hash(state);

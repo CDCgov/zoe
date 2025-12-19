@@ -52,6 +52,17 @@ impl<T> MaybeAligned<T> {
         }
     }
 
+    /// Converts from `&MaybeAligned<T>` to `MaybeAligned<&T>`.
+    #[inline]
+    #[must_use]
+    pub const fn as_ref(&self) -> MaybeAligned<&T> {
+        match *self {
+            MaybeAligned::Some(ref x) => MaybeAligned::Some(x),
+            MaybeAligned::Overflowed => MaybeAligned::Overflowed,
+            MaybeAligned::Unmapped => MaybeAligned::Unmapped,
+        }
+    }
+
     /// Returns the alignment if it did not overflow, otherwise calls `f` and
     /// returns the result.
     #[inline]
@@ -93,6 +104,34 @@ impl<T> MaybeAligned<T> {
             MaybeAligned::Unmapped => MaybeAligned::Unmapped,
         }
     }
+}
+
+/// An alignment output for algorithms returning a score and an index in the
+/// query and reference.
+///
+/// See the documentation for the method returning this for an interpretation of
+/// the index fields.
+pub struct ScoreAndIndices<T> {
+    /// The score of the alignment.
+    pub score:     T,
+    /// An index into the reference sequence.
+    pub ref_idx:   usize,
+    /// An index into the query sequence.
+    pub query_idx: usize,
+}
+
+/// An alignment output for algorithms returning a score and ranges of the query
+/// and reference.
+///
+/// See the documentation for the method returning this for an interpretation of
+/// the range fields.
+pub struct ScoreAndRanges<T> {
+    /// The score of the alignment.
+    pub score:       T,
+    /// A range of indices in the reference sequence.
+    pub ref_range:   Range<usize>,
+    /// A range of indices in the query sequence.
+    pub query_range: Range<usize>,
 }
 
 // For the `Alignment` struct below, both ranges are 0-based and end-exclusive.
@@ -345,7 +384,7 @@ impl<T: Copy> Alignment<T> {
     ///
     /// ```
     /// # use zoe::{
-    /// #     alignment::{AlignmentStates, ScalarProfile},
+    /// #     alignment::{AlignmentStates, ScalarProfile, SeqSrc},
     /// #     data::WeightMatrix,
     /// #     prelude::*,
     /// # };
@@ -357,7 +396,7 @@ impl<T: Copy> Alignment<T> {
     /// let query = Nucleotides::from(b"GATATCAAATGCGTGCTTGCACGATGTAAGGTAGC");
     ///
     /// let profile = ScalarProfile::new(&query, &MATRIX, GAP_OPEN, GAP_EXTEND).unwrap();
-    /// let alignment = profile.smith_waterman_alignment(reference.as_bytes()).unwrap();
+    /// let alignment = profile.smith_waterman_alignment(SeqSrc::Reference(&reference)).unwrap();
     ///
     /// assert_eq!(alignment.states, AlignmentStates::try_from(b"4M1D10M3I18M").unwrap());
     ///

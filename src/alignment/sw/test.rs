@@ -14,8 +14,10 @@ macro_rules! test_sw_simd_alignment {
             StripedProfile::<$int_type, $lanes, 5>::new($profile_seq, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
 
         let score = profile_simd.smith_waterman_score($other_seq);
-        let aln_scalar = profile_scalar.smith_waterman_alignment($other_seq).unwrap();
-        let aln_simd = profile_simd.smith_waterman_alignment($other_seq).unwrap();
+        let aln_scalar = profile_scalar
+            .smith_waterman_alignment(SeqSrc::Reference($other_seq))
+            .unwrap();
+        let aln_simd = profile_simd.smith_waterman_alignment(SeqSrc::Reference($other_seq)).unwrap();
 
         assert_eq!(score, MaybeAligned::Some(aln_scalar.score));
         assert_eq!(aln_scalar, aln_simd);
@@ -23,10 +25,14 @@ macro_rules! test_sw_simd_alignment {
         let profile_simd =
             StripedProfile::<$uint_type, $lanes, 5>::new($profile_seq, &weights.to_biased_matrix(), GAP_OPEN, GAP_EXTEND)
                 .unwrap();
-        let aln_simd = profile_simd.smith_waterman_alignment($other_seq).unwrap();
+        let aln_simd = profile_simd.smith_waterman_alignment(SeqSrc::Reference($other_seq)).unwrap();
         assert_eq!(aln_scalar, aln_simd, "SIMD ALIGNMENT");
 
-        let (score, ref_end, query_end) = profile_simd.smith_waterman_score_ends($other_seq).unwrap();
+        let ScoreAndIndices {
+            score,
+            ref_idx: ref_end,
+            query_idx: query_end,
+        } = profile_simd.smith_waterman_score_ends(SeqSrc::Reference($other_seq)).unwrap();
         assert_eq!(score, aln_scalar.score);
         assert_eq!(aln_scalar.ref_range.end, ref_end, "REFERENCE END");
         assert_eq!(aln_scalar.query_range.end, query_end, "QUERY END");
@@ -69,11 +75,11 @@ fn sw_verify_score_from_path() {
 #[test]
 fn sw() {
     let weights: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(2, -5, Some(b'N'));
-    let profile = ScalarProfile::new(QUERY, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
-    let Alignment { score, ref_range, .. } = sw_scalar_alignment(REFERENCE, &profile).unwrap();
+    let profile = ScalarProfile::new(H1_HA_SEQ, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
+    let Alignment { score, ref_range, .. } = sw_scalar_alignment(H5_HA_SEQ, &profile).unwrap();
     assert_eq!((336, 37), (ref_range.start, score));
 
-    let score = sw_scalar_score(REFERENCE, &profile).unwrap();
+    let score = sw_scalar_score(H5_HA_SEQ, &profile).unwrap();
     assert_eq!(37, score);
 
     let v: Vec<_> = std::iter::repeat_n(b'A', 100).collect();
@@ -102,18 +108,18 @@ fn sw_simd() {
     let matrix_i = WeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N'));
     let matrix_u = matrix_i.to_biased_matrix();
 
-    let profile = StripedProfile::<u8, 16, 5>::new(REFERENCE, &matrix_u, GAP_OPEN, GAP_EXTEND).unwrap();
-    let score = profile.smith_waterman_score(QUERY);
+    let profile = StripedProfile::<u8, 16, 5>::new(H5_HA_SEQ, &matrix_u, GAP_OPEN, GAP_EXTEND).unwrap();
+    let score = profile.smith_waterman_score(H1_HA_SEQ);
     assert_eq!(MaybeAligned::Some(37), score);
 
-    let profile = StripedProfile::<i16, 16, 5>::new(REFERENCE, &matrix_i, GAP_OPEN, GAP_EXTEND).unwrap();
-    let score = profile.smith_waterman_score(QUERY);
+    let profile = StripedProfile::<i16, 16, 5>::new(H5_HA_SEQ, &matrix_i, GAP_OPEN, GAP_EXTEND).unwrap();
+    let score = profile.smith_waterman_score(H1_HA_SEQ);
     assert_eq!(MaybeAligned::Some(37), score);
 }
 
 #[test]
 fn sw_simd_aln() {
-    test_sw_simd_alignment!(REFERENCE, QUERY, i16, u16, 8);
+    test_sw_simd_alignment!(H5_HA_SEQ, H1_HA_SEQ, i16, u16, 8);
 }
 
 #[test]
@@ -202,8 +208,12 @@ fn sw_simd_locations() {
     let profile_scalar = ScalarProfile::new(query, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
     let profile_simd = StripedProfile::<u8, 8, 5>::new(query, &weights.to_biased_matrix(), GAP_OPEN, GAP_EXTEND).unwrap();
 
-    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).unwrap();
-    let (score, ref_end, query_end) = profile_simd.smith_waterman_score_ends(reference).unwrap();
+    let aln_scalar = profile_scalar.smith_waterman_alignment(SeqSrc::Reference(reference)).unwrap();
+    let ScoreAndIndices {
+        score,
+        ref_idx: ref_end,
+        query_idx: query_end,
+    } = profile_simd.smith_waterman_score_ends(SeqSrc::Reference(reference)).unwrap();
 
     assert_eq!(score, aln_scalar.score);
     assert_eq!(aln_scalar.ref_range.end, ref_end, "REFERENCE END");
@@ -214,8 +224,12 @@ fn sw_simd_locations() {
     let profile_simd_rev =
         StripedProfile::<u8, 8, 5>::new(&query_rev, &weights.to_biased_matrix(), GAP_OPEN, GAP_EXTEND).unwrap();
 
-    let (score2, ref_start, query_start) = profile_simd_rev
-        .smith_waterman_score_ends_reverse(&reference[..ref_end])
+    let ScoreAndIndices {
+        score: score2,
+        ref_idx: ref_start,
+        query_idx: query_start,
+    } = profile_simd_rev
+        .smith_waterman_score_ends_reverse(SeqSrc::Reference(&reference[..ref_end]))
         .unwrap();
     assert_eq!(score, score2);
     assert_eq!(ref_start..ref_end, aln_scalar.ref_range, "REFERENCE");
@@ -224,7 +238,11 @@ fn sw_simd_locations() {
     let profile_simd_rev2 = profile_simd.reverse_from_forward(query_end).unwrap();
     assert_eq!(profile_simd_rev, profile_simd_rev2);
 
-    let (_, ref_range, query_range) = profile_simd.smith_waterman_score_ranges(reference).unwrap();
+    let ScoreAndRanges {
+        ref_range, query_range, ..
+    } = profile_simd
+        .smith_waterman_score_ranges(SeqSrc::Reference(reference))
+        .unwrap();
     assert_eq!(query_range, aln_scalar.query_range, "3pass QUERY RANGE");
     assert_eq!(ref_range, aln_scalar.ref_range, "3pass REFERENCE RANGE");
 }
@@ -239,8 +257,14 @@ fn sw_simd_ranges() {
     let profile_scalar = ScalarProfile::new(query, &weights, GAP_OPEN, GAP_EXTEND).unwrap();
     let profile_simd = StripedProfile::<u8, 8, 5>::new(query, &weights.to_biased_matrix(), GAP_OPEN, GAP_EXTEND).unwrap();
 
-    let aln_scalar = profile_scalar.smith_waterman_alignment(reference).unwrap();
-    let (score, ref_range, query_range) = profile_simd.smith_waterman_score_ranges(reference).unwrap();
+    let aln_scalar = profile_scalar.smith_waterman_alignment(SeqSrc::Reference(reference)).unwrap();
+    let ScoreAndRanges {
+        score,
+        ref_range,
+        query_range,
+    } = profile_simd
+        .smith_waterman_score_ranges(SeqSrc::Reference(reference))
+        .unwrap();
 
     assert_eq!(score, aln_scalar.score);
     assert_eq!(ref_range, aln_scalar.ref_range, "REFERENCE");

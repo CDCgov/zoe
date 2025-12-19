@@ -88,9 +88,9 @@
 //! crate as a dependency.
 //!
 //! For specific applications, *Zoe* has enum-style error types such as
-//! [`QueryProfileError`] or [`KmerError`], which the user can match on or
-//! display. For working with files and record types, however, *Zoe* elects to
-//! use [`std::io::Error`], allowing for system IO errors to be propagated and
+//! [`ProfileError`] or [`KmerError`], which the user can match on or display.
+//! For working with files and record types, however, *Zoe* elects to use
+//! [`std::io::Error`], allowing for system IO errors to be propagated and
 //! function-specific error messages to be represented with
 //! [`ErrorKind::InvalidData`] or [`ErrorKind::Other`].
 //!
@@ -120,7 +120,7 @@
 //! [`slice_mut`]: crate::prelude::SliceMut::slice_mut
 //! [`to_owned_data`]: crate::prelude::DataView::to_owned_data
 //! [`restrict`]: crate::prelude::Restrict::restrict
-//! [`QueryProfileError`]: crate::alignment::QueryProfileError
+//! [`ProfileError`]: crate::alignment::ProfileError
 //! [`KmerError`]: crate::kmer::KmerError
 //! [`ErrorKind::InvalidData`]: std::io::ErrorKind::InvalidData
 //! [`ErrorKind::Other`]: std::io::ErrorKind::Other

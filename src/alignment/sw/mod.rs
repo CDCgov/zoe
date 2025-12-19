@@ -1,8 +1,19 @@
 //! ## Smith-Waterman Alignment
 //!
-//! For generating the optimal, local score use [`sw_simd_score`] or a wrapper
-//! thereof. Likewise, for generating an optimal, local alignment use
-//! [`sw_simd_alignment`].
+//! This module provides core algorithms and routines used to perform local
+//! sequence alignment, including SIMD vectorized algorithms. This includes:
+//!
+//! - Generating just the optimal score with [`sw_simd_score`]
+//! - Generating the full local alignment with [`sw_simd_alignment`]
+//! - A two-pass method generating the score and the end indices of the
+//!   alignment with [`sw_simd_score_ends`]
+//!
+//! In applications, it is recommended to first create a [`StripedProfile`] or
+//! [`ProfileSets`], and then call the corresponding methods on those. For more
+//! details, see [usage steps](crate::alignment::sw#usage-steps) below. This
+//! allows more flexibility, such as building the profile from either the query
+//! or the reference sequence. When developing new alignment routines, the
+//! standalone functions should be used.
 //!
 //! For generating the two locally aligned sequences, first create an
 //! [`Alignment`], then use [`Alignment::get_aligned_seqs`].
@@ -33,67 +44,74 @@
 //! allowing any pair of residues in the previously chosen alphabet to have a
 //! custom score.
 //!
-//! #### 3. Build the Query Profile
+//! #### 3. Build a Sequence Profile
 //!
-//! *Zoe*'s alignment functions first involve preprocessing the query. This
-//! allows for more efficient algorithms to be used (e.g., striped Smith
-//! Waterman with SIMD). Several options are provided (the last being the
-//! recommended for general applications):
+//! *Zoe*'s alignment functions first involve preprocessing one of the
+//! sequences. This allows for more efficient algorithms to be used (e.g.,
+//! striped Smith Waterman with SIMD). It also allows the preprocessing to be
+//! done once and reused for many alignments, if the same query or reference is
+//! used.
 //!
-//! 1. For testing or when performance is not critical, [`ScalarProfile`] can be
-//!    used.
-//! 2. When the sequences are known to be short (so that the score does not
-//!    exceed or get too close to [`i8::MAX`]) or known to be long (so that the
-//!    score will certainly exceed [`i8::MAX`] but not [`i16::MAX`]), a
-//!    [`StripedProfile`] can be created with a manually specified integer type
-//!    and lane count. For best performance, the number of bits in the integer
-//!    type multiplied by the lane count should typically equal the number of
-//!    bits in the available SIMD registers (e.g., 256 bits). It is best to pick
-//!    the smallest integer type needed to allow for the most simultaneous
-//!    operations.
-//! 3. To properly handle overflows (and automatically use a larger integer
-//!    type), the [`LocalProfiles`] and [`SharedProfiles`] abstractions offer
-//!    sets of profiles which are lazily evaluated as needed. The former is
-//!    designed for use within a single thread, while the latter allows multiple
-//!    threads to access it. They can be constructed with [`new_with_w256`] or a
-//!    similar method. For DNA sequences, the methods [`into_local_profile`] and
-//!    [`into_shared_profile`] are also available.
+//! Creating the profile also combines the sequence, matrix of weights, and gap
+//! open and gap extend penalties. This step performs some basic checks, and if
+//! any of the inputs are invalid, a [`ProfileError`] is returned.
 //!
-//! Creating the profile (or profile set) combines the query, matrix of weights,
-//! and gap open and gap extend penalties. This step also performs some basic
-//! checks, and if any of the inputs are invalid, a [`QueryProfileError`] is
-//! returned.
+//! For general applications, *Zoe* encourages the use of [`LocalProfiles`] (if
+//! the profile is used solely within a single thread) or [`SharedProfiles`] (if
+//! multiple threads will need to read the profile). The profile sets prefer the
+//! use of signed integers for their striped profiles, automatically increasing
+//! to larger integer widths when an overflow is encountered (and lazily
+//! building the profiles for these). Depending on the SIMD register width
+//! available, the constructors [`new_with_w128`], [`new_with_w256`], and
+//! [`new_with_w512`] are provided. [`new_with_w256`] is typically a good
+//! default. For DNA sequences, the convenience methods [`into_local_profile`]
+//! and [`into_shared_profile`] are also available.
 //!
-//! These docs assume that the profile is built from the query, since often this
-//! is most efficient. However, it is also possible to build the profile from
-//! the reference. In this case, [`invert`] should be called on the final
-//! alignment to "swap" the query and the reference back again.
+//! *Zoe* also provides the alternative options for building profiles:
+//!
+//! - For testing or when performance is not critical, [`ScalarProfile`] can be
+//!   used. This uses the scalar algorithm (no SIMD), and does not perform any
+//!   striping of the profile sequence.
+//! - For manual control over the integer type and lane count used, an
+//!   individual [`StripedProfile`] can be created. When the sequences are known
+//!   to be short, an `i8` integer type may be appropriate if it is known the
+//!   score will not overflow. Similarly, if the sequences are known to be long
+//!   (so that the score will certainly exceed [`i8::MAX`] but not
+//!   [`i16::MAX`]), a [`StripedProfile`] could also be applied.
+//!
+//!   For best performance, the number of bits in the integer type multiplied by
+//!   the lane count should typically equal the number of bits in the available
+//!   SIMD registers (e.g., 256 bits). It is best to pick the smallest integer
+//!   type needed to allow for the most simultaneous operations.
+//!
+//!   Manually creating the [`StripedProfile`] also allows unsigned integer
+//!   types to be used, in which case the striped Smith Waterman algorithm is
+//!   applied with a bias applied to all weights. This requires calling
+//!   [`to_biased_matrix`] on the [`WeightMatrix`].
 //!
 //! #### 4. Perform the Alignment
 //!
-//! The query profile can be aligned against any number of different references,
+//! While the standalone functions listed
+//! [above](crate::alignment::sw#smith-waterman-alignment) provide a basic
+//! interface, methods on profiles and profile sets will be more ergonomic.
+//!
+//! The first argument will be the other sequence to align against. For all
+//! methods except scores-only routines, this argument is wrapped in a
+//! [`SeqSrc`] enum to indicate whether this sequence is a query sequence or a
+//! reference sequence. This allows the method to automatically adjust the CIGAR
+//! string and output fields accordingly. The standalone functions do not handle
+//! this, and instead assume the profile is always built from the _query_.
+//!
+//! The sequence can be wrapped in [`SeqSrc`] manually or using an extension
+//! trait. See the documentation on [`SeqSrc`] for an example and more details.
+//!
+//! The profile can be aligned against any number of different sequences,
 //! generating either just the score (more efficient) or the full alignment. The
 //! methods available based on the profile used are:
 //!
-//! - [`ScalarProfile`]:
-//!
-//!   Alignment can be performed using the functions [`sw_scalar_score`]
-//!   (score-only) or [`sw_scalar_alignment`] (with alignment). Alternatively,
-//!   the methods [`ScalarProfile::smith_waterman_score`] and
-//!   [`ScalarProfile::smith_waterman_alignment`] provide equivalent
-//!   functionality.
-//!
-//! - [`StripedProfile`]:
-//!
-//!   Alignment can be performed using the functions [`sw_simd_score`]
-//!   (score-only) or [`sw_simd_alignment`] (with alignment). Alternatively, the
-//!   methods [`StripedProfile::smith_waterman_score`] and
-//!   [`StripedProfile::smith_waterman_alignment`] provide equivalent
-//!   functionality.
-//!
 //! - [`LocalProfiles`] and [`SharedProfiles`]:
 //!
-//!   Alignment can be performed with the [`smith_waterman_score_from_i8`]
+//!   Alignment can be performed with [`smith_waterman_score_from_i8`]
 //!   (score-only) or [`smith_waterman_alignment_from_i8`] (with alignment)
 //!   methods. This also requires importing the [`ProfileSets`] trait. If it is
 //!   expected that the alignments will exceed [`i8::MAX`], it may be more
@@ -102,17 +120,32 @@
 //!   the `i16` integer type (which avoids performing a wasted `i8` alignment
 //!   with an overflowing score).
 //!
+//! - [`StripedProfile`]:
+//!
+//!   Alignment can be performed with
+//!   [`smith_waterman_score`](StripedProfile::smith_waterman_score)
+//!   (score-only) or
+//!   [`smith_waterman_alignment`](StripedProfile::smith_waterman_alignment)
+//!   (with alignment).
+//!
+//! - [`ScalarProfile`]:
+//!
+//!   Alignment can be performed with
+//!   [`smith_waterman_score`](ScalarProfile::smith_waterman_score) (score-only)
+//!   or [`smith_waterman_alignment`](ScalarProfile::smith_waterman_alignment)
+//!   (with alignment).
+//!
 //! ### Examples
 //!
 //! Below is an example using DNA and a manually-created [`StripedProfile`]. We
 //! use a match score of 4 and a mismatch score of -2, as defined in `WEIGHTS`.
-//! We also choose to use a `StripedProfile` (so that the SIMD algorithm is
+//! We also choose to use a [`StripedProfile`] (so that the SIMD algorithm is
 //! used) with integer type `i8` and 32 lanes (corresponding to a 256-bit
 //! register).
 //!
 //! ```
 //! # use zoe::{
-//! #     alignment::{Alignment, AlignmentStates, StripedProfile},
+//! #     alignment::{Alignment, AlignmentStates, SeqSrc, StripedProfile},
 //! #     data::matrices::WeightMatrix
 //! # };
 //! let reference: &[u8] = b"GGCCACAGGATTGAG";
@@ -123,7 +156,7 @@
 //! const GAP_EXTEND: i8 = -1;
 //!
 //! let profile = StripedProfile::<i8, 32, 5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-//! let alignment = profile.smith_waterman_alignment(reference).unwrap();
+//! let alignment = profile.smith_waterman_alignment(SeqSrc::Reference(reference)).unwrap();
 //!
 //! let Alignment {
 //!     score,
@@ -141,7 +174,7 @@
 //!
 //! ```
 //! # use zoe::{
-//! #     alignment::{Alignment, AlignmentStates, StripedProfile},
+//! #     alignment::{Alignment, AlignmentStates, SeqSrc, StripedProfile},
 //! #     data::{matrices::WeightMatrix, ByteIndexMap},
 //! # };
 //! let reference: &[u8] = b"BDAACAABDDDB";
@@ -153,7 +186,7 @@
 //! const GAP_EXTEND: i8 = -2;
 //!
 //! let profile = StripedProfile::<i8, 32, 4>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-//! let alignment = profile.smith_waterman_alignment(reference).unwrap();
+//! let alignment = profile.smith_waterman_alignment(SeqSrc::Reference(reference)).unwrap();
 //!
 //! let Alignment {
 //!     score,
@@ -170,7 +203,7 @@
 //!
 //! ```
 //! # use zoe::{
-//! #     alignment::{Alignment, AlignmentStates, ProfileSets},
+//! #     alignment::{Alignment, AlignmentStates, ProfileSets, SeqSrc},
 //! #     data::matrices::WeightMatrix,
 //! #     prelude::Nucleotides
 //! # };
@@ -182,7 +215,7 @@
 //! const GAP_EXTEND: i8 = -1;
 //!
 //! let profile = query.into_local_profile(&WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-//! let alignment = profile.smith_waterman_alignment_from_i8(reference).unwrap();
+//! let alignment = profile.smith_waterman_alignment_from_i8(SeqSrc::Reference(reference)).unwrap();
 //!
 //! let Alignment {
 //!     score,
@@ -199,7 +232,7 @@
 //!
 //! ```
 //! # use zoe::{
-//! #     alignment::{Alignment, AlignmentStates, LocalProfiles, ProfileSets},
+//! #     alignment::{Alignment, AlignmentStates, LocalProfiles, ProfileSets, SeqSrc},
 //! #     data::{matrices::WeightMatrix, ByteIndexMap},
 //! # };
 //! let reference: &[u8] = b"BDAACAABDDDB";
@@ -211,7 +244,7 @@
 //! const GAP_EXTEND: i8 = -2;
 //!
 //! let profile = LocalProfiles::new_with_w256(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-//! let alignment = profile.smith_waterman_alignment_from_i8(reference).unwrap();
+//! let alignment = profile.smith_waterman_alignment_from_i8(SeqSrc::Reference(reference)).unwrap();
 //!
 //! let Alignment {
 //!     score,
@@ -276,7 +309,7 @@
 //! [`new_biased_dna_matrix`]:
 //!     crate::data::matrices::WeightMatrix::new_biased_dna_matrix
 //! [`new_dna_matrix`]: crate::data::matrices::WeightMatrix::new_dna_matrix
-//! [`QueryProfileError`]: crate::alignment::QueryProfileError
+//! [`ProfileError`]: crate::alignment::ProfileError
 //! [`Nucleotides::into_local_profile`]:
 //!     crate::data::types::nucleotides::Nucleotides::into_local_profile
 //! [`Nucleotides::into_shared_profile`]:
@@ -299,7 +332,9 @@
 //! [`matrices`]: crate::data::matrices
 //! [`WeightMatrix::new_custom`]:
 //!     crate::data::matrices::WeightMatrix::new_custom
+//! [`new_with_w128`]: crate::alignment::LocalProfiles::new_with_w128
 //! [`new_with_w256`]: crate::alignment::LocalProfiles::new_with_w256
+//! [`new_with_w512`]: crate::alignment::LocalProfiles::new_with_w512
 //! [`into_local_profile`]:
 //!     crate::data::types::nucleotides::Nucleotides::into_local_profile
 //! [`into_shared_profile`]:
@@ -313,10 +348,10 @@
 //!     crate::alignment::ProfileSets::smith_waterman_score_from_i16
 //! [`smith_waterman_alignment_from_i16`]:
 //!     crate::alignment::ProfileSets::smith_waterman_alignment_from_i16
+//! [`to_biased_matrix`]: crate::data::matrices::WeightMatrix::to_biased_matrix
 
 #![allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
 use super::*;
-use std::simd::prelude::*;
 
 /// Computes the score for a local alignment.
 ///
@@ -410,13 +445,13 @@ pub(crate) mod test_data {
     use crate::data::matrices::WeightMatrix;
     use std::sync::LazyLock;
 
-    pub(crate) static REFERENCE: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/NC_007362.1.txt")); // H5 HA
-    pub(crate) static QUERY: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/NC_026433.1.txt")); // H1 HA1
+    pub(crate) static H5_HA_SEQ: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/NC_007362.1.txt")); // H5 HA
+    pub(crate) static H1_HA_SEQ: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/NC_026433.1.txt")); // H1 HA1
 
     pub(crate) static WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(2, -5, Some(b'N'));
     pub(crate) static BIASED_WEIGHTS: WeightMatrix<u8, 5> = WEIGHTS.to_biased_matrix();
     pub(crate) static SCALAR_PROFILE: LazyLock<ScalarProfile<5>> =
-        LazyLock::new(|| ScalarProfile::new(QUERY, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap());
+        LazyLock::new(|| ScalarProfile::new(H1_HA_SEQ, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap());
 
     pub(crate) const GAP_OPEN: i8 = -10;
     pub(crate) const GAP_EXTEND: i8 = -1;
@@ -431,7 +466,11 @@ mod bench;
 mod banded;
 mod scalar;
 mod striped;
+#[cfg(feature = "dev-3pass")]
+mod three_pass;
 
 pub use banded::*;
 pub use scalar::*;
 pub use striped::*;
+#[cfg(feature = "dev-3pass")]
+pub use three_pass::*;

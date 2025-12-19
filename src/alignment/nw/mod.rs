@@ -28,7 +28,7 @@
 //! 3. Build the query profile with [`ScalarProfile::new`]. This step combines
 //!    the query, matrix of weights, and gap open and gap extend penalties. This
 //!    step also performs some basic checks, and if any of the inputs are
-//!    invalid, a [`QueryProfileError`] is returned.
+//!    invalid, a [`ProfileError`] is returned.
 //!
 //! 4. Use the query profile to align against any number of different references
 //!    using [`nw_scalar_score`] or [`nw_scalar_alignment`].
@@ -66,7 +66,7 @@
 //! [`WeightMatrix`]: crate::data::matrices::WeightMatrix
 //! [`WeightMatrix::new`]: crate::data::matrices::WeightMatrix::new
 //! [`new_dna_matrix`]: crate::data::matrices::WeightMatrix::new_dna_matrix
-//! [`QueryProfileError`]: crate::alignment::QueryProfileError
+//! [`ProfileError`]: crate::alignment::ProfileError
 //! [`Alignment`]: super::Alignment
 //! [`Alignment::get_aligned_seqs`]: super::Alignment::get_aligned_seqs
 

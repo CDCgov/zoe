@@ -25,6 +25,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ### Changed
 
+- Modified alignment methods on profiles to take a `SeqSrc` enum as an argument, allowing the returned alignment to properly reflect which sequence is the query and which is the reference
 - `SharedProfiles` no longer holds the sequence as `Box<u8>`, instead using `&'a [u8]`
 - The `arbitrary` module now uses specification structs to allow various restrictions to be enforced when generating *Zoe* data types. See the module level documentation for more details.
 - `CheckedCigar` no longer has a blanket implementation, and is instead manually implemented on relevant types (behind `fuzzing` feature gate)
