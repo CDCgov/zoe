@@ -480,17 +480,9 @@ pub trait StatesSequence {
     /// is returned.
     #[inline]
     fn remove_clipping_front(&mut self) -> usize {
-        if let Some(ciglet1) = self.next_if_op(|op| op == b'H' || op == b'S') {
-            if ciglet1.op == b'H'
-                && let Some(ciglet2) = self.next_if_op(|op| op == b'S')
-            {
-                ciglet1.inc + ciglet2.inc
-            } else {
-                ciglet1.inc
-            }
-        } else {
-            0
-        }
+        let hard_clipping = self.next_if_op(|op| op == b'H').map_or(0, |ciglet| ciglet.inc);
+        let soft_clipping = self.next_if_op(|op| op == b'S').map_or(0, |ciglet| ciglet.inc);
+        hard_clipping + soft_clipping
     }
 
     /// Removes clipping from the end of the iterator.
@@ -500,17 +492,9 @@ pub trait StatesSequence {
     /// is returned.
     #[inline]
     fn remove_clipping_back(&mut self) -> usize {
-        if let Some(ciglet1) = self.next_back_if_op(|op| op == b'H' || op == b'S') {
-            if ciglet1.op == b'H'
-                && let Some(ciglet2) = self.next_back_if_op(|op| op == b'S')
-            {
-                ciglet1.inc + ciglet2.inc
-            } else {
-                ciglet1.inc
-            }
-        } else {
-            0
-        }
+        let hard_clipping = self.next_back_if_op(|op| op == b'H').map_or(0, |ciglet| ciglet.inc);
+        let soft_clipping = self.next_back_if_op(|op| op == b'S').map_or(0, |ciglet| ciglet.inc);
+        hard_clipping + soft_clipping
     }
 }
 
