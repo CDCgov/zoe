@@ -1,9 +1,12 @@
 use super::AlignmentStates;
-use crate::data::{
-    cigar::{CigarView, is_valid_op},
-    types::cigar::{Cigar, CigarError, Ciglet, CigletIteratorChecked},
+use crate::{
+    alignment::{Alignment, MaybeAligned},
+    data::{
+        cigar::{CigarView, is_valid_op},
+        types::cigar::{Cigar, CigarError, Ciglet, CigletIteratorChecked},
+    },
 };
-use std::fmt::Write;
+use std::{cmp::Ordering, fmt::Write};
 
 impl AsRef<[Ciglet]> for AlignmentStates {
     #[inline]
@@ -365,5 +368,62 @@ impl<'a> TryFrom<CigarView<'a>> for AlignmentStates {
     #[inline]
     fn try_from(value: CigarView<'a>) -> Result<Self, Self::Error> {
         AlignmentStates::try_from(value.as_bytes())
+    }
+}
+
+impl<T> PartialOrd for Alignment<T>
+where
+    T: PartialOrd,
+{
+    /// This method returns an ordering between `self` and `other` values if one
+    /// exists.
+    ///
+    /// The ordering is based on the `score` field, and equivalent scores either
+    /// produce `None` or [`Ordering::Equal`] (if all other fields are
+    /// identical).
+    #[inline]
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match self.score.partial_cmp(&other.score) {
+            Some(Ordering::Equal) => {
+                if self == other {
+                    Some(Ordering::Equal)
+                } else {
+                    None
+                }
+            }
+            ord => ord,
+        }
+    }
+}
+
+impl<T> PartialOrd for MaybeAligned<T>
+where
+    T: PartialOrd,
+{
+    /// This method returns an ordering between `self` and `other` values if one
+    /// exists.
+    ///
+    /// The [`Unmapped`] variant is considered the smallest, while the
+    /// [`Overflowed`] variant is considered the largest. Comparisons involving
+    /// two [`MaybeAligned::Some`] values defer to the implementation of
+    /// [`PartialOrd`] on `T`.
+    ///
+    /// [`Unmapped`]: MaybeAligned::Unmapped
+    /// [`Overflowed`]: MaybeAligned::Overflowed
+    #[inline]
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match (self, other) {
+            // Equality of state-less variants
+            (MaybeAligned::Overflowed, MaybeAligned::Overflowed) | (MaybeAligned::Unmapped, MaybeAligned::Unmapped) => {
+                Some(Ordering::Equal)
+            }
+
+            // Comparing state-less variants
+            (MaybeAligned::Overflowed, _) | (_, MaybeAligned::Unmapped) => Some(Ordering::Greater),
+            (_, MaybeAligned::Overflowed) | (MaybeAligned::Unmapped, _) => Some(Ordering::Less),
+
+            // Comparing two alignments
+            (MaybeAligned::Some(left), MaybeAligned::Some(right)) => left.partial_cmp(right),
+        }
     }
 }
