@@ -63,6 +63,17 @@ impl<T> MaybeAligned<T> {
         }
     }
 
+    /// Converts from `&mut MaybeAligned<T>` to `MaybeAligned<&mut T>`.
+    #[inline]
+    #[must_use]
+    pub const fn as_mut(&mut self) -> MaybeAligned<&mut T> {
+        match *self {
+            MaybeAligned::Some(ref mut x) => MaybeAligned::Some(x),
+            MaybeAligned::Overflowed => MaybeAligned::Overflowed,
+            MaybeAligned::Unmapped => MaybeAligned::Unmapped,
+        }
+    }
+
     /// Returns the alignment if it did not overflow, otherwise calls `f` and
     /// returns the result.
     #[inline]
@@ -78,7 +89,6 @@ impl<T> MaybeAligned<T> {
     /// [`Overflowed`]: MaybeAligned::Overflowed
     /// [`Unmapped`]: MaybeAligned::Unmapped
     #[inline]
-    #[must_use]
     pub fn map<U>(self, f: impl FnOnce(T) -> U) -> MaybeAligned<U> {
         match self {
             MaybeAligned::Some(value) => MaybeAligned::Some(f(value)),
@@ -103,6 +113,29 @@ impl<T> MaybeAligned<T> {
             MaybeAligned::Overflowed => MaybeAligned::Overflowed,
             MaybeAligned::Unmapped => MaybeAligned::Unmapped,
         }
+    }
+}
+
+impl<T> MaybeAligned<Alignment<T>>
+where
+    T: Copy,
+{
+    /// Gets the alignment for when the query and reference are both reversed.
+    ///
+    /// See [`Reversibility`](Alignment#reversibility) for more details.
+    #[inline]
+    #[must_use]
+    pub fn to_reverse(&self) -> Self {
+        self.as_ref().map(Alignment::to_reverse)
+    }
+
+    /// Converts an alignment in-place so that it represents the alignment
+    /// between the reversed query and reference.
+    ///
+    /// See [`Reversibility`](Alignment#reversibility) for more details.
+    #[inline]
+    pub fn make_reverse(&mut self) {
+        self.as_mut().map(Alignment::make_reverse);
     }
 }
 
@@ -197,9 +230,35 @@ pub struct ScoreAndRanges<T> {
 /// Some additional information will need to be provided, such as any flags, the
 /// query sequence and quality scores if present, etc.
 ///
+/// ## Reversibility
+///
+/// [`Alignment`] and `MaybeAligned<Alignment<_>>` both offer methods for
+/// reversing an alignment. For example, given an alignment between `query` and
+/// `reference`, calling [`Alignment::to_reverse`] will return a new optimal
+/// alignment between `query.to_reverse()` and `reference.to_reverse()`, without
+/// recomputing the alignment. [`Alignment::make_reverse`] does the same thing
+/// in-place.
+///
+/// Notably, since there may be many optimal alignments with the same score,
+/// this is not guaranteed to equal the same alignment that an alignment routine
+/// would return when provided the reversed sequences.
+///
+/// This can also be interpreted as an alignment between
+/// `query.to_reverse_complement()` and `reference.to_reverse_complement()` if
+/// the [`WeightMatrix`] is compatible with this. For example, the score for
+/// `A→A` must be the same as `T→T`, `A→G` must be the same as `T→C`, and so on.
+/// This property holds for simple weight matrices with a fixed match and
+/// mismatch score, but it also holds for many other custom matrices.
+///
+/// One use-case for these functions is when the reverse complements of the
+/// references are precomputed. In this case, it may be necessary to reverse the
+/// alignment, so that it corresponds to the alignment between a
+/// reverse-complemented query and the original reference.
+///
 /// [`SamData`]: crate::data::records::sam::SamData
 /// [`SamData::from_alignment`]:
 ///     crate::data::records::sam::SamData::from_alignment
+/// [`WeightMatrix`]: crate::data::WeightMatrix
 #[non_exhaustive]
 #[derive(Clone, Eq, PartialEq, Debug, Default)]
 pub struct Alignment<T> {
@@ -365,8 +424,9 @@ impl<T: Copy> Alignment<T> {
         }
     }
 
-    /// Gets the alignment for when the query and reference are both reversed
-    /// (or reverse-complemented).
+    /// Gets the alignment for when the query and reference are both reversed.
+    ///
+    /// See [`Reversibility`](Alignment#reversibility) for more details.
     #[must_use]
     pub fn to_reverse(&self) -> Self {
         let ref_range = (self.ref_len - self.ref_range.end)..(self.ref_len - self.ref_range.start - 1);
@@ -384,7 +444,9 @@ impl<T: Copy> Alignment<T> {
     }
 
     /// Converts an alignment in-place so that it represents the alignment
-    /// between the reversed (or reverse-complemented) query and reference.
+    /// between the reversed query and reference.
+    ///
+    /// See [`Reversibility`](Alignment#reversibility) for more details.
     pub fn make_reverse(&mut self) {
         self.ref_range = (self.ref_len - self.ref_range.end)..(self.ref_len - self.ref_range.start - 1);
         self.query_range = (self.query_len - self.query_range.end)..(self.query_len - self.query_range.start - 1);
