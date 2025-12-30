@@ -1,4 +1,5 @@
 use crate::{
+    alignment::{LocalProfiles, SharedProfiles},
     data::fasta::{FastaAA, FastaNT, FastaNTAnnot, FastaSeq},
     prelude::{
         AminoAcids, AminoAcidsView, AminoAcidsViewMut, FastQ, FastQView, FastQViewMut, Nucleotides, NucleotidesView,
@@ -73,7 +74,7 @@ impl HeaderReadable for FastaNTAnnot {
     }
 }
 
-/// Getter trait for structures providing read access to a sequences.
+/// Getter trait for structures providing read access to a sequence.
 ///
 /// The sequence can be either nucleotides or amino acids, and is returned as a
 /// byte slice.
@@ -171,5 +172,19 @@ impl SequenceReadable for FastaNTAnnot {
     #[inline]
     fn sequence_bytes(&self) -> &[u8] {
         self.sequence.as_ref()
+    }
+}
+
+impl<const M: usize, const N: usize, const O: usize, const S: usize> SequenceReadable for LocalProfiles<'_, M, N, O, S> {
+    #[inline]
+    fn sequence_bytes(&self) -> &[u8] {
+        self.seq
+    }
+}
+
+impl<const M: usize, const N: usize, const O: usize, const S: usize> SequenceReadable for SharedProfiles<'_, M, N, O, S> {
+    #[inline]
+    fn sequence_bytes(&self) -> &[u8] {
+        self.seq
     }
 }

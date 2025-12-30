@@ -10,6 +10,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 - Added convenience methods for checking the variant of `SeqSrc`
 - Implemented `to_reverse` and `make_reverse` for `MaybeAligned<Alignment<_>>`
+- Implemented `SequenceReadable` for profile sets
 
 ### Fixed
 
