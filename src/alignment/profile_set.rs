@@ -1,7 +1,7 @@
-use super::{StripedProfile, validate_profile_args};
+use super::{QueryProfileError, StripedProfile, validate_profile_args};
 use crate::{
     alignment::{Alignment, MaybeAligned},
-    data::{err::QueryProfileError, matrices::WeightMatrix},
+    data::matrices::WeightMatrix,
 };
 use std::{
     cell::OnceCell,

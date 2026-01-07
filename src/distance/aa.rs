@@ -1,8 +1,8 @@
 use crate::{
     DEFAULT_SIMD_LANES,
-    data::{err::DistanceError, types::amino_acids::AminoAcidsReadable},
+    data::types::amino_acids::AminoAcidsReadable,
     distance::{
-        aa::DistanceError::{NoData, NotComparable},
+        DistanceError::{self, NoData, NotComparable},
         hamming_simd,
     },
     prelude::{AminoAcids, AminoAcidsView, AminoAcidsViewMut},

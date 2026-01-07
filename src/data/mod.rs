@@ -120,7 +120,7 @@
 //! [`slice_mut`]: crate::prelude::SliceMut::slice_mut
 //! [`to_owned_data`]: crate::prelude::DataView::to_owned_data
 //! [`restrict`]: crate::prelude::Restrict::restrict
-//! [`QueryProfileError`]: crate::data::err::QueryProfileError
+//! [`QueryProfileError`]: crate::alignment::QueryProfileError
 //! [`KmerError`]: crate::kmer::KmerError
 //! [`ErrorKind::InvalidData`]: std::io::ErrorKind::InvalidData
 //! [`ErrorKind::Other`]: std::io::ErrorKind::Other

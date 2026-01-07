@@ -21,12 +21,15 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added index comparison methods to `PhmmIndex` (behind `dev-phmm` feature gate)
 - Condensed the `PhmmParamKind` variants in the `visit_params` API (behind `dev-phmm` feature gate)
 - Added row and column accessors to `TransitionParams` (behind `dev-phmm` and `alignment-diagnostics` feature gates)
+- Added `WithErrorContext` trait and `ErrorWithContext` struct for updated error-handling.
 
 ### Changed
 
 - `SharedProfiles` no longer holds the sequence as `Box<u8>`, instead using `&'a [u8]`
 - The `arbitrary` module now uses specification structs to allow various restrictions to be enforced when generating *Zoe* data types. See the module level documentation for more details.
 - `CheckedCigar` no longer has a blanket implementation, and is instead manually implemented on relevant types (behind `fuzzing` feature gate)
+- Updated error handling logic and style for `OrFail` trait.
+- Standalone function `zoe::data::err::open_nonempty_file` is now public
 
 ### Fixes
 

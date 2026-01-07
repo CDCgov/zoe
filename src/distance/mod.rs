@@ -88,3 +88,26 @@ pub mod dna;
 mod general;
 
 pub use general::*;
+
+use std::fmt::{self, Display};
+
+/// Errors that can occur when calculating distances.
+#[derive(Debug)]
+pub enum DistanceError {
+    /// No data found in at least one function argument.
+    NoData,
+    /// Data only had invalid state that was not able to be compared.
+    NotComparable,
+}
+
+impl Display for DistanceError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let message = match self {
+            DistanceError::NoData => "No data found in at least one function argument",
+            DistanceError::NotComparable => "Data only had invalid state that was not able to be compared",
+        };
+        write!(f, "{message}")
+    }
+}
+
+impl std::error::Error for DistanceError {}

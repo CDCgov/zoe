@@ -66,7 +66,7 @@
 //! [`WeightMatrix`]: crate::data::matrices::WeightMatrix
 //! [`WeightMatrix::new`]: crate::data::matrices::WeightMatrix::new
 //! [`new_dna_matrix`]: crate::data::matrices::WeightMatrix::new_dna_matrix
-//! [`QueryProfileError`]: crate::data::err::QueryProfileError
+//! [`QueryProfileError`]: crate::alignment::QueryProfileError
 //! [`Alignment`]: super::Alignment
 //! [`Alignment::get_aligned_seqs`]: super::Alignment::get_aligned_seqs
 

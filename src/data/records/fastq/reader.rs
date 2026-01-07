@@ -1,5 +1,8 @@
 use crate::{
-    data::{records::RecordReader, vec_types::ChopLineBreak},
+    data::{
+        err::{WithErrorContext, open_nonempty_file},
+        vec_types::ChopLineBreak,
+    },
     prelude::*,
 };
 use std::{
@@ -75,13 +78,9 @@ impl FastQReader<std::fs::File> {
     pub fn from_filename<P>(filename: P) -> Result<FastQReader<File>, std::io::Error>
     where
         P: AsRef<Path>, {
-        let file = Self::open_nonempty_file(filename)?;
+        let file = open_nonempty_file(filename).map_err(WithErrorContext::with_type_context::<Self>)?;
         Ok(FastQReader::new(file))
     }
-}
-
-impl<R: std::io::Read> RecordReader for FastQReader<R> {
-    const RECORD_NAME: &str = "FASTQ";
 }
 
 /// An iterator for buffered reading of a

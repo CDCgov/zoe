@@ -2,10 +2,10 @@
 use crate::alignment::sw::{sw_banded_alignment, sw_simd_score_ranges};
 use crate::{
     alignment::{
-        Alignment, MaybeAligned,
+        Alignment, MaybeAligned, QueryProfileError,
         sw::{sw_scalar_alignment, sw_scalar_score, sw_simd_alignment, sw_simd_score, sw_simd_score_ends},
     },
-    data::{err::QueryProfileError, mappings::ByteIndexMap, matrices::WeightMatrix},
+    data::{mappings::ByteIndexMap, matrices::WeightMatrix},
     math::{AlignableIntWidth, AnyInt, FromSameSignedness},
     simd::SimdAnyInt,
 };

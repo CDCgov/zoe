@@ -1,6 +1,6 @@
 use crate::{
-    alignment::{LocalProfiles, SharedProfiles},
-    data::{err::QueryProfileError, matrices::WeightMatrix, types::impl_std_traits_for_sequence},
+    alignment::{LocalProfiles, QueryProfileError, SharedProfiles},
+    data::{matrices::WeightMatrix, types::impl_std_traits_for_sequence},
     prelude::*,
 };
 

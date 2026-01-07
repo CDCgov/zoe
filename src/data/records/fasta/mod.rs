@@ -1,8 +1,8 @@
 use crate::{
     DEFAULT_SIMD_LANES,
     data::{
+        err::{WithErrorContext, open_nonempty_file},
         id_types::FastaIDs,
-        records::RecordReader,
         types::{
             amino_acids::AminoAcids,
             nucleotides::{self, Nucleotides, ToDNA, Translate},
@@ -325,13 +325,9 @@ impl FastaReader<std::fs::File> {
     pub fn from_filename<P>(filename: P) -> std::io::Result<FastaReader<File>>
     where
         P: AsRef<Path>, {
-        let file = Self::open_nonempty_file(filename)?;
+        let file = open_nonempty_file(filename).map_err(WithErrorContext::with_type_context::<Self>)?;
         Ok(FastaReader::new(file))
     }
-}
-
-impl<R: std::io::Read> RecordReader for FastaReader<R> {
-    const RECORD_NAME: &str = "FASTA";
 }
 
 /// An iterator for buffered reading of

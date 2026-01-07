@@ -1,10 +1,5 @@
-use std::{fs::File, io::ErrorKind, path::Path};
-
 use crate::{
-    data::{
-        err::WithErrorContext,
-        fasta::{FastaAA, FastaNT, FastaNTAnnot, FastaSeq},
-    },
+    data::fasta::{FastaAA, FastaNT, FastaNTAnnot, FastaSeq},
     prelude::{
         AminoAcids, AminoAcidsView, AminoAcidsViewMut, FastQ, FastQView, FastQViewMut, Nucleotides, NucleotidesView,
         NucleotidesViewMut,
@@ -21,75 +16,6 @@ pub mod fastq;
 /// [SAM](https://samtools.github.io/hts-specs/SAMv1.pdf) files. Provides some
 /// special-case functions used by [IRMA](https://wonder.cdc.gov/amd/flu/irma/).
 pub mod sam;
-
-/// A trait providing helper functions when implementing a reader for a record
-/// type (e.g., [`FastQReader`], [`FastaReader`], or [`SAMReader`]).
-///
-/// [`FastQReader`]: fastq::FastQReader
-/// [`FastaReader`]: fasta::FastaReader
-/// [`SAMReader`]: sam::SAMReader
-trait RecordReader {
-    /// The name of the record type, for use in error messages.
-    const RECORD_NAME: &str;
-
-    /// Opens a file, checking to ensure that it is non-empty, and providing
-    /// context for error messages.
-    #[inline]
-    fn open_nonempty_file<P: AsRef<Path>>(filename: P) -> std::io::Result<File> {
-        let path = filename.as_ref();
-
-        let file = File::open(path).map_err(|err| Self::new_wrapped("file open error", path, err))?;
-        let metadata = file
-            .metadata()
-            .map_err(|err| Self::new_wrapped("metadata error", path, err))?;
-        if metadata.len() == 0 {
-            return Err(Self::new_kind("file empty", path, ErrorKind::InvalidInput));
-        }
-
-        Ok(file)
-    }
-
-    /// Creates a new [`std::io::Error`] with a particular [`ErrorKind`]. The
-    /// error message will contain a description, the name of the record
-    /// [`RECORD_NAME`], and the path to the file for which the error occurred.
-    ///
-    /// [`RECORD_NAME`]: RecordReader::RECORD_NAME
-    #[inline]
-    #[must_use]
-    fn new_kind(description: &str, path: &Path, kind: ErrorKind) -> std::io::Error {
-        std::io::Error::new(
-            kind,
-            format!(
-                "{desc} for {name}: '{path}'",
-                desc = description,
-                name = Self::RECORD_NAME,
-                path = path.display()
-            ),
-        )
-    }
-
-    /// Given a [`std::io::Error`], wrap it in another error with additional
-    /// context provided.
-    ///
-    /// Specifically, the original error `err` is first wrapped in a
-    /// [`ErrorWithContext`], with the `source` field pointing to the original
-    /// error. This is then put into an [`std::io::Error`], since this is the
-    /// main error type used by *Zoe*'s readers.
-    ///
-    /// The error message will contain a description, the name of the record
-    /// [`RECORD_NAME`], and the path to the file for which the error occurred.
-    ///
-    /// [`RECORD_NAME`]: RecordReader::RECORD_NAME
-    /// [`ErrorWithContext`]: crate::data::err::ErrorWithContext
-    fn new_wrapped(description: &str, path: &Path, err: std::io::Error) -> std::io::Error {
-        std::io::Error::other(err.with_context(format!(
-            "{desc} for {name}: '{path}'",
-            desc = description,
-            name = Self::RECORD_NAME,
-            path = path.display()
-        )))
-    }
-}
 
 /// Getter trait for structures providing read access to a header/name
 pub trait HeaderReadable {

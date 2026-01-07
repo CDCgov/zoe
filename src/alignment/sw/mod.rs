@@ -276,7 +276,7 @@
 //! [`new_biased_dna_matrix`]:
 //!     crate::data::matrices::WeightMatrix::new_biased_dna_matrix
 //! [`new_dna_matrix`]: crate::data::matrices::WeightMatrix::new_dna_matrix
-//! [`QueryProfileError`]: crate::data::err::QueryProfileError
+//! [`QueryProfileError`]: crate::alignment::QueryProfileError
 //! [`Nucleotides::into_local_profile`]:
 //!     crate::data::types::nucleotides::Nucleotides::into_local_profile
 //! [`Nucleotides::into_shared_profile`]:

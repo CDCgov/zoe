@@ -1,5 +1,30 @@
-use std::error::Error;
-use std::fmt::Display;
+//! Error handling utilities for *Zoe*.
+//!
+//! This module provides:
+//!
+//! - [`ErrorWithContext`] and [`WithErrorContext`] for wrapping errors with
+//!   additional context while preserving the error source chain.
+//! - [`GetCode`] and [`OrFail`] for graceful CLI error handling with exit
+//!   codes.
+//! - [`open_nonempty_file`] for opening files with automatic path context on
+//!   errors.
+//!
+//! ## Error Handling Philosophy
+//!
+//! *Zoe* often wraps [`std::io::Error`] for I/O and parsing operations rather
+//! than defining new error types. Domain-specific errors (e.g., alignment,
+//! distance) use enums in their respective modules. [`std::fmt::Display`] is
+//! implemented only at the immediate error level—callers and loggers must
+//! iterate through the source chain via [`std::error::Error::source`], use
+//! Zoe's [`OrFail`], or an external crates like `anyhow`.
+//!
+//! [`ErrorWithContext`]: crate::data::err::ErrorWithContext
+//! [`WithErrorContext`]: crate::data::err::WithErrorContext
+//! [`GetCode`]: crate::data::err::GetCode
+//! [`OrFail`]: crate::data::err::OrFail
+//! [`open_nonempty_file`]: crate::data::err::open_nonempty_file
+
+use std::{error::Error, fmt::Display, fs::File, io::ErrorKind, path::Path};
 
 #[macro_export]
 macro_rules! unwrap_or_return_some_err {
@@ -67,15 +92,15 @@ where
         match self {
             Ok(result) => result,
             Err(e) => {
-                eprintln!("Error: {e}");
+                if let Ok(bin) = std::env::current_exe() {
+                    eprintln!("Error in {b}", b = bin.display());
+                    eprintln!("  → {e}");
+                } else {
+                    eprintln!("Error: {e}");
+                }
                 let mut source = e.source();
-                let mut first = true;
                 while let Some(err) = source {
-                    if first {
-                        eprintln!();
-                        first = false;
-                    }
-                    eprintln!("Caused by:\n\t{err}");
+                    eprintln!("  → {err}");
                     source = err.source();
                 }
                 std::process::exit(e.get_code());
@@ -87,15 +112,14 @@ where
         match self {
             Ok(result) => result,
             Err(e) => {
-                eprintln!("Error: {msg}\n\n{e}");
+                if let Ok(bin) = std::env::current_exe() {
+                    eprintln!("Error in {b}: {msg}\n\n{e}", b = bin.display());
+                } else {
+                    eprintln!("Error: {msg}\n\n{e}");
+                }
                 let mut source = e.source();
-                let mut first = true;
                 while let Some(err) = source {
-                    if first {
-                        eprintln!();
-                        first = false;
-                    }
-                    eprintln!("Caused by:\n\t{err}");
+                    eprintln!("  → {err}");
                     source = err.source();
                 }
                 std::process::exit(e.get_code());
@@ -133,11 +157,24 @@ impl Error for ErrorWithContext {
     }
 }
 
+impl From<ErrorWithContext> for std::io::Error {
+    #[inline]
+    fn from(e: ErrorWithContext) -> Self {
+        std::io::Error::other(e)
+    }
+}
+
 /// An extension trait for [`Error`] allowing additional context to be added via
 /// a [`ErrorWithContext`].
 pub trait WithErrorContext {
-    /// Wraps the error in a [`ErrorWithContext`] with the given description.
+    /// Wraps the error in an [`ErrorWithContext`] with the given description.
     fn with_context(self, description: String) -> ErrorWithContext;
+
+    /// Convenience function for adding type context.
+    fn with_type_context<T>(self) -> ErrorWithContext;
+
+    /// Convenience function for adding file context.
+    fn with_file_context(self, msg: &str, file: impl AsRef<Path>) -> ErrorWithContext;
 }
 
 impl<E: Error + Send + Sync + 'static> WithErrorContext for E {
@@ -148,52 +185,56 @@ impl<E: Error + Send + Sync + 'static> WithErrorContext for E {
             source: Box::new(self),
         }
     }
-}
 
-#[derive(Debug)]
-pub enum DistanceError {
-    NoData,
-    NotComparable,
-}
+    #[inline]
+    fn with_type_context<T>(self) -> ErrorWithContext {
+        let name = std::any::type_name::<T>();
+        let description = format!(
+            "Failure in {}",
+            name.split('<').next().unwrap_or(name).rsplit("::").next().unwrap_or(name)
+        );
 
-impl Display for DistanceError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let message = match self {
-            DistanceError::NoData => "No data found in at least one function argument",
-            DistanceError::NotComparable => "Data only had invalid state that was not able to be compared",
-        };
+        ErrorWithContext {
+            description,
+            source: Box::new(self),
+        }
+    }
 
-        write!(f, "{message}")
+    #[inline]
+    fn with_file_context(self, msg: &str, file: impl AsRef<Path>) -> ErrorWithContext {
+        Self::with_context(self, format!("{msg}: {path}", path = file.as_ref().display()))
     }
 }
 
-impl std::error::Error for DistanceError {}
+/// Opens a file, checking that it is non-empty, and wrapping any errors with
+/// the file path for context.
+///
+/// # Errors
+///
+/// Returns an error if:
+/// - The file cannot be opened
+/// - File metadata cannot be read
+/// - The file is empty
+///
+/// All errors include the file path in the error message and preserve the
+/// original error via [`Error::source`].
+#[inline]
+pub fn open_nonempty_file(path: impl AsRef<Path>) -> std::io::Result<File> {
+    let path = path.as_ref();
 
-#[derive(Debug)]
-pub enum QueryProfileError {
-    EmptyQuery,
-    GapOpenOutOfRange { gap_open: i8 },
-    GapExtendOutOfRange { gap_extend: i8 },
-    BadGapWeights { gap_open: i8, gap_extend: i8 },
-}
+    let file = File::open(path)
+        .map_err(|e| std::io::Error::other(e.with_context(format!("Failed to open file: '{}'", path.display()))))?;
 
-impl Display for QueryProfileError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let message = match self {
-            QueryProfileError::EmptyQuery => "The alignment query was empty",
-            QueryProfileError::GapOpenOutOfRange { gap_open } => {
-                &format!("The gap open weight must be between -127 and 0, but {gap_open} was provided")
-            }
-            QueryProfileError::GapExtendOutOfRange { gap_extend } => {
-                &format!("The gap extend weight must be between -127 and 0, but {gap_extend} was provided")
-            }
-            QueryProfileError::BadGapWeights { gap_open, gap_extend } => &format!(
-                "The gap open weight must be less than or equal to the gap extend weight, but {gap_open} (gap open) and {gap_extend} (gap extend) were provided"
-            ),
-        };
+    let metadata = file
+        .metadata()
+        .map_err(|e| std::io::Error::other(e.with_context(format!("Failed to read metadata: '{}'", path.display()))))?;
 
-        write!(f, "{message}")
+    if metadata.len() == 0 {
+        return Err(std::io::Error::new(
+            ErrorKind::InvalidInput,
+            format!("File is empty: '{}'", path.display()),
+        ));
     }
-}
 
-impl std::error::Error for QueryProfileError {}
+    Ok(file)
+}
