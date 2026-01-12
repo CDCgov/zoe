@@ -43,6 +43,21 @@ impl AlignmentStates {
         AlignmentStates(Vec::with_capacity(n))
     }
 
+    /// Number of alignment states. Each element is a [`Ciglet`] or an
+    /// increment-operation pair.
+    #[inline]
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// No data or zero alignment states.
+    #[inline]
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
     /// Returns the [`Ciglet`] elements as a slice.
     #[inline]
     #[must_use]
