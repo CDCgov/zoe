@@ -19,6 +19,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `LenInAlignment` trait, replacing the previous `match_len` and offering a more flexible API
 - Added `VARIANTS` constants to pHMM state enums (behind `dev-phmm` feature gate)
 - Added index comparison methods to `PhmmIndex` (behind `dev-phmm` feature gate)
+- Condensed the `PhmmParamKind` variants in the `visit_params` API (behind `dev-phmm` feature gate)
 
 ### Changed
 

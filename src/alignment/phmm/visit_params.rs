@@ -193,6 +193,15 @@ pub struct PhmmParam<T> {
     pub kind:  PhmmParamKind<T>,
 }
 
+/// The location of a module in a pHMM.
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub enum ModuleLocation {
+    /// The module is placed at the beginning of the pHMM.
+    Begin,
+    /// The module is placed at the end of the pHMM.
+    End,
+}
+
 /// Metadata about a pHMM parameter, used in [`PhmmParam`].
 pub enum PhmmParamKind<T> {
     /// An emission parameter from a match state.
@@ -219,10 +228,10 @@ pub enum PhmmParamKind<T> {
         ending_state:   PhmmState,
     },
     /// The (composite) parameter emitted by a [`LocalModule`] at the beginning
-    /// of a [`LocalPhmm`].
+    /// or end of a [`LocalPhmm`].
     ///
     /// [`LocalModule`]: super::modules::LocalModule
-    BeginLocal {
+    LocalModule {
         /// The (composite) parameter within the module, associated with
         /// skipping residues at the beginning of the query.
         internal_param: T,
@@ -233,54 +242,28 @@ pub enum PhmmParamKind<T> {
         external_param: T,
         /// The layer in the [`CorePhmm`] which is entered.
         to_layer:       DpIndex,
-    },
-    /// The (composite) parameter emitted by a [`LocalModule`] at the end of a
-    /// [`LocalPhmm`].
-    ///
-    /// [`LocalModule`]: super::modules::LocalModule
-    EndLocal {
-        /// The (composite) parameter within the module, associated with
-        /// skipping residues at the end of the query.
-        internal_param: T,
-        /// The skipped residues at the end of the query.
-        skipped:        Vec<u8>,
-        /// The parameter connecting the module to the [`CorePhmm`], associated
-        /// with exiting early from a layer in the pHMM.
-        external_param: T,
-        /// The layer in the [`CorePhmm`] which is exited.
-        from_layer:     DpIndex,
+        /// The location of the module.
+        loc:            ModuleLocation,
     },
     /// The (composite) parameter emitted by a [`DomainModule`] at the beginning
-    /// of a [`DomainPhmm`].
+    /// or end of a [`DomainPhmm`].
     ///
     /// [`DomainModule`]: super::modules::DomainModule
-    BeginDomain {
+    DomainModule {
         /// The skipped residues at the beginning of the query.
         skipped: Vec<u8>,
+        /// The location of the module.
+        loc:     ModuleLocation,
     },
-    /// The (composite) parameter emitted by a [`DomainModule`] at the end of a
-    /// [`DomainPhmm`].
-    ///
-    /// [`DomainModule`]: super::modules::DomainModule
-    EndDomain {
-        /// The skipped residues at the end of the query.
-        skipped: Vec<u8>,
-    },
-    /// The parameter emitted by a [`SemiLocalModule`] at the beginning
+    /// The parameter emitted by a [`SemiLocalModule`] at the beginning or end
     /// of a [`SemiLocalPhmm`].
     ///
     /// [`SemiLocalModule`]: super::modules::SemiLocalModule
-    BeginSemilocal {
-        /// The layer in the [`CorePhmm`] which is entered
-        to_layer: DpIndex,
-    },
-    /// The parameter emitted by a [`SemiLocalModule`] at the end of a
-    /// [`SemiLocalPhmm`].
-    ///
-    /// [`SemiLocalModule`]: super::modules::SemiLocalModule
-    EndSemilocal {
-        /// The layer in the [`CorePhmm`] which is exited.
-        from_layer: DpIndex,
+    SemiLocalModule {
+        /// The layer in the [`CorePhmm`] which is entered/exited.
+        core_layer: DpIndex,
+        /// The location of the module.
+        loc:        ModuleLocation,
     },
 }
 
@@ -328,80 +311,44 @@ impl<T: PhmmNumber> PhmmParam<T> {
         }
     }
 
-    /// Constructs a [`PhmmParam`] with kind [`BeginLocal`].
+    /// Constructs a [`PhmmParam`] with kind [`LocalModule`].
     ///
-    /// [`BeginLocal`]: PhmmParamKind::BeginLocal
-    fn new_begin_local(
-        internal_param: T, skipped: Vec<u8>, external_param: T, to_layer: impl PhmmIndex, phmm: &impl PhmmIndexable,
+    /// [`LocalModule`]: PhmmParamKind::LocalModule
+    fn new_local_module(
+        loc: ModuleLocation, internal_param: T, skipped: Vec<u8>, external_param: T, to_layer: impl PhmmIndex,
+        phmm: &impl PhmmIndexable,
     ) -> Self {
         Self {
             param: internal_param + external_param,
-            kind:  PhmmParamKind::BeginLocal {
+            kind:  PhmmParamKind::LocalModule {
                 internal_param,
                 skipped,
                 external_param,
                 to_layer: phmm.to_dp_index(to_layer),
+                loc,
             },
         }
     }
 
-    /// Constructs a [`PhmmParam`] with kind [`EndLocal`].
+    /// Constructs a [`PhmmParam`] with kind [`DomainModule`].
     ///
-    /// [`EndLocal`]: PhmmParamKind::EndLocal
-    fn new_end_local(
-        internal_param: T, skipped: Vec<u8>, external_param: T, from_layer: impl PhmmIndex, phmm: &impl PhmmIndexable,
-    ) -> Self {
+    /// [`DomainModule`]: PhmmParamKind::DomainModule
+    fn new_domain_module(loc: ModuleLocation, param: T, skipped: Vec<u8>) -> Self {
         Self {
-            param: internal_param + external_param,
-            kind:  PhmmParamKind::EndLocal {
-                internal_param,
-                skipped,
-                external_param,
-                from_layer: phmm.to_dp_index(from_layer),
-            },
+            param,
+            kind: PhmmParamKind::DomainModule { skipped, loc },
         }
     }
 
-    /// Constructs a [`PhmmParam`] with kind [`BeginDomain`].
+    /// Constructs a [`PhmmParam`] with kind [`SemiLocalModule`].
     ///
-    /// [`BeginDomain`]: PhmmParamKind::BeginDomain
-    fn new_begin_domain(param: T, skipped: Vec<u8>) -> Self {
+    /// [`SemiLocalModule`]: PhmmParamKind::SemiLocalModule
+    fn new_semilocal_module(loc: ModuleLocation, param: T, to_layer: impl PhmmIndex, phmm: &impl PhmmIndexable) -> Self {
         Self {
             param,
-            kind: PhmmParamKind::BeginDomain { skipped },
-        }
-    }
-
-    /// Constructs a [`PhmmParam`] with kind [`EndDomain`].
-    ///
-    /// [`EndDomain`]: PhmmParamKind::EndDomain
-    fn new_end_domain(param: T, skipped: Vec<u8>) -> Self {
-        Self {
-            param,
-            kind: PhmmParamKind::EndDomain { skipped },
-        }
-    }
-
-    /// Constructs a [`PhmmParam`] with kind [`BeginSemilocal`].
-    ///
-    /// [`BeginSemilocal`]: PhmmParamKind::BeginSemilocal
-    fn new_begin_semilocal(param: T, to_layer: impl PhmmIndex, phmm: &impl PhmmIndexable) -> Self {
-        Self {
-            param,
-            kind: PhmmParamKind::BeginSemilocal {
-                to_layer: phmm.to_dp_index(to_layer),
-            },
-        }
-    }
-
-    /// Constructs a [`PhmmParam`] with kind [`EndSemilocal`].
-    ///
-    /// [`EndSemilocal`]: PhmmParamKind::EndSemilocal
-    fn new_end_semilocal(param: T, from_layer: impl PhmmIndex, phmm: &impl PhmmIndexable) -> Self {
-        Self {
-            param,
-            kind: PhmmParamKind::EndSemilocal {
-                from_layer: phmm.to_dp_index(from_layer),
+            kind: PhmmParamKind::SemiLocalModule {
+                core_layer: phmm.to_dp_index(to_layer),
+                loc,
             },
         }
     }
@@ -869,7 +816,14 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
             call_f(
                 &mut f,
                 &mut score,
-                PhmmParam::new_begin_local(internal_begin_param, begin_seq.to_vec(), external_begin_param, to_layer, self),
+                PhmmParam::new_local_module(
+                    ModuleLocation::Begin,
+                    internal_begin_param,
+                    begin_seq.to_vec(),
+                    external_begin_param,
+                    to_layer,
+                    self,
+                ),
             );
 
             if let Some(transition_from_begin) = transition_from_begin {
@@ -888,7 +842,8 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
             call_f(
                 &mut f,
                 &mut score,
-                PhmmParam::new_begin_local(
+                PhmmParam::new_local_module(
+                    ModuleLocation::Begin,
                     internal_begin_param,
                     begin_seq.to_vec(),
                     self.get_begin_external_score(SeqIndex(ref_range.start)),
@@ -935,7 +890,14 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
             call_f(
                 &mut f,
                 &mut score,
-                PhmmParam::new_end_local(internal_end_param, end_seq.to_vec(), external_end_param, from_layer, self),
+                PhmmParam::new_local_module(
+                    ModuleLocation::End,
+                    internal_end_param,
+                    end_seq.to_vec(),
+                    external_end_param,
+                    from_layer,
+                    self,
+                ),
             );
         } else {
             // We must exit from a match state if not going through END
@@ -947,7 +909,8 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
             call_f(
                 &mut f,
                 &mut score,
-                PhmmParam::new_end_local(
+                PhmmParam::new_local_module(
+                    ModuleLocation::End,
                     internal_end_param,
                     end_seq.to_vec(),
                     self.get_end_external_score(SeqIndex(ref_range.end - 1)),
@@ -1004,14 +967,16 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
         }
 
         let (inserted_begin, inserted_end) = seq.split_at(best_i);
-        f(PhmmParam::new_begin_local(
+        f(PhmmParam::new_local_module(
+            ModuleLocation::Begin,
             self.begin().internal_params.get_begin_score(inserted_begin, self.mapping()),
             inserted_begin.to_vec(),
             self.get_begin_external_score(best_state),
             best_state,
             self,
         ));
-        f(PhmmParam::new_end_local(
+        f(PhmmParam::new_local_module(
+            ModuleLocation::End,
             self.get_end_internal_score(inserted_end, self.mapping()),
             inserted_end.to_vec(),
             self.get_end_external_score(best_state),
@@ -1086,7 +1051,11 @@ impl<T: PhmmNumber, const S: usize> DomainPhmm<T, S> {
         call_f(
             &mut f,
             &mut score,
-            PhmmParam::new_begin_domain(self.get_begin_score(begin_seq, self.mapping()), begin_seq.to_vec()),
+            PhmmParam::new_domain_module(
+                ModuleLocation::Begin,
+                self.get_begin_score(begin_seq, self.mapping()),
+                begin_seq.to_vec(),
+            ),
         );
 
         // Add the transitions out of the BEGIN state
@@ -1133,7 +1102,11 @@ impl<T: PhmmNumber, const S: usize> DomainPhmm<T, S> {
         call_f(
             &mut f,
             &mut score,
-            PhmmParam::new_end_domain(self.get_end_score(end_seq, self.mapping()), end_seq.to_vec()),
+            PhmmParam::new_domain_module(
+                ModuleLocation::End,
+                self.get_end_score(end_seq, self.mapping()),
+                end_seq.to_vec(),
+            ),
         );
 
         Ok(score)
@@ -1208,7 +1181,7 @@ impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
             call_f(
                 &mut f,
                 &mut score,
-                PhmmParam::new_begin_semilocal(begin_param, to_layer, self),
+                PhmmParam::new_semilocal_module(ModuleLocation::Begin, begin_param, to_layer, self),
             );
 
             if let Some(transition_from_begin) = transition_from_begin {
@@ -1227,7 +1200,8 @@ impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
             call_f(
                 &mut f,
                 &mut score,
-                PhmmParam::new_begin_semilocal(
+                PhmmParam::new_semilocal_module(
+                    ModuleLocation::Begin,
                     self.get_begin_score(SeqIndex(ref_range.start)),
                     SeqIndex(ref_range.start),
                     self,
@@ -1259,7 +1233,11 @@ impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
                 );
             }
 
-            call_f(&mut f, &mut score, PhmmParam::new_end_semilocal(end_param, from_layer, self));
+            call_f(
+                &mut f,
+                &mut score,
+                PhmmParam::new_semilocal_module(ModuleLocation::End, end_param, from_layer, self),
+            );
         } else {
             // We must exit from a match state if not going through END
             if final_state != Match {
@@ -1270,7 +1248,8 @@ impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
             call_f(
                 &mut f,
                 &mut score,
-                PhmmParam::new_end_semilocal(
+                PhmmParam::new_semilocal_module(
+                    ModuleLocation::End,
                     self.get_end_score(SeqIndex(ref_range.end - 1)),
                     SeqIndex(ref_range.end - 1),
                     self,
@@ -1312,12 +1291,14 @@ impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
             (score_through_end, self.to_dp_index(End))
         };
 
-        f(PhmmParam::new_begin_semilocal(
+        f(PhmmParam::new_semilocal_module(
+            ModuleLocation::Begin,
             self.get_begin_score(through_state),
             through_state,
             self,
         ));
-        f(PhmmParam::new_end_semilocal(
+        f(PhmmParam::new_semilocal_module(
+            ModuleLocation::End,
             self.get_end_score(through_state),
             through_state,
             self,
