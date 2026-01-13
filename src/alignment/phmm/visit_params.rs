@@ -270,6 +270,11 @@ pub enum PhmmParamKind<T> {
 impl<T: PhmmNumber> PhmmParam<T> {
     /// Constructs a [`PhmmParam`] with kind [`EmissionMatch`].
     ///
+    /// Although *Zoe* the emission match states stored in the current layer are
+    /// actually for the next layer, the `layer_idx` field should be passed
+    /// ignoring this detail. For example, if the emissions are for the first
+    /// match state, then [`FirstMatch`] should be passed for `layer_idx`,
+    ///
     /// [`EmissionMatch`]: PhmmParamKind::EmissionMatch
     fn new_emission_match(param: T, layer_idx: impl PhmmIndex, residue_idx: usize, phmm: &impl PhmmIndexable) -> Self {
         Self {
@@ -431,14 +436,14 @@ where
         }
         Match => {
             let x_idx = mapping.to_index(seq_in_alignment[i]);
+            let layer_idx = SeqIndex(ref_range.start);
+
             // Need to look at the previous layer to get transitions into this
             // layer
-            let layer_idx = SeqIndex(ref_range.start).prev_index(core);
-            call_f(
-                f,
-                score,
-                PhmmParam::new_emission_match(core.get_layer(layer_idx).emission_match[x_idx], layer_idx, x_idx, core),
-            );
+            let param = core.get_layer(layer_idx.prev_index(core)).emission_match[x_idx];
+
+            call_f(f, score, PhmmParam::new_emission_match(param, layer_idx, x_idx, core));
+
             i += 1;
             (Match, ref_range.start + 1)
         }
@@ -476,6 +481,7 @@ where
                     score,
                     PhmmParam::new_transition(layer.transition[(state, Match)], DpIndex(j), state, Match, core),
                 );
+                j += 1;
                 call_f(
                     f,
                     score,
@@ -483,7 +489,6 @@ where
                 );
                 state = Match;
                 i += 1;
-                j += 1;
             }
             Insert => {
                 let x_idx = mapping.to_index(seq_in_alignment[i]);
