@@ -15,7 +15,7 @@
 
 use crate::{
     alignment::{
-        AlignmentStates, StatesSequence,
+        StatesSequence,
         phmm::{
             CorePhmm, DomainPhmm, GetLayer, GetModule, GlobalPhmm, LocalPhmm, PhmmError, PhmmNumber, PhmmState,
             SemiLocalPhmm,
@@ -1053,9 +1053,10 @@ impl<T: PhmmNumber, const S: usize> DomainPhmm<T, S> {
     /// </div>
     ///
     /// [`viterbi`]: DomainPhmm::viterbi
-    pub fn visit_params<Q, F>(&self, seq: Q, alignment: &AlignmentStates, f: F) -> Result<T, PhmmError>
+    pub fn visit_params<Q, A, F>(&self, seq: Q, alignment: A, f: F) -> Result<T, PhmmError>
     where
         Q: AsRef<[u8]>,
+        A: AsRef<[Ciglet]>,
         F: FnMut(PhmmParam<T>), {
         self.visit_params_helper(seq.as_ref(), alignment.as_ref(), f)
     }
@@ -1173,11 +1174,10 @@ impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
     /// </div>
     ///
     /// [`viterbi`]: SemiLocalPhmm::viterbi
-    pub fn visit_params<Q, F>(
-        &self, seq: Q, alignment: &AlignmentStates, ref_range: Range<usize>, f: F,
-    ) -> Result<T, PhmmError>
+    pub fn visit_params<Q, A, F>(&self, seq: Q, alignment: A, ref_range: Range<usize>, f: F) -> Result<T, PhmmError>
     where
         Q: AsRef<[u8]>,
+        A: AsRef<[Ciglet]>,
         F: FnMut(PhmmParam<T>), {
         self.visit_params_helper(seq.as_ref(), alignment.as_ref(), ref_range, f)
     }
