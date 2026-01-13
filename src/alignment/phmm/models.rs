@@ -37,6 +37,28 @@ use std::ops::{Index, IndexMut};
 #[cfg_attr(feature = "alignment-diagnostics", visibility::make(pub))]
 pub(crate) struct TransitionParams<T>(pub(crate) [[T; 3]; 3]);
 
+impl<T: Copy> TransitionParams<T> {
+    /// Retrieves an array containing the three parameters for exiting `state`
+    /// and moving to the next layer.
+    #[inline]
+    #[must_use]
+    pub fn exiting_params(&self, state: PhmmState) -> [T; 3] {
+        [
+            self[(state, PhmmState::Match)],
+            self[(state, PhmmState::Delete)],
+            self[(state, PhmmState::Insert)],
+        ]
+    }
+
+    /// Retrieves an array containing the three parameters for entering `state`
+    /// from the previous layer.
+    #[inline]
+    #[must_use]
+    pub fn entering_params(&self, state: PhmmState) -> [T; 3] {
+        self[state]
+    }
+}
+
 impl<T: PhmmNumber> Default for TransitionParams<T> {
     /// Initializes the transition parameters so that all transitions are
     /// probability zero.
