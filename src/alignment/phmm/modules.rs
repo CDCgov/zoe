@@ -29,7 +29,7 @@ use crate::{
 /// This module can jump to/from an arbitrary match statement in the pHMM. Each
 /// match state (and the BEGIN state and END state) have a transition parameter
 /// associated with them.
-#[derive(Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct SemiLocalModule<T>(pub(crate) Vec<T>);
 
 impl<T: PhmmNumber> SemiLocalModule<T> {
@@ -76,7 +76,7 @@ impl<T: PhmmNumber> SemiLocalModule<T> {
 ///
 /// This module can skip arbitrarily many residues from the beginning/end of the
 /// query sequence.
-#[derive(Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct DomainModule<T, const S: usize> {
     /// The transition parameter from the start of the module to the insert
     /// state
@@ -181,7 +181,7 @@ impl<T: Copy, const S: usize> PrecomputedDomainModule<T, S> {
 /// the pHMM. Internally, this is a combination of a [`SemiLocalModule`] (for
 /// supporting arbitrary jumps to/from the pHMM) and a [`DomainModule`] (for
 /// skipping residues in the query).
-#[derive(Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct LocalModule<T, const S: usize> {
     /// The parameters for connecting this module with the match states of the
     /// pHMM.

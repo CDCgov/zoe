@@ -343,7 +343,7 @@ impl<T, const S: usize> GlobalPhmm<T, S> {
 /// many states at the beginning or end of the pHMM.
 ///
 /// [`into_local_phmm`]: GlobalPhmm::into_local_phmm
-#[derive(Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct LocalPhmm<T, const S: usize> {
     /// The mapping used when processing the bases. This will vary depending on
     /// the alphabet used.
@@ -398,7 +398,7 @@ impl<T, const S: usize> LocalPhmm<T, S> {
 /// many bases at the beginning or end of the sequence.
 ///
 /// [`into_domain_phmm`]: GlobalPhmm::into_domain_phmm
-#[derive(Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct DomainPhmm<T, const S: usize> {
     /// The mapping used when processing the bases. This will vary depending on
     /// the alphabet used.
@@ -453,7 +453,7 @@ impl<T, const S: usize> DomainPhmm<T, S> {
 /// arbitrarily many states at the beginning or end of the pHMM.
 ///
 /// [`into_semilocal_phmm`]: GlobalPhmm::into_semilocal_phmm
-#[derive(Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct SemiLocalPhmm<T, const S: usize> {
     /// The mapping used when processing the bases. This will vary depending on
     /// the alphabet used.
