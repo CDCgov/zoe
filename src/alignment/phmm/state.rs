@@ -20,6 +20,11 @@ pub enum PhmmState {
     Insert = 2,
 }
 
+impl PhmmState {
+    /// An array containing the three variants of [`PhmmState`].
+    pub const VARIANTS: [Self; 3] = [Self::Match, Self::Delete, Self::Insert];
+}
+
 /// An enum representing the three states within each layer of a pHMM, in
 /// addition to `Enter`.
 ///
@@ -40,6 +45,11 @@ pub enum PhmmStateOrEnter {
     Delete = 1,
     Insert = 2,
     Enter  = 3,
+}
+
+impl PhmmStateOrEnter {
+    /// An array containing the four variants of [`PhmmStateOrEnter`].
+    pub const VARIANTS: [Self; 4] = [Self::Match, Self::Delete, Self::Insert, Self::Enter];
 }
 
 impl From<PhmmState> for u8 {

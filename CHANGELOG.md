@@ -17,6 +17,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `CodonExtension` trait for `[u8; 3]` with convenience codon characterization methods
 - Added `ToCigletIterator` trait, implemented on structs which can be converted to an iterator of ciglets
 - Added `LenInAlignment` trait, replacing the previous `match_len` and offering a more flexible API
+- Added `VARIANTS` constants to pHMM state enums (behind `dev-phmm` feature gate)
 
 ### Changed
 
