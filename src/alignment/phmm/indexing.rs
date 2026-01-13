@@ -322,8 +322,37 @@ pub trait PhmmIndex: Copy {
         DpIndex(phmm.get_dp_index(self) + 1)
     }
 
-    /// Hook to allow the [`End`] index literal to be detected separately than the
-    /// rest (e.g., for `get_layer` in [`CorePhmm`])
+    /// Gets the minimum of two [`PhmmIndex`] structs as a [`DpIndex`] (the
+    /// leftmost in the pHMM).
+    ///
+    /// No bounds checking is performed.
+    #[inline]
+    #[must_use]
+    fn min_index(self, other: impl PhmmIndex, phmm: &impl PhmmIndexable) -> DpIndex {
+        phmm.to_dp_index(self).min(phmm.to_dp_index(other))
+    }
+
+    /// Gets the maximum of two [`PhmmIndex`] structs as a [`DpIndex`] (the
+    /// rightmost in the pHMM).
+    ///
+    /// No bounds checking is performed.
+    #[inline]
+    #[must_use]
+    fn max_index(self, other: impl PhmmIndex, phmm: &impl PhmmIndexable) -> DpIndex {
+        phmm.to_dp_index(self).max(phmm.to_dp_index(other))
+    }
+
+    /// Tests two indices for equality by converting them both to [`DpIndex`].
+    ///
+    /// No bounds checking is performed.
+    #[inline]
+    #[must_use]
+    fn eq_index(self, other: impl PhmmIndex, phmm: &impl PhmmIndexable) -> bool {
+        phmm.to_dp_index(self) == phmm.to_dp_index(other)
+    }
+
+    /// Hook to allow the [`End`] index literal to be detected separately than
+    /// the rest (e.g., for `get_layer` in [`CorePhmm`])
     #[inline]
     #[must_use]
     #[allow(dead_code)]
