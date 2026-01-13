@@ -382,7 +382,7 @@ pub trait QueryIndex: Copy {
 ///
 /// 0 represents the first position in the sequence (reference or query).
 #[repr(transparent)]
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Debug)]
 pub struct SeqIndex(pub usize);
 
 /// A [`PhmmIndex`] or [`QueryIndex`] representing an index with respect to the
@@ -391,26 +391,26 @@ pub struct SeqIndex(pub usize);
 /// 1 represents the first position in the sequence (reference or query), while
 /// 0 represents matching no bases or the BEGIN state of the pHMM.
 #[repr(transparent)]
-#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Debug)]
 pub struct DpIndex(pub usize);
 
 /// A [`PhmmIndex`] representing the BEGIN state of the pHMM, as well as the
 /// first layer (which holds the transition probabilities out of the BEGIN
 /// state).
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Debug)]
 pub struct Begin;
 
 /// A [`PhmmIndex`] representing the first match state of the pHMM after BEGIN.
 ///
 /// This corresponds to the first residue in the reference sequences.
 #[allow(dead_code)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Debug)]
 pub struct FirstMatch;
 
 /// A [`PhmmIndex`] representing the last match state of the pHMM before END.
 ///
 /// This corresponds to the last residue in the reference sequences.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Debug)]
 pub struct LastMatch;
 
 // TODO: Doc link
@@ -419,22 +419,22 @@ pub struct LastMatch;
 /// When used to get a layer from a pHMM with `get_layer`, this is treated as
 /// the same thing as [`LastMatch`] since the END state does not have its own
 /// layer.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Debug)]
 pub struct End;
 
 /// A [`QueryIndex`] representing not matching any bases from the sequence
 /// (dynamic programming index 0).
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Debug)]
 #[allow(dead_code)]
 pub struct NoBases;
 
 /// A [`QueryIndex`] representing the first base in the sequence.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Debug)]
 #[allow(dead_code)]
 pub struct FirstBase;
 
 /// A [`QueryIndex`] representing the last base in the sequence.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Debug)]
 pub struct LastBase;
 
 impl<T, const S: usize> PhmmIndexable for CorePhmm<T, S> {
