@@ -13,7 +13,7 @@ use crate::alignment::phmm::{PhmmError, PhmmNumber};
 ///
 /// </div>
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum PhmmState {
     Match  = 0,
     Delete = 1,
@@ -34,7 +34,7 @@ pub enum PhmmState {
 ///
 /// </div>
 #[repr(u8)]
-#[derive(Clone, Copy, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum PhmmStateOrEnter {
     Match  = 0,
     Delete = 1,
