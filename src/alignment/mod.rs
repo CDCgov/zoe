@@ -165,10 +165,14 @@ impl<T> SeqSrc<T> {
         if invert { alignment.invert() } else { alignment }
     }
 
-    /// Maps the stored sequence via a closure.
+    /// Maps the stored sequence via a closure, preserving whether it is a
+    /// [`Query`] or [`Reference`].
+    ///
+    /// [`Query`]: SeqSrc::Query
+    /// [`Reference`]: SeqSrc::Reference
     #[inline]
     #[must_use]
-    pub(crate) fn map<U, F>(self, f: F) -> SeqSrc<U>
+    pub fn map<U, F>(self, f: F) -> SeqSrc<U>
     where
         F: FnOnce(T) -> U, {
         match self {
