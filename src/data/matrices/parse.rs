@@ -115,8 +115,7 @@ impl<'a> MatParser<'a> {
         Some(byte - b'0')
     }
 
-    /// Skips arbitrarily many horizontal spaces and then parses the next bytes
-    /// as an `i8`.
+    /// Parses the next bytes as an `i8`.
     #[allow(clippy::cast_possible_wrap)]
     const fn parse_i8(&mut self) -> Option<i8> {
         let Some(byte) = self.get() else {
@@ -128,11 +127,9 @@ impl<'a> MatParser<'a> {
             self.advance();
         }
 
-        let Some(out) = self.parse_digit() else {
+        let Some(mut magnitude) = self.parse_digit() else {
             return None;
         };
-        // We verified this was a digit, so this will not wrap
-        let mut out = out as i8;
 
         while let Some(byte) = self.get() {
             if byte.is_ascii_whitespace() {
@@ -141,22 +138,21 @@ impl<'a> MatParser<'a> {
             let Some(new_digit) = self.parse_digit() else {
                 return None;
             };
-            let new_digit = new_digit as i8;
 
-            let Some(out_t_10) = out.checked_mul(10i8) else {
+            let Some(magnitude_t_10) = magnitude.checked_mul(10u8) else {
                 return None;
             };
-            let Some(new_out) = out_t_10.checked_add(new_digit) else {
+            let Some(new_magnitude) = magnitude_t_10.checked_add(new_digit) else {
                 return None;
             };
-            out = new_out;
+            magnitude = new_magnitude;
         }
 
         if is_negative {
-            out *= -1;
+            0i8.checked_sub_unsigned(magnitude)
+        } else {
+            0i8.checked_add_unsigned(magnitude)
         }
-
-        Some(out)
     }
 
     /// Parses a row of whitespace-separated `i8` scores, returning `None` if
@@ -330,5 +326,16 @@ impl<'a> MatParser<'a> {
 
         let file_weight_matrix = WeightMatrix::new_custom(&file_byte_index_map, weights);
         file_weight_matrix.get_subset(byte_index_map)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_parse_i8() {
+        let mut m = MatParser::new(b"-128");
+        assert_eq!(Some(-128i8), m.parse_i8());
     }
 }

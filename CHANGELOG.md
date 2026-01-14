@@ -34,6 +34,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 ### Fixes
 
 - Fixed spelling of `filter_to_dna_uanligned` to `filter_to_dna_unaligned` in trait `ToDNA`
+- Fixed bug for parsing -128 in a weight matrix using `MatParser`
 
 ### Removed
 
