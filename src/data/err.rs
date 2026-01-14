@@ -168,21 +168,27 @@ impl From<ErrorWithContext> for std::io::Error {
 /// a [`ErrorWithContext`].
 pub trait WithErrorContext {
     /// Wraps the error in an [`ErrorWithContext`] with the given description.
-    fn with_context(self, description: String) -> ErrorWithContext;
+    ///
+    /// The `description` field may be anything implementing `Into<String>`.
+    /// Passing an owned `String` avoids an extra allocation.
+    fn with_context(self, description: impl Into<String>) -> ErrorWithContext;
 
     /// Convenience function for adding type context.
     fn with_type_context<T>(self) -> ErrorWithContext;
 
     /// Convenience function for adding file context.
-    fn with_file_context(self, msg: &str, file: impl AsRef<Path>) -> ErrorWithContext;
+    ///
+    /// The context will be formatted as `msg: file`. The `msg` field may be
+    /// anything implementing [`Display`].
+    fn with_file_context(self, msg: impl Display, file: impl AsRef<Path>) -> ErrorWithContext;
 }
 
 impl<E: Error + Send + Sync + 'static> WithErrorContext for E {
     #[inline]
-    fn with_context(self, description: String) -> ErrorWithContext {
+    fn with_context(self, description: impl Into<String>) -> ErrorWithContext {
         ErrorWithContext {
-            description,
-            source: Box::new(self),
+            description: description.into(),
+            source:      Box::new(self),
         }
     }
 
@@ -201,7 +207,7 @@ impl<E: Error + Send + Sync + 'static> WithErrorContext for E {
     }
 
     #[inline]
-    fn with_file_context(self, msg: &str, file: impl AsRef<Path>) -> ErrorWithContext {
+    fn with_file_context(self, msg: impl Display, file: impl AsRef<Path>) -> ErrorWithContext {
         Self::with_context(self, format!("{msg}: '{path}'", path = file.as_ref().display()))
     }
 }
