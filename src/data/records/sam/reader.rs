@@ -7,7 +7,7 @@ use std::{
 use crate::{
     data::{
         cigar::Cigar,
-        err::{WithErrorContext, open_nonempty_file},
+        err::{ResultWithErrorContext, open_nonempty_file},
         sam::{SamData, SamTags},
     },
     unwrap_or_return_some_err,
@@ -272,7 +272,7 @@ impl SAMReader<File, true> {
     pub fn from_filename<P>(filename: P) -> Result<Self, std::io::Error>
     where
         P: AsRef<Path>, {
-        let file = open_nonempty_file(filename).map_err(WithErrorContext::with_type_context::<Self>)?;
+        let file = open_nonempty_file(filename).with_type_context::<Self>()?;
         Ok(SAMReader::new(file))
     }
 }
@@ -293,7 +293,7 @@ impl SAMReader<File, false> {
     pub fn from_filename_ignore_tags<P>(filename: P) -> Result<Self, std::io::Error>
     where
         P: AsRef<Path>, {
-        let file = open_nonempty_file(filename).map_err(WithErrorContext::with_type_context::<Self>)?;
+        let file = open_nonempty_file(filename).with_type_context::<Self>()?;
         Ok(SAMReader::new_ignore_tags(file))
     }
 }

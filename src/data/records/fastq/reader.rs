@@ -1,6 +1,6 @@
 use crate::{
     data::{
-        err::{WithErrorContext, open_nonempty_file},
+        err::{ResultWithErrorContext, open_nonempty_file},
         vec_types::ChopLineBreak,
     },
     prelude::*,
@@ -78,7 +78,7 @@ impl FastQReader<std::fs::File> {
     pub fn from_filename<P>(filename: P) -> Result<FastQReader<File>, std::io::Error>
     where
         P: AsRef<Path>, {
-        let file = open_nonempty_file(filename).map_err(WithErrorContext::with_type_context::<Self>)?;
+        let file = open_nonempty_file(filename).with_type_context::<Self>()?;
         Ok(FastQReader::new(file))
     }
 }

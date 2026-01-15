@@ -42,14 +42,29 @@ macro_rules! unwrap_or_return_some_err {
     };
 }
 
-/// Trait for specifying getting exit codes from errors.
+/// Trait for specifying getting exit codes originating from IO errors.
+///
+/// Implementing this trait allows the error type to work with [`OrFail`]. If
+/// this is being implemented for a top-level error containing a nested error,
+/// one should manually implement [`get_code`] to retrieve the underlying code
+/// for the nested error, rather than using the blanket implementation.
+///
+/// [`get_code`]: GetCode::get_code
 pub trait GetCode {
     /// Retrieves the exit code associated with a given error.
+    ///
+    /// ## Validity
+    ///
+    /// If this method is manually implemented, then it must recursively call
+    /// [`get_code`] on [`Error::source`]. Any other behavior or logic is not
+    /// guaranteed to be consistent within *Zoe*, and may or may not be
+    /// correctly applied when using wrapped errors ([`ErrorWithContext`]).
     ///
     /// The blanket implementation returns `1`. We also implement on
     /// [`std::io::Error`] to return the [`raw_os_error`] if available.
     ///
     /// [`raw_os_error`]: std::io::Error::raw_os_error
+    /// [`get_code`]: GetCode::get_code
     #[inline]
     #[must_use]
     fn get_code(&self) -> i32 {
@@ -78,11 +93,23 @@ impl GetCode for std::io::Error {
     }
 }
 
-/// Trait for providing more graceful [`expect()`](std::result::Result::expect)
-/// behavior.
+/// A trait for providing more graceful error reporting and aborting.
 ///
-/// Specifically, a status code is provided by [`GetCode`], and any context
-/// available in [`Error::source`] is displayed.
+/// A status code is provided by [`GetCode`], and any context available in
+/// [`Error::source`] is displayed.
+///
+/// <div class="warning note">
+///
+/// **Note**
+///
+/// To get full utility out of this trait, custom top-level errors should
+/// manually implement [`std::error::Error::source`] and get whatever field or
+/// variants contains the nested errors. In addition, [`GetCode`] should
+/// likewise be implemented manually to retrieve the underlying codes for nested
+/// [`std::io::Error`].
+///
+///
+/// </div>
 pub trait OrFail<T> {
     /// Unwraps the result, writing the error and any information in
     /// [`Error::source`] to stderr.
@@ -218,6 +245,59 @@ impl<E: Error + Send + Sync + 'static> WithErrorContext for E {
     #[inline]
     fn with_file_context(self, msg: impl Display, file: impl AsRef<Path>) -> ErrorWithContext {
         Self::with_context(self, format!("{msg}: '{path}'", path = file.as_ref().display()))
+    }
+}
+
+/// An extension trait for [`Result`] allowing additional context to be added to
+/// an [`Err`] variant via a [`ErrorWithContext`].
+///
+/// The methods are similar to [`WithErrorContext`], but are implemented for
+/// results.
+pub trait ResultWithErrorContext {
+    /// The type of the [`Ok`] variant in the result.
+    type Ok;
+
+    /// Wraps the [`Err`] variant in a [`ErrorWithContext`] with the given
+    /// description.
+    ///
+    /// ## Errors
+    ///
+    /// Propagates errors in `self`, with the added context.
+    fn with_context(self, description: String) -> Result<Self::Ok, ErrorWithContext>;
+
+    /// Wraps the [`Err`] variant in a [`ErrorWithContext`] by adding type
+    /// context.
+    ///
+    /// ## Errors
+    ///
+    /// Propagates errors in `self`, with the added context.
+    fn with_type_context<T>(self) -> Result<Self::Ok, ErrorWithContext>;
+
+    /// Wraps the [`Err`] variant in a [`ErrorWithContext`] by adding file
+    /// context.
+    ///
+    /// ## Errors
+    ///
+    /// Propagates errors in `self`, with the added context.
+    fn with_file_context(self, msg: &str, file: impl AsRef<Path>) -> Result<Self::Ok, ErrorWithContext>;
+}
+
+impl<Ok, E: Error + Send + Sync + 'static> ResultWithErrorContext for Result<Ok, E> {
+    type Ok = Ok;
+
+    #[inline]
+    fn with_context(self, description: String) -> Result<Ok, ErrorWithContext> {
+        self.map_err(|e| e.with_context(description))
+    }
+
+    #[inline]
+    fn with_type_context<T>(self) -> Result<Ok, ErrorWithContext> {
+        self.map_err(WithErrorContext::with_type_context::<T>)
+    }
+
+    #[inline]
+    fn with_file_context(self, msg: &str, file: impl AsRef<Path>) -> Result<Ok, ErrorWithContext> {
+        self.map_err(|e| e.with_file_context(msg, file))
     }
 }
 

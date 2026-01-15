@@ -1,7 +1,7 @@
 use crate::{
     DEFAULT_SIMD_LANES,
     data::{
-        err::{WithErrorContext, open_nonempty_file},
+        err::{ResultWithErrorContext, open_nonempty_file},
         id_types::FastaIDs,
         types::{
             amino_acids::AminoAcids,
@@ -325,7 +325,7 @@ impl FastaReader<std::fs::File> {
     pub fn from_filename<P>(filename: P) -> std::io::Result<FastaReader<File>>
     where
         P: AsRef<Path>, {
-        let file = open_nonempty_file(filename).map_err(WithErrorContext::with_type_context::<Self>)?;
+        let file = open_nonempty_file(filename).with_type_context::<Self>()?;
         Ok(FastaReader::new(file))
     }
 }
