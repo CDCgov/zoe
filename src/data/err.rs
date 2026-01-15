@@ -24,7 +24,13 @@
 //! [`OrFail`]: crate::data::err::OrFail
 //! [`open_nonempty_file`]: crate::data::err::open_nonempty_file
 
-use std::{error::Error, fmt::Display, fs::File, io::ErrorKind, path::Path};
+use std::{
+    error::Error,
+    fmt::{Display, Write},
+    fs::File,
+    io::ErrorKind,
+    path::Path,
+};
 
 #[macro_export]
 macro_rules! unwrap_or_return_some_err {
@@ -73,7 +79,10 @@ impl GetCode for std::io::Error {
 }
 
 /// Trait for providing more graceful [`expect()`](std::result::Result::expect)
-/// behavior but with a status code provided by [`GetCode`].
+/// behavior.
+///
+/// Specifically, a status code is provided by [`GetCode`], and any context
+/// available in [`Error::source`] is displayed.
 pub trait OrFail<T> {
     /// Unwraps the result, writing the error and any information in
     /// [`Error::source`] to stderr.
@@ -94,13 +103,13 @@ where
             Err(e) => {
                 if let Ok(bin) = std::env::current_exe() {
                     eprintln!("Error in {b}", b = bin.display());
-                    eprintln!("  → {e}");
+                    eprintln!("  → {e}", e = IndentWrapper(&e));
                 } else {
                     eprintln!("Error: {e}");
                 }
                 let mut source = e.source();
                 while let Some(err) = source {
-                    eprintln!("  → {err}");
+                    eprintln!("  → {err}", err = IndentWrapper(err));
                     source = err.source();
                 }
                 std::process::exit(e.get_code());
@@ -119,7 +128,7 @@ where
                 }
                 let mut source = e.source();
                 while let Some(err) = source {
-                    eprintln!("  → {err}");
+                    eprintln!("  → {err}", err = IndentWrapper(err));
                     source = err.source();
                 }
                 std::process::exit(e.get_code());
@@ -244,4 +253,53 @@ pub fn open_nonempty_file(path: impl AsRef<Path>) -> std::io::Result<File> {
     }
 
     Ok(file)
+}
+
+/// A wrapper around [`std::fmt::Formatter`] which automatically indents all new
+/// lines by four spaces.
+///
+/// This is a helper struct for the formatting used in [`unwrap_or_fail`] and
+/// [`unwrap_or_die`].
+///
+/// [`unwrap_or_fail`]: OrFail::unwrap_or_fail
+/// [`unwrap_or_die`]: OrFail::unwrap_or_die
+struct IndentFormatter<'a, 'b>(&'a mut std::fmt::Formatter<'b>);
+
+impl Write for IndentFormatter<'_, '_> {
+    fn write_str(&mut self, s: &str) -> std::fmt::Result {
+        let mut parts = s.split('\n');
+        let Some(first_part) = parts.next() else { return Ok(()) };
+        self.0.write_str(first_part)?;
+
+        for part in parts {
+            self.0.write_str("\n    ")?;
+            self.0.write_str(part)?;
+        }
+
+        Ok(())
+    }
+
+    fn write_char(&mut self, c: char) -> std::fmt::Result {
+        if c == '\n' {
+            self.0.write_str("\n    ")
+        } else {
+            self.0.write_char(c)
+        }
+    }
+}
+
+/// A wrapper type altering the implementation of [`Display`], such that any new
+/// lines are automatically indented with four spaces.
+///
+/// This is a helper struct for the formatting used in [`unwrap_or_fail`] and
+/// [`unwrap_or_die`].
+///
+/// [`unwrap_or_fail`]: OrFail::unwrap_or_fail
+/// [`unwrap_or_die`]: OrFail::unwrap_or_die
+struct IndentWrapper<T>(T);
+
+impl<T: Display> Display for IndentWrapper<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(IndentFormatter(f), "{}", self.0)
+    }
 }
