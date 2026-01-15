@@ -45,7 +45,7 @@ In order for *Zoe* to move to stable, the portable SIMD [nightly feature](https:
 
 This list may not be up-to-date or exhaustive, but some example usage:
 
-- Alignment functions: [`alignment::sw::sw_simd_score`], [`alignment::sw::sw_simd_alignment`]
+- Alignment functions: [`alignment::sw::sw_simd_score`], [`alignment::sw::sw_simd_align`]
 - Composition functions: [`composition::gc_content_simd`], [`composition::AlignmentComposition`]
 - Distance functions: [`distance::hamming_simd`], [`distance::dna::p_distance_acgt`]
 - Search

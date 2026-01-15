@@ -1,24 +1,24 @@
 use crate::{
     alignment::{
         Alignment, AlignmentStates, MaybeAligned, ScalarProfile, ScoreAndRanges, StripedProfile,
-        sw::{sw_banded_alignment, sw_scalar_alignment, sw_simd_score_ranges},
+        sw::{sw_banded_align, sw_scalar_align, sw_simd_score_ranges},
     },
     data::{WeightMatrix, views::IndexAdjustable},
     math::{AlignableIntWidth, SimdAnyInt},
 };
 use std::simd::{LaneCount, Simd, SupportedLaneCount};
 
-/// Similar to [`sw_simd_alignment`] but computes the Smith-Waterman local
+/// Similar to [`sw_simd_align`] but computes the Smith-Waterman local
 /// alignment using a 3-pass algorithm.
 ///
 /// This approach was inspired by (7).
 ///
 /// See **[module citations](crate::alignment::sw#module-citations)**.
 ///
-/// [`sw_simd_alignment`]: crate::alignment::sw::sw_simd_alignment
+/// [`sw_simd_align`]: crate::alignment::sw::sw_simd_align
 #[inline]
 #[must_use]
-pub fn sw_alignment_3pass<T, const N: usize, const S: usize>(
+pub fn sw_align_3pass<T, const N: usize, const S: usize>(
     reference: &[u8], query_profile: &StripedProfile<T, N, S>, query: &[u8], matrix: &WeightMatrix<i8, S>, gap_open: i8,
     gap_extend: i8,
 ) -> MaybeAligned<Alignment<u32>>
@@ -68,7 +68,7 @@ where
         let mut banded_alignment = None;
 
         while band_width <= max_bandwidth {
-            if let MaybeAligned::Some(alignment) = sw_banded_alignment(reference_new, &query_new, band_width)
+            if let MaybeAligned::Some(alignment) = sw_banded_align(reference_new, &query_new, band_width)
                 && alignment.score == score
             {
                 banded_alignment = Some(alignment);
@@ -79,7 +79,7 @@ where
 
         let mut alignment = match banded_alignment {
             Some(alignment) => alignment,
-            None => sw_scalar_alignment(reference_new, &query_new).unwrap(),
+            None => sw_scalar_align(reference_new, &query_new).unwrap(),
         };
 
         // The alignment found may not span the full bounding box, since

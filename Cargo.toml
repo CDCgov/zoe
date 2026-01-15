@@ -53,10 +53,6 @@ alignment-diagnostics = ["dep:visibility"]
 # development
 dev-phmm = []
 
-# An optional feature enabling 3-pass alignment which is currently in
-# development
-dev-3pass = []
-
 [dependencies]
 arbitrary = { version = "1", optional = true, features = ["derive"] }
 multiversion = { version = "0.8", optional = true }

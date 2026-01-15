@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 use crate::{
     alignment::AlignmentIndices,
     data::types::cigar::{Cigar, Ciglet},
@@ -152,8 +154,7 @@ impl AlignmentStates {
     /// Creates an alignment consisting only of `M` (match states) without any
     /// gaps for the reference or query. Soft clipping is added as needed. Match
     /// states may include mismatches.
-    #[cfg(feature = "dev-3pass")]
-    pub(crate) fn new_no_gaps(aligned_range: std::ops::Range<usize>, query_len: usize) -> Self {
+    pub(crate) fn new_no_gaps(aligned_range: Range<usize>, query_len: usize) -> Self {
         let mut states = AlignmentStates::with_capacity(3);
 
         states.soft_clip(aligned_range.start);

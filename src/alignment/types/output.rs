@@ -447,7 +447,7 @@ impl<T: Copy> Alignment<T> {
     /// let query = Nucleotides::from(b"GATATCAAATGCGTGCTTGCACGATGTAAGGTAGC");
     ///
     /// let profile = ScalarProfile::new(&query, &MATRIX, GAP_OPEN, GAP_EXTEND).unwrap();
-    /// let alignment = profile.smith_waterman_alignment(SeqSrc::Reference(&reference)).unwrap();
+    /// let alignment = profile.sw_align(SeqSrc::Reference(&reference)).unwrap();
     ///
     /// assert_eq!(alignment.states, AlignmentStates::try_from(b"4M1D10M3I18M").unwrap());
     ///

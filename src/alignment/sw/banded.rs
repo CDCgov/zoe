@@ -20,7 +20,7 @@ use std::ops::Add;
 ///
 /// ```
 /// # use zoe::{
-/// #     alignment::{Alignment, ScalarProfile, sw::sw_banded_alignment},
+/// #     alignment::{Alignment, ScalarProfile, sw::sw_banded_align},
 /// #     data::{matrices::WeightMatrix, cigar::Cigar}
 /// # };
 /// let reference: &[u8] = b"GGCCACAGGATTGAG";
@@ -32,11 +32,11 @@ use std::ops::Add;
 /// const BAND_WIDTH: usize = 5;
 ///
 /// let profile = ScalarProfile::<5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-/// let alignment = sw_banded_alignment(reference, &profile, BAND_WIDTH).unwrap();
+/// let alignment = sw_banded_align(reference, &profile, BAND_WIDTH).unwrap();
 /// ```
 #[must_use]
 #[allow(clippy::cast_sign_loss)]
-pub fn sw_banded_alignment<const S: usize>(
+pub fn sw_banded_align<const S: usize>(
     reference: &[u8], query: &ScalarProfile<S>, band_width: usize,
 ) -> MaybeAligned<Alignment<u32>> {
     if reference.is_empty() {

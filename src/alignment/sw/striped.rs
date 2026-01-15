@@ -1,7 +1,7 @@
 use crate::{
     alignment::{
-        Alignment, BackTrackable, BacktrackMatrixStriped, MaybeAligned, ScoreEnds, ScoreIndices, SimdBacktrackFlags,
-        StripedProfile,
+        Alignment, BackTrackable, BacktrackMatrixStriped, MaybeAligned, ScoreAndRanges, ScoreEnds, ScoreIndices,
+        ScoreStarts, SimdBacktrackFlags, StripedProfile,
     },
     math::AlignableIntWidth,
     simd::SimdAnyInt,
@@ -10,9 +10,6 @@ use std::simd::{
     LaneCount, Simd, SupportedLaneCount,
     cmp::{SimdOrd, SimdPartialEq, SimdPartialOrd},
 };
-
-#[cfg(feature = "dev-3pass")]
-use crate::alignment::{ScoreAndRanges, ScoreStarts};
 
 /// Smith-Waterman algorithm (vectorized), yielding the optimal score.
 ///
@@ -171,7 +168,6 @@ where
 /// [`reverse_from_forward`]: StripedProfile::reverse_from_forward
 #[inline]
 #[must_use]
-#[cfg(feature = "dev-3pass")]
 pub(crate) fn sw_simd_score_ends_reverse<T, const N: usize, const S: usize>(
     reference: &[u8], query: &StripedProfile<T, N, S>,
 ) -> MaybeAligned<ScoreStarts<u32>>
@@ -337,7 +333,6 @@ where
 /// pass approach. This approach was inspired by (7).
 ///
 /// See **[module citations](crate::alignment::sw#module-citations)**.
-#[cfg(feature = "dev-3pass")]
 #[inline]
 #[must_use]
 pub fn sw_simd_score_ranges<T, const N: usize, const S: usize>(
@@ -402,7 +397,7 @@ where
 ///
 /// ```
 /// # use zoe::{
-/// #     alignment::{Alignment, AlignmentStates, StripedProfile, sw::sw_simd_alignment},
+/// #     alignment::{Alignment, AlignmentStates, StripedProfile, sw::sw_simd_align},
 /// #     data::matrices::WeightMatrix,
 /// # };
 ///
@@ -412,7 +407,7 @@ where
 /// const GAP_OPEN: i8 = -3;
 /// const GAP_EXTEND: i8 = -1;
 /// let profile = StripedProfile::<u8, 8, 5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-/// let alignment = sw_simd_alignment(reference, &profile).unwrap();
+/// let alignment = sw_simd_align(reference, &profile).unwrap();
 ///
 /// let Alignment {
 ///     score,
@@ -427,7 +422,7 @@ where
 #[allow(non_snake_case, clippy::too_many_lines)]
 #[must_use]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
-pub fn sw_simd_alignment<T, const N: usize, const S: usize>(
+pub fn sw_simd_align<T, const N: usize, const S: usize>(
     reference: &[u8], query: &StripedProfile<T, N, S>,
 ) -> MaybeAligned<Alignment<u32>>
 where

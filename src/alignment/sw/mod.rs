@@ -4,7 +4,7 @@
 //! sequence alignment, including SIMD vectorized algorithms. This includes:
 //!
 //! - Generating just the optimal score with [`sw_simd_score`]
-//! - Generating the full local alignment with [`sw_simd_alignment`]
+//! - Generating the full local alignment with [`sw_simd_align`]
 //! - A two-pass method generating the score and the end indices of the
 //!   alignment with [`sw_simd_score_ends`]
 //!
@@ -111,29 +111,23 @@
 //!
 //! - [`LocalProfiles`] and [`SharedProfiles`]:
 //!
-//!   Alignment can be performed with [`smith_waterman_score_from_i8`]
-//!   (score-only) or [`smith_waterman_alignment_from_i8`] (with alignment)
-//!   methods. This also requires importing the [`ProfileSets`] trait. If it is
-//!   expected that the alignments will exceed [`i8::MAX`], it may be more
-//!   efficient to call [`smith_waterman_score_from_i16`] or
-//!   [`smith_waterman_alignment_from_i16`], which will begin the alignment from
-//!   the `i16` integer type (which avoids performing a wasted `i8` alignment
-//!   with an overflowing score).
+//!   Alignment can be performed with [`sw_score_from_i8`] (score-only) or
+//!   [`sw_align_from_i8`] (with alignment) methods. This also requires
+//!   importing the [`ProfileSets`] trait. If it is expected that the alignments
+//!   will exceed [`i8::MAX`], it may be more efficient to call
+//!   [`sw_score_from_i16`] or [`sw_align_from_i16`], which will begin the
+//!   alignment from the `i16` integer type (which avoids performing a wasted
+//!   `i8` alignment with an overflowing score).
 //!
 //! - [`StripedProfile`]:
 //!
-//!   Alignment can be performed with
-//!   [`smith_waterman_score`](StripedProfile::smith_waterman_score)
-//!   (score-only) or
-//!   [`smith_waterman_alignment`](StripedProfile::smith_waterman_alignment)
-//!   (with alignment).
+//!   Alignment can be performed with [`sw_score`](StripedProfile::sw_score)
+//!   (score-only) or [`sw_align`](StripedProfile::sw_align) (with alignment).
 //!
 //! - [`ScalarProfile`]:
 //!
-//!   Alignment can be performed with
-//!   [`smith_waterman_score`](ScalarProfile::smith_waterman_score) (score-only)
-//!   or [`smith_waterman_alignment`](ScalarProfile::smith_waterman_alignment)
-//!   (with alignment).
+//!   Alignment can be performed with [`sw_score`](ScalarProfile::sw_score)
+//!   (score-only) or [`sw_align`](ScalarProfile::sw_align) (with alignment).
 //!
 //! ### Examples
 //!
@@ -156,7 +150,7 @@
 //! const GAP_EXTEND: i8 = -1;
 //!
 //! let profile = StripedProfile::<i8, 32, 5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-//! let alignment = profile.smith_waterman_alignment(SeqSrc::Reference(reference)).unwrap();
+//! let alignment = profile.sw_align(SeqSrc::Reference(reference)).unwrap();
 //!
 //! let Alignment {
 //!     score,
@@ -186,7 +180,7 @@
 //! const GAP_EXTEND: i8 = -2;
 //!
 //! let profile = StripedProfile::<i8, 32, 4>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-//! let alignment = profile.smith_waterman_alignment(SeqSrc::Reference(reference)).unwrap();
+//! let alignment = profile.sw_align(SeqSrc::Reference(reference)).unwrap();
 //!
 //! let Alignment {
 //!     score,
@@ -215,7 +209,7 @@
 //! const GAP_EXTEND: i8 = -1;
 //!
 //! let profile = query.into_local_profile(&WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-//! let alignment = profile.smith_waterman_alignment_from_i8(SeqSrc::Reference(reference)).unwrap();
+//! let alignment = profile.sw_align_from_i8(SeqSrc::Reference(reference)).unwrap();
 //!
 //! let Alignment {
 //!     score,
@@ -244,7 +238,7 @@
 //! const GAP_EXTEND: i8 = -2;
 //!
 //! let profile = LocalProfiles::new_with_w256(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-//! let alignment = profile.smith_waterman_alignment_from_i8(SeqSrc::Reference(reference)).unwrap();
+//! let alignment = profile.sw_align_from_i8(SeqSrc::Reference(reference)).unwrap();
 //!
 //! let Alignment {
 //!     score,
@@ -301,8 +295,8 @@
 //!
 //! [`sw_scalar_score`]: sw::sw_scalar_score
 //! [`sw_simd_score`]: sw::sw_simd_score
-//! [`sw_scalar_alignment`]: sw::sw_scalar_alignment
-//! [`sw_simd_alignment`]: sw::sw_simd_alignment
+//! [`sw_scalar_align`]: sw::sw_scalar_align
+//! [`sw_simd_align`]: sw::sw_simd_align
 //! [`ByteIndexMap::new`]: crate::data::ByteIndexMap::new
 //! [`WeightMatrix`]: crate::data::matrices::WeightMatrix
 //! [`WeightMatrix::new`]: crate::data::matrices::WeightMatrix::new
@@ -316,15 +310,12 @@
 //!     crate::data::types::nucleotides::Nucleotides::into_shared_profile
 //! [`ScalarProfile::new`]: ScalarProfile::new
 //! [`StripedProfile::new`]: StripedProfile::new
-//! [`ScalarProfile::smith_waterman_score`]: ScalarProfile::smith_waterman_score
-//! [`StripedProfile::smith_waterman_score`]:
-//!     StripedProfile::smith_waterman_score
+//! [`ScalarProfile::sw_score`]: ScalarProfile::sw_score
+//! [`StripedProfile::sw_score`]: StripedProfile::sw_score
 //! [`LocalProfiles`]: LocalProfiles
 //! [`SharedProfiles`]: SharedProfiles
-//! [`LocalProfiles::smith_waterman_score_from_i8`]:
-//!     LocalProfiles::smith_waterman_score_from_i8
-//! [`SharedProfiles::smith_waterman_score_from_i8`]:
-//!     SharedProfiles::smith_waterman_score_from_i8
+//! [`LocalProfiles::sw_score_from_i8`]: LocalProfiles::sw_score_from_i8
+//! [`SharedProfiles::sw_score_from_i8`]: SharedProfiles::sw_score_from_i8
 //! [`DNA_PROFILE_MAP`]: crate::data::DNA_PROFILE_MAP
 //! [`AA_PROFILE_MAP`]: crate::data::AA_PROFILE_MAP
 //! [`ByteIndexMap::new_ignoring_case`]:
@@ -340,14 +331,10 @@
 //! [`into_shared_profile`]:
 //!     crate::data::types::nucleotides::Nucleotides::into_shared_profile
 //! [`invert`]: crate::alignment::Alignment::invert
-//! [`smith_waterman_score_from_i8`]:
-//!     crate::alignment::ProfileSets::smith_waterman_score_from_i8
-//! [`smith_waterman_alignment_from_i8`]:
-//!     crate::alignment::ProfileSets::smith_waterman_alignment_from_i8
-//! [`smith_waterman_score_from_i16`]:
-//!     crate::alignment::ProfileSets::smith_waterman_score_from_i16
-//! [`smith_waterman_alignment_from_i16`]:
-//!     crate::alignment::ProfileSets::smith_waterman_alignment_from_i16
+//! [`sw_score_from_i8`]: crate::alignment::ProfileSets::sw_score_from_i8
+//! [`sw_align_from_i8`]: crate::alignment::ProfileSets::sw_align_from_i8
+//! [`sw_score_from_i16`]: crate::alignment::ProfileSets::sw_score_from_i16
+//! [`sw_align_from_i16`]: crate::alignment::ProfileSets::sw_align_from_i16
 //! [`to_biased_matrix`]: crate::data::matrices::WeightMatrix::to_biased_matrix
 
 #![allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
@@ -466,11 +453,9 @@ mod bench;
 mod banded;
 mod scalar;
 mod striped;
-#[cfg(feature = "dev-3pass")]
 mod three_pass;
 
 pub use banded::*;
 pub use scalar::*;
 pub use striped::*;
-#[cfg(feature = "dev-3pass")]
 pub use three_pass::*;

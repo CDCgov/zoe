@@ -1,7 +1,7 @@
 //! ## Needleman–Wunsch Alignment
 //!
 //! For generating the optimal, global score use [`nw_scalar_score`]. For
-//! computing the global alignment between, use [`nw_scalar_alignment`]. To then
+//! computing the global alignment between, use [`nw_scalar_align`]. To then
 //! obtain the aligned sequences (with gap characters inserted), use
 //! [`Alignment::get_aligned_seqs`].
 //!
@@ -31,14 +31,14 @@
 //!    invalid, a [`ProfileError`] is returned.
 //!
 //! 4. Use the query profile to align against any number of different references
-//!    using [`nw_scalar_score`] or [`nw_scalar_alignment`].
+//!    using [`nw_scalar_score`] or [`nw_scalar_align`].
 //!
 //! Below is an example using DNA. We use a match score of 4 and a mismatch
 //! score of -2, as defined in `WEIGHTS`.
 //!
 //! ```
 //! # use zoe::{
-//! #     alignment::{Alignment, AlignmentStates, ScalarProfile, nw::nw_scalar_alignment},
+//! #     alignment::{Alignment, AlignmentStates, ScalarProfile, nw::nw_scalar_align},
 //! #     data::matrices::WeightMatrix
 //! # };
 //! let reference: &[u8] = b"GGCCACAGGATTGAG";
@@ -49,7 +49,7 @@
 //! const GAP_EXTEND: i8 = -1;
 //!
 //! let profile = ScalarProfile::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-//! let alignment = nw_scalar_alignment(&reference, &profile);
+//! let alignment = nw_scalar_align(&reference, &profile);
 //!
 //! let Alignment {
 //!     score,
@@ -195,7 +195,7 @@ pub fn nw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 /// Needleman–Wunsch algorithm (non-vectorized), yielding the optimal alignment.
 ///
 /// Provides the globally optimal sequence alignment using affine gap penalties.
-/// Our implementation is derived as an adaptation of [`sw_scalar_alignment`].
+/// Our implementation is derived as an adaptation of [`sw_scalar_align`].
 ///
 /// ## Complexity
 ///
@@ -213,7 +213,7 @@ pub fn nw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 ///
 /// ```
 /// # use zoe::{
-/// #     alignment::{Alignment, AlignmentStates, ScalarProfile, nw::nw_scalar_alignment},
+/// #     alignment::{Alignment, AlignmentStates, ScalarProfile, nw::nw_scalar_align},
 /// #     data::matrices::WeightMatrix
 /// # };
 /// let reference: &[u8] = b"GGCCACAGGATTGAG";
@@ -224,7 +224,7 @@ pub fn nw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 /// const GAP_EXTEND: i8 = -1;
 ///
 /// let profile = ScalarProfile::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-/// let alignment = nw_scalar_alignment(&reference, &profile);
+/// let alignment = nw_scalar_align(&reference, &profile);
 ///
 /// let Alignment {
 ///     score,
@@ -237,10 +237,10 @@ pub fn nw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 /// assert_eq!(states, AlignmentStates::try_from(b"12M1D2M").unwrap());
 /// ```
 ///
-/// [`sw_scalar_alignment`]: super::sw::sw_scalar_alignment
+/// [`sw_scalar_align`]: super::sw::sw_scalar_align
 #[must_use]
 #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
-pub fn nw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfile<S>) -> Alignment<i32> {
+pub fn nw_scalar_align<const S: usize>(reference: &[u8], query: &ScalarProfile<S>) -> Alignment<i32> {
     // See dev comments in nw_scalar_score for more details
 
     let mut h_row = vec![0; query.seq.len()];

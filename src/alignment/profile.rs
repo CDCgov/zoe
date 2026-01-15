@@ -1,7 +1,10 @@
 use crate::{
     alignment::{
-        Alignment, MaybeAligned, ProfileError, ScoreEnds, SeqSrc,
-        sw::{sw_scalar_alignment, sw_scalar_score, sw_simd_alignment, sw_simd_score, sw_simd_score_ends},
+        Alignment, MaybeAligned, ProfileError, ScoreAndRanges, ScoreEnds, ScoreStarts, SeqSrc,
+        sw::{
+            sw_align_3pass, sw_scalar_align, sw_scalar_score, sw_simd_align, sw_simd_score, sw_simd_score_ends,
+            sw_simd_score_ends_reverse, sw_simd_score_ranges,
+        },
     },
     data::{mappings::ByteIndexMap, matrices::WeightMatrix},
     math::{AlignableIntWidth, AnyInt, FromSameSignedness},
@@ -9,14 +12,9 @@ use crate::{
 };
 use std::{
     convert::Into,
+    ops::Range,
     simd::{LaneCount, SimdElement, SupportedLaneCount, prelude::*},
     vec,
-};
-
-#[cfg(feature = "dev-3pass")]
-use crate::alignment::{
-    ScoreAndRanges, ScoreStarts,
-    sw::{sw_alignment_3pass, sw_simd_score_ranges},
 };
 
 /// Validate the arguments for [`ScalarProfile`] or [`StripedProfile`].
@@ -135,12 +133,12 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// const GAP_EXTEND: i8 = -1;
     ///
     /// let profile = ScalarProfile::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-    /// let score = profile.smith_waterman_score(reference).unwrap();
+    /// let score = profile.sw_score(reference).unwrap();
     /// assert_eq!(score, 27);
     /// ```
     #[inline]
     #[must_use]
-    pub fn smith_waterman_score<Q>(&self, seq: &Q) -> MaybeAligned<u32>
+    pub fn sw_score<Q>(&self, seq: &Q) -> MaybeAligned<u32>
     where
         Q: AsRef<[u8]> + ?Sized, {
         sw_scalar_score(seq.as_ref(), self)
@@ -149,7 +147,7 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// Computes the Smith-Waterman local alignment between the profile and the
     /// passed sequence.
     ///
-    /// For more information, see [`sw_scalar_alignment`].
+    /// For more information, see [`sw_scalar_align`].
     ///
     /// ## Example
     ///
@@ -166,17 +164,17 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// const GAP_EXTEND: i8 = -1;
     ///
     /// let profile = ScalarProfile::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-    /// let alignment = profile.smith_waterman_alignment(SeqSrc::Reference(reference)).unwrap();
+    /// let alignment = profile.sw_align(SeqSrc::Reference(reference)).unwrap();
     /// assert_eq!(alignment.ref_range.start, 3);
     /// assert_eq!(alignment.states, Cigar::from_slice_unchecked("5M1D4M"));
     /// assert_eq!(alignment.score, 27);
     /// ```
     #[inline]
     #[must_use]
-    pub fn smith_waterman_alignment<Q>(&self, seq: SeqSrc<&Q>) -> MaybeAligned<Alignment<u32>>
+    pub fn sw_align<Q>(&self, seq: SeqSrc<&Q>) -> MaybeAligned<Alignment<u32>>
     where
         Q: AsRef<[u8]> + ?Sized, {
-        seq.make_alignment(|reference| sw_scalar_alignment(reference.as_ref(), self))
+        seq.make_alignment(|reference| sw_scalar_align(reference.as_ref(), self))
     }
 }
 
@@ -312,8 +310,7 @@ where
     /// `seq_end` represents the 0-based exclusive-end index. `None` is returned
     /// if the bound is invalid.
     #[must_use]
-    #[cfg(feature = "dev-3pass")]
-    pub fn reverse_from_forward(&self, seq_end: usize) -> Option<Self> {
+    pub(crate) fn reverse_from_forward(&self, seq_end: usize) -> Option<Self> {
         if seq_end == 0 || seq_end > self.seq_len {
             return None;
         }
@@ -355,8 +352,8 @@ where
     ///
     /// `None` is returned if the bound is invalid.
     #[must_use]
-    #[cfg(feature = "dev-3pass")]
-    pub fn new_with_range(&self, range: std::ops::Range<usize>) -> Option<Self> {
+    #[allow(dead_code)]
+    pub(crate) fn new_with_range(&self, range: Range<usize>) -> Option<Self> {
         if range.is_empty() || range.end > self.seq_len {
             return None;
         }
@@ -432,7 +429,7 @@ where
     /// const GAP_EXTEND: i8 = -1;
     ///
     /// let profile = StripedProfile::<u8, 32, 5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-    /// let score = profile.smith_waterman_score(reference).unwrap();
+    /// let score = profile.sw_score(reference).unwrap();
     /// assert_eq!(score, 26);
     /// ```
     ///
@@ -440,7 +437,7 @@ where
     /// [`Unmapped`]: MaybeAligned::Unmapped
     #[inline]
     #[must_use]
-    pub fn smith_waterman_score<Q>(&self, seq: &Q) -> MaybeAligned<u32>
+    pub fn sw_score<Q>(&self, seq: &Q) -> MaybeAligned<u32>
     where
         Q: AsRef<[u8]> + ?Sized, {
         // Validity: The order of the query and reference does not impact final
@@ -448,15 +445,15 @@ where
         sw_simd_score::<T, N, S>(seq.as_ref(), self)
     }
 
-    /// Similar to [`smith_waterman_score`] but includes reference and query
+    /// Similar to [`sw_score`] but includes reference and query
     /// 0-based, exclusive end indices.
     ///
     /// Note: these coordinates are equivalent to the 1-based end positions.
     ///
-    /// [`smith_waterman_score`]: Self::smith_waterman_score
+    /// [`sw_score`]: Self::sw_score
     #[inline]
     #[must_use]
-    pub fn smith_waterman_score_ends<Q>(&self, seq: SeqSrc<&Q>) -> MaybeAligned<ScoreEnds<u32>>
+    pub fn sw_score_ends<Q>(&self, seq: SeqSrc<&Q>) -> MaybeAligned<ScoreEnds<u32>>
     where
         Q: AsRef<[u8]> + ?Sized, {
         seq.make_alignment(|reference| sw_simd_score_ends::<T, N, S>(reference.as_ref(), self))
@@ -478,11 +475,10 @@ where
     #[inline]
     #[must_use]
     #[allow(dead_code)]
-    #[cfg(feature = "dev-3pass")]
-    pub(crate) fn smith_waterman_score_ends_reverse<Q>(&self, seq: SeqSrc<&Q>) -> MaybeAligned<ScoreStarts<u32>>
+    pub(crate) fn sw_score_ends_reverse<Q>(&self, seq: SeqSrc<&Q>) -> MaybeAligned<ScoreStarts<u32>>
     where
         Q: AsRef<[u8]> + ?Sized, {
-        seq.make_alignment(|reference| crate::alignment::sw::sw_simd_score_ends_reverse::<T, N, S>(reference.as_ref(), self))
+        seq.make_alignment(|reference| sw_simd_score_ends_reverse::<T, N, S>(reference.as_ref(), self))
     }
 
     /// Computes the Smith-Waterman local alignment between the query profile
@@ -491,7 +487,7 @@ where
     /// Returns [`Overflowed`] if the score overflowed and [`Unmapped`] if no
     /// portion of the query mapped to the reference.
     ///
-    /// For more info, see: [`sw_simd_alignment`].
+    /// For more info, see: [`sw_simd_align`].
     ///
     /// ## Example
     ///
@@ -508,7 +504,7 @@ where
     /// const GAP_EXTEND: i8 = -1;
     ///
     /// let profile = StripedProfile::<u8, 32, 5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-    /// let alignment = profile.smith_waterman_alignment(SeqSrc::Reference(reference)).unwrap();
+    /// let alignment = profile.sw_align(SeqSrc::Reference(reference)).unwrap();
     /// // alignment contains ref_range, states (cigar), and score
     /// ```
     ///
@@ -516,28 +512,27 @@ where
     /// [`Unmapped`]: MaybeAligned::Unmapped
     #[inline]
     #[must_use]
-    pub fn smith_waterman_alignment<Q>(&self, seq: SeqSrc<&Q>) -> MaybeAligned<Alignment<u32>>
+    pub fn sw_align<Q>(&self, seq: SeqSrc<&Q>) -> MaybeAligned<Alignment<u32>>
     where
         Q: AsRef<[u8]> + ?Sized, {
-        seq.make_alignment(|reference| sw_simd_alignment::<T, N, S>(reference.as_ref(), self))
+        seq.make_alignment(|reference| sw_simd_align::<T, N, S>(reference.as_ref(), self))
     }
 
-    /// Similar to [`smith_waterman_score`] but includes the reference and query
+    /// Similar to [`sw_score`] but includes the reference and query
     /// alignment ranges.
     ///
     /// These are standard 0-based, half-open ranges for slicing.
     ///
-    /// [`smith_waterman_score`]: Self::smith_waterman_score
+    /// [`sw_score`]: Self::sw_score
     #[inline]
     #[must_use]
-    #[cfg(feature = "dev-3pass")]
-    pub fn smith_waterman_score_ranges<Q>(&self, seq: SeqSrc<&Q>) -> MaybeAligned<ScoreAndRanges<u32>>
+    pub fn sw_score_ranges<Q>(&self, seq: SeqSrc<&Q>) -> MaybeAligned<ScoreAndRanges<u32>>
     where
         Q: AsRef<[u8]> + ?Sized, {
         seq.make_alignment(|reference| sw_simd_score_ranges::<T, N, S>(reference.as_ref(), self))
     }
 
-    /// Similar to [`smith_waterman_alignment`] but computes the Smith-Waterman
+    /// Similar to [`sw_align`] but computes the Smith-Waterman
     /// local alignment using a 3-pass algorithm.
     ///
     /// This approach was inspired by (7), albeit this implementation is for
@@ -545,19 +540,15 @@ where
     ///
     /// See **[module citations](crate::alignment::sw#module-citations)**.
     ///
-    /// [`smith_waterman_alignment`]: Self::smith_waterman_alignment
+    /// [`sw_align`]: Self::sw_align
     #[inline]
     #[must_use]
-    #[cfg(feature = "dev-3pass")]
-    #[allow(clippy::missing_panics_doc)]
-    pub(crate) fn smith_waterman_alignment_3pass<Q>(
+    pub(crate) fn sw_align_3pass<Q>(
         &self, seq: SeqSrc<&Q>, profile_seq: &[u8], matrix: &WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
     ) -> MaybeAligned<Alignment<u32>>
     where
         Q: AsRef<[u8]> + ?Sized, {
-        seq.make_alignment(|reference| {
-            sw_alignment_3pass(reference.as_ref(), self, profile_seq, matrix, gap_open, gap_extend)
-        })
+        seq.make_alignment(|reference| sw_align_3pass(reference.as_ref(), self, profile_seq, matrix, gap_open, gap_extend))
     }
 }
 
@@ -585,7 +576,6 @@ mod bench {
         });
     }
 
-    #[cfg(feature = "dev-3pass")]
     #[bench]
     fn build_profile_u8_rev_half_mapping(b: &mut Bencher) {
         let prof = StripedProfile::<u8, 32, 5>::new(DATA, &MATRIX, GAP_OPEN, GAP_EXTEND).unwrap();

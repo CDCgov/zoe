@@ -49,7 +49,7 @@ where
     /// Retrieves the weight matrix being used.
     fn matrix(&self) -> &WeightMatrix<'a, i8, S>;
 
-    /// Lazily execute [`StripedProfile::smith_waterman_score`] starting with
+    /// Lazily execute [`StripedProfile::sw_score`] starting with
     /// the `i8` profile.
     ///
     /// Lazily initializes the profiles and works its way up to the `i32`
@@ -71,51 +71,51 @@ where
     /// const GAP_EXTEND: i8 = -1;
     ///
     /// let profile = LocalProfiles::new_with_w256(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-    /// let score = profile.smith_waterman_score_from_i8(reference).unwrap();
+    /// let score = profile.sw_score_from_i8(reference).unwrap();
     /// assert_eq!(score, 26);
     /// ```
     #[inline]
     #[must_use]
-    fn smith_waterman_score_from_i8<T>(&self, seq: &T) -> MaybeAligned<u32>
+    fn sw_score_from_i8<T>(&self, seq: &T) -> MaybeAligned<u32>
     where
         T: AsRef<[u8]> + ?Sized, {
         self.get_i8()
-            .smith_waterman_score(seq)
-            .or_else_overflowed(|| self.get_i16().smith_waterman_score(seq))
-            .or_else_overflowed(|| self.get_i32().smith_waterman_score(seq))
+            .sw_score(seq)
+            .or_else_overflowed(|| self.get_i16().sw_score(seq))
+            .or_else_overflowed(|| self.get_i32().sw_score(seq))
     }
 
-    /// Lazily execute [`StripedProfile::smith_waterman_score`] starting with
+    /// Lazily execute [`StripedProfile::sw_score`] starting with
     /// the `i16` profile, skipping the `i8` profile.
     ///
     /// Lazily initializes the profiles and works its way up to the `i32`
     /// profile. Execution stops when the score returned no longer overflows the
     /// profile's integer range.
     ///
-    /// See [`LocalProfiles::smith_waterman_score_from_i8`] for an example.
+    /// See [`LocalProfiles::sw_score_from_i8`] for an example.
     #[inline]
     #[must_use]
-    fn smith_waterman_score_from_i16<T>(&self, seq: &T) -> MaybeAligned<u32>
+    fn sw_score_from_i16<T>(&self, seq: &T) -> MaybeAligned<u32>
     where
         T: AsRef<[u8]> + ?Sized, {
         self.get_i16()
-            .smith_waterman_score(seq)
-            .or_else_overflowed(|| self.get_i32().smith_waterman_score(seq))
+            .sw_score(seq)
+            .or_else_overflowed(|| self.get_i32().sw_score(seq))
     }
 
-    /// Execute [`StripedProfile::smith_waterman_score`] with the `i32` profile,
+    /// Execute [`StripedProfile::sw_score`] with the `i32` profile,
     /// skipping the `i8` and `i16` profiles.
     ///
-    /// See [`LocalProfiles::smith_waterman_score_from_i8`] for an example.
+    /// See [`LocalProfiles::sw_score_from_i8`] for an example.
     #[inline]
     #[must_use]
-    fn smith_waterman_score_from_i32<T>(&self, seq: &T) -> MaybeAligned<u32>
+    fn sw_score_from_i32<T>(&self, seq: &T) -> MaybeAligned<u32>
     where
         T: AsRef<[u8]> + ?Sized, {
-        self.get_i32().smith_waterman_score(seq)
+        self.get_i32().sw_score(seq)
     }
 
-    /// Lazily execute [`StripedProfile::smith_waterman_alignment`] starting
+    /// Lazily execute [`StripedProfile::sw_align`] starting
     /// with the `i8` profile.
     ///
     /// Lazily initializes the profiles and works its way up to the `i32`
@@ -137,63 +137,60 @@ where
     /// const GAP_EXTEND: i8 = -1;
     ///
     /// let profile = LocalProfiles::new_with_w256(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-    /// let alignment = profile.smith_waterman_alignment_from_i8(SeqSrc::Reference(reference)).unwrap();
+    /// let alignment = profile.sw_align_from_i8(SeqSrc::Reference(reference)).unwrap();
     /// ```
     #[inline]
     #[must_use]
-    fn smith_waterman_alignment_from_i8<T>(&self, seq: SeqSrc<&T>) -> MaybeAligned<Alignment<u32>>
+    fn sw_align_from_i8<T>(&self, seq: SeqSrc<&T>) -> MaybeAligned<Alignment<u32>>
     where
         T: AsRef<[u8]> + ?Sized, {
         let seq = seq.map(AsRef::as_ref);
 
         self.get_i8()
-            .smith_waterman_alignment(seq)
-            .or_else_overflowed(|| self.get_i16().smith_waterman_alignment(seq))
-            .or_else_overflowed(|| self.get_i32().smith_waterman_alignment(seq))
+            .sw_align(seq)
+            .or_else_overflowed(|| self.get_i16().sw_align(seq))
+            .or_else_overflowed(|| self.get_i32().sw_align(seq))
     }
 
-    /// Lazily execute [`StripedProfile::smith_waterman_alignment`] starting
+    /// Lazily execute [`StripedProfile::sw_align`] starting
     /// with the `i16` profile, skipping the `i8` profile.
     ///
     /// Lazily initializes the profiles and works its way up to the `i32`
     /// profile. Execution stops when the alignment returned no longer overflows
     /// the profile's integer range.
     ///
-    /// See [`LocalProfiles::smith_waterman_alignment_from_i8`] for an example.
+    /// See [`LocalProfiles::sw_align_from_i8`] for an example.
     #[inline]
     #[must_use]
-    fn smith_waterman_alignment_from_i16<T>(&self, seq: SeqSrc<&T>) -> MaybeAligned<Alignment<u32>>
+    fn sw_align_from_i16<T>(&self, seq: SeqSrc<&T>) -> MaybeAligned<Alignment<u32>>
     where
         T: AsRef<[u8]> + ?Sized, {
         let seq = seq.map(AsRef::as_ref);
 
         self.get_i16()
-            .smith_waterman_alignment(seq)
-            .or_else_overflowed(|| self.get_i32().smith_waterman_alignment(seq))
+            .sw_align(seq)
+            .or_else_overflowed(|| self.get_i32().sw_align(seq))
     }
 
-    /// Execute [`StripedProfile::smith_waterman_alignment`] with the `i32`
+    /// Execute [`StripedProfile::sw_align`] with the `i32`
     /// profile, skipping the `i8` and `i16` profiles.
     ///
-    /// See [`LocalProfiles::smith_waterman_alignment_from_i8`] for an example.
+    /// See [`LocalProfiles::sw_align_from_i8`] for an example.
     #[inline]
     #[must_use]
-    fn smith_waterman_alignment_from_i32<T>(&self, seq: SeqSrc<&T>) -> MaybeAligned<Alignment<u32>>
+    fn sw_align_from_i32<T>(&self, seq: SeqSrc<&T>) -> MaybeAligned<Alignment<u32>>
     where
         T: AsRef<[u8]> + ?Sized, {
         let seq = seq.map(AsRef::as_ref);
 
-        self.get_i32().smith_waterman_alignment(seq)
+        self.get_i32().sw_align(seq)
     }
 
-    #[inline]
-    #[must_use]
-    #[cfg(feature = "dev-3pass")]
     // TODO: we will add dispatching instead if the method needs to be hybrid based on size considerations
     /// Lazily executes a 3-pass version of Smith-Waterman local alignment,
     /// starting with an `i8` profile.
     ///
-    /// For more details on the algorithm, see [`sw_alignment_3pass`].
+    /// For more details on the algorithm, see [`sw_align_3pass`].
     ///
     /// The method automatically increases the integer width until `i32` upon
     /// each overflow. Execution stops when the score returned no longer
@@ -214,105 +211,85 @@ where
     /// const GAP_EXTEND: i8 = -1;
     ///
     /// let profile = LocalProfiles::new_with_w256(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-    /// let score = profile.smith_waterman_alignment_from_i8_3pass(SeqSrc::Reference(reference)).unwrap().score;
+    /// let score = profile.sw_align_from_i8_3pass(SeqSrc::Reference(reference)).unwrap().score;
     /// assert_eq!(score, 26);
     /// ```
     ///
-    /// [`sw_alignment_3pass`]: crate::alignment::sw::sw_alignment_3pass
-    fn smith_waterman_alignment_from_i8_3pass<T>(&self, seq: SeqSrc<&T>) -> MaybeAligned<Alignment<u32>>
+    /// [`sw_align_3pass`]: crate::alignment::sw::sw_align_3pass
+    #[inline]
+    #[must_use]
+    fn sw_align_from_i8_3pass<T>(&self, seq: SeqSrc<&T>) -> MaybeAligned<Alignment<u32>>
     where
         T: AsRef<[u8]> + ?Sized, {
         let seq = seq.map(AsRef::as_ref);
 
         self.get_i8()
-            .smith_waterman_alignment_3pass(seq, self.sequence(), self.matrix(), self.gap_open(), self.gap_extend())
+            .sw_align_3pass(seq, self.sequence(), self.matrix(), self.gap_open(), self.gap_extend())
             .or_else_overflowed(|| {
-                self.get_i16().smith_waterman_alignment_3pass(
-                    seq,
-                    self.sequence(),
-                    self.matrix(),
-                    self.gap_open(),
-                    self.gap_extend(),
-                )
+                self.get_i16()
+                    .sw_align_3pass(seq, self.sequence(), self.matrix(), self.gap_open(), self.gap_extend())
             })
             .or_else_overflowed(|| {
-                self.get_i32().smith_waterman_alignment_3pass(
-                    seq,
-                    self.sequence(),
-                    self.matrix(),
-                    self.gap_open(),
-                    self.gap_extend(),
-                )
+                self.get_i32()
+                    .sw_align_3pass(seq, self.sequence(), self.matrix(), self.gap_open(), self.gap_extend())
             })
     }
 
-    #[inline]
-    #[must_use]
-    #[cfg(feature = "dev-3pass")]
     // TODO: we will add dispatching instead if the method needs to be hybrid based on size considerations
     /// Lazily executes a 3-pass version of Smith-Waterman local alignment,
     /// starting with an `i16` profile.
     ///
-    /// For more details on the algorithm, see [`sw_alignment_3pass`]. See
-    /// [`smith_waterman_alignment_from_i8_3pass`] for an example.
+    /// For more details on the algorithm, see [`sw_align_3pass`]. See
+    /// [`sw_align_from_i8_3pass`] for an example.
     ///
     /// The method automatically increases the integer width until `i32` upon
     /// each overflow. Execution stops when the score returned no longer
     /// overflows the profile's integer range.
     ///
-    /// [`smith_waterman_alignment_from_i8_3pass`]:
-    ///     ProfileSets::smith_waterman_alignment_from_i8_3pass
-    /// [`sw_alignment_3pass`]: crate::alignment::sw::sw_alignment_3pass
-    fn smith_waterman_alignment_from_i16_3pass<T>(&self, seq: SeqSrc<&T>) -> MaybeAligned<Alignment<u32>>
+    /// [`sw_align_from_i8_3pass`]:
+    ///     ProfileSets::sw_align_from_i8_3pass
+    /// [`sw_align_3pass`]: crate::alignment::sw::sw_align_3pass
+    #[inline]
+    #[must_use]
+    fn sw_align_from_i16_3pass<T>(&self, seq: SeqSrc<&T>) -> MaybeAligned<Alignment<u32>>
     where
         T: AsRef<[u8]> + ?Sized, {
         let seq = seq.map(AsRef::as_ref);
 
         self.get_i16()
-            .smith_waterman_alignment_3pass(seq, self.sequence(), self.matrix(), self.gap_open(), self.gap_extend())
+            .sw_align_3pass(seq, self.sequence(), self.matrix(), self.gap_open(), self.gap_extend())
             .or_else_overflowed(|| {
-                self.get_i32().smith_waterman_alignment_3pass(
-                    seq,
-                    self.sequence(),
-                    self.matrix(),
-                    self.gap_open(),
-                    self.gap_extend(),
-                )
+                self.get_i32()
+                    .sw_align_3pass(seq, self.sequence(), self.matrix(), self.gap_open(), self.gap_extend())
             })
     }
 
-    #[inline]
-    #[must_use]
-    #[cfg(feature = "dev-3pass")]
     // TODO: we will add dispatching instead if the method needs to be hybrid based on size considerations
     /// Lazily executes a 3-pass version of Smith-Waterman local alignment using
     /// an `i32` profile.
     ///
-    /// For more details on the algorithm, see [`sw_alignment_3pass`]. See
-    /// [`smith_waterman_alignment_from_i8_3pass`] for an example.
+    /// For more details on the algorithm, see [`sw_align_3pass`]. See
+    /// [`sw_align_from_i8_3pass`] for an example.
     ///
     /// If the score overflows the range allowed by an `i32`, then
     /// [`MaybeAligned::Overflowed`] is returned, since this is the highest
     /// profile supported by *Zoe*'s profile sets.
     ///
-    /// [`smith_waterman_alignment_from_i8_3pass`]:
-    ///     ProfileSets::smith_waterman_alignment_from_i8_3pass
-    /// [`sw_alignment_3pass`]: crate::alignment::sw::sw_alignment_3pass
-    fn smith_waterman_alignment_from_i32_3pass<T>(&self, seq: SeqSrc<&T>) -> MaybeAligned<Alignment<u32>>
+    /// [`sw_align_from_i8_3pass`]:
+    ///     ProfileSets::sw_align_from_i8_3pass
+    /// [`sw_align_3pass`]: crate::alignment::sw::sw_align_3pass
+    #[inline]
+    #[must_use]
+    fn sw_align_from_i32_3pass<T>(&self, seq: SeqSrc<&T>) -> MaybeAligned<Alignment<u32>>
     where
         T: AsRef<[u8]> + ?Sized, {
         let seq = seq.map(AsRef::as_ref);
 
-        self.get_i32().smith_waterman_alignment_3pass(
-            seq,
-            self.sequence(),
-            self.matrix(),
-            self.gap_open(),
-            self.gap_extend(),
-        )
+        self.get_i32()
+            .sw_align_3pass(seq, self.sequence(), self.matrix(), self.gap_open(), self.gap_extend())
     }
 
-    /// Lazily execute [`StripedProfile::smith_waterman_score_ranges`] starting
+    /// Lazily execute [`StripedProfile::sw_score_ranges`] starting
     /// with the `i8` profile.
     ///
     /// Lazily initializes the profiles and works its way up to the `i32`
@@ -334,55 +311,58 @@ where
     /// const GAP_EXTEND: i8 = -1;
     ///
     /// let profile = LocalProfiles::new_with_w256(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-    /// let scores_and_ranges = profile.smith_waterman_score_ranges_from_i8(SeqSrc::Reference(reference)).unwrap();
+    /// let scores_and_ranges = profile.sw_score_ranges_from_i8(SeqSrc::Reference(reference)).unwrap();
     /// assert_eq!(scores_and_ranges.score, 26);
     /// assert_eq!(scores_and_ranges.query_range, 0..15);
     /// assert_eq!(scores_and_ranges.ref_range, 14..31);
     /// ```
-    #[cfg(feature = "dev-3pass")]
-    fn smith_waterman_score_ranges_from_i8<T>(&self, seq: SeqSrc<&T>) -> MaybeAligned<ScoreAndRanges<u32>>
+    #[inline]
+    #[must_use]
+    fn sw_score_ranges_from_i8<T>(&self, seq: SeqSrc<&T>) -> MaybeAligned<ScoreAndRanges<u32>>
     where
         T: AsRef<[u8]> + ?Sized, {
         let seq = seq.map(AsRef::as_ref);
 
         self.get_i8()
-            .smith_waterman_score_ranges(seq)
-            .or_else_overflowed(|| self.get_i16().smith_waterman_score_ranges(seq))
-            .or_else_overflowed(|| self.get_i32().smith_waterman_score_ranges(seq))
+            .sw_score_ranges(seq)
+            .or_else_overflowed(|| self.get_i16().sw_score_ranges(seq))
+            .or_else_overflowed(|| self.get_i32().sw_score_ranges(seq))
     }
 
-    /// Lazily execute [`StripedProfile::smith_waterman_score_ranges`] starting
+    /// Lazily execute [`StripedProfile::sw_score_ranges`] starting
     /// with the `i16` profile, skipping the `i8` profile.
     ///
     /// Lazily initializes the profiles and works its way up to the `i32`
     /// profile. Execution stops when the alignment returned no longer overflows
     /// the profile's integer range.
     ///
-    /// See [`LocalProfiles::smith_waterman_score_ranges_from_i8`] for an
+    /// See [`LocalProfiles::sw_score_ranges_from_i8`] for an
     /// example.
-    #[cfg(feature = "dev-3pass")]
-    fn smith_waterman_score_ranges_from_i16<T>(&self, seq: SeqSrc<&T>) -> MaybeAligned<ScoreAndRanges<u32>>
+    #[inline]
+    #[must_use]
+    fn sw_score_ranges_from_i16<T>(&self, seq: SeqSrc<&T>) -> MaybeAligned<ScoreAndRanges<u32>>
     where
         T: AsRef<[u8]> + ?Sized, {
         let seq = seq.map(AsRef::as_ref);
 
         self.get_i16()
-            .smith_waterman_score_ranges(seq)
-            .or_else_overflowed(|| self.get_i32().smith_waterman_score_ranges(seq))
+            .sw_score_ranges(seq)
+            .or_else_overflowed(|| self.get_i32().sw_score_ranges(seq))
     }
 
-    /// Execute [`StripedProfile::smith_waterman_score_ranges`] with the `i32`
+    /// Execute [`StripedProfile::sw_score_ranges`] with the `i32`
     /// profile, skipping the `i8` and `i16` profiles.
     ///
-    /// See [`LocalProfiles::smith_waterman_score_ranges_from_i8`] for an
+    /// See [`LocalProfiles::sw_score_ranges_from_i8`] for an
     /// example.
-    #[cfg(feature = "dev-3pass")]
-    fn smith_waterman_score_ranges_from_i32<T>(&self, seq: SeqSrc<&T>) -> MaybeAligned<ScoreAndRanges<u32>>
+    #[inline]
+    #[must_use]
+    fn sw_score_ranges_from_i32<T>(&self, seq: SeqSrc<&T>) -> MaybeAligned<ScoreAndRanges<u32>>
     where
         T: AsRef<[u8]> + ?Sized, {
         let seq = seq.map(AsRef::as_ref);
 
-        self.get_i32().smith_waterman_score_ranges(seq)
+        self.get_i32().sw_score_ranges(seq)
     }
 }
 

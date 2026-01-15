@@ -163,7 +163,7 @@ impl Nucleotides {
     /// const GAP_EXTEND: i8 = -1;
     ///
     /// let profile = query.into_local_profile(&WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-    /// let score = profile.smith_waterman_score_from_i8(reference).unwrap();
+    /// let score = profile.sw_score_from_i8(reference).unwrap();
     /// assert_eq!(score, 27);
     /// ```
     #[inline]
@@ -196,7 +196,7 @@ impl Nucleotides {
     /// const GAP_EXTEND: i8 = -1;
     ///
     /// let profile = query.into_shared_profile(&WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-    /// let score = profile.smith_waterman_score_from_i8(reference).unwrap();
+    /// let score = profile.sw_score_from_i8(reference).unwrap();
     /// assert_eq!(score, 27);
     /// ```
     #[inline]

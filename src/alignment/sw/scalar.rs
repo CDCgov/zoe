@@ -146,7 +146,7 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 ///
 ///  ```
 /// # use zoe::{
-/// #     alignment::{Alignment, ScalarProfile, sw::sw_scalar_alignment},
+/// #     alignment::{Alignment, ScalarProfile, sw::sw_scalar_align},
 /// #     data::{matrices::WeightMatrix, cigar::Cigar}
 /// # };
 /// let reference: &[u8] = b"GGCCACAGGATTGAG";
@@ -157,14 +157,14 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 /// const GAP_EXTEND: i8 = -1;
 ///
 /// let profile = ScalarProfile::<5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-/// let alignment = sw_scalar_alignment(&reference, &profile).unwrap();
+/// let alignment = sw_scalar_align(&reference, &profile).unwrap();
 /// assert_eq!(alignment.ref_range.start, 3);
 /// assert_eq!(alignment.states, Cigar::from_slice_unchecked("5M1D4M"));
 /// assert_eq!(alignment.score, 27);
 /// ```
 #[must_use]
 #[allow(clippy::cast_sign_loss)]
-pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfile<S>) -> MaybeAligned<Alignment<u32>> {
+pub fn sw_scalar_align<const S: usize>(reference: &[u8], query: &ScalarProfile<S>) -> MaybeAligned<Alignment<u32>> {
     // See dev comments in sw_scalar_score for more details
 
     // TODO: Potentially remove this, since it isn't necessary and isn't an
@@ -264,7 +264,7 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
     }
 }
 
-/// Similar to [`sw_scalar_alignment`], but allows the user to pass a closure to
+/// Similar to [`sw_scalar_align`], but allows the user to pass a closure to
 /// selectively alter certain scores in the DP table.
 ///
 /// The closure `alter_score` accepts the row index, the column index, and the
@@ -272,7 +272,7 @@ pub fn sw_scalar_alignment<const S: usize>(reference: &[u8], query: &ScalarProfi
 #[must_use]
 #[cfg(feature = "alignment-diagnostics")]
 #[allow(clippy::cast_sign_loss)]
-pub fn sw_scalar_alignment_override<F, const S: usize>(
+pub fn sw_scalar_align_override<F, const S: usize>(
     reference: &[u8], query: &ScalarProfile<S>, mut alter_score: F,
 ) -> MaybeAligned<Alignment<u32>>
 where

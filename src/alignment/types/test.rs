@@ -1,7 +1,6 @@
 use crate::{
     alignment::{
-        AlignmentStates, PairwiseSequence, StatesSequence, StatesSequenceMut, profile::ScalarProfile,
-        sw::sw_scalar_alignment,
+        AlignmentStates, PairwiseSequence, StatesSequence, StatesSequenceMut, profile::ScalarProfile, sw::sw_scalar_align,
     },
     data::{
         amino_acids::AminoAcids,
@@ -21,7 +20,7 @@ fn alignment_invert() {
     let query: &[u8] = b"TCTCAGATTGCAGTTT";
 
     let profile = ScalarProfile::<5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-    let alignment = sw_scalar_alignment(reference, &profile).unwrap();
+    let alignment = sw_scalar_align(reference, &profile).unwrap();
     let invert_alignment = alignment.invert();
 
     assert_eq!(alignment.ref_range, 3..15);
