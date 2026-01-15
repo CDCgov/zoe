@@ -1,6 +1,7 @@
 use crate::{
     alignment::{
-        Alignment, BackTrackable, BacktrackMatrixStriped, MaybeAligned, ScoreAndIndices, SimdBacktrackFlags, StripedProfile,
+        Alignment, BackTrackable, BacktrackMatrixStriped, MaybeAligned, ScoreEnds, ScoreIndices, SimdBacktrackFlags,
+        StripedProfile,
     },
     math::AlignableIntWidth,
     simd::SimdAnyInt,
@@ -11,7 +12,7 @@ use std::simd::{
 };
 
 #[cfg(feature = "dev-3pass")]
-use crate::alignment::ScoreAndRanges;
+use crate::alignment::{ScoreAndRanges, ScoreStarts};
 
 /// Smith-Waterman algorithm (vectorized), yielding the optimal score.
 ///
@@ -145,12 +146,14 @@ where
 #[must_use]
 pub fn sw_simd_score_ends<T, const N: usize, const S: usize>(
     reference: &[u8], query: &StripedProfile<T, N, S>,
-) -> MaybeAligned<ScoreAndIndices<u32>>
+) -> MaybeAligned<ScoreEnds<u32>>
 where
     T: AlignableIntWidth,
     LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdAnyInt<T, N>, {
-    sw_simd_score_ends_dir::<T, N, S, true>(reference, query)
+    // Validity: Since FORWARD is true, the indices represent the ends of the
+    // alignment
+    sw_simd_score_ends_dir::<T, N, S, true>(reference, query).map(ScoreIndices::into_score_ends)
 }
 
 /// Similar to [`sw_simd_score`], but includes the reference and query
@@ -171,12 +174,14 @@ where
 #[cfg(feature = "dev-3pass")]
 pub(crate) fn sw_simd_score_ends_reverse<T, const N: usize, const S: usize>(
     reference: &[u8], query: &StripedProfile<T, N, S>,
-) -> MaybeAligned<ScoreAndIndices<u32>>
+) -> MaybeAligned<ScoreStarts<u32>>
 where
     T: AlignableIntWidth,
     LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdAnyInt<T, N>, {
-    sw_simd_score_ends_dir::<T, N, S, false>(reference, query)
+    // Validity: Since FORWARD is false, the indices represent the ends of the
+    // alignment
+    sw_simd_score_ends_dir::<T, N, S, false>(reference, query).map(ScoreIndices::into_score_starts)
 }
 
 // TODO: Doc link
@@ -203,7 +208,7 @@ where
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
 fn sw_simd_score_ends_dir<T, const N: usize, const S: usize, const FORWARD: bool>(
     reference: &[u8], query: &StripedProfile<T, N, S>,
-) -> MaybeAligned<ScoreAndIndices<u32>>
+) -> MaybeAligned<ScoreIndices<u32>>
 where
     T: AlignableIntWidth,
     LaneCount<N>: SupportedLaneCount,
@@ -320,7 +325,7 @@ where
         c_end = query.seq_len - 1 - c_end;
     }
 
-    score_to_maybe_aligned(best, query.bias, |score| ScoreAndIndices {
+    score_to_maybe_aligned(best, query.bias, |score| ScoreIndices {
         score,
         ref_idx: r_end,
         query_idx: c_end,
@@ -343,10 +348,10 @@ where
     LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdAnyInt<T, N>, {
     sw_simd_score_ends::<T, N, S>(reference, query).and_then(|score_and_end_idxs| {
-        let ScoreAndIndices {
+        let ScoreEnds {
             score,
-            ref_idx: ref_end,
-            query_idx: query_end,
+            ref_end,
+            query_end,
         } = score_and_end_idxs;
 
         let Some(query_rev) = query.reverse_from_forward(query_end) else {
@@ -354,10 +359,10 @@ where
         };
 
         sw_simd_score_ends_reverse(&reference[..ref_end], &query_rev).map(|score_and_start_idxs| {
-            let ScoreAndIndices {
+            let ScoreStarts {
                 score: score2,
-                ref_idx: ref_start,
-                query_idx: query_start,
+                ref_start,
+                query_start,
             } = score_and_start_idxs;
 
             debug_assert_eq!(score, score2);

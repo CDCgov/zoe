@@ -1,6 +1,6 @@
 use crate::{
     alignment::{
-        Alignment, MaybeAligned, ProfileError, ScoreAndIndices, SeqSrc,
+        Alignment, MaybeAligned, ProfileError, ScoreEnds, SeqSrc,
         sw::{sw_scalar_alignment, sw_scalar_score, sw_simd_alignment, sw_simd_score, sw_simd_score_ends},
     },
     data::{mappings::ByteIndexMap, matrices::WeightMatrix},
@@ -15,7 +15,7 @@ use std::{
 
 #[cfg(feature = "dev-3pass")]
 use crate::alignment::{
-    ScoreAndRanges,
+    ScoreAndRanges, ScoreStarts,
     sw::{sw_alignment_3pass, sw_simd_score_ranges},
 };
 
@@ -456,7 +456,7 @@ where
     /// [`smith_waterman_score`]: Self::smith_waterman_score
     #[inline]
     #[must_use]
-    pub fn smith_waterman_score_ends<Q>(&self, seq: SeqSrc<&Q>) -> MaybeAligned<ScoreAndIndices<u32>>
+    pub fn smith_waterman_score_ends<Q>(&self, seq: SeqSrc<&Q>) -> MaybeAligned<ScoreEnds<u32>>
     where
         Q: AsRef<[u8]> + ?Sized, {
         seq.make_alignment(|reference| sw_simd_score_ends::<T, N, S>(reference.as_ref(), self))
@@ -479,7 +479,7 @@ where
     #[must_use]
     #[allow(dead_code)]
     #[cfg(feature = "dev-3pass")]
-    pub(crate) fn smith_waterman_score_ends_reverse<Q>(&self, seq: SeqSrc<&Q>) -> MaybeAligned<ScoreAndIndices<u32>>
+    pub(crate) fn smith_waterman_score_ends_reverse<Q>(&self, seq: SeqSrc<&Q>) -> MaybeAligned<ScoreStarts<u32>>
     where
         Q: AsRef<[u8]> + ?Sized, {
         seq.make_alignment(|reference| crate::alignment::sw::sw_simd_score_ends_reverse::<T, N, S>(reference.as_ref(), self))

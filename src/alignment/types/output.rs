@@ -106,31 +106,82 @@ impl<T> MaybeAligned<T> {
     }
 }
 
-/// An alignment output for algorithms returning a score and an index in the
-/// query and reference.
+/// An alignment output for helper functions returning the score, an index in
+/// the reference, and an index in the query.
 ///
-/// See the documentation for the method returning this for an interpretation of
-/// the index fields.
-pub struct ScoreAndIndices<T> {
-    /// The score of the alignment.
+/// For user-facing algorithms, [`ScoreStarts`] or [`ScoreEnds`] should be used
+/// to make the meanings of the fields explicit. This is used only on internal
+/// helper functions that can return either one.
+pub(crate) struct ScoreIndices<T> {
     pub score:     T,
-    /// An index into the reference sequence.
     pub ref_idx:   usize,
-    /// An index into the query sequence.
     pub query_idx: usize,
 }
 
-/// An alignment output for algorithms returning a score and ranges of the query
-/// and reference.
-///
-/// See the documentation for the method returning this for an interpretation of
-/// the range fields.
+impl<T> ScoreIndices<T> {
+    /// Converts the [`ScoreIndices`] to the more explicit [`ScoreStarts`].
+    ///
+    /// ## Validity
+    ///
+    /// This should only be called when the indices in `self` represent the
+    /// start of the alignment in each sequence.
+    #[inline]
+    #[must_use]
+    pub fn into_score_starts(self) -> ScoreStarts<T> {
+        ScoreStarts {
+            score:       self.score,
+            ref_start:   self.ref_idx,
+            query_start: self.query_idx,
+        }
+    }
+
+    /// Converts the [`ScoreIndices`] to the more explicit [`ScoreEnds`].
+    ///
+    /// ## Validity
+    ///
+    /// This should only be called when the indices in `self` represent the end
+    /// of the alignment in each sequence.
+    #[inline]
+    #[must_use]
+    pub fn into_score_ends(self) -> ScoreEnds<T> {
+        ScoreEnds {
+            score:     self.score,
+            ref_end:   self.ref_idx,
+            query_end: self.query_idx,
+        }
+    }
+}
+
+/// An alignment output for algorithms returning the score, the starting index
+/// in the reference, and the starting index in the query.
+pub struct ScoreStarts<T> {
+    /// The score of the alignment.
+    pub score:       T,
+    /// The starting index of the alignment within the reference.
+    pub ref_start:   usize,
+    /// The starting index of the alignment within the query.
+    pub query_start: usize,
+}
+
+/// An alignment output for algorithms returning the score, the ending index in
+/// the reference, and the ending index in the query.
+pub struct ScoreEnds<T> {
+    /// The score of the alignment.
+    pub score:     T,
+    /// The ending index of the alignment within the reference.
+    pub ref_end:   usize,
+    /// The ending index of the alignment within the query.
+    pub query_end: usize,
+}
+
+/// An alignment output for algorithms returning the score, the range of indices
+/// aligned in the reference, and the range of indices aligned in the query.
 pub struct ScoreAndRanges<T> {
     /// The score of the alignment.
     pub score:       T,
-    /// A range of indices in the reference sequence.
+    /// The range of indices in the alignment for the reference sequence.
     pub ref_range:   Range<usize>,
-    /// A range of indices in the query sequence.
+    /// The range of indices in the alignment for the query sequence.
     pub query_range: Range<usize>,
 }
 

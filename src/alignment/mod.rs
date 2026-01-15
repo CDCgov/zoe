@@ -52,13 +52,35 @@ where
     }
 }
 
-impl<T> HasQueryAndRefData for ScoreAndIndices<T> {
+impl<T> HasQueryAndRefData for ScoreIndices<T> {
     #[inline]
     fn invert(self) -> Self {
         Self {
             score:     self.score,
             ref_idx:   self.query_idx,
             query_idx: self.ref_idx,
+        }
+    }
+}
+
+impl<T> HasQueryAndRefData for ScoreStarts<T> {
+    #[inline]
+    fn invert(self) -> Self {
+        Self {
+            score:       self.score,
+            ref_start:   self.query_start,
+            query_start: self.ref_start,
+        }
+    }
+}
+
+impl<T> HasQueryAndRefData for ScoreEnds<T> {
+    #[inline]
+    fn invert(self) -> Self {
+        Self {
+            score:     self.score,
+            ref_end:   self.query_end,
+            query_end: self.ref_end,
         }
     }
 }
