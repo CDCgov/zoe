@@ -190,12 +190,14 @@ where
     #[must_use]
     #[cfg(feature = "dev-3pass")]
     // TODO: we will add dispatching instead if the method needs to be hybrid based on size considerations
-    /// Lazily execute [`StripedProfile::smith_waterman_alignment_3pass`]
-    /// starting with the `i8` profile.
+    /// Lazily executes a 3-pass version of Smith-Waterman local alignment,
+    /// starting with an `i8` profile.
     ///
-    /// Lazily initializes the profiles and works its way up to the `i32`
-    /// profile. Execution stops when the score returned no longer overflows the
-    /// profile's integer range.
+    /// For more details on the algorithm, see [`sw_alignment_3pass`].
+    ///
+    /// The method automatically increases the integer width until `i32` upon
+    /// each overflow. Execution stops when the score returned no longer
+    /// overflows the profile's integer range.
     ///
     /// ## Example
     ///
@@ -215,6 +217,8 @@ where
     /// let score = profile.smith_waterman_alignment_from_i8_3pass(SeqSrc::Reference(reference)).unwrap().score;
     /// assert_eq!(score, 26);
     /// ```
+    ///
+    /// [`sw_alignment_3pass`]: crate::alignment::sw::sw_alignment_3pass
     fn smith_waterman_alignment_from_i8_3pass<T>(&self, seq: SeqSrc<&T>) -> MaybeAligned<Alignment<u32>>
     where
         T: AsRef<[u8]> + ?Sized, {
@@ -246,17 +250,19 @@ where
     #[must_use]
     #[cfg(feature = "dev-3pass")]
     // TODO: we will add dispatching instead if the method needs to be hybrid based on size considerations
-    /// Lazily execute [`StripedProfile::smith_waterman_alignment_3pass`]
-    /// starting with the `i16` profile.
+    /// Lazily executes a 3-pass version of Smith-Waterman local alignment,
+    /// starting with an `i16` profile.
     ///
-    /// Lazily initializes the profiles and works its way up to the `i32`
-    /// profile. Execution stops when the score returned no longer overflows the
-    /// profile's integer range.
+    /// For more details on the algorithm, see [`sw_alignment_3pass`]. See
+    /// [`smith_waterman_alignment_from_i8_3pass`] for an example.
     ///
-    /// See [`smith_waterman_alignment_from_i8_3pass`] for an example.
+    /// The method automatically increases the integer width until `i32` upon
+    /// each overflow. Execution stops when the score returned no longer
+    /// overflows the profile's integer range.
     ///
     /// [`smith_waterman_alignment_from_i8_3pass`]:
     ///     ProfileSets::smith_waterman_alignment_from_i8_3pass
+    /// [`sw_alignment_3pass`]: crate::alignment::sw::sw_alignment_3pass
     fn smith_waterman_alignment_from_i16_3pass<T>(&self, seq: SeqSrc<&T>) -> MaybeAligned<Alignment<u32>>
     where
         T: AsRef<[u8]> + ?Sized, {
@@ -279,17 +285,19 @@ where
     #[must_use]
     #[cfg(feature = "dev-3pass")]
     // TODO: we will add dispatching instead if the method needs to be hybrid based on size considerations
-    /// Execute [`StripedProfile::smith_waterman_alignment_3pass`] using the
-    /// `i32` profile.
+    /// Lazily executes a 3-pass version of Smith-Waterman local alignment using
+    /// an `i32` profile.
+    ///
+    /// For more details on the algorithm, see [`sw_alignment_3pass`]. See
+    /// [`smith_waterman_alignment_from_i8_3pass`] for an example.
     ///
     /// If the score overflows the range allowed by an `i32`, then
     /// [`MaybeAligned::Overflowed`] is returned, since this is the highest
     /// profile supported by *Zoe*'s profile sets.
     ///
-    /// See [`smith_waterman_alignment_from_i8_3pass`] for an example.
-    ///
     /// [`smith_waterman_alignment_from_i8_3pass`]:
     ///     ProfileSets::smith_waterman_alignment_from_i8_3pass
+    /// [`sw_alignment_3pass`]: crate::alignment::sw::sw_alignment_3pass
     fn smith_waterman_alignment_from_i32_3pass<T>(&self, seq: SeqSrc<&T>) -> MaybeAligned<Alignment<u32>>
     where
         T: AsRef<[u8]> + ?Sized, {

@@ -550,7 +550,7 @@ where
     #[must_use]
     #[cfg(feature = "dev-3pass")]
     #[allow(clippy::missing_panics_doc)]
-    pub fn smith_waterman_alignment_3pass<Q>(
+    pub(crate) fn smith_waterman_alignment_3pass<Q>(
         &self, seq: SeqSrc<&Q>, profile_seq: &[u8], matrix: &WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
     ) -> MaybeAligned<Alignment<u32>>
     where

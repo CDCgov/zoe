@@ -31,6 +31,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - `CheckedCigar` no longer has a blanket implementation, and is instead manually implemented on relevant types (behind `fuzzing` feature gate)
 - Updated error handling logic and style for `OrFail` trait.
 - Standalone function `zoe::data::err::open_nonempty_file` is now public
+- `smith_waterman_alignment_3pass` is now private on `StripedProfile` (behind `dev-3pass` feature gate)
 
 ### Fixes
 
