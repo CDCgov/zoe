@@ -256,13 +256,26 @@ trait SamHmmConfig<const S: usize, const L: usize> {
             ));
         };
 
+        // The first layer represents transitions from Begin layer to either the
+        // insert state in that layer, or the other states in the FirstMatch
+        // layer. There is no Delete state in Begin layer, so do not allow this
+        // as a starting state.
         first_layer.transition[(Delete, Delete)] = T::INFINITY;
         first_layer.transition[(Delete, Match)] = T::INFINITY;
         first_layer.transition[(Delete, Insert)] = T::INFINITY;
 
+        // The last layer represents transitions from LastMatch layer to either
+        // the insert state in that layer, or the other states in the End layer.
+        // There is no Delete state in End layer, so do not allow this as an
+        // ending state.
         last_layer.transition[(Delete, Delete)] = T::INFINITY;
         last_layer.transition[(Insert, Delete)] = T::INFINITY;
         last_layer.transition[(Match, Delete)] = T::INFINITY;
+
+        // Each LayerParams holds the emission probabilities for the next layer.
+        // There is no match state in the End layer (after the LastMatch layer),
+        // so do not allow emissions here.
+        last_layer.emission_match = EmissionParams::default();
 
         // Validity: We already verified `layers` has at least two entries
         Ok(GlobalPhmm::new(mapping, CorePhmm::new_unchecked(layers)))
