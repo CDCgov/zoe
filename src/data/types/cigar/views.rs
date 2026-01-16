@@ -1,5 +1,5 @@
 use crate::data::{
-    cigar::{Cigar, CigarError},
+    cigar::{Cigar, CigarError, CigletIterator},
     views::impl_views_for_wrapper,
 };
 
@@ -40,6 +40,15 @@ impl<'a> CigarView<'a> {
     pub fn new() -> Self {
         Self(b"")
     }
+
+    /// Returns an iterator of the contained [`Ciglet`] values.
+    ///
+    /// [`Ciglet`]: crate::data::types::cigar::Ciglet
+    #[inline]
+    #[must_use]
+    pub fn iter(&self) -> CigletIterator<'a> {
+        CigletIterator::new(self.0)
+    }
 }
 
 impl<'a> CigarViewMut<'a> {
@@ -55,6 +64,15 @@ impl<'a> CigarViewMut<'a> {
     #[must_use]
     pub fn from_slice_unchecked(v: &'a mut [u8]) -> Self {
         Self(v)
+    }
+
+    /// Returns an iterator of the contained [`Ciglet`] values.
+    ///
+    /// [`Ciglet`]: crate::data::types::cigar::Ciglet
+    #[inline]
+    #[must_use]
+    pub fn iter(&self) -> CigletIterator<'_> {
+        CigletIterator::new(self.0)
     }
 }
 

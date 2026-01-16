@@ -101,7 +101,7 @@ impl Cigar {
         ExpandedCigar(expanded)
     }
 
-    /// Returns an iterator of [`Ciglet`] for the CIGAR.
+    /// Returns an iterator over the contained [`Ciglet`] values.
     #[inline]
     #[must_use]
     pub fn iter(&self) -> CigletIterator<'_> {
@@ -162,6 +162,36 @@ impl<'a> IntoIterator for &'a Cigar {
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
         CigletIterator::new(&self.0)
+    }
+}
+
+impl<'a> IntoIterator for CigarView<'a> {
+    type Item = Ciglet;
+    type IntoIter = CigletIterator<'a>;
+
+    #[inline]
+    fn into_iter(self) -> Self::IntoIter {
+        CigletIterator::new(self.as_bytes())
+    }
+}
+
+impl<'a> IntoIterator for &CigarView<'a> {
+    type Item = Ciglet;
+    type IntoIter = CigletIterator<'a>;
+
+    #[inline]
+    fn into_iter(self) -> Self::IntoIter {
+        CigletIterator::new(self.as_bytes())
+    }
+}
+
+impl<'a> IntoIterator for &'a CigarViewMut<'a> {
+    type Item = Ciglet;
+    type IntoIter = CigletIterator<'a>;
+
+    #[inline]
+    fn into_iter(self) -> Self::IntoIter {
+        CigletIterator::new(self.as_bytes())
     }
 }
 
@@ -297,7 +327,7 @@ pub struct CigletIterator<'a> {
 impl<'a> CigletIterator<'a> {
     /// Constructs an iterator from a CIGAR byte buffer.
     #[inline]
-    fn new(buffer: &'a [u8]) -> Self {
+    pub(crate) fn new(buffer: &'a [u8]) -> Self {
         CigletIterator { buffer, valid: true }
     }
 
@@ -722,6 +752,42 @@ impl ToCigletIterator for &Cigar {
 }
 
 impl ToCigletIterator for &mut Cigar {
+    type Iter<'a>
+        = CigletIterator<'a>
+    where
+        Self: 'a;
+
+    #[inline]
+    fn to_ciglet_iterator(&self) -> CigletIterator<'_> {
+        self.iter()
+    }
+}
+
+impl<'b> ToCigletIterator for CigarView<'b> {
+    type Iter<'a>
+        = CigletIterator<'b>
+    where
+        Self: 'a;
+
+    #[inline]
+    fn to_ciglet_iterator(&self) -> CigletIterator<'b> {
+        self.iter()
+    }
+}
+
+impl<'b> ToCigletIterator for &CigarView<'b> {
+    type Iter<'a>
+        = CigletIterator<'b>
+    where
+        Self: 'a;
+
+    #[inline]
+    fn to_ciglet_iterator(&self) -> CigletIterator<'b> {
+        self.iter()
+    }
+}
+
+impl ToCigletIterator for &CigarViewMut<'_> {
     type Iter<'a>
         = CigletIterator<'a>
     where
