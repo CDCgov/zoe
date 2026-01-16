@@ -319,6 +319,12 @@ trait SamHmmConfig<const S: usize, const L: usize> {
         }
 
         write!(writer, "END ")?;
+
+        // Clear the parameters that were taken from layer in the above loop, so
+        // that they are 0 (and do not appear duplicated in the file output)
+        current_layer.transition[Insert] = [T::INFINITY; 3];
+        current_layer.emission_insert = EmissionParams::default();
+
         print_params(&mut writer, Self::ungroup_params(&current_layer))?;
         writeln!(writer)?;
         writeln!(writer, "ENDMODEL")
