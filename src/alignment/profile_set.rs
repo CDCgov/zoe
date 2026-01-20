@@ -1,5 +1,5 @@
 use crate::{
-    alignment::{Alignment, MaybeAligned, ProfileError, SeqSrc, StripedProfile, validate_profile_args},
+    alignment::{Alignment, MaybeAligned, ProfileError, ScoreAndRanges, SeqSrc, StripedProfile, validate_profile_args},
     data::matrices::WeightMatrix,
 };
 use std::{
@@ -310,6 +310,79 @@ where
             self.gap_open(),
             self.gap_extend(),
         )
+    }
+
+    /// Lazily execute [`StripedProfile::smith_waterman_score_ranges`] starting
+    /// with the `i8` profile.
+    ///
+    /// Lazily initializes the profiles and works its way up to the `i32`
+    /// profile. Execution stops when the alignment returned no longer overflows
+    /// the profile's integer range.
+    ///
+    /// ## Example
+    ///
+    /// ```
+    /// # use zoe::{
+    /// #     alignment::{LocalProfiles, ProfileSets, SeqSrc, sw::sw_simd_score},
+    /// #     data::matrices::WeightMatrix
+    /// # };
+    /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
+    /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
+    ///
+    /// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
+    /// const GAP_OPEN: i8 = -3;
+    /// const GAP_EXTEND: i8 = -1;
+    ///
+    /// let profile = LocalProfiles::new_with_w256(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+    /// let scores_and_ranges = profile.smith_waterman_score_ranges_from_i8(SeqSrc::Reference(reference)).unwrap();
+    /// assert_eq!(scores_and_ranges.score, 26);
+    /// assert_eq!(scores_and_ranges.query_range, 0..15);
+    /// assert_eq!(scores_and_ranges.ref_range, 14..31);
+    /// ```
+    #[cfg(feature = "dev-3pass")]
+    fn smith_waterman_score_ranges_from_i8<T>(&self, seq: SeqSrc<&T>) -> MaybeAligned<ScoreAndRanges<u32>>
+    where
+        T: AsRef<[u8]> + ?Sized, {
+        let seq = seq.map(AsRef::as_ref);
+
+        self.get_i8()
+            .smith_waterman_score_ranges(seq)
+            .or_else_overflowed(|| self.get_i16().smith_waterman_score_ranges(seq))
+            .or_else_overflowed(|| self.get_i32().smith_waterman_score_ranges(seq))
+    }
+
+    /// Lazily execute [`StripedProfile::smith_waterman_score_ranges`] starting
+    /// with the `i16` profile, skipping the `i8` profile.
+    ///
+    /// Lazily initializes the profiles and works its way up to the `i32`
+    /// profile. Execution stops when the alignment returned no longer overflows
+    /// the profile's integer range.
+    ///
+    /// See [`LocalProfiles::smith_waterman_score_ranges_from_i8`] for an
+    /// example.
+    #[cfg(feature = "dev-3pass")]
+    fn smith_waterman_score_ranges_from_i16<T>(&self, seq: SeqSrc<&T>) -> MaybeAligned<ScoreAndRanges<u32>>
+    where
+        T: AsRef<[u8]> + ?Sized, {
+        let seq = seq.map(AsRef::as_ref);
+
+        self.get_i16()
+            .smith_waterman_score_ranges(seq)
+            .or_else_overflowed(|| self.get_i32().smith_waterman_score_ranges(seq))
+    }
+
+    /// Execute [`StripedProfile::smith_waterman_score_ranges`] with the `i32`
+    /// profile, skipping the `i8` and `i16` profiles.
+    ///
+    /// See [`LocalProfiles::smith_waterman_score_ranges_from_i8`] for an
+    /// example.
+    #[cfg(feature = "dev-3pass")]
+    fn smith_waterman_score_ranges_from_i32<T>(&self, seq: SeqSrc<&T>) -> MaybeAligned<ScoreAndRanges<u32>>
+    where
+        T: AsRef<[u8]> + ?Sized, {
+        let seq = seq.map(AsRef::as_ref);
+
+        self.get_i32().smith_waterman_score_ranges(seq)
     }
 }
 
