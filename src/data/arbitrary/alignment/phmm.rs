@@ -222,6 +222,8 @@ where
             last_layer.transition[(Delete, Delete)] = K::Output::INFINITY;
             last_layer.transition[(Insert, Delete)] = K::Output::INFINITY;
             last_layer.transition[(Match, Delete)] = K::Output::INFINITY;
+
+            last_layer.emission_match = EmissionParams::default();
         }
 
         Ok(core)
