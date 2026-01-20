@@ -24,6 +24,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `WithErrorContext` and `ResultWithErrorContext` traits using the `ErrorWithContext` struct for updated error-handling.
 - Added methods and implementations to iterate over CIGAR views
 - Added `smith_waterman_score_ranges` functions to `ProfileSets` (behind `dev-3pass` feature gate)
+- Added `InspectCigar` for checking for indels in CIGAR strings or `AlignmentStates`
 
 ### Changed
 

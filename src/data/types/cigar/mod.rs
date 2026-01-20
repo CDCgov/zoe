@@ -950,3 +950,22 @@ where
             .try_fold(0, usize::checked_add)
     }
 }
+
+/// A trait enabling inspection of a CIGAR string (or similar struct) for
+/// certain conditions.
+pub trait InspectCigar {
+    /// Returns whether the alignment contains any insertions (`I`) or deletions
+    /// (`D`).
+    #[must_use]
+    fn has_indels(&self) -> bool;
+}
+
+impl<T> InspectCigar for T
+where
+    T: ToCigletIterator,
+{
+    #[inline]
+    fn has_indels(&self) -> bool {
+        self.to_ciglet_iterator().any(|c| matches!(c.op, b'I' | b'D'))
+    }
+}
