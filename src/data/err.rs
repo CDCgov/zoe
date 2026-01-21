@@ -263,7 +263,7 @@ pub trait ResultWithErrorContext {
     /// ## Errors
     ///
     /// Propagates errors in `self`, with the added context.
-    fn with_context(self, description: String) -> Result<Self::Ok, ErrorWithContext>;
+    fn with_context(self, description: impl Into<String>) -> Result<Self::Ok, ErrorWithContext>;
 
     /// Wraps the [`Err`] variant in a [`ErrorWithContext`] by adding type
     /// context.
@@ -279,14 +279,14 @@ pub trait ResultWithErrorContext {
     /// ## Errors
     ///
     /// Propagates errors in `self`, with the added context.
-    fn with_file_context(self, msg: &str, file: impl AsRef<Path>) -> Result<Self::Ok, ErrorWithContext>;
+    fn with_file_context(self, msg: impl Display, file: impl AsRef<Path>) -> Result<Self::Ok, ErrorWithContext>;
 }
 
 impl<Ok, E: Error + Send + Sync + 'static> ResultWithErrorContext for Result<Ok, E> {
     type Ok = Ok;
 
     #[inline]
-    fn with_context(self, description: String) -> Result<Ok, ErrorWithContext> {
+    fn with_context(self, description: impl Into<String>) -> Result<Ok, ErrorWithContext> {
         self.map_err(|e| e.with_context(description))
     }
 
@@ -296,7 +296,7 @@ impl<Ok, E: Error + Send + Sync + 'static> ResultWithErrorContext for Result<Ok,
     }
 
     #[inline]
-    fn with_file_context(self, msg: &str, file: impl AsRef<Path>) -> Result<Ok, ErrorWithContext> {
+    fn with_file_context(self, msg: impl Display, file: impl AsRef<Path>) -> Result<Ok, ErrorWithContext> {
         self.map_err(|e| e.with_file_context(msg, file))
     }
 }
