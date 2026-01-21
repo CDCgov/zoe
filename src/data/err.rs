@@ -282,7 +282,7 @@ pub trait ResultWithErrorContext {
     fn with_file_context(self, msg: impl Display, file: impl AsRef<Path>) -> Result<Self::Ok, ErrorWithContext>;
 }
 
-impl<Ok, E: Error + Send + Sync + 'static> ResultWithErrorContext for Result<Ok, E> {
+impl<Ok, E: WithErrorContext> ResultWithErrorContext for Result<Ok, E> {
     type Ok = Ok;
 
     #[inline]
