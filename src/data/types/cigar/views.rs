@@ -1,3 +1,5 @@
+//! View types for CIGAR strings.
+
 use crate::data::{
     cigar::{Cigar, CigarError, CigletIterator},
     views::impl_views_for_wrapper,

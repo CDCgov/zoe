@@ -4,11 +4,12 @@ use std::ops::Add;
 /// Banded Smith-Waterman algorithm, yielding a local alignment.
 ///
 /// This implementation restricts the search space to a diagonal band and
-/// performs traceback to generate a local alignment with CIGAR string.
-/// Note that this is a heuristic approach that may not find the globally
-/// optimal alignment due to the band constraint.
+/// performs traceback to generate a local alignment with CIGAR string. Note
+/// that this is a heuristic approach that may not find the globally optimal
+/// alignment due to the band constraint.
 ///
-/// Based on work by (9), see **[module citations](crate::alignment::sw#module-citations)**.
+/// Based on work by (9), see **[module
+/// citations](crate::alignment::sw#module-citations)**.
 ///
 /// ## Arguments
 ///

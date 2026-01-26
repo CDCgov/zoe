@@ -131,7 +131,6 @@
 
 #[cfg(feature = "fuzzing")]
 pub mod arbitrary;
-/// A module with error types and convenience traits for handling [`Result`].
 pub mod err;
 pub mod matrices;
 /// A module for records types--usually for I/O--that are structures of other

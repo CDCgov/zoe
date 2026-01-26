@@ -45,15 +45,23 @@ impl AlignmentStates {
         AlignmentStates(Vec::with_capacity(n))
     }
 
-    /// Number of alignment states. Each element is a [`Ciglet`] or an
-    /// increment-operation pair.
+    /// Number of increment-operation pairs in the alignment.
+    ///
+    /// ## Example
+    ///
+    /// ```
+    /// # use zoe::alignment::AlignmentStates;
+    /// let states = AlignmentStates::try_from(b"3S10M1D9M").unwrap();
+    /// assert_eq!(states.len(), 4);
+    /// ```
     #[inline]
     #[must_use]
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
-    /// No data or zero alignment states.
+    /// Returns whether the [`AlignmentStates`] contains no data (or zero
+    /// alignment states).
     #[inline]
     #[must_use]
     pub fn is_empty(&self) -> bool {
@@ -449,11 +457,11 @@ where
 /// [`peek_op`]: StatesSequence::peek_op
 /// [`peek_back_op`]: StatesSequence::peek_back_op
 pub trait StatesSequence {
-    /// Peeks at the operator for the next ciglet without consuming it.
+    /// Peeks at the operation for the next ciglet without consuming it.
     #[must_use]
     fn peek_op(&self) -> Option<u8>;
 
-    /// Peeks at the operator for the last ciglet without consuming it.
+    /// Peeks at the operation for the last ciglet without consuming it.
     #[must_use]
     fn peek_back_op(&self) -> Option<u8>;
 
@@ -471,14 +479,14 @@ pub trait StatesSequence {
     /// [`StatesSequence`], similar to [`DoubleEndedIterator::next_back`].
     fn next_ciglet_back(&mut self) -> Option<Ciglet>;
 
-    /// Gets the next ciglet if the operator meets the specified predicate,
+    /// Gets the next ciglet if the operation meets the specified predicate,
     /// otherwise the [`StatesSequence`] is not modified.
     #[inline]
     fn next_if_op(&mut self, f: impl FnOnce(u8) -> bool) -> Option<Ciglet> {
         if f(self.peek_op()?) { self.next_ciglet() } else { None }
     }
 
-    /// Gets the last ciglet if the operator meets the specified predicate,
+    /// Gets the last ciglet if the operation meets the specified predicate,
     /// otherwise the [`StatesSequence`] is not modified.
     #[inline]
     fn next_back_if_op(&mut self, f: impl FnOnce(u8) -> bool) -> Option<Ciglet> {
@@ -533,7 +541,7 @@ pub trait StatesSequenceMut<'a>: StatesSequence {
     /// [`DoubleEndedIterator::next_back`].
     fn next_ciglet_back_mut(&mut self) -> Option<&'a mut Ciglet>;
 
-    /// Gets a mutable reference to the next ciglet if the operator meets the
+    /// Gets a mutable reference to the next ciglet if the operation meets the
     /// specified predicate (and then remove it from the [`StatesSequence`]).
     /// Otherwise the [`StatesSequence`] is not modified.
     #[inline]
@@ -541,7 +549,7 @@ pub trait StatesSequenceMut<'a>: StatesSequence {
         if f(self.peek_op()?) { self.next_ciglet_mut() } else { None }
     }
 
-    /// Gets a mutable reference to the last ciglet if the operator meets the
+    /// Gets a mutable reference to the last ciglet if the operation meets the
     /// specified predicat (and then remove it from the [`StatesSequence`]).
     /// Otherwise the [`StatesSequence`] is not modified.
     #[inline]

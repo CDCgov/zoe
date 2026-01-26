@@ -429,19 +429,21 @@ pub trait GetCodonsMut: NucleotidesMutable + Sealed {
 impl GetCodonsMut for Nucleotides {}
 impl GetCodonsMut for NucleotidesViewMut<'_> {}
 
-/// Extension trait for codon-like objects (in Zoe `[u8;3]`) providing common
+/// Extension trait for codon-like objects (`[u8; 3]` in *Zoe*) providing common
 /// classification methods.
 pub trait CodonExtension {
-    /// Returns `true` if the codon is a standard stop codon (TAA, TAG, TGA, or
-    /// RNA equivalents including some ambiguous forms).
+    /// Returns `true` if the codon is a standard stop codon (`TAA`, `TAG`,
+    /// `TGA`, or RNA equivalents including some ambiguous forms).
     fn is_std_stop_codon(&self) -> bool;
 
     /// Returns `true` if the codon translates to an amino acid (not a stop
     /// codon, missing codon, or deletion).
     fn is_amino_acid(&self) -> bool;
 
-    /// Like [`Self::is_amino_acid`] but excludes 'X'. Codes 'B', 'J', and 'Z'
-    /// are not translated from nucleotides.
+    /// Like [`Self::is_amino_acid`] but excludes `X`.
+    ///
+    /// Note that *Zoe* does not translate nucleotides to the codes `B`, `J`,
+    /// and `Z`, and instead uses `X` for all unknown amino acids.
     fn is_known_amino_acid(&self) -> bool;
 
     /// Returns `true` if the codon can be resolved to a translation (amino

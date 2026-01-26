@@ -186,11 +186,11 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
 ///
 /// ## Type Parameters
 ///
-/// - `T` - The numeric type used for scores. i8, i16, i32, and i64 use the
-///   signed algorithm, which is the most common. u8, u16, u32, and u64 use the
-///   unsigned algorithm.
+/// - `T` - The numeric type used for scores. `i8`, `i16`, `i32`, and `i64` use
+///   the signed algorithm, which is the most common. `u8`, `u16`, `u32`, and
+///   `u64` use the unsigned algorithm.
 /// - `N` - The number of SIMD lanes (usually 16, 32 or 64)
-/// - `S` - The size of the alphabet (usually 5 for DNA including *N*)
+/// - `S` - The size of the alphabet (usually 5 for DNA including `N`)
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct StripedProfile<'a, T, const N: usize, const S: usize>
 where

@@ -19,6 +19,10 @@ use std::simd::{
 ///
 /// See **[module citations](crate::alignment::sw#module-citations)**.
 ///
+/// In applications, it is recommended to call a method on [`StripedProfile`] or
+/// [`ProfileSets`], such as [`StripedProfile::sw_score`] or
+/// [`ProfileSets::sw_score_from_i8`].
+///
 /// ## Complexity
 ///
 /// For query length $m$, reference length $n$, and $N$ SIMD lanes:
@@ -52,6 +56,9 @@ use std::simd::{
 /// ```
 ///
 /// [`sw_scalar_score`]: crate::alignment::sw::sw_scalar_score
+/// [`ProfileSets`]: crate::alignment::ProfileSets
+/// [`ProfileSets::sw_score_from_i8`]:
+///     crate::alignment::ProfileSets::sw_score_from_i8
 #[allow(non_snake_case)]
 #[must_use]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
@@ -139,6 +146,9 @@ where
 /// exclusive end indices.
 ///
 /// Note: these coordinates are equivalent to the 1-based end positions.
+///
+/// In applications, it is recommended to call the method
+/// [`StripedProfile::sw_score_ends`].
 #[inline]
 #[must_use]
 pub fn sw_simd_score_ends<T, const N: usize, const S: usize>(
@@ -180,7 +190,6 @@ where
     sw_simd_score_ends_dir::<T, N, S, false>(reference, query).map(ScoreIndices::into_score_starts)
 }
 
-// TODO: Doc link
 /// Similar to [`sw_simd_score`] but also returns the reference and query end or
 /// start coordinates.
 ///
@@ -196,11 +205,13 @@ where
 /// **Important**
 ///
 /// When `FORWARD` is false, the query profile should also be in reverse
-/// orientation, such as using `reverse_from_forward`.
+/// orientation, such as using [`reverse_from_forward`].
 ///
 /// </div>
-#[allow(non_snake_case)]
+///
+/// [`reverse_from_forward`]: StripedProfile::reverse_from_forward
 #[must_use]
+#[allow(non_snake_case)]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
 fn sw_simd_score_ends_dir<T, const N: usize, const S: usize, const FORWARD: bool>(
     reference: &[u8], query: &StripedProfile<T, N, S>,
@@ -329,10 +340,20 @@ where
 }
 
 /// Similar to [`sw_simd_score`] but also returns the reference and query
-/// alignment ranges for 0-based slicing. The algorithm performs a truncated two
-/// pass approach. This approach was inspired by (7).
+/// alignment ranges for 0-based slicing.
+///
+/// The algorithm performs a truncated two pass approach. This approach was
+/// inspired by (7).
 ///
 /// See **[module citations](crate::alignment::sw#module-citations)**.
+///
+/// In applications, it is recommended to call a method on [`StripedProfile`] or
+/// [`ProfileSets`], such as [`StripedProfile::sw_score_ranges`] or
+/// [`ProfileSets::sw_score_ranges_from_i8`].
+///
+/// [`ProfileSets`]: crate::alignment::ProfileSets
+/// [`ProfileSets::sw_score_ranges_from_i8`]:
+///     crate::alignment::ProfileSets::sw_score_ranges_from_i8
 #[inline]
 #[must_use]
 pub fn sw_simd_score_ranges<T, const N: usize, const S: usize>(
@@ -380,6 +401,10 @@ where
 ///
 /// See **[module citations](crate::alignment::sw#module-citations)**.
 ///
+/// In applications, it is recommended to call a method on [`StripedProfile`] or
+/// [`ProfileSets`], such as [`StripedProfile::sw_align`] or
+/// [`ProfileSets::sw_align_from_i8`].
+///
 /// ## Complexity
 ///
 /// For query length $m$, reference length $n$, and $N$ SIMD lanes:
@@ -419,8 +444,12 @@ where
 /// assert_eq!(states, AlignmentStates::try_from("6M2D9M3S").unwrap());
 /// assert_eq!(score, 26);
 /// ```
-#[allow(non_snake_case, clippy::too_many_lines)]
+///
+/// [`ProfileSets`]: crate::alignment::ProfileSets
+/// [`ProfileSets::sw_align_from_i8`]:
+///     crate::alignment::ProfileSets::sw_align_from_i8
 #[must_use]
+#[allow(non_snake_case, clippy::too_many_lines)]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
 pub fn sw_simd_align<T, const N: usize, const S: usize>(
     reference: &[u8], query: &StripedProfile<T, N, S>,

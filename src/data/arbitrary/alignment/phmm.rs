@@ -186,8 +186,8 @@ pub(crate) struct CorePhmmSpecs<K, const S: usize> {
     /// The specifications for generating the parameters.
     pub param_specs: K,
 
-    /// Whether to disallow invalid transitions for the first and last layers by
-    /// setting the parameters to infinity (probability zero).
+    /// Whether to disallow invalid transitions/emissions for the first and last
+    /// layers by setting the parameters to infinity (probability zero).
     pub disallow_invalid: bool,
 }
 
@@ -329,8 +329,8 @@ pub struct DnaGlobalPhmmSpecs<K> {
     /// The specifications for generating the parameters.
     pub param_specs: K,
 
-    /// Whether to disallow invalid transitions for the first and last layers by
-    /// setting the parameters to infinity (probability zero).
+    /// Whether to disallow invalid transitions/emissions for the first and last
+    /// layers by setting the parameters to infinity (probability zero).
     pub disallow_invalid: bool,
 }
 
@@ -358,8 +358,8 @@ pub struct DnaLocalPhmmSpecs<K> {
     /// The specifications for generating the parameters.
     pub param_specs: K,
 
-    /// Whether to disallow invalid transitions for the first and last layers by
-    /// setting the parameters to infinity (probability zero).
+    /// Whether to disallow invalid transitions/emissions for the first and last
+    /// layers by setting the parameters to infinity (probability zero).
     pub disallow_invalid: bool,
 
     /// Whether to ensure that the modules have a compatible size with the core
@@ -401,8 +401,8 @@ pub struct DnaDomainPhmmSpecs<K> {
     /// The specifications for generating the floating point parameters.
     pub param_specs: K,
 
-    /// Whether to disallow invalid transitions for the first and last layers by
-    /// setting the parameters to infinity (probability zero).
+    /// Whether to disallow invalid transitions/emissions for the first and last
+    /// layers by setting the parameters to infinity (probability zero).
     pub disallow_invalid: bool,
 }
 
@@ -439,8 +439,8 @@ pub struct DnaSemiLocalPhmmSpecs<K> {
     /// The specifications for generating the parameters.
     pub param_specs: K,
 
-    /// Whether to disallow invalid transitions for the first and last layers by
-    /// setting the parameters to infinity (probability zero).
+    /// Whether to disallow invalid transitions/emissions for the first and last
+    /// layers by setting the parameters to infinity (probability zero).
     pub disallow_invalid: bool,
 
     /// Whether to ensure that the modules have a compatible size with the core

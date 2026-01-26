@@ -15,6 +15,9 @@ use std::ops::Add;
 ///
 /// See **[module citations](crate::alignment::sw#module-citations)**.
 ///
+/// In applications, it is recommended to call the method
+/// [`ScalarProfile::sw_score`].
+///
 /// ## Complexity
 ///
 /// For query length $m$ and reference length $n$:
@@ -128,6 +131,9 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 /// This implementation will not return [`MaybeAligned::Overflowed`].
 ///
 /// See **[module citations](crate::alignment::sw#module-citations)**.
+///
+/// In applications, it is recommended to call the method
+/// [`ScalarProfile::sw_align`].
 ///
 /// ## Complexity
 ///
@@ -270,8 +276,8 @@ pub fn sw_scalar_align<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 /// The closure `alter_score` accepts the row index, the column index, and the
 /// old score as arguments and should yield the new score.
 #[must_use]
-#[cfg(feature = "alignment-diagnostics")]
 #[allow(clippy::cast_sign_loss)]
+#[cfg(feature = "alignment-diagnostics")]
 pub fn sw_scalar_align_override<F, const S: usize>(
     reference: &[u8], query: &ScalarProfile<S>, mut alter_score: F,
 ) -> MaybeAligned<Alignment<u32>>

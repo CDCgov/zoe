@@ -1,19 +1,33 @@
 //! ## Smith-Waterman Alignment
 //!
 //! This module provides core algorithms and routines used to perform local
-//! sequence alignment, including SIMD vectorized algorithms. This includes:
+//! sequence alignment, including SIMD vectorized algorithms. This includes
+//! computing:
 //!
-//! - Generating just the optimal score with [`sw_simd_score`]
-//! - Generating the full local alignment with [`sw_simd_align`]
-//! - A two-pass method generating the score and the end indices of the
-//!   alignment with [`sw_simd_score_ends`]
+//! - The optimal score with [`sw_simd_score`] (and
+//!   [`ProfileSets::sw_score_from_i8`] and [`StripedProfile::sw_score`])
+//! - The full local alignment with [`sw_simd_align`] (and
+//!   [`ProfileSets::sw_align_from_i8`] and [`StripedProfile::sw_align`])
 //!
-//! In applications, it is recommended to first create a [`StripedProfile`] or
-//! [`ProfileSets`], and then call the corresponding methods on those. For more
-//! details, see [usage steps](crate::alignment::sw#usage-steps) below. This
-//! allows more flexibility, such as building the profile from either the query
-//! or the reference sequence. When developing new alignment routines, the
-//! standalone functions should be used.
+//! Other more specialized algorithms are also available:
+//!
+//! - The local alignment using less memory for the traceback matrix via a
+//!   three-pass approach, with [`ProfileSets::sw_align_from_i8_3pass`]
+//! - The optimal score and ranges for the alignment (the portions of the
+//!   sequence that align to each other) via a two-pass approach, with
+//!   [`sw_simd_score_ranges`] (and [`ProfileSets::sw_score_ranges_from_i8`] and
+//!   [`StripedProfile::sw_score_ranges`])
+//! - The optimal score and end indices of the alignment using one pass, with
+//!   [`sw_simd_score_ends`] (or [`StripedProfile::sw_score_ends`]).
+//!
+//! In applications, it is recommended to first create a [`ProfileSets`] or
+//! [`StripedProfile`], and then call the corresponding methods on those. For
+//! more details, see [usage steps](crate::alignment::sw#usage-steps) below.
+//! This allows more flexibility, such as building the profile from either the
+//! query or the reference sequence.
+//!
+//! When developing new alignment routines, the standalone functions should be
+//! used.
 //!
 //! For generating the two locally aligned sequences, first create an
 //! [`Alignment`], then use [`Alignment::get_aligned_seqs`].
@@ -91,9 +105,9 @@
 //!
 //! #### 4. Perform the Alignment
 //!
-//! While the standalone functions listed
-//! [above](crate::alignment::sw#smith-waterman-alignment) provide a basic
-//! interface, methods on profiles and profile sets will be more ergonomic.
+//! While the standalone functions such as [`sw_simd_score`] and
+//! [`sw_simd_align`] provide a basic interface, methods on profiles and profile
+//! sets will be more ergonomic.
 //!
 //! The first argument will be the other sequence to align against. For all
 //! methods except scores-only routines, this argument is wrapped in a

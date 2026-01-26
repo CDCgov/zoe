@@ -98,9 +98,10 @@ impl StdGeneticCode {
         Self::get(codon).unwrap_or(b'X')
     }
 
-    /// Determine whether the provided codon is a stop codon. Any additional
-    /// elements past the first three are ignored and partial codons are
-    /// considered `false`.
+    /// Determine whether the provided codon is a stop codon.
+    ///
+    /// Any additional elements past the first three are ignored and partial
+    /// codons are considered `false`.
     #[must_use]
     #[inline]
     pub fn is_stop_codon(c: &[u8]) -> bool {

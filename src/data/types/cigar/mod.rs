@@ -33,10 +33,16 @@ pub use views::*;
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Cigar(pub(crate) Vec<u8>);
 
+/// The number of bytes in a [`usize`]. This varies based on the target
+/// architecture.
 #[cfg(target_pointer_width = "16")]
 const USIZE_WIDTH: usize = 5;
+/// The number of bytes in a [`usize`]. This varies based on the target
+/// architecture.
 #[cfg(target_pointer_width = "32")]
 const USIZE_WIDTH: usize = 10;
+/// The number of bytes in a [`usize`]. This varies based on the target
+/// architecture.
 #[cfg(target_pointer_width = "64")]
 const USIZE_WIDTH: usize = 20;
 
@@ -398,6 +404,9 @@ impl<const N: usize> From<&[u8; N]> for ExpandedCigar {
     }
 }
 
+/// Returns whether a byte represents a valid CIGAR operation.
+///
+/// The following operations are valid: `MIDNSHPX=`.
 #[inline]
 pub(crate) const fn is_valid_op(op: u8) -> bool {
     matches!(op, b'M' | b'I' | b'D' | b'N' | b'S' | b'H' | b'P' | b'X' | b'=')

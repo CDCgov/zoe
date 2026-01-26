@@ -4,37 +4,35 @@ All notable changes to this project will be documented in this file. The format
 is roughly based on [Keep a Changelog], and this project tries to adheres to
 [Semantic Versioning].
 
-## [0.0.24] - TBD
+## [0.0.24] - 2026-01-26
 
 ### Added
 
 - Stabilized the `dev-3pass` feature for performing a memory-efficient three-pass local alignment routine, as well as other helper algorithms
-- Added `to_alignment` to convert `SamData` to `Alignment`
-- Added ability to push tags to `SamTags`
+- Added `WithErrorContext` and `ResultWithErrorContext` traits using the new `ErrorWithContext` struct for updated error-handling
 - Added `prepend_state`, `prepend_ciglet`, and `prepend_inc_op` to `AlignmentStates`
-- Added `StatesSequenceMut` trait and `AlignmentStates::as_mut_slice` to provide mutable access to ciglets while iterating/processing
 - Added `get_first_codon`, `get_last_codon`, and `get_tail_codon` to `GetCodons` trait, with mutable equivalents in `GetCodonsMut`
 - Added `CodonExtension` trait for `[u8; 3]` with convenience codon characterization methods
+- Added `StatesSequenceMut` trait and `AlignmentStates::as_mut_slice` to provide mutable access to ciglets while iterating/processing
 - Added `ToCigletIterator` trait, implemented on structs which can be converted to an iterator of ciglets
 - Added `LenInAlignment` trait, replacing the previous `match_len` and offering a more flexible API
-- Added `VARIANTS` constants to pHMM state enums (behind `dev-phmm` feature gate)
-- Added index comparison methods to `PhmmIndex` (behind `dev-phmm` feature gate)
-- Condensed the `PhmmParamKind` variants in the `visit_params` API (behind `dev-phmm` feature gate)
-- Added row and column accessors to `TransitionParams` (behind `dev-phmm` and `alignment-diagnostics` feature gates)
-- Added `WithErrorContext` and `ResultWithErrorContext` traits using the `ErrorWithContext` struct for updated error-handling.
 - Added methods and implementations to iterate over CIGAR views
+- Added `to_alignment` to convert `SamData` to `Alignment`
+- Added ability to push tags to `SamTags`
 - Added `InspectCigar` for checking for indels in CIGAR strings or `AlignmentStates`
+- Added `VARIANTS` constants and index comparison methods for pHMMs (behind `dev-phmm` feature gate)
+- Added row and column accessors to `TransitionParams` (behind `dev-phmm` and `alignment-diagnostics` feature gates)
 
 ### Changed
 
-- Renamed alignment methods/functions to use the terminology `sw` instead of `smith_waterman` and `align` instead of `alignment`
 - Modified alignment methods on profiles to take a `SeqSrc` enum as an argument, allowing the returned alignment to properly reflect which sequence is the query and which is the reference
-- `SharedProfiles` no longer holds the sequence as `Box<u8>`, instead using `&'a [u8]`
-- The `arbitrary` module now uses specification structs to allow various restrictions to be enforced when generating *Zoe* data types. See the module level documentation for more details.
-- `CheckedCigar` no longer has a blanket implementation, and is instead manually implemented on relevant types (behind `fuzzing` feature gate)
-- Updated error handling logic and style for `OrFail` trait.
-- Standalone function `zoe::data::err::open_nonempty_file` is now public
+- Renamed alignment methods/functions to use the terminology `sw` instead of `smith_waterman` and `align` instead of `alignment`
 - Alignment methods returning indices or ranges now return specialized structs
+- The `arbitrary` module now uses specification structs to allow various restrictions to be enforced when generating *Zoe* data types. See the module level documentation for more details
+- Updated error handling logic and style for `OrFail` trait
+- Standalone function `zoe::data::err::open_nonempty_file` is now public
+- `SharedProfiles` no longer holds the sequence as `Box<u8>`, instead using `&'a [u8]`
+- Condensed the `PhmmParamKind` variants in the `visit_params` API (behind `dev-phmm` feature gate)
 
 ### Fixes
 

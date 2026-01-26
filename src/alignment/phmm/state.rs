@@ -21,7 +21,8 @@ pub enum PhmmState {
 }
 
 impl PhmmState {
-    /// An array containing the three variants of [`PhmmState`].
+    /// An array containing the three variants of [`PhmmState`], in the order
+    /// above.
     pub const VARIANTS: [Self; 3] = [Self::Match, Self::Delete, Self::Insert];
 }
 
@@ -48,7 +49,8 @@ pub enum PhmmStateOrEnter {
 }
 
 impl PhmmStateOrEnter {
-    /// An array containing the four variants of [`PhmmStateOrEnter`].
+    /// An array containing the four variants of [`PhmmStateOrEnter`], in the
+    /// order above.
     pub const VARIANTS: [Self; 4] = [Self::Match, Self::Delete, Self::Insert, Self::Enter];
 }
 

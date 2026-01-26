@@ -291,8 +291,8 @@ impl SamData {
     /// ## Validity
     ///
     /// For any mapped read, the length of the `seq` field should equal the sum
-    /// of the increments for the operations `MIS=X`. Note that this includes
-    /// soft clipped regions but not hard clipped.
+    /// of the increments for the operations `M`, `I`, `S`, `=`, and `X`. Note
+    /// that this includes soft clipped regions but not hard clipped.
     #[inline]
     pub fn to_alignment<T: AnyInt>(&self, score: T, ref_len: usize) -> std::io::Result<MaybeAligned<Alignment<T>>> {
         if self.is_unmapped() {

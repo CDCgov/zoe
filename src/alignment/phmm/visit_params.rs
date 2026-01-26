@@ -270,10 +270,10 @@ pub enum PhmmParamKind<T> {
 impl<T: PhmmNumber> PhmmParam<T> {
     /// Constructs a [`PhmmParam`] with kind [`EmissionMatch`].
     ///
-    /// Although *Zoe* the emission match states stored in the current layer are
-    /// actually for the next layer, the `layer_idx` field should be passed
+    /// Although in *Zoe*, the emission match states stored in the current layer
+    /// are actually for the next layer, the `layer_idx` field should be passed
     /// ignoring this detail. For example, if the emissions are for the first
-    /// match state, then [`FirstMatch`] should be passed for `layer_idx`,
+    /// match state, then [`FirstMatch`] should be passed for `layer_idx`.
     ///
     /// [`EmissionMatch`]: PhmmParamKind::EmissionMatch
     fn new_emission_match(param: T, layer_idx: impl PhmmIndex, residue_idx: usize, phmm: &impl PhmmIndexable) -> Self {

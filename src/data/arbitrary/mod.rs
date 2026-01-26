@@ -33,8 +33,7 @@
 //!
 //! **Note**
 //!
-//! You must enable the *fuzzing* feature in your `Cargo.toml` to use these
-//! functions.
+//! You must enable the *fuzzing* feature in your `Cargo.toml` to use this API.
 //!
 //! </div>
 //!

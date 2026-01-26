@@ -1,9 +1,10 @@
-//! Error handling utilities for *Zoe*.
+//! Error types and convenience traits for handling [`Result`].
 //!
 //! This module provides:
 //!
-//! - [`ErrorWithContext`] and [`WithErrorContext`] for wrapping errors with
-//!   additional context while preserving the error source chain.
+//! - [`ErrorWithContext`], [`ResultWithErrorContext`], and [`WithErrorContext`]
+//!   for wrapping errors with additional context while preserving the error
+//!   source chain.
 //! - [`GetCode`] and [`OrFail`] for graceful CLI error handling with exit
 //!   codes.
 //! - [`open_nonempty_file`] for opening files with automatic path context on
@@ -16,13 +17,31 @@
 //! distance) use enums in their respective modules. [`std::fmt::Display`] is
 //! implemented only at the immediate error level—callers and loggers must
 //! iterate through the source chain via [`std::error::Error::source`], use
-//! Zoe's [`OrFail`], or an external crates like `anyhow`.
+//! *Zoe*'s [`OrFail`], or an external crates like `anyhow`.
+//!
+//! *Zoe* elects to add context by default when available, such as in
+//! [`FastQReader::from_filename`] which will include the path of a
+//! missing/empty file. In bioinformatics, this context is very useful in
+//! complex pipelines, and any runtime penalty is considered negligible compared
+//! to the algorithms being run.
+//!
+//! Internally, this context is added using the [`WithErrorContext`] and
+//! [`ResultWithErrorContext`] traits. These traits are made public so that
+//! applications can also rely on this machinery. They add context by creating a
+//! [`ErrorWithContext`] struct, containing the original error (boxed) as the
+//! [`Error::source`] and the context as the new top-level error, stored as a
+//! [`String`]. When used in conjuction with an error handling library such as
+//! `anyhow` or *Zoe*'s [`OrFail`] trait, the stack of errors can be displayed
+//! in an application.
 //!
 //! [`ErrorWithContext`]: crate::data::err::ErrorWithContext
+//! [`ResultWithErrorContext`]: crate::data::err::ResultWithErrorContext
 //! [`WithErrorContext`]: crate::data::err::WithErrorContext
 //! [`GetCode`]: crate::data::err::GetCode
 //! [`OrFail`]: crate::data::err::OrFail
 //! [`open_nonempty_file`]: crate::data::err::open_nonempty_file
+//! [`FastQReader::from_filename`]: crate::prelude::FastQReader::from_filename
+//! [`Error::source`]: std::error::Error::source
 
 use std::{
     error::Error,
@@ -32,6 +51,11 @@ use std::{
     path::Path,
 };
 
+/// A macro for unwrapping a [`Result`] and propagating any error as a
+/// `Some(Err(e))`.
+///
+/// This is especially useful for fallible iterators, where results need to be
+/// wrapped in [`Some`].
 #[macro_export]
 macro_rules! unwrap_or_return_some_err {
     ($expression:expr) => {
@@ -108,7 +132,6 @@ impl GetCode for std::io::Error {
 /// likewise be implemented manually to retrieve the underlying codes for nested
 /// [`std::io::Error`].
 ///
-///
 /// </div>
 pub trait OrFail<T> {
     /// Unwraps the result, writing the error and any information in
@@ -170,6 +193,10 @@ where
 /// When [`unwrap_or_fail`] or [`unwrap_or_die`] is used, this will display the
 /// information for the original error as well.
 ///
+/// This can be converted to [`std::io::Error`] with [`Into`]. Hence, in
+/// functions returning [`std::io::Result`], the `?` operator can be used after
+/// adding context.
+///
 /// [`unwrap_or_fail`]: OrFail::unwrap_or_fail
 /// [`unwrap_or_die`]: OrFail::unwrap_or_die
 #[must_use]
@@ -205,17 +232,17 @@ impl From<ErrorWithContext> for std::io::Error {
 pub trait WithErrorContext {
     /// Wraps the error in an [`ErrorWithContext`] with the given description.
     ///
-    /// The `description` field may be anything implementing `Into<String>`.
-    /// Passing an owned `String` avoids an extra allocation.
+    /// The `description` may be anything implementing `Into<String>`. Passing
+    /// an owned `String` avoids an extra allocation.
     fn with_context(self, description: impl Into<String>) -> ErrorWithContext;
 
-    /// Convenience function for adding type context.
+    /// Wraps the error in an [`ErrorWithContext`] by adding type context.
     fn with_type_context<T>(self) -> ErrorWithContext;
 
-    /// Convenience function for adding file context.
+    /// Wraps the error in an [`ErrorWithContext`] by adding file context.
     ///
-    /// The context will be formatted as `msg: file`. The `msg` field may be
-    /// anything implementing [`Display`].
+    /// The context will be formatted as `msg: file`. The `msg` may be anything
+    /// implementing [`Display`].
     fn with_file_context(self, msg: impl Display, file: impl AsRef<Path>) -> ErrorWithContext;
 }
 
@@ -257,15 +284,18 @@ pub trait ResultWithErrorContext {
     /// The type of the [`Ok`] variant in the result.
     type Ok;
 
-    /// Wraps the [`Err`] variant in a [`ErrorWithContext`] with the given
+    /// Wraps the [`Err`] variant in an [`ErrorWithContext`] with the given
     /// description.
+    ///
+    /// The `description` may be anything implementing `Into<String>`. Passing
+    /// an owned `String` avoids an extra allocation.
     ///
     /// ## Errors
     ///
     /// Propagates errors in `self`, with the added context.
     fn with_context(self, description: impl Into<String>) -> Result<Self::Ok, ErrorWithContext>;
 
-    /// Wraps the [`Err`] variant in a [`ErrorWithContext`] by adding type
+    /// Wraps the [`Err`] variant in an [`ErrorWithContext`] by adding type
     /// context.
     ///
     /// ## Errors
@@ -273,8 +303,11 @@ pub trait ResultWithErrorContext {
     /// Propagates errors in `self`, with the added context.
     fn with_type_context<T>(self) -> Result<Self::Ok, ErrorWithContext>;
 
-    /// Wraps the [`Err`] variant in a [`ErrorWithContext`] by adding file
+    /// Wraps the [`Err`] variant in an [`ErrorWithContext`] by adding file
     /// context.
+    ///
+    /// The context will be formatted as `msg: file`. The `msg` may be anything
+    /// implementing [`Display`].
     ///
     /// ## Errors
     ///

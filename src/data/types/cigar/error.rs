@@ -1,3 +1,5 @@
+//! Error types for CIGAR strings.
+
 use crate::data::err::GetCode;
 use std::{error::Error, fmt};
 
@@ -25,7 +27,7 @@ impl fmt::Display for CigarError {
             CigarError::IncZero => f.write_str("CIGAR increment must be a non-zero positive integer"),
             CigarError::IncOverflow => write!(f, "CIGAR increment must be less than or equal to {}", usize::MAX),
             CigarError::MissingInc => f.write_str("CIGAR operation must have preceding increment"),
-            CigarError::MissingOp => f.write_str("CIGAR increment must be followed by operator"),
+            CigarError::MissingOp => f.write_str("CIGAR increment must be followed by operation"),
         }
     }
 }

@@ -221,6 +221,7 @@ impl<'a> IntoIterator for &'a CigarViewMut<'a> {
 ///
 /// [`copied`]: Iterator::copied
 pub trait ToCigletIterator {
+    /// The type of the iterator, which must yield [`Ciglet`] items.
     type Iter<'a>: Iterator<Item = Ciglet>
     where
         Self: 'a;

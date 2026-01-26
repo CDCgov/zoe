@@ -352,10 +352,9 @@ pub trait PhmmIndex: Copy {
     }
 
     /// Hook to allow the [`End`] index literal to be detected separately than
-    /// the rest (e.g., for `get_layer` in [`CorePhmm`])
+    /// the rest (e.g., for [`GetLayer::get_layer`]).
     #[inline]
     #[must_use]
-    #[allow(dead_code)]
     fn is_end(self) -> bool {
         false
     }
