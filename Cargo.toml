@@ -66,7 +66,7 @@ strip = true
 lto = "thin"
 
 [package.metadata.docs.rs]
-features = ["rand", "fuzzing", "dev-phmm", "dev-3pass", "alignment-diagnostics"]
+features = ["rand", "fuzzing", "dev-phmm", "alignment-diagnostics"]
 rustdoc-args = ["--html-in-header", "./assets/docs-header.html"]
 
 [[example]]
