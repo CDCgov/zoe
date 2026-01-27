@@ -132,6 +132,46 @@ impl Nucleotides {
         *self = Nucleotides(self.0.drain(new_start..).collect());
     }
 
+    /// Extends nucleotide sequence by the given slice.
+    #[inline]
+    pub fn extend_from_slice(&mut self, slice: impl AsRef<[u8]>) {
+        self.0.extend_from_slice(slice.as_ref());
+    }
+
+    /// Pads the end or 3' end of the [`Nucleotides`] by `base` for `count` times.
+    #[inline]
+    pub fn pad_end(&mut self, base: u8, count: usize) {
+        self.0.extend(std::iter::repeat_n(base, count));
+    }
+
+    /// Pads the start or 5' end of the [`Nucleotides`] by `base` for `count`
+    /// times. This method always allocates.
+    #[inline]
+    pub fn pad_start(&mut self, base: u8, count: usize) {
+        if count == 0 {
+            return;
+        }
+        let mut new = Vec::with_capacity(count + self.0.len());
+        new.extend(std::iter::repeat_n(base, count));
+        new.extend_from_slice(&self.0);
+        *self = Nucleotides(new);
+    }
+
+    /// Pads the [`Nucleotides`] on both flanking sides by `base` for
+    /// `amount_before` and `amount_after` respectively. This method always
+    /// allocates.
+    #[inline]
+    pub fn pad_both_sides(&mut self, base: u8, amount_before: usize, amount_after: usize) {
+        if amount_before == 0 && amount_after == 0 {
+            return;
+        }
+        let mut new = Vec::with_capacity(amount_before + amount_after + self.0.len());
+        new.extend(std::iter::repeat_n(base, amount_before));
+        new.extend_from_slice(&self.0);
+        new.extend(std::iter::repeat_n(base, amount_after));
+        *self = Nucleotides(new);
+    }
+
     /// Clear the sequence so that it is empty.
     #[inline]
     pub fn clear(&mut self) {

@@ -100,6 +100,46 @@ impl AminoAcids {
         *self = Self(self.0.drain(new_start..).collect());
     }
 
+    /// Extends amino acids sequence by the given slice.
+    #[inline]
+    pub fn extend_from_slice(&mut self, slice: impl AsRef<[u8]>) {
+        self.0.extend_from_slice(slice.as_ref());
+    }
+
+    /// Pads the C-terminus (end) of the [`AminoAcids`] by `aa` for `count` times.
+    #[inline]
+    pub fn pad_end(&mut self, aa: u8, count: usize) {
+        self.0.extend(std::iter::repeat_n(aa, count));
+    }
+
+    /// Pads the N-terminus (start) of the [`AminoAcids`] by `aa` for `count`
+    /// times. This method always allocates.
+    #[inline]
+    pub fn pad_start(&mut self, aa: u8, count: usize) {
+        if count == 0 {
+            return;
+        }
+        let mut new = Vec::with_capacity(count + self.0.len());
+        new.extend(std::iter::repeat_n(aa, count));
+        new.extend_from_slice(&self.0);
+        *self = AminoAcids(new);
+    }
+
+    /// Pads the [`AminoAcids`] on both flanking sides by `aa` for
+    /// `amount_before` and `amount_after` respectively. This method always
+    /// allocates.
+    #[inline]
+    pub fn pad_both_sides(&mut self, aa: u8, amount_before: usize, amount_after: usize) {
+        if amount_before == 0 && amount_after == 0 {
+            return;
+        }
+        let mut new = Vec::with_capacity(amount_before + amount_after + self.0.len());
+        new.extend(std::iter::repeat_n(aa, amount_before));
+        new.extend_from_slice(&self.0);
+        new.extend(std::iter::repeat_n(aa, amount_after));
+        *self = AminoAcids(new);
+    }
+
     /// Clears the sequence.
     #[inline]
     pub fn clear(&mut self) {
