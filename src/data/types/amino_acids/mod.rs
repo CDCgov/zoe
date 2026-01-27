@@ -106,6 +106,20 @@ impl AminoAcids {
         self.0.extend_from_slice(slice.as_ref());
     }
 
+    /// Prepends the amino acid sequence with the given slice.
+    /// This method always allocates.
+    #[inline]
+    pub fn prepend_from_slice(&mut self, slice: impl AsRef<[u8]>) {
+        let slice = slice.as_ref();
+        if slice.is_empty() {
+            return;
+        }
+        let mut new = Vec::with_capacity(slice.len() + self.0.len());
+        new.extend_from_slice(slice);
+        new.extend_from_slice(&self.0);
+        *self = AminoAcids(new);
+    }
+
     /// Pads the C-terminus (end) of the [`AminoAcids`] by `aa` for `count` times.
     #[inline]
     pub fn pad_end(&mut self, aa: u8, count: usize) {

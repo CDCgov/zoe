@@ -138,6 +138,20 @@ impl Nucleotides {
         self.0.extend_from_slice(slice.as_ref());
     }
 
+    /// Prepends the nucleotide sequence with the given slice.
+    /// This method always allocates.
+    #[inline]
+    pub fn prepend_from_slice(&mut self, slice: impl AsRef<[u8]>) {
+        let slice = slice.as_ref();
+        if slice.is_empty() {
+            return;
+        }
+        let mut new = Vec::with_capacity(slice.len() + self.0.len());
+        new.extend_from_slice(slice);
+        new.extend_from_slice(&self.0);
+        *self = Nucleotides(new);
+    }
+
     /// Pads the end or 3' end of the [`Nucleotides`] by `base` for `count` times.
     #[inline]
     pub fn pad_end(&mut self, base: u8, count: usize) {
