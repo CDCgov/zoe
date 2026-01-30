@@ -2,7 +2,6 @@ use crate::{
     data::mappings::TO_REVERSE_COMPLEMENT,
     simd::{SimdByteFunctions, SimdMaskFunctions},
 };
-use std::simd::{LaneCount, SupportedLaneCount};
 
 /// Performs the DNA reverse complement of the byte slice into a new vector.
 /// Assumes ASCII input.
@@ -28,9 +27,7 @@ pub fn reverse_complement(bases: &[u8]) -> Vec<u8> {
 /// relevant versus the scalar implementation.
 #[inline]
 #[must_use]
-pub fn reverse_complement_simd<const N: usize>(bases: &[u8]) -> Vec<u8>
-where
-    LaneCount<N>: SupportedLaneCount, {
+pub fn reverse_complement_simd<const N: usize>(bases: &[u8]) -> Vec<u8> {
     let (pre, mid, sfx) = bases.as_simd::<N>();
     let mut reverse_complement = Vec::with_capacity(bases.len());
 
@@ -76,9 +73,7 @@ pub fn make_reverse_complement(bases: &mut [u8]) {
 /// Reverse complement of a nucleotide sequences using explicit SIMD
 /// instructions in-place. Similar to [`reverse_complement_simd`].
 #[inline]
-pub fn make_reverse_complement_simd<const N: usize>(bases: &mut [u8])
-where
-    LaneCount<N>: SupportedLaneCount, {
+pub fn make_reverse_complement_simd<const N: usize>(bases: &mut [u8]) {
     bases.reverse();
     let (pre, mid, sfx) = bases.as_simd_mut::<N>();
 

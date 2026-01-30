@@ -1,39 +1,35 @@
 use crate::simd::SimdMaskFunctions;
-use std::simd::{LaneCount, SupportedLaneCount, prelude::*};
+use std::simd::prelude::*;
 
 /// Trait for splitting byte strings by byte(s).
 pub(crate) trait ByteSplitIter<'a> {
     /// Lazily splits the haystack only on the `\r` and `\n` characters. When
     /// consecutive `\r` and `\n` characters appear in a row, some elements of
     /// the iterator will be empty.
-    fn lines_ascii<const N: usize>(&'a self) -> SplitByByte2<'a, N>
-    where
-        LaneCount<N>: SupportedLaneCount;
+    fn lines_ascii<const N: usize>(&'a self) -> SplitByByte2<'a, N>;
 }
 
 impl<'a, T: AsRef<[u8]>> ByteSplitIter<'a> for T {
-    fn lines_ascii<const N: usize>(&'a self) -> SplitByByte2<'a, N>
-    where
-        LaneCount<N>: SupportedLaneCount, {
+    fn lines_ascii<const N: usize>(&'a self) -> SplitByByte2<'a, N> {
         let haystack = self.as_ref();
         SplitByByte2::new(haystack, b'\n', b'\r')
     }
 }
 
-pub(crate) struct SplitByByte2<'a, const N: usize>
-where
-    LaneCount<N>: SupportedLaneCount, {
+/// An iterator over a byte string, splitting it at any occurrence of one of two
+/// bytes.
+///
+/// This uses [`position_by_byte2`] internally.
+pub(crate) struct SplitByByte2<'a, const N: usize> {
     haystack: &'a [u8],
     done:     bool,
     b1:       u8,
     b2:       u8,
 }
 
-impl<'a, const N: usize> SplitByByte2<'a, N>
-where
-    LaneCount<N>: SupportedLaneCount,
-{
-    /// Constructs a new [`SplitByByte2`] iterator.
+impl<'a, const N: usize> SplitByByte2<'a, N> {
+    /// Returns an iterator over substrings of `haystack`, separated by either
+    /// `b1` or `b2`.
     fn new(haystack: &'a [u8], b1: u8, b2: u8) -> Self {
         Self {
             haystack,
@@ -44,22 +40,16 @@ where
     }
 }
 
-impl<const N: usize> SplitByByte2<'_, N>
-where
-    LaneCount<N>: SupportedLaneCount,
-{
+impl<const N: usize> SplitByByte2<'_, N> {
     #[inline]
     pub fn remaining_len(&self) -> usize {
         self.haystack.len()
     }
 }
 
-/// Based on the implementation in for [`std::slice::Split`] but using
-/// [`position_by_byte2`] internally.
-impl<'a, const N: usize> Iterator for SplitByByte2<'a, N>
-where
-    LaneCount<N>: SupportedLaneCount,
-{
+// Based on the implementation in for std::slice::Split but using
+// position_by_byte2 internally.
+impl<'a, const N: usize> Iterator for SplitByByte2<'a, N> {
     type Item = &'a [u8];
 
     #[inline]
@@ -68,7 +58,7 @@ where
             return None;
         }
 
-        if let Some(idx) = position_by_byte2(self.haystack, self.b1, self.b2) {
+        if let Some(idx) = position_by_byte2::<N>(self.haystack, self.b1, self.b2) {
             let (slice_found, remaining) = (&self.haystack[..idx], &self.haystack[idx + 1..]);
             self.haystack = remaining;
             Some(slice_found)
@@ -88,17 +78,17 @@ where
     }
 }
 
-/// Finds the index of the byte `b` in the `haystack`. The const parameter `N`
-/// specifies the number of SIMD lanes used.
+/// Finds the index of the byte `b` in the `haystack`.
 ///
 /// See [`position_simd`] for the SIMD byte search leveraged internally.
 ///
-#[must_use]
+/// ## Parameters
+///
+/// `N` - The number of SIMD lanes to use.
 #[inline]
+#[must_use]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
-pub fn position_by_byte<const N: usize>(haystack: &[u8], b: u8) -> Option<usize>
-where
-    LaneCount<N>: SupportedLaneCount, {
+pub fn position_by_byte<const N: usize>(haystack: &[u8], b: u8) -> Option<usize> {
     let (pre, mid, post) = haystack.as_simd();
 
     if let Some(p) = pre.iter().position(|x| *x == b) {
@@ -110,17 +100,17 @@ where
     }
 }
 
-/// Finds the index of the bytes `b1` OR `b2` in the `haystack`. The const
-/// parameter `N` specifies the number of SIMD lanes used.
+/// Finds the index of the bytes `b1` or `b2` in the `haystack`.
 ///
 /// See [`position_simd`] for the SIMD byte search leveraged internally.
 ///
-#[must_use]
+/// ## Parameters
+///
+/// `N` - The number of SIMD lanes to use.
 #[inline]
+#[must_use]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
-pub fn position_by_byte2<const N: usize>(haystack: &[u8], b1: u8, b2: u8) -> Option<usize>
-where
-    LaneCount<N>: SupportedLaneCount, {
+pub fn position_by_byte2<const N: usize>(haystack: &[u8], b1: u8, b2: u8) -> Option<usize> {
     let (pre, mid, post) = haystack.as_simd();
 
     if let Some(p) = pre.iter().position(|x| *x == b1 || *x == b2) {
@@ -136,17 +126,17 @@ where
     }
 }
 
-/// Finds the index of the bytes `b1` OR `b2` or `b3` in the `haystack`. The const
-/// parameter `N` specifies the number of SIMD lanes used.
+/// Finds the index of the bytes `b1` or `b2` or `b3` in the `haystack`.
 ///
 /// See [`position_simd`] for the SIMD byte search leveraged internally.
 ///
-#[must_use]
+/// ## Parameters
+///
+/// `N` - The number of SIMD lanes to use.
 #[inline]
+#[must_use]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
-pub fn position_by_byte3<const N: usize>(haystack: &[u8], b1: u8, b2: u8, b3: u8) -> Option<usize>
-where
-    LaneCount<N>: SupportedLaneCount, {
+pub fn position_by_byte3<const N: usize>(haystack: &[u8], b1: u8, b2: u8, b3: u8) -> Option<usize> {
     let (pre, mid, post) = haystack.as_simd();
 
     if let Some(p) = pre.iter().position(|x| *x == b1 || *x == b2 || *x == b3) {
@@ -165,19 +155,22 @@ where
 /// Searches the `haystack` using the provide SIMD byte `predicate` returning
 /// the index found, or [`None`] otherwise.
 ///
-/// The SIMD lanes `N`, unroll factor `UF` are const parameters that can be used
-/// to adjust performance characteristics.
-///
 /// ## Acknowledgements
 ///
-/// The unrolling algorithm inspired from previous work in the excellent [memchr crate](https://crates.io/crates/memchr).
+/// The unrolling algorithm inspired from previous work in the excellent [memchr
+/// crate](https://crates.io/crates/memchr).
 ///
-#[allow(clippy::needless_range_loop)]
-#[must_use]
+/// ## Parameters
+///
+/// The following parameters can be used to adjust performance characteristics:
+///
+/// - `N` - The number of SIMD lanes
+/// - `UF` - The unroll factor
 #[inline]
+#[must_use]
+#[allow(clippy::needless_range_loop)]
 pub fn position_simd<const N: usize, const UF: usize, P>(haystack: &[Simd<u8, N>], predicate: P) -> Option<usize>
 where
-    LaneCount<N>: SupportedLaneCount,
     P: Fn(Simd<u8, N>) -> Mask<i8, N>, {
     // unroll factor
 

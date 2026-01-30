@@ -7,7 +7,7 @@ use crate::{
     simd::SimdAnyInt,
 };
 use std::simd::{
-    LaneCount, Simd, SupportedLaneCount,
+    Simd,
     cmp::{SimdOrd, SimdPartialEq, SimdPartialOrd},
 };
 
@@ -59,15 +59,14 @@ use std::simd::{
 /// [`ProfileSets`]: crate::alignment::ProfileSets
 /// [`ProfileSets::sw_score_from_i8`]:
 ///     crate::alignment::ProfileSets::sw_score_from_i8
-#[allow(non_snake_case)]
 #[must_use]
+#[allow(non_snake_case)]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
 pub fn sw_simd_score<T, const N: usize, const S: usize>(
     reference: &[u8], query: &StripedProfile<T, N, S>,
 ) -> MaybeAligned<u32>
 where
     T: AlignableIntWidth,
-    LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdAnyInt<T, N>, {
     let num_vecs = query.number_vectors();
     let profile: &Vec<Simd<T, N>> = &query.profile;
@@ -156,7 +155,6 @@ pub fn sw_simd_score_ends<T, const N: usize, const S: usize>(
 ) -> MaybeAligned<ScoreEnds<u32>>
 where
     T: AlignableIntWidth,
-    LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdAnyInt<T, N>, {
     // Validity: Since FORWARD is true, the indices represent the ends of the
     // alignment
@@ -183,7 +181,6 @@ pub(crate) fn sw_simd_score_ends_reverse<T, const N: usize, const S: usize>(
 ) -> MaybeAligned<ScoreStarts<u32>>
 where
     T: AlignableIntWidth,
-    LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdAnyInt<T, N>, {
     // Validity: Since FORWARD is false, the indices represent the ends of the
     // alignment
@@ -218,7 +215,6 @@ fn sw_simd_score_ends_dir<T, const N: usize, const S: usize, const FORWARD: bool
 ) -> MaybeAligned<ScoreIndices<u32>>
 where
     T: AlignableIntWidth,
-    LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdAnyInt<T, N>, {
     if reference.is_empty() {
         return MaybeAligned::Unmapped;
@@ -361,7 +357,6 @@ pub fn sw_simd_score_ranges<T, const N: usize, const S: usize>(
 ) -> MaybeAligned<ScoreAndRanges<u32>>
 where
     T: AlignableIntWidth,
-    LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdAnyInt<T, N>, {
     sw_simd_score_ends::<T, N, S>(reference, query).and_then(|score_and_end_idxs| {
         let ScoreEnds {
@@ -456,7 +451,6 @@ pub fn sw_simd_align<T, const N: usize, const S: usize>(
 ) -> MaybeAligned<Alignment<u32>>
 where
     T: AlignableIntWidth,
-    LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdAnyInt<T, N>, {
     if reference.is_empty() {
         return MaybeAligned::Unmapped;

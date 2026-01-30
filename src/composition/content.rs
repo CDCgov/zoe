@@ -1,5 +1,5 @@
 use crate::{data::types::nucleotides::NucleotidesReadable, private::Sealed, simd::SimdByteFunctions};
-use std::simd::{LaneCount, SupportedLaneCount, prelude::*};
+use std::simd::prelude::*;
 
 /// Provides method for obtaining the GC content
 pub trait GcContent: NucleotidesReadable + Sealed {
@@ -17,9 +17,7 @@ impl<T: NucleotidesReadable + Sealed> GcContent for T {}
 /// count of G and C nucleotides in the sequence.
 #[must_use]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
-pub fn gc_content_simd<const N: usize>(s: &[u8]) -> usize
-where
-    LaneCount<N>: SupportedLaneCount, {
+pub fn gc_content_simd<const N: usize>(s: &[u8]) -> usize {
     let g = Simd::splat(b'G');
     let c = Simd::splat(b'C');
 

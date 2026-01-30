@@ -1,12 +1,10 @@
 use crate::{
     DEFAULT_SIMD_LANES,
     private::Sealed,
-    search::{RangeSearch, inexact::fuzzy_substring_match_simd, k_repeating::find_k_repeating},
+    search::{RangeSearch, inexact::fuzzy_substring_match_simd, k_repeating::find_k_repeating, position_by_byte},
 };
-use std::{
-    ops::Range,
-    simd::{LaneCount, SupportedLaneCount, prelude::*},
-};
+
+use std::{ops::Range, simd::prelude::*};
 
 /// Trait for searching byte substrings.
 ///
@@ -158,8 +156,8 @@ pub trait ByteSubstringMut: Sealed {
     /// the forward direction.
     fn remove_first_substring(&mut self, needle: impl AsRef<[u8]>) -> Option<Range<usize>>;
 
-    /// Replace a single byte of the stored sequence. See the [`Recode`]
-    /// trait for a more wholistic approach.
+    /// Replace a single byte of the stored sequence. See the [`Recode`] trait
+    /// for a more wholistic approach.
     ///
     /// [`Recode`]: crate::data::Recode
     fn replace_all_bytes(&mut self, needle: u8, replacement: u8);
@@ -206,8 +204,10 @@ pub fn substring_match(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 }
 
 /// Returns the starting index of the matched substring or [`None`] otherwise.
-/// The const parameter `N` is used to specify the number of SIMD lanes for the
-/// search.
+///
+/// ## Parameters
+///
+/// `N` - The number of SIMD lanes to use for the search.
 ///
 /// ## Limitations
 ///
@@ -215,27 +215,25 @@ pub fn substring_match(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 ///
 /// ## Citation
 ///
-/// 1. Muła, Wojciech (2018). "SIMD-friendly algorithms for substring searching."
-///    Available at:
+/// 1. Muła, Wojciech (2018). "SIMD-friendly algorithms for substring
+///    searching." Available at:
 ///    <http://0x80.pl/articles/simd-strfind.html#algorithm-1-generic-simd>.
 ///    Accessed September 3, 2024.
 #[inline]
 #[must_use]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
-pub fn substring_match_simd<const N: usize>(haystack: &[u8], needle: &[u8]) -> Option<usize>
-where
-    LaneCount<N>: SupportedLaneCount, {
+pub fn substring_match_simd<const N: usize>(haystack: &[u8], needle: &[u8]) -> Option<usize> {
     if needle.len() > haystack.len() || needle.is_empty() || haystack.is_empty() {
         return None;
     }
 
     let first = needle[0];
     if needle.len() == 1 {
-        return super::position_by_byte(haystack, first);
+        return position_by_byte::<N>(haystack, first);
     }
 
     let Some((n2_offset, last)) = needle.iter().copied().enumerate().rev().find(|(_, b)| *b != first) else {
-        return find_k_repeating(haystack, first, needle.len());
+        return find_k_repeating::<N>(haystack, first, needle.len());
     };
 
     let n1 = Simd::from_array([first; N]);

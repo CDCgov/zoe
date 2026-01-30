@@ -13,7 +13,7 @@ use crate::{
 use std::{
     convert::Into,
     ops::Range,
-    simd::{LaneCount, SimdElement, SupportedLaneCount, prelude::*},
+    simd::{SimdElement, prelude::*},
     vec,
 };
 
@@ -194,8 +194,7 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct StripedProfile<'a, T, const N: usize, const S: usize>
 where
-    T: SimdElement,
-    LaneCount<N>: SupportedLaneCount, {
+    T: SimdElement, {
     pub(crate) profile:    Vec<Simd<T, N>>,
     pub(crate) gap_open:   T,
     pub(crate) gap_extend: T,
@@ -207,7 +206,6 @@ where
 impl<'a, T, const N: usize, const S: usize> StripedProfile<'a, T, N, S>
 where
     T: AnyInt + SimdElement,
-    LaneCount<N>: SupportedLaneCount,
 {
     /// Creates a new striped profile from a sequence.
     ///
@@ -403,7 +401,6 @@ where
 impl<T, const N: usize, const S: usize> StripedProfile<'_, T, N, S>
 where
     T: AlignableIntWidth,
-    LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdAnyInt<T, N>,
 {
     /// Computes the Smith-Waterman local alignment score between the profile

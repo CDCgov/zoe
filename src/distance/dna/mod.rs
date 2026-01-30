@@ -3,7 +3,7 @@ use crate::{
     DEFAULT_SIMD_LANES, data::types::nucleotides::NucleotidesReadable, distance::hamming_simd, math::MapFloat,
     private::Sealed, simd::SimdByteFunctions,
 };
-use std::simd::{LaneCount, SupportedLaneCount, prelude::*};
+use std::simd::prelude::*;
 
 #[cfg(test)]
 mod bench;
@@ -41,12 +41,10 @@ pub(crate) use tabulation::{hamming_dist_from_sub_matrix, total_and_frequencies}
 /// let distance = p_distance_acgt::<16>(seq1, seq2);
 /// assert!((distance.unwrap() - 0.2857142).abs() < 0.1);
 /// ```
-#[allow(clippy::cast_precision_loss)]
 #[must_use]
+#[allow(clippy::cast_precision_loss)]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
-pub fn p_distance_acgt<const N: usize>(x: &[u8], y: &[u8]) -> Option<f64>
-where
-    LaneCount<N>: SupportedLaneCount, {
+pub fn p_distance_acgt<const N: usize>(x: &[u8], y: &[u8]) -> Option<f64> {
     let alpha_v = [Simd::splat(b'A'), Simd::splat(b'C'), Simd::splat(b'G'), Simd::splat(b'T')];
 
     let (x, y) = if x.len() < y.len() {
@@ -81,7 +79,7 @@ where
 
             valid_length += valid.to_bitmask().count_ones() as usize;
 
-            let m = (v1.simd_ne(v2) & valid).to_int();
+            let m = (v1.simd_ne(v2) & valid).to_simd();
             // True => -1, so - -1 => +1
             accum -= m.cast();
         }
@@ -111,7 +109,7 @@ where
 
         valid_length += valid.to_bitmask().count_ones() as usize;
 
-        let m = (v1.simd_ne(v2) & valid).to_int();
+        let m = (v1.simd_ne(v2) & valid).to_simd();
         // True => -1, so - -1 => +1
         accum -= m.cast();
     }

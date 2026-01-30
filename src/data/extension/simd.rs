@@ -1,6 +1,6 @@
 use std::{
     ops::{AddAssign, Shl, Shr, SubAssign},
-    simd::{LaneCount, SimdElement, SupportedLaneCount, prelude::*},
+    simd::{Select, SimdElement, prelude::*},
 };
 
 use crate::private::Sealed;
@@ -15,7 +15,6 @@ pub trait SimdAnyInt<T, const N: usize>:
     + Shr<T, Output = Simd<T, N>>
     + Sealed
 where
-    LaneCount<N>: SupportedLaneCount,
     T: SimdElement, {
     #[must_use]
     fn reduce_max(self) -> T;
@@ -31,8 +30,6 @@ macro_rules! impl_simd_any_int_signed {
     ($($t:ty),*) => {
         $(
             impl<const N: usize> SimdAnyInt<$t, N> for Simd<$t, N>
-            where
-                LaneCount<N>: SupportedLaneCount,
             {
                 #[inline]
                 fn reduce_max(self) -> $t {
@@ -63,8 +60,6 @@ macro_rules! impl_simd_any_int_unsigned {
     ($($t:ty),*) => {
         $(
             impl<const N: usize> SimdAnyInt<$t, N> for Simd<$t, N>
-            where
-                LaneCount<N>: SupportedLaneCount,
             {
                 #[inline]
                 fn reduce_max(self) -> $t {
@@ -92,9 +87,7 @@ macro_rules! impl_simd_any_int_unsigned {
 impl_simd_any_int_unsigned!(u8, u16, u32, u64, usize);
 
 #[allow(dead_code)]
-pub(crate) trait SimdByteFunctions<const N: usize>
-where
-    LaneCount<N>: SupportedLaneCount, {
+pub(crate) trait SimdByteFunctions<const N: usize> {
     fn is_ascii(&self) -> Mask<i8, N>;
 
     fn is_ascii_uppercase(&self) -> Mask<i8, N>;
@@ -136,10 +129,7 @@ where
     fn exchange_byte_pairs(&mut self, this: u8, that: u8);
 }
 
-impl<const N: usize> SimdByteFunctions<N> for Simd<u8, N>
-where
-    LaneCount<N>: SupportedLaneCount,
-{
+impl<const N: usize> SimdByteFunctions<N> for Simd<u8, N> {
     #[inline]
     fn is_ascii(&self) -> Mask<i8, N> {
         self.simd_lt(Simd::splat(128))
@@ -219,9 +209,7 @@ where
     }
 }
 
-pub(crate) trait SimdMaskFunctions<const N: usize>
-where
-    LaneCount<N>: SupportedLaneCount, {
+pub(crate) trait SimdMaskFunctions<const N: usize> {
     #[must_use]
     fn make_selected_ascii_uppercase(&self, bytes: &Simd<u8, N>) -> Simd<u8, N>;
     #[must_use]
@@ -230,10 +218,7 @@ where
     fn bitmask_offset(&self) -> usize;
 }
 
-impl<const N: usize> SimdMaskFunctions<N> for Mask<i8, N>
-where
-    LaneCount<N>: SupportedLaneCount,
-{
+impl<const N: usize> SimdMaskFunctions<N> for Mask<i8, N> {
     #[inline]
     fn make_selected_ascii_uppercase(&self, bytes: &Simd<u8, N>) -> Simd<u8, N> {
         self.select(*bytes ^ Simd::splat(0b0010_0000), *bytes)

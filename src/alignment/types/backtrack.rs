@@ -1,7 +1,7 @@
 use crate::alignment::{Alignment, AlignmentStates};
 use std::{
     mem::MaybeUninit,
-    simd::{LaneCount, SupportedLaneCount, prelude::*},
+    simd::{Select, prelude::*},
 };
 
 /// Experimental backtracking matrix for alignment with affine gap scores.
@@ -95,19 +95,14 @@ impl BacktrackMatrix {
 /// This stores the traceback information in a flattened vector of SIMD vectors
 /// (each holding `N` entries in the DP table).
 #[derive(Clone, Debug)]
-pub(crate) struct BacktrackMatrixStriped<const N: usize>
-where
-    LaneCount<N>: SupportedLaneCount, {
+pub(crate) struct BacktrackMatrixStriped<const N: usize> {
     pub data:  Vec<Simd<u8, N>>,
     num_vecs:  usize,
     v_cursor:  usize,
     curr_lane: usize,
 }
 
-impl<const N: usize> BacktrackMatrixStriped<N>
-where
-    LaneCount<N>: SupportedLaneCount,
-{
+impl<const N: usize> BacktrackMatrixStriped<N> {
     /// Allocates lazily-initialized backtrack data which can later be converted
     /// to a [`BacktrackMatrixStriped`].
     ///
@@ -169,9 +164,7 @@ where
 }
 
 /// Trait for SIMD backtracking operations on packed u8 values
-pub(crate) trait SimdBacktrackFlags<const N: usize>
-where
-    LaneCount<N>: SupportedLaneCount, {
+pub(crate) trait SimdBacktrackFlags<const N: usize> {
     const UP: Simd<u8, N>;
     const UP_EXTENDING: Simd<u8, N>;
     const LEFT: Simd<u8, N>;
@@ -204,10 +197,7 @@ where
     fn debug_cell(&self, lane: usize) -> String;
 }
 
-impl<const N: usize> SimdBacktrackFlags<N> for Simd<u8, N>
-where
-    LaneCount<N>: SupportedLaneCount,
-{
+impl<const N: usize> SimdBacktrackFlags<N> for Simd<u8, N> {
     const UP: Simd<u8, N> = Simd::splat(BacktrackMatrix::UP);
     const UP_EXTENDING: Simd<u8, N> = Simd::splat(BacktrackMatrix::UP_EXTENDING);
     const LEFT: Simd<u8, N> = Simd::splat(BacktrackMatrix::LEFT);
@@ -478,10 +468,7 @@ impl BackTrackable for BacktrackMatrix {
     }
 }
 
-impl<const N: usize> BackTrackable for BacktrackMatrixStriped<N>
-where
-    LaneCount<N>: SupportedLaneCount,
-{
+impl<const N: usize> BackTrackable for BacktrackMatrixStriped<N> {
     #[inline]
     fn move_to(&mut self, r: usize, c: usize) {
         let v = c % self.num_vecs;

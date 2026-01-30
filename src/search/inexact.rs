@@ -1,17 +1,15 @@
-use std::{
-    iter::zip,
-    simd::{LaneCount, SupportedLaneCount, prelude::*},
-};
+use std::{iter::zip, simd::prelude::*};
 
 /// Provides the starting index of a matched "fuzzy substring" with however many
 /// `differences_allowed` from the needle, otherwise [`None`] is returned.
 ///
 /// ## Limitations
 ///
-/// The naïve algorithm should not be used except for small haystacks.
-///
-#[must_use]
+/// This is a naïve scalar algorithm, and should not be used except for small
+/// haystacks. Consider using [`fuzzy_substring_match_simd`] for large
+/// haystacks.
 #[inline]
+#[must_use]
 pub fn fuzzy_substring_match(haystack: &[u8], needle: &[u8], differences_allowed: u8) -> Option<usize> {
     if needle.len() > haystack.len() || needle.is_empty() || haystack.is_empty() {
         return None;
@@ -25,6 +23,9 @@ pub fn fuzzy_substring_match(haystack: &[u8], needle: &[u8], differences_allowed
 }
 
 /// A naïve fuzzy substring matching algorithm.
+///
+/// This is used as a helper function for [`fuzzy_substring_match`] and
+/// [`fuzzy_substring_match_simd`].
 #[inline]
 #[must_use]
 pub(crate) fn fuzzy_substring_match_scalar(haystack: &[u8], needle: &[u8], differences_allowed: u8) -> Option<usize> {
@@ -50,9 +51,7 @@ pub(crate) fn fuzzy_substring_match_scalar(haystack: &[u8], needle: &[u8], diffe
 #[inline]
 #[must_use]
 #[allow(clippy::cast_possible_truncation)]
-const fn create_masks<const N: usize>() -> [Simd<u8, N>; 256]
-where
-    LaneCount<N>: SupportedLaneCount, {
+const fn create_masks<const N: usize>() -> [Simd<u8, N>; 256] {
     const {
         let mut masks: [Simd<u8, N>; 256] = [Simd::from_array([0; N]); 256];
         let mut i = 0;
@@ -65,11 +64,15 @@ where
     }
 }
 
-/// Similar to [`fuzzy_substring_match`] but takes a const `N` parameter for the
-/// number of SIMD lanes and a second const parameter `K` for the number of
-/// differences allowed.
+/// Similar to [`fuzzy_substring_match`], but utilizes SIMD for more efficient
+/// searching.
 ///
 /// This algorithm implements a portable version of (1).
+///
+/// ## Parameters
+///
+/// - `N` - The number of SIMD lanes to use
+/// - `K` - The number of differences allowed
 ///
 /// ## Limitations
 ///
@@ -82,13 +85,10 @@ where
 /// 1. Tamanna Chhabra, Sukhpal Singh Ghuman, and Jorma Tarhio (2023). "String
 ///    Searching with Mismatches Using Avx2 and Avx-512 Instructions." doi:
 ///    <http://dx.doi.org/10.2139/ssrn.4662323>
-///
-#[allow(clippy::cast_possible_truncation)]
 #[must_use]
+#[allow(clippy::cast_possible_truncation)]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
-pub fn fuzzy_substring_match_simd<const N: usize, const K: usize>(haystack: &[u8], needle: &[u8]) -> Option<usize>
-where
-    LaneCount<N>: SupportedLaneCount, {
+pub fn fuzzy_substring_match_simd<const N: usize, const K: usize>(haystack: &[u8], needle: &[u8]) -> Option<usize> {
     // Scalar version takes u8
     const {
         assert!(K <= u8::MAX as usize);
@@ -100,7 +100,7 @@ where
 
     // Defer to the exact algorithm as needed.
     if K == 0 {
-        return super::substring::substring_match_simd(haystack, needle);
+        return super::substring::substring_match_simd::<N>(haystack, needle);
     }
 
     // Since `needle.len() <= haystack.len()` we can just grab the first possible
@@ -117,7 +117,7 @@ where
     }
 
     // The mappings get `const` folded anyway.
-    let masks = create_masks();
+    let masks = create_masks::<N>();
     let mut i = 0;
     let (left, right) = needle.split_at(K + 1);
 

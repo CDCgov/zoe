@@ -1,16 +1,12 @@
-use std::{
-    cmp::min,
-    simd::{LaneCount, SupportedLaneCount, prelude::*},
-};
-
 use crate::math::Uint;
+use std::{cmp::min, simd::prelude::*};
 
 /// Calculates the number of differences at the byte (or base/residue) level. An
 /// unsigned integer may be supplied as a generic argument. Smaller sizes like
 /// `u32` have been known to auto-vectorize more nicely.
 ///
-///
 /// ## Example
+///
 /// ```
 /// # use zoe::distance::hamming;
 ///
@@ -43,9 +39,7 @@ pub fn hamming<T: Uint>(a: &[u8], b: &[u8]) -> usize {
 /// ```
 #[must_use]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
-pub fn hamming_simd<const N: usize>(x: &[u8], y: &[u8]) -> usize
-where
-    LaneCount<N>: SupportedLaneCount, {
+pub fn hamming_simd<const N: usize>(x: &[u8], y: &[u8]) -> usize {
     let mut matches: usize = 0;
     let limit = min(x.len(), y.len());
 
@@ -67,7 +61,7 @@ where
         for (v1, v2) in c1.by_ref().zip(c2.by_ref()) {
             let v1: Simd<u8, N> = Simd::from_slice(v1);
             let v2: Simd<u8, N> = Simd::from_slice(v2);
-            let m = v1.simd_eq(v2).to_int();
+            let m = v1.simd_eq(v2).to_simd();
             // True => -1, so - -1 => +1
             accum -= m.cast();
         }
@@ -85,7 +79,7 @@ where
     for (v1, v2) in c1.by_ref().zip(c2.by_ref()) {
         let v1: Simd<u8, N> = Simd::from_slice(v1);
         let v2: Simd<u8, N> = Simd::from_slice(v2);
-        let m = v1.simd_eq(v2).to_int();
+        let m = v1.simd_eq(v2).to_simd();
         // True => -1, so - -1 => +1
         accum -= m.cast();
     }
@@ -101,9 +95,7 @@ where
 
 #[cfg(test)]
 mod test {
-    use crate::distance::hamming;
-
-    use super::hamming_simd;
+    use crate::distance::{hamming, hamming_simd};
 
     #[test]
     fn test_hamming_simd() {

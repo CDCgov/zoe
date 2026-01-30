@@ -1,5 +1,5 @@
 use crate::iter_utils::SteppedWindows;
-use std::simd::{LaneCount, SupportedLaneCount, prelude::*};
+use std::simd::prelude::*;
 
 /// Non-SIMD component of [`find_k_repeating`].
 ///
@@ -44,10 +44,8 @@ fn find_k_repeating_scalar(haystack: &[u8], needle: u8, size: usize) -> Option<u
 /// [`find_k_repeating`].
 #[inline]
 #[must_use]
-fn find_2_repeating_simd<const N: usize>(haystack: &[u8], needle: u8) -> Option<usize>
-where
-    LaneCount<N>: SupportedLaneCount, {
-    let nv = Simd::splat(needle);
+fn find_2_repeating_simd<const N: usize>(haystack: &[u8], needle: u8) -> Option<usize> {
+    let nv = Simd::<u8, N>::splat(needle);
     let mut chunks = SteppedWindows::new(haystack, N - 1, N);
 
     for (i, chunk) in chunks.by_ref().map(Simd::from_slice).enumerate() {
@@ -64,29 +62,29 @@ where
 }
 
 /// Given a haystack, needle and the number of times the needle repeats itself
-/// in a row, find the starting index of the matching substring or return
-/// `None` otherwise.
+/// in a row, find the starting index of the matching substring or return `None`
+/// otherwise.
 ///
-/// For small needle sizes (`size` < 21), SIMD acceleration is used. The
-/// const parameter `N` is used to specify the number of SIMD lanes for the
-/// search.
+/// For small needle sizes (`size` < 21), SIMD acceleration is used.
 ///
-/// For larger needle sizes (`size` ≥ 21), a scalar implementation
-/// is used, enabling faster skipping through the string in a similar manner
-/// to the Boyer-Moore algorithm.
+/// For larger needle sizes (`size` ≥ 21), a scalar implementation is used,
+/// enabling faster skipping through the string in a similar manner to the
+/// Boyer-Moore algorithm.
 ///
 /// ## Limitations
 ///
 /// Not optimized for needles that are of comparable size to the haystack (e.g.,
 /// over half the size of the haystack).
 ///
-#[allow(clippy::cast_possible_truncation)]
+/// ## Parameters
+///
+/// `N` - The number of SIMD lanes to use for the search. This must be greater
+/// than 2.
 #[inline]
 #[must_use]
+#[allow(clippy::cast_possible_truncation)]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
-pub fn find_k_repeating<const N: usize>(haystack: &[u8], needle: u8, size: usize) -> Option<usize>
-where
-    LaneCount<N>: SupportedLaneCount, {
+pub fn find_k_repeating<const N: usize>(haystack: &[u8], needle: u8, size: usize) -> Option<usize> {
     const SCALAR_THRESHOLD: usize = 21;
 
     // TODO: fix when we have better const generics
@@ -97,9 +95,9 @@ where
     if size == 0 || size > haystack.len() {
         return None;
     } else if size == 1 {
-        return super::bytes::position_by_byte(haystack, needle);
+        return super::bytes::position_by_byte::<N>(haystack, needle);
     } else if size == 2 {
-        return find_2_repeating_simd(haystack, needle);
+        return find_2_repeating_simd::<N>(haystack, needle);
     }
 
     // Fall back to Scalar algorithm when it isn't worth it
@@ -107,7 +105,7 @@ where
         return find_k_repeating_scalar(haystack, needle, size);
     }
 
-    let nv = Simd::splat(needle);
+    let nv = Simd::<u8, N>::splat(needle);
     let mut chunks = SteppedWindows::new(haystack, N - 2, N);
     let mut running_total = 0;
 

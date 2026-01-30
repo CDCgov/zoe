@@ -2,11 +2,7 @@ use crate::{
     alignment::{Alignment, MaybeAligned, ProfileError, ScoreAndRanges, SeqSrc, StripedProfile, validate_profile_args},
     data::matrices::WeightMatrix,
 };
-use std::{
-    cell::OnceCell,
-    simd::{LaneCount, SupportedLaneCount},
-    sync::OnceLock,
-};
+use std::{cell::OnceCell, sync::OnceLock};
 
 /// A trait supporting sets of striped alignment profiles.
 ///
@@ -20,11 +16,7 @@ use std::{
 /// - `N` - The number of SIMD lanes for i16 profiles
 /// - `O` - The number of SIMD lanes for i32 profiles
 /// - `S` - The size of the alphabet (usually 5 for DNA including *N*)
-pub trait ProfileSets<'a, const M: usize, const N: usize, const O: usize, const S: usize>: Sized
-where
-    LaneCount<M>: SupportedLaneCount,
-    LaneCount<N>: SupportedLaneCount,
-    LaneCount<O>: SupportedLaneCount, {
+pub trait ProfileSets<'a, const M: usize, const N: usize, const O: usize, const S: usize>: Sized {
     /// Gets or initializes [`StripedProfile`] with elements of `i8` and `M`
     /// SIMD lanes and returns a reference to the field.
     fn get_i8(&self) -> &StripedProfile<'a, i8, M, S>;
@@ -383,11 +375,7 @@ where
 /// - `O` - The number of SIMD lanes for `i32` profiles
 /// - `S` - The size of the alphabet (usually 5 for DNA including *N*)
 #[derive(Debug, Clone)]
-pub struct LocalProfiles<'a, const M: usize, const N: usize, const O: usize, const S: usize>
-where
-    LaneCount<M>: SupportedLaneCount,
-    LaneCount<N>: SupportedLaneCount,
-    LaneCount<O>: SupportedLaneCount, {
+pub struct LocalProfiles<'a, const M: usize, const N: usize, const O: usize, const S: usize> {
     pub(crate) seq:         &'a [u8],
     pub(crate) matrix:      &'a WeightMatrix<'a, i8, S>,
     pub(crate) gap_open:    i8,
@@ -397,12 +385,7 @@ where
     pub(crate) profile_i32: OnceCell<StripedProfile<'a, i32, O, S>>,
 }
 
-impl<'a, const M: usize, const N: usize, const O: usize, const S: usize> LocalProfiles<'a, M, N, O, S>
-where
-    LaneCount<M>: SupportedLaneCount,
-    LaneCount<N>: SupportedLaneCount,
-    LaneCount<O>: SupportedLaneCount,
-{
+impl<'a, const M: usize, const N: usize, const O: usize, const S: usize> LocalProfiles<'a, M, N, O, S> {
     /// Creates an empty [`LocalProfiles`].
     ///
     /// Usually you instead want to use [`new_with_w128`], [`new_with_w256`], or
@@ -501,10 +484,6 @@ impl<'a, const S: usize> LocalProfiles<'a, 64, 32, 16, S> {
 
 impl<'a, const M: usize, const N: usize, const O: usize, const S: usize> ProfileSets<'a, M, N, O, S>
     for LocalProfiles<'a, M, N, O, S>
-where
-    LaneCount<M>: SupportedLaneCount,
-    LaneCount<N>: SupportedLaneCount,
-    LaneCount<O>: SupportedLaneCount,
 {
     #[inline]
     fn get_i8(&self) -> &StripedProfile<'a, i8, M, S> {
@@ -566,11 +545,7 @@ where
 /// - `O` - The number of SIMD lanes for `i32` profiles
 /// - `S` - The size of the alphabet (usually 5 for DNA including *N*)
 #[derive(Debug, Clone)]
-pub struct SharedProfiles<'a, const M: usize, const N: usize, const O: usize, const S: usize>
-where
-    LaneCount<M>: SupportedLaneCount,
-    LaneCount<N>: SupportedLaneCount,
-    LaneCount<O>: SupportedLaneCount, {
+pub struct SharedProfiles<'a, const M: usize, const N: usize, const O: usize, const S: usize> {
     pub(crate) seq:         &'a [u8],
     pub(crate) matrix:      &'a WeightMatrix<'a, i8, S>,
     pub(crate) gap_open:    i8,
@@ -580,12 +555,7 @@ where
     pub(crate) profile_i32: OnceLock<StripedProfile<'a, i32, O, S>>,
 }
 
-impl<'a, const M: usize, const N: usize, const O: usize, const S: usize> SharedProfiles<'a, M, N, O, S>
-where
-    LaneCount<M>: SupportedLaneCount,
-    LaneCount<N>: SupportedLaneCount,
-    LaneCount<O>: SupportedLaneCount,
-{
+impl<'a, const M: usize, const N: usize, const O: usize, const S: usize> SharedProfiles<'a, M, N, O, S> {
     /// Creates an empty [`SharedProfiles`].
     ///
     /// Usually you instead want to use [`new_with_w128`], [`new_with_w256`], or
@@ -676,10 +646,6 @@ impl<'a, const S: usize> SharedProfiles<'a, 64, 32, 16, S> {
 
 impl<'a, const M: usize, const N: usize, const O: usize, const S: usize> ProfileSets<'a, M, N, O, S>
     for SharedProfiles<'a, M, N, O, S>
-where
-    LaneCount<M>: SupportedLaneCount,
-    LaneCount<N>: SupportedLaneCount,
-    LaneCount<O>: SupportedLaneCount,
 {
     #[inline]
     fn get_i8(&self) -> &StripedProfile<'a, i8, M, S> {

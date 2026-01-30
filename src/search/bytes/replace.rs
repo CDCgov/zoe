@@ -1,5 +1,4 @@
 use crate::simd::SimdByteFunctions;
-use std::simd::{LaneCount, SupportedLaneCount};
 
 /// Finds and replaces all instances of `needle` with the replacement byte.
 #[inline]
@@ -23,9 +22,7 @@ where
 /// For older targets, the fastest code may use N=16.
 #[inline]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
-pub fn replace_all_bytes_simd<const N: usize>(haystack: &mut [u8], needle: u8, replacement: u8)
-where
-    LaneCount<N>: SupportedLaneCount, {
+pub fn replace_all_bytes_simd<const N: usize>(haystack: &mut [u8], needle: u8, replacement: u8) {
     let (pre, mid, sfx) = haystack.as_simd_mut::<N>();
     replace_all_bytes(pre, needle, replacement);
     for v in mid.iter_mut() {

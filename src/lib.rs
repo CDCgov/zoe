@@ -78,7 +78,7 @@ mod private {
     };
     use std::{
         hash::BuildHasher,
-        simd::{LaneCount, Simd, SimdElement, SupportedLaneCount},
+        simd::{Simd, SimdElement},
     };
 
     macro_rules! sealed {
@@ -94,7 +94,7 @@ mod private {
     impl<T, const N: usize> Sealed for &[T; N] {}
     impl<T, const N: usize> Sealed for [T; N] {}
     impl Sealed for crate::search::RangeSearch<'_> {}
-    impl<T: SimdElement, const N: usize> Sealed for Simd<T, N> where LaneCount<N>: SupportedLaneCount {}
+    impl<T: SimdElement, const N: usize> Sealed for Simd<T, N> {}
     impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> Sealed for KmerCounter<MAX_LEN, E, S> {}
     impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> Sealed for KmerSet<MAX_LEN, E, S> {}
     sealed!(

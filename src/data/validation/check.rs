@@ -1,17 +1,13 @@
 use crate::simd::SimdByteFunctions;
-use std::simd::{LaneCount, SupportedLaneCount, prelude::*};
+use std::simd::prelude::*;
 
 /// Provides SIMD-accelerated sequence validation methods.
 pub trait CheckSequence {
     /// Checks if all bytes in the sequence are ASCII using SIMD operations
-    fn is_ascii_simd<const N: usize>(&self) -> bool
-    where
-        LaneCount<N>: SupportedLaneCount;
+    fn is_ascii_simd<const N: usize>(&self) -> bool;
 
     /// Checks if all bytes in the sequence are printable ASCII using SIMD operations
-    fn is_graphic_simd<const N: usize>(&self) -> bool
-    where
-        LaneCount<N>: SupportedLaneCount;
+    fn is_graphic_simd<const N: usize>(&self) -> bool;
 }
 
 impl<T> CheckSequence for T
@@ -19,18 +15,14 @@ where
     T: AsRef<[u8]>,
 {
     #[inline]
-    fn is_ascii_simd<const N: usize>(&self) -> bool
-    where
-        LaneCount<N>: SupportedLaneCount, {
-        let (pre, mid, suffix) = self.as_ref().as_simd();
+    fn is_ascii_simd<const N: usize>(&self) -> bool {
+        let (pre, mid, suffix) = self.as_ref().as_simd::<N>();
         pre.is_ascii() && suffix.is_ascii() && mid.iter().fold(Mask::splat(true), |acc, b| acc & b.is_ascii()).all()
     }
 
     #[inline]
-    fn is_graphic_simd<const N: usize>(&self) -> bool
-    where
-        LaneCount<N>: SupportedLaneCount, {
-        let (pre, mid, suffix) = self.as_ref().as_simd();
+    fn is_graphic_simd<const N: usize>(&self) -> bool {
+        let (pre, mid, suffix) = self.as_ref().as_simd::<N>();
         pre.iter().fold(true, |acc, b| acc & b.is_ascii_graphic())
             && suffix.iter().fold(true, |acc, b| acc & b.is_ascii_graphic())
             && mid.iter().fold(Mask::splat(true), |acc, b| acc & b.is_ascii_graphic()).all()

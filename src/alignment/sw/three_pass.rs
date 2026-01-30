@@ -6,7 +6,7 @@ use crate::{
     data::{WeightMatrix, views::IndexAdjustable},
     math::{AlignableIntWidth, SimdAnyInt},
 };
-use std::simd::{LaneCount, Simd, SupportedLaneCount};
+use std::simd::Simd;
 
 /// Similar to [`sw_simd_align`] but computes the Smith-Waterman local
 /// alignment using a 3-pass algorithm.
@@ -24,7 +24,6 @@ pub fn sw_align_3pass<T, const N: usize, const S: usize>(
 ) -> MaybeAligned<Alignment<u32>>
 where
     T: AlignableIntWidth,
-    LaneCount<N>: SupportedLaneCount,
     Simd<T, N>: SimdAnyInt<T, N>, {
     sw_simd_score_ranges(reference, query_profile).and_then(|score_and_ranges| {
         let ScoreAndRanges {
