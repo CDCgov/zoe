@@ -10,6 +10,14 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 - Adds methods to pad and extend `Nucleotides` and `AminoAcids`
 
+### Changed
+
+- Zoe's MSRV is now 1.95 (nightly).
+
+### Fixes
+
+- Fixes Zoe to use the latest sync'd portable SIMD in Rust nightly 1.95. For earlier versions, try Rust nightly 1.94.
+
 
 ## [0.0.24] - 2026-01-26
 

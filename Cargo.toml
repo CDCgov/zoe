@@ -2,7 +2,7 @@
 edition = "2024"
 name = "zoe"
 version = "0.0.25-dev"
-rust-version = "1.88"
+rust-version = "1.95"
 description = "A nightly library for viral genomics"
 license = "Apache-2.0"
 
