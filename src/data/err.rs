@@ -47,6 +47,7 @@ use std::{
     error::Error,
     fmt::{Display, Write},
     fs::File,
+    hint::cold_path,
     io::ErrorKind,
     path::Path,
 };
@@ -320,17 +321,26 @@ impl<Ok, E: WithErrorContext> ResultWithErrorContext for Result<Ok, E> {
 
     #[inline]
     fn with_context(self, description: impl Into<String>) -> Result<Ok, ErrorWithContext> {
-        self.map_err(|e| e.with_context(description))
+        self.map_err(|e| {
+            cold_path();
+            e.with_context(description)
+        })
     }
 
     #[inline]
     fn with_type_context<T>(self) -> Result<Ok, ErrorWithContext> {
-        self.map_err(WithErrorContext::with_type_context::<T>)
+        self.map_err(|e| {
+            cold_path();
+            e.with_type_context::<T>()
+        })
     }
 
     #[inline]
     fn with_file_context(self, msg: impl Display, file: impl AsRef<Path>) -> Result<Ok, ErrorWithContext> {
-        self.map_err(|e| e.with_file_context(msg, file))
+        self.map_err(|e| {
+            cold_path();
+            e.with_file_context(msg, file)
+        })
     }
 }
 
