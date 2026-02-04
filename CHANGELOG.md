@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file. The format
 is roughly based on [Keep a Changelog], and this project tries to adheres to
 [Semantic Versioning].
 
-## [0.0.25] - TBD
+## [0.0.25] - 2026-02-04
 
 ### Added
 
@@ -17,7 +17,6 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 ### Fixes
 
 - Fixes Zoe to use the latest sync'd portable SIMD in Rust nightly 1.95. For earlier versions, try Rust nightly 1.94.
-
 
 ## [0.0.24] - 2026-01-26
 

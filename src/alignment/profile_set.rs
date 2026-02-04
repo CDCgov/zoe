@@ -12,10 +12,10 @@ use std::{cell::OnceCell, sync::OnceLock};
 ///
 /// ## Type Parameters
 ///
-/// - `M` - The number of SIMD lanes for i8 profiles
-/// - `N` - The number of SIMD lanes for i16 profiles
-/// - `O` - The number of SIMD lanes for i32 profiles
-/// - `S` - The size of the alphabet (usually 5 for DNA including *N*)
+/// - `M` - The number of SIMD lanes for `i8` profiles.
+/// - `N` - The number of SIMD lanes for `i16` profiles.
+/// - `O` - The number of SIMD lanes for `i32` profiles.
+/// - `S` - The size of the alphabet (usually 5 for DNA including `N`).
 pub trait ProfileSets<'a, const M: usize, const N: usize, const O: usize, const S: usize>: Sized {
     /// Gets or initializes [`StripedProfile`] with elements of `i8` and `M`
     /// SIMD lanes and returns a reference to the field.
@@ -370,10 +370,10 @@ pub trait ProfileSets<'a, const M: usize, const N: usize, const O: usize, const 
 ///
 /// ## Type Parameters
 ///
-/// - `M` - The number of SIMD lanes for `i8` profiles
-/// - `N` - The number of SIMD lanes for `i16` profiles
-/// - `O` - The number of SIMD lanes for `i32` profiles
-/// - `S` - The size of the alphabet (usually 5 for DNA including *N*)
+/// - `M` - The number of SIMD lanes for `i8` profiles.
+/// - `N` - The number of SIMD lanes for `i16` profiles.
+/// - `O` - The number of SIMD lanes for `i32` profiles.
+/// - `S` - The size of the alphabet (usually 5 for DNA including `N`).
 #[derive(Debug, Clone)]
 pub struct LocalProfiles<'a, const M: usize, const N: usize, const O: usize, const S: usize> {
     pub(crate) seq:         &'a [u8],

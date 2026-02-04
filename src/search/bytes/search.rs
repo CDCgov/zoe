@@ -164,8 +164,8 @@ pub fn position_by_byte3<const N: usize>(haystack: &[u8], b1: u8, b2: u8, b3: u8
 ///
 /// The following parameters can be used to adjust performance characteristics:
 ///
-/// - `N` - The number of SIMD lanes
-/// - `UF` - The unroll factor
+/// - `N` - The number of SIMD lanes to use.
+/// - `UF` - The unroll factor.
 #[inline]
 #[must_use]
 #[allow(clippy::needless_range_loop)]

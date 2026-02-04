@@ -94,7 +94,9 @@ impl AminoAcids {
     }
 
     /// Cuts the N-terminus of the [`AminoAcids`] just prior to the new starting
-    /// index (0-based). Be aware that this clones the internal buffer!
+    /// index (0-based).
+    ///
+    /// This method clones the internal buffer.
     #[inline]
     pub fn cut_to_start(&mut self, new_start: usize) {
         *self = Self(self.0.drain(new_start..).collect());
@@ -107,7 +109,8 @@ impl AminoAcids {
     }
 
     /// Prepends the amino acid sequence with the given slice.
-    /// This method always allocates.
+    ///
+    /// This method allocates.
     #[inline]
     pub fn prepend_from_slice(&mut self, slice: impl AsRef<[u8]>) {
         let slice = slice.as_ref();
@@ -120,14 +123,17 @@ impl AminoAcids {
         *self = AminoAcids(new);
     }
 
-    /// Pads the C-terminus (end) of the [`AminoAcids`] by `aa` for `count` times.
+    /// Pads the C-terminus (end) of the [`AminoAcids`] by `aa` for `count`
+    /// times.
     #[inline]
     pub fn pad_end(&mut self, aa: u8, count: usize) {
         self.0.extend(std::iter::repeat_n(aa, count));
     }
 
     /// Pads the N-terminus (start) of the [`AminoAcids`] by `aa` for `count`
-    /// times. This method always allocates.
+    /// times.
+    ///
+    /// This method allocates.
     #[inline]
     pub fn pad_start(&mut self, aa: u8, count: usize) {
         if count == 0 {
@@ -140,8 +146,9 @@ impl AminoAcids {
     }
 
     /// Pads the [`AminoAcids`] on both flanking sides by `aa` for
-    /// `amount_before` and `amount_after` respectively. This method always
-    /// allocates.
+    /// `amount_before` and `amount_after` respectively.
+    ///
+    /// This method allocates.
     #[inline]
     pub fn pad_both_sides(&mut self, aa: u8, amount_before: usize, amount_after: usize) {
         if amount_before == 0 && amount_after == 0 {

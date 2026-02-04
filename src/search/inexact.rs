@@ -71,8 +71,8 @@ const fn create_masks<const N: usize>() -> [Simd<u8, N>; 256] {
 ///
 /// ## Parameters
 ///
-/// - `N` - The number of SIMD lanes to use
-/// - `K` - The number of differences allowed
+/// - `N` - The number of SIMD lanes to use.
+/// - `K` - The number of differences allowed.
 ///
 /// ## Limitations
 ///
