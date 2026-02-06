@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file. The format
 is roughly based on [Keep a Changelog], and this project tries to adheres to
 [Semantic Versioning].
 
+## [0.0.26] - TBD
+
+### Fixed
+
+- Fixed the constructors for `SharedProfiles` to match those of `LocalProfiles`
+
 ## [0.0.25] - 2026-02-04
 
 ### Added
@@ -14,9 +20,9 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 - Zoe's MSRV is now 1.95 (nightly).
 
-### Fixes
+### Fixed
 
-- Fixes Zoe to use the latest sync'd portable SIMD in Rust nightly 1.95. For earlier versions, try Rust nightly 1.94.
+- Fixed Zoe to use the latest sync'd portable SIMD in Rust nightly 1.95. For earlier versions, try Rust nightly 1.94.
 
 ## [0.0.24] - 2026-01-26
 
@@ -48,7 +54,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - `SharedProfiles` no longer holds the sequence as `Box<u8>`, instead using `&'a [u8]`
 - Condensed the `PhmmParamKind` variants in the `visit_params` API (behind `dev-phmm` feature gate)
 
-### Fixes
+### Fixed
 
 - Fixed spelling of `filter_to_dna_uanligned` to `filter_to_dna_unaligned` in trait `ToDNA`
 - Fixed bug for parsing -128 in a weight matrix using `MatParser`
@@ -419,6 +425,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - **Added**: Initial internal release. Provides various readers and types for bioinformatics data manipulation.
 
 <!-- Versions -->
+[0.0.26]: https://github.com/CDCgov/zoe/compare/v0.0.25...v0.0.26
 [0.0.25]: https://github.com/CDCgov/zoe/compare/v0.0.24...v0.0.25
 [0.0.24]: https://github.com/CDCgov/zoe/compare/v0.0.23...v0.0.24
 [0.0.23]: https://github.com/CDCgov/zoe/compare/v0.0.22...v0.0.23

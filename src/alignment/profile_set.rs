@@ -576,13 +576,15 @@ impl<'a, const M: usize, const N: usize, const O: usize, const S: usize> SharedP
     /// [`new_with_w256`]: SharedProfiles::new_with_w256
     /// [`new_with_w512`]: SharedProfiles::new_with_w512
     #[inline]
-    pub fn new(
-        seq: &'a [u8], matrix: &'a WeightMatrix<'a, i8, S>, gap_open: i8, gap_extend: i8,
-    ) -> Result<Self, ProfileError> {
-        validate_profile_args(seq, gap_open, gap_extend)?;
+    pub fn new<T>(
+        seq: &'a T, matrix: &'a WeightMatrix<'a, i8, S>, gap_open: i8, gap_extend: i8,
+    ) -> Result<Self, ProfileError>
+    where
+        T: AsRef<[u8]> + ?Sized, {
+        validate_profile_args(seq.as_ref(), gap_open, gap_extend)?;
 
         Ok(SharedProfiles {
-            seq,
+            seq: seq.as_ref(),
             matrix,
             gap_open,
             gap_extend,
@@ -603,9 +605,11 @@ impl<'a, const S: usize> SharedProfiles<'a, 16, 8, 4, S> {
     ///
     /// Same as [`SharedProfiles::new`].
     #[inline]
-    pub fn new_with_w128(
-        seq: &'a [u8], matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
-    ) -> Result<SharedProfiles<'a, 16, 8, 4, S>, ProfileError> {
+    pub fn new_with_w128<T>(
+        seq: &'a T, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
+    ) -> Result<SharedProfiles<'a, 16, 8, 4, S>, ProfileError>
+    where
+        T: AsRef<[u8]> + ?Sized, {
         Self::new(seq, matrix, gap_open, gap_extend)
     }
 }
@@ -620,9 +624,11 @@ impl<'a, const S: usize> SharedProfiles<'a, 32, 16, 8, S> {
     ///
     /// Same as [`SharedProfiles::new`].
     #[inline]
-    pub fn new_with_w256(
-        seq: &'a [u8], matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
-    ) -> Result<SharedProfiles<'a, 32, 16, 8, S>, ProfileError> {
+    pub fn new_with_w256<T>(
+        seq: &'a T, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
+    ) -> Result<SharedProfiles<'a, 32, 16, 8, S>, ProfileError>
+    where
+        T: AsRef<[u8]> + ?Sized, {
         Self::new(seq, matrix, gap_open, gap_extend)
     }
 }
@@ -637,9 +643,11 @@ impl<'a, const S: usize> SharedProfiles<'a, 64, 32, 16, S> {
     ///
     /// Same as [`SharedProfiles::new`].
     #[inline]
-    pub fn new_with_w512(
-        seq: &'a [u8], matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
-    ) -> Result<SharedProfiles<'a, 64, 32, 16, S>, ProfileError> {
+    pub fn new_with_w512<T>(
+        seq: &'a T, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
+    ) -> Result<SharedProfiles<'a, 64, 32, 16, S>, ProfileError>
+    where
+        T: AsRef<[u8]> + ?Sized, {
         Self::new(seq, matrix, gap_open, gap_extend)
     }
 }
