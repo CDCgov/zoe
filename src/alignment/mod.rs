@@ -202,6 +202,20 @@ impl<T> SeqSrc<T> {
             SeqSrc::Reference(seq) => SeqSrc::Reference(f(seq)),
         }
     }
+
+    /// Returns whether the sequence is a query sequence.
+    #[inline]
+    #[must_use]
+    pub fn is_query(&self) -> bool {
+        matches!(self, SeqSrc::Query(_))
+    }
+
+    /// Returns whether the sequence is a reference sequence.
+    #[inline]
+    #[must_use]
+    pub fn is_reference(&self) -> bool {
+        matches!(self, SeqSrc::Reference(_))
+    }
 }
 
 /// A trait providing convenience methods to wrap a reference to a sequence in

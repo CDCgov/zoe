@@ -6,6 +6,10 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ## [0.0.26] - TBD
 
+### Added
+
+- Added convenience methods for checking the variant of `SeqSrc`
+
 ### Fixed
 
 - Fixed the constructors for `SharedProfiles` to match those of `LocalProfiles`
