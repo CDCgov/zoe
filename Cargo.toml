@@ -53,6 +53,9 @@ alignment-diagnostics = ["dep:visibility"]
 # development
 dev-phmm = []
 
+# An optional feature enabling the max_score_for_int_type diagnostic function
+dev-max-score-for-type = []
+
 [dependencies]
 arbitrary = { version = "1", optional = true, features = ["derive"] }
 multiversion = { version = "0.8", optional = true }
@@ -66,7 +69,7 @@ strip = true
 lto = "thin"
 
 [package.metadata.docs.rs]
-features = ["rand", "fuzzing", "dev-phmm", "alignment-diagnostics"]
+features = ["rand", "fuzzing", "dev-phmm", "alignment-diagnostics", "dev-max-score-for-type"]
 rustdoc-args = ["--html-in-header", "./assets/docs-header.html"]
 
 [[example]]
