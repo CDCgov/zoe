@@ -13,6 +13,10 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Implemented `SequenceReadable` for profile sets
 - Implemented `PartialOrd` for `Alignment` and `MaybeAligned`
 
+### Changed
+
+- Development features now only use internal documentation on GitHub
+
 ### Fixed
 
 - Fixed the constructors for `SharedProfiles` to match those of `LocalProfiles`

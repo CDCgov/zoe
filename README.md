@@ -1,7 +1,7 @@
 # The Zoe Anthology
 
 [Zoe](https://en.wikipedia.org/wiki/Zoe_(name)) provides both broad and highly specialized implementations for
-bioinformatics. In particular, we focus on common data formats and methods relevant for the sequencing of RNA viruses. Read the [internal documentation](https://cdcgov.github.io/zoe) or the [public docs](https://docs.rs/zoe/latest/zoe/) on [docs.rs](https://docs.rs).
+bioinformatics. In particular, we focus on common data formats and methods relevant for the sequencing of RNA viruses. Read the [internal documentation] or the [public docs](https://docs.rs/zoe/latest/zoe/).
 
 **This library runs on Rust *nightly*.**
 
@@ -73,7 +73,7 @@ at the user's discretion.
 - **multiversion**: This optional feature adds multiversioning of select Zoe SIMD functions using the [multiversion](https://docs.rs/multiversion/latest/multiversion/) crate.
 - **fuzzing**: This optional feature adds several testing features to Zoe, including [`Arbitrary`](https://docs.rs/arbitrary/latest/arbitrary/trait.Arbitrary.html) implementations for many of Zoe's data types to support fuzz testing. It also introduces many wrapper types with custom [`Arbitrary`](https://docs.rs/arbitrary/latest/arbitrary/trait.Arbitrary.html) implementations providing data with stronger assumptions.
 - **alignment-diagnostics**: An optional feature exposing additional alignment-related functions and internals, such as for testing.
-- ***Development features*** (of the format `dev-*`) are considered **unstable** and will be **removed** after completion of the work. Users should not rely on them. Functionality from the work may become available either without a feature or under a new feature name in a future release.
+- ***Development features*** (of the format `dev-*`) are considered **unstable** and will be **removed** after completion of the work. Users should not rely on them. Functionality from the work may become available either without a feature or under a new feature name in a future release. Use the [internal documentation] to find information about development features.
 
 ## Notices
 
@@ -106,3 +106,6 @@ This repository is not a source of government records, but is a copy to increase
 ## Additional Standard Notices
 
 Please refer to [CDC's Template Repository](https://github.com/CDCgov/template) for more information about [contributing to this repository](https://github.com/CDCgov/template/blob/main/CONTRIBUTING.md), [public domain notices and disclaimers](https://github.com/CDCgov/template/blob/main/DISCLAIMER.md), and [code of conduct](https://github.com/CDCgov/template/blob/main/code-of-conduct.md).
+
+
+[internal documentation]: https://cdcgov.github.io/zoe
