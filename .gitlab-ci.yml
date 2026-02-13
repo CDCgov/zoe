@@ -12,7 +12,6 @@ zoe-build:
   stage: build
   tags:
     - docker
-    - scicomp
   image: rustlang/rust:nightly
   script:
     - cargo build --all-features
@@ -28,7 +27,6 @@ zoe-test:
   stage: test
   tags:
     - docker
-    - scicomp
   image: rustlang/rust:nightly
   dependencies:
     - zoe-build
