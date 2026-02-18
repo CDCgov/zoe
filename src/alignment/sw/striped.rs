@@ -3,8 +3,7 @@ use crate::{
         Alignment, BackTrackable, BacktrackMatrixStriped, MaybeAligned, ScoreAndRanges, ScoreEnds, ScoreIndices,
         ScoreStarts, SimdBacktrackFlags, StripedProfile,
     },
-    data::WeightMatrix,
-    math::{AlignableIntWidth, AnyInt, FromSameSignedness},
+    math::AlignableIntWidth,
     simd::SimdAnyInt,
 };
 use std::simd::{
@@ -651,11 +650,13 @@ where
 /// use this function. Its use case and API is still being explored.
 ///
 /// </div>
+///
+/// [`WeightMatrix`]: crate::data::WeightMatrix
 #[cfg(feature = "dev-max-score-for-type")]
-pub fn max_score_for_int_type<T, U, const S: usize>(matrix: &WeightMatrix<'_, U, S>) -> u32
+pub fn max_score_for_int_type<T, U, const S: usize>(matrix: &crate::data::WeightMatrix<'_, U, S>) -> u32
 where
-    T: FromSameSignedness<U> + AlignableIntWidth,
-    U: AnyInt, {
+    T: crate::math::FromSameSignedness<U> + AlignableIntWidth,
+    U: crate::math::AnyInt, {
     if T::SIGNED {
         let best = T::MAX - T::ONE;
         (T::MAX.cast_as::<u32>() + 1).wrapping_add_signed(best.cast_as::<i32>())

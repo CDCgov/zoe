@@ -17,6 +17,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 ### Changed
 
 - Development features now only use internal documentation on GitHub
+- Generalized sampling methods to accept any random generator (behind `rand` feature gate)
+- Updated to use `rand` v0.10.0, which includes breaking changes (behind `rand` feature gate)
 
 ### Fixed
 
