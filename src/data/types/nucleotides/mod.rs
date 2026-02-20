@@ -33,10 +33,11 @@ mod test;
 #[repr(transparent)]
 pub struct Nucleotides(pub(crate) Vec<u8>);
 
-/// The corresponding immutable view type for [`Nucleotides`]. See
-/// [Views](crate::data#views) for more details.
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Default)]
+/// The corresponding immutable view type for [`Nucleotides`].
+///
+/// See [Views](crate::data#views) for more details.
 #[repr(transparent)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Default)]
 pub struct NucleotidesView<'a>(pub(crate) &'a [u8]);
 
 /// The corresponding mutable view type for [`Nucleotides`]. See
@@ -314,7 +315,7 @@ impl<'a> NucleotidesView<'a> {
     /// Gets the nucleotides as a byte slice.
     #[inline]
     #[must_use]
-    pub fn as_bytes(&self) -> &'a [u8] {
+    pub fn as_bytes(self) -> &'a [u8] {
         self.0
     }
 
@@ -322,7 +323,7 @@ impl<'a> NucleotidesView<'a> {
     /// [`Option`].
     #[inline]
     #[must_use]
-    pub fn get<I>(&self, index: I) -> Option<&'a I::Output>
+    pub fn get<I>(self, index: I) -> Option<&'a I::Output>
     where
         I: std::slice::SliceIndex<[u8]>, {
         self.0.get(index)
@@ -330,7 +331,7 @@ impl<'a> NucleotidesView<'a> {
 
     /// Creates an iterator over the nucleotides as `&u8`.
     #[inline]
-    pub fn iter(&self) -> std::slice::Iter<'a, u8> {
+    pub fn iter(self) -> std::slice::Iter<'a, u8> {
         self.0.iter()
     }
 
@@ -339,7 +340,7 @@ impl<'a> NucleotidesView<'a> {
     /// Returns the reverse complement of the sequence as a new record.
     #[inline]
     #[must_use]
-    pub fn to_reverse_complement(&self) -> Nucleotides {
+    pub fn to_reverse_complement(self) -> Nucleotides {
         Nucleotides(reverse_complement(self.0))
     }
 }

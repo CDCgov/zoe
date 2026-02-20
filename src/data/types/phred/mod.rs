@@ -18,7 +18,7 @@ pub struct QualityScores(pub(crate) Vec<EncodedQS>);
 /// The corresponding immutable view type for [`QualityScores`]. See
 /// [Views](crate::data#views) for more details. It is guaranteed to contain
 /// graphic ASCII in range `!`..=`~`.
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Default)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Default)]
 #[repr(transparent)]
 pub struct QualityScoresView<'a>(pub(crate) &'a [u8]);
 
@@ -178,7 +178,7 @@ impl<'a> QualityScoresView<'a> {
     /// Gets the ASCII encoded quality scores as a byte slice.
     #[inline]
     #[must_use]
-    pub fn as_bytes(&self) -> &'a [u8] {
+    pub fn as_bytes(self) -> &'a [u8] {
         self.0
     }
 
@@ -186,7 +186,7 @@ impl<'a> QualityScoresView<'a> {
     /// index, returning an [`Option`].
     #[inline]
     #[must_use]
-    pub fn get<I>(&self, index: I) -> Option<&'a I::Output>
+    pub fn get<I>(self, index: I) -> Option<&'a I::Output>
     where
         I: std::slice::SliceIndex<[u8]>, {
         self.0.get(index)
@@ -194,7 +194,7 @@ impl<'a> QualityScoresView<'a> {
 
     /// Creates an iterator over the ASCII encoded quality scores as `&u8`.
     #[inline]
-    pub fn iter(&self) -> std::slice::Iter<'a, u8> {
+    pub fn iter(self) -> std::slice::Iter<'a, u8> {
         self.0.iter()
     }
 
@@ -203,7 +203,7 @@ impl<'a> QualityScoresView<'a> {
     /// Returns the sequence in reverse.
     #[inline]
     #[must_use]
-    pub fn to_reverse(&self) -> QualityScores {
+    pub fn to_reverse(self) -> QualityScores {
         QualityScores(self.iter().rev().copied().collect())
     }
 }

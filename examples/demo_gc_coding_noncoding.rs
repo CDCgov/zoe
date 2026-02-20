@@ -6,7 +6,7 @@ use zoe::{data::StdGeneticCode, prelude::*};
 // codon to the end of the sequence) and the noncoding regions, exclude the
 // start and stop codons themselves.
 
-fn find_start_codon(sequence: &NucleotidesView) -> Option<Range<usize>> {
+fn find_start_codon(sequence: NucleotidesView) -> Option<Range<usize>> {
     sequence
         .as_bytes()
         .windows(3)
@@ -14,7 +14,7 @@ fn find_start_codon(sequence: &NucleotidesView) -> Option<Range<usize>> {
         .map(|start| start..start + 3)
 }
 
-fn find_stop_codon(sequence: &NucleotidesView) -> Option<Range<usize>> {
+fn find_stop_codon(sequence: NucleotidesView) -> Option<Range<usize>> {
     sequence
         .as_bytes()
         .chunks_exact(3)
@@ -51,7 +51,7 @@ fn main() {
         let mut sequence = fastq_record.sequence.as_view();
 
         // Each execution of the loop represents one coding region
-        while let Some(start_codon_position) = find_start_codon(&sequence) {
+        while let Some(start_codon_position) = find_start_codon(sequence) {
             // Tally sequence before start codon
             let before_coding = sequence.slice(..start_codon_position.start);
             gc_noncoding += before_coding.gc_content();
@@ -60,7 +60,7 @@ fn main() {
 
             // Find the stop codon position, respecting the reading frame, then
             // tally the coding region
-            if let Some(stop_codon_position) = find_stop_codon(&sequence) {
+            if let Some(stop_codon_position) = find_stop_codon(sequence) {
                 let coding = sequence.slice(..stop_codon_position.start);
                 gc_coding += coding.gc_content();
                 total_coding += coding.len();

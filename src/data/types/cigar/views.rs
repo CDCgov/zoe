@@ -10,7 +10,7 @@ use crate::data::{
 /// See [Views](crate::data#views) for more details. This struct is still in
 /// development; it currently only supports parsing and displaying, and not all
 /// the other operations that [`Cigar`] supports.
-#[derive(Clone, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
 pub struct CigarView<'a>(&'a [u8]);
 
 /// A mutable view of a [`Cigar`] string.
@@ -25,7 +25,7 @@ impl<'a> CigarView<'a> {
     /// Retrieves the underlying byte string from the CIGAR string.
     #[inline]
     #[must_use]
-    pub fn as_bytes(&self) -> &'a [u8] {
+    pub fn as_bytes(self) -> &'a [u8] {
         self.0
     }
 
@@ -48,7 +48,7 @@ impl<'a> CigarView<'a> {
     /// [`Ciglet`]: crate::data::types::cigar::Ciglet
     #[inline]
     #[must_use]
-    pub fn iter(&self) -> CigletIterator<'a> {
+    pub fn iter(self) -> CigletIterator<'a> {
         CigletIterator::new(self.0)
     }
 }

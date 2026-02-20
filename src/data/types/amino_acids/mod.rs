@@ -11,10 +11,11 @@ pub use getter_traits::*;
 #[repr(transparent)]
 pub struct AminoAcids(pub(crate) Vec<u8>);
 
-/// The corresponding immutable view type for [`AminoAcids`]. See
-/// [Views](crate::data#views) for more details.
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Default)]
+/// The corresponding immutable view type for [`AminoAcids`].
+///
+/// See [Views](crate::data#views) for more details.
 #[repr(transparent)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Default)]
 pub struct AminoAcidsView<'a>(pub(crate) &'a [u8]);
 
 /// The corresponding mutable view type for [`AminoAcids`]. See
@@ -229,14 +230,14 @@ impl<'a> AminoAcidsView<'a> {
     /// Obtains the bytes as a slice.
     #[inline]
     #[must_use]
-    pub fn as_bytes(&self) -> &'a [u8] {
+    pub fn as_bytes(self) -> &'a [u8] {
         self.0
     }
 
     /// Gets the amino acids or byte slice at the zero-based index, returning an
     /// [`Option`].
     #[inline]
-    pub fn get<I>(&self, index: I) -> Option<&'a I::Output>
+    pub fn get<I>(self, index: I) -> Option<&'a I::Output>
     where
         I: std::slice::SliceIndex<[u8]>, {
         self.0.get(index)
@@ -244,7 +245,7 @@ impl<'a> AminoAcidsView<'a> {
 
     /// Creates an iterator over the amino acids as `&u8`.
     #[inline]
-    pub fn iter(&self) -> std::slice::Iter<'a, u8> {
+    pub fn iter(self) -> std::slice::Iter<'a, u8> {
         self.0.iter()
     }
 }

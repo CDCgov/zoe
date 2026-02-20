@@ -348,7 +348,7 @@ fn check_recode_dna() {
         let recode = get_recoded(char, RecodeDNAStrat::ToRna);
         if seq == b"T" || seq == b"U" {
             assert_eq!(recode, b"U");
-        } else if seq == b"t" || seq == b"u"{
+        } else if seq == b"t" || seq == b"u" {
             assert_eq!(recode, b"u");
         } else if seq.is_valid_dna(IsValidDNA::AcgtnNoGaps) {
             assert_eq!(recode, seq);
@@ -366,7 +366,6 @@ fn check_recode_dna() {
         }
     }
 }
-
 
 #[test]
 fn simd_reverse_complement() {
