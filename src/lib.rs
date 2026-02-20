@@ -88,12 +88,13 @@ mod private {
     pub trait Sealed {}
     sealed!(String, &String, &str, str);
     impl<T> Sealed for Vec<T> {}
+    impl Sealed for Box<[u8]> {}
     impl<T> Sealed for [T] {}
     impl<T> Sealed for &[T] {}
     impl<T> Sealed for &mut [T] {}
     impl<T, const N: usize> Sealed for &[T; N] {}
     impl<T, const N: usize> Sealed for [T; N] {}
-    impl Sealed for crate::search::RangeSearch<'_> {}
+    impl<Q: ?Sized> Sealed for crate::search::RangeSearch<'_, Q> {}
     impl<T: SimdElement, const N: usize> Sealed for Simd<T, N> {}
     impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> Sealed for KmerCounter<MAX_LEN, E, S> {}
     impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> Sealed for KmerSet<MAX_LEN, E, S> {}

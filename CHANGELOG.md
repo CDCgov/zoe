@@ -12,10 +12,12 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `push`, `starts_with`, and `ends_with` to `Nucleotides` and `AminoAcids`
 - Implemented `Extend` for `Nucleotides` and `AminoAcids`
 - Added `to_aa_iter_exact` and `to_aa_iter_exact_with` for amino acid translation that does not include a partial codon for codons with less than 3 bases at the end of a sequence
+- Added `find_next_aa` and `find_next_aa_in_frame` to `RangeSearch`
 
 ### Changed
 
 - Implemented Copy for several immutable views
+- `RangeSearch` now contains a generic with the original type to allow search methods to restrict the types of data they are used on
 
 ### Fixes
 

@@ -259,7 +259,7 @@ impl<'a> OverlappingCodonsIter<'a> {
     /// Create a new [`OverlappingCodonsIter`] from the provided sequence.
     #[inline]
     #[must_use]
-    fn new(seq: &'a [u8]) -> Self {
+    pub(crate) fn new(seq: &'a [u8]) -> Self {
         Self { codons: seq.windows(3) }
     }
 }

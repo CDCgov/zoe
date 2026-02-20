@@ -108,7 +108,7 @@ impl<T: AsRef<[u8]> + ?Sized + Sealed> ByteSubstring for T {
     }
 }
 
-impl ByteSubstring for RangeSearch<'_> {
+impl<Q: ?Sized> ByteSubstring for RangeSearch<'_, Q> {
     #[inline]
     fn contains_substring(&self, needle: impl AsRef<[u8]>) -> bool {
         self.slice.contains_substring(needle)

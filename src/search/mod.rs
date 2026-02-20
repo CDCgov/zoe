@@ -18,6 +18,7 @@
 //!
 //! Sometimes, you may want to search a particular region of a string. There are
 //! two main scenarios:
+//!
 //! 1. The string search should return an index/range with respect to the
 //!    subsequence. For example, searching `ACGT` for `G` in the range `1..3`
 //!    would return a starting index of 1.
@@ -26,6 +27,7 @@
 //!
 //! The first scenario is easily resolved by creating a byte slice or a
 //! [view](crate::data#views), and then searching within that. For example:
+//!
 //! ```
 //! # use zoe::prelude::*;
 //! let haystack = b"CACATAACGTACAGTTTTACACAGTTAGGT";
@@ -40,6 +42,7 @@
 //! adjusts the range afterwards. An example usage is below. Notice that the
 //! potential match at the beginning of the haystack is not returned, since it
 //! is not in the provided range.
+//!
 //! ```
 //! # use zoe::{search::ToRangeSearch, prelude::*};
 //! let haystack = b"CACATAACGTACAGTTTTACACAGTTAGGT";
@@ -55,6 +58,7 @@
 //! `search_in`. To simplify this, *Zoe* provides `search_in_first` and
 //! `search_in_last`, as shown below. Once again, the second occurrence of the
 //! needle is returned.
+//!
 //! ```
 //! # use zoe::{search::ToRangeSearch, prelude::*};
 //! let haystack = b"CACATAACGTACAGTTTTACACAGTTAGGT";
