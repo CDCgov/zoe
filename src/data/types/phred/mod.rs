@@ -1,6 +1,6 @@
 #![allow(clippy::cast_precision_loss)]
 
-use crate::prelude::*;
+use crate::{data::views::SliceRange, prelude::*};
 
 mod stats;
 mod std_traits;
@@ -196,6 +196,27 @@ impl<'a> QualityScoresView<'a> {
     #[inline]
     pub fn iter(self) -> std::slice::Iter<'a, u8> {
         self.0.iter()
+    }
+
+    /// Creates an immutable view of the data contained in `range`.
+    ///
+    /// This is similar to [`Slice::slice`], but it is an inherent method on
+    /// [`QualityScoresView`] offering a longer lifetime in the returned value.
+    #[inline]
+    #[must_use]
+    pub fn slice<R: SliceRange>(self, range: R) -> Self {
+        QualityScoresView(&self.0[range])
+    }
+
+    /// Creates an immutable view of the data contained in `range`, or return
+    /// `None` if it is out of bounds.
+    ///
+    /// This is similar to [`Slice::get_slice`], but it is an inherent method on
+    /// [`QualityScoresView`] offering a longer lifetime in the returned value.
+    #[inline]
+    #[must_use]
+    pub fn get_slice<R: SliceRange>(&self, range: R) -> Option<Self> {
+        Some(QualityScoresView(self.0.get(range)?))
     }
 
     // Quality-scores-specific methods

@@ -1,4 +1,4 @@
-use crate::data::types::impl_std_traits_for_sequence;
+use crate::data::{types::impl_std_traits_for_sequence, views::SliceRange};
 
 mod getter_traits;
 mod view_traits;
@@ -276,6 +276,31 @@ impl<'a> AminoAcidsView<'a> {
     #[inline]
     pub fn iter(self) -> std::slice::Iter<'a, u8> {
         self.0.iter()
+    }
+
+    /// Creates an immutable view of the data contained in `range`.
+    ///
+    /// This is similar to [`Slice::slice`], but it is an inherent method on
+    /// [`AminoAcidsView`] offering a longer lifetime in the returned value.
+    ///
+    /// [`Slice::slice`]: crate::data::views::Slice::slice
+    #[inline]
+    #[must_use]
+    pub fn slice<R: SliceRange>(self, range: R) -> Self {
+        Self::from(&self.0[range])
+    }
+
+    /// Creates an immutable view of the data contained in `range`, or return
+    /// `None` if it is out of bounds.
+    ///
+    /// This is similar to [`Slice::get_slice`], but it is an inherent method on
+    /// [`AminoAcidsView`] offering a longer lifetime in the returned value.
+    ///
+    /// [`Slice::get_slice`]: crate::data::views::Slice::get_slice
+    #[inline]
+    #[must_use]
+    pub fn get_slice<R: SliceRange>(&self, range: R) -> Option<Self> {
+        Some(Self::from(self.0.get(range)?))
     }
 }
 

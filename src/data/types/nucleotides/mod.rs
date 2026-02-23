@@ -1,6 +1,6 @@
 use crate::{
     alignment::{LocalProfiles, ProfileError, SharedProfiles},
-    data::{matrices::WeightMatrix, types::impl_std_traits_for_sequence},
+    data::{matrices::WeightMatrix, types::impl_std_traits_for_sequence, views::SliceRange},
     prelude::*,
 };
 
@@ -362,6 +362,27 @@ impl<'a> NucleotidesView<'a> {
     #[inline]
     pub fn iter(self) -> std::slice::Iter<'a, u8> {
         self.0.iter()
+    }
+
+    /// Creates an immutable view of the data contained in `range`.
+    ///
+    /// This is similar to [`Slice::slice`], but it is an inherent method on
+    /// [`NucleotidesView`] offering a longer lifetime in the returned value.
+    #[inline]
+    #[must_use]
+    pub fn slice<R: SliceRange>(self, range: R) -> Self {
+        Self::from(&self.0[range])
+    }
+
+    /// Creates an immutable view of the data contained in `range`, or return
+    /// `None` if it is out of bounds.
+    ///
+    /// This is similar to [`Slice::get_slice`], but it is an inherent method on
+    /// [`NucleotidesView`] offering a longer lifetime in the returned value.
+    #[inline]
+    #[must_use]
+    pub fn get_slice<R: SliceRange>(&self, range: R) -> Option<Self> {
+        Some(Self::from(self.0.get(range)?))
     }
 
     // Nucleotides-specific methods
