@@ -71,7 +71,14 @@ impl Nucleotides {
         self.0
     }
 
-    /// Gets the nucleotides as a byte slice.
+    /// Returns a mutable reference to the underlying [`Vec`] buffer.
+    #[inline]
+    #[must_use]
+    pub fn as_mut_vec(&mut self) -> &mut Vec<u8> {
+        &mut self.0
+    }
+
+    /// Returns the nucleotides as a byte slice.
     #[inline]
     #[must_use]
     pub fn as_bytes(&self) -> &[u8] {
@@ -115,6 +122,28 @@ impl Nucleotides {
     #[inline]
     pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, u8> {
         self.0.iter_mut()
+    }
+
+    /// Pushes a base to the end of the sequence.
+    #[inline]
+    pub fn push(&mut self, base: u8) {
+        self.0.push(base);
+    }
+
+    /// Returns `true` if `needle` is a prefix of the sequence or equal to the
+    /// sequence.
+    #[inline]
+    #[must_use]
+    pub fn starts_with(&self, needle: &[u8]) -> bool {
+        self.0.starts_with(needle)
+    }
+
+    /// Returns `true` if `needle` is a suffix of the sequence or equal to the
+    /// sequence.
+    #[inline]
+    #[must_use]
+    pub fn ends_with(&self, needle: &[u8]) -> bool {
+        self.0.ends_with(needle)
     }
 
     // Manipulation
@@ -435,5 +464,11 @@ impl std::fmt::Debug for NucleotidesViewMut<'_> {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{self}")
+    }
+}
+
+impl Extend<u8> for Nucleotides {
+    fn extend<T: IntoIterator<Item = u8>>(&mut self, iter: T) {
+        self.0.extend(iter);
     }
 }

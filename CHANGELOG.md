@@ -8,7 +8,9 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ### Added
 
-- Added `as_mut_vec` to `AlignmentStates` to enable custom editing, including deleting ciglets
+- Added `as_mut_vec` to `AlignmentStates`, `Nucleotides`, and `AminoAcids` to enable custom editing
+- Added `push`, `starts_with`, and `ends_with` to `Nucleotides` and `AminoAcids`
+- Implemented `Extend` for `Nucleotides` and `AminoAcids`
 
 ### Changed
 
