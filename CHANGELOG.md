@@ -11,6 +11,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `as_mut_vec` to `AlignmentStates`, `Nucleotides`, and `AminoAcids` to enable custom editing
 - Added `push`, `starts_with`, and `ends_with` to `Nucleotides` and `AminoAcids`
 - Implemented `Extend` for `Nucleotides` and `AminoAcids`
+- Added `to_aa_iter_exact` and `to_aa_iter_exact_with` for amino acid translation that does not include a partial codon for codons with less than 3 bases at the end of a sequence
 
 ### Changed
 

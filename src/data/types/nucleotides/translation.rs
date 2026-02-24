@@ -69,6 +69,19 @@ pub trait Translate: NucleotidesReadable + Sealed {
         TranslatedNucleotidesIter::new(self.nucleotide_bytes())
     }
 
+    /// Creates an iterator for [`AminoAcids`] translation, ending iteration
+    /// when fewer than three bases remain.
+    ///
+    /// Partial codons are translated to `~`, except for a partial codon arising
+    /// at the end of the sequence due to having fewer than three bases
+    /// remaining, which is excluded. See [`TranslatedNucleotidesIter`] and
+    /// [`StdGeneticCode`] for more details.
+    #[inline]
+    #[must_use]
+    fn to_aa_iter_exact(&self) -> TranslatedNucleotidesIter<'_> {
+        TranslatedNucleotidesIter::new_exact(self.nucleotide_bytes())
+    }
+
     /// Creates an iterator for [`AminoAcids`] translation, using
     /// `partial_codon_encoding` to encode partial codons.
     ///
@@ -78,6 +91,18 @@ pub trait Translate: NucleotidesReadable + Sealed {
     #[must_use]
     fn to_aa_iter_with(&self, partial_codon_encoding: u8) -> TranslatedNucleotidesIter<'_> {
         TranslatedNucleotidesIter::new_with(self.nucleotide_bytes(), partial_codon_encoding)
+    }
+
+    /// Creates an iterator for [`AminoAcids`] translation, ending iteration
+    /// when fewer than three bases remain, and using `partial_codon_encoding`
+    /// to encode other partial codons.
+    ///
+    /// See [`TranslatedNucleotidesIter`] and [`StdGeneticCode`] for more
+    /// details.
+    #[inline]
+    #[must_use]
+    fn to_aa_iter_exact_with(&self, partial_codon_encoding: u8) -> TranslatedNucleotidesIter<'_> {
+        TranslatedNucleotidesIter::new_exact_with(self.nucleotide_bytes(), partial_codon_encoding)
     }
 
     /// Creates an iterator that translates amino acids base by base over all
@@ -96,22 +121,28 @@ impl<T: NucleotidesReadable + Sealed> Translate for T {}
 /// Iterator for translating [`Nucleotides`] into [`AminoAcids`] codon by codon
 /// with a reading frame starting from 0.
 ///
-/// This is created by [`to_aa_iter`] and [`to_aa_iter_with`]. To translate all
-/// codons regardless of the reading frame, see [`OverlappingCodonsIter`].
+/// This is created by several methods of [`Translate`], such as [`to_aa_iter`].
+/// To translate all codons regardless of the reading frame, see
+/// [`OverlappingCodonsIter`].
 ///
 /// For details about the genetic code used, see [`StdGeneticCode`]. This
-/// iterator also will translate *partial* codons to `~` (or a custom provided
-/// character, if [`to_aa_iter_with`] is used). A codon is considered partial if at
-/// least one of the following is true:
+/// iterator will also translate *partial* codons to `~` (or a custom provided
+/// character, if [`to_aa_iter_with`] or [`to_aa_iter_exact_with`] is used). A
+/// codon is considered partial if at least one of the following is true:
 ///
 /// - The codon does not contain three bases (which will occur if the input
 ///   sequence contains a number of bases not divisible by three).
 /// - The codon contains one or two of the characters `~`, `-`, or `.` among its
 ///   three bases.
 ///
+/// To avoid the first case of partial codons (and instead end iteration), use
+/// [`to_aa_iter_exact`] or [`to_aa_iter_exact_with`].
+///
 /// [`Nucleotides`]: crate::prelude::Nucleotides
 /// [`to_aa_iter`]: Translate::to_aa_iter
+/// [`to_aa_iter_exact`]: Translate::to_aa_iter_exact
 /// [`to_aa_iter_with`]: Translate::to_aa_iter_with
+/// [`to_aa_iter_exact_with`]: Translate::to_aa_iter_exact_with
 pub struct TranslatedNucleotidesIter<'a> {
     codons:                 std::slice::Iter<'a, [u8; 3]>,
     has_remainder:          bool,
@@ -130,6 +161,18 @@ impl<'a> TranslatedNucleotidesIter<'a> {
         Self::new_with(seq, b'~')
     }
 
+    /// Creates a new [`TranslatedNucleotidesIter`] using `~` to encode partial
+    /// codons, as well as aborting iteration when fewer than three bases remain
+    /// (rather than issuing a partial codon at the end).
+    ///
+    /// See the documentation for [`TranslatedNucleotidesIter`] for more details
+    /// on partial codons.
+    #[inline]
+    #[must_use]
+    fn new_exact(seq: &'a [u8]) -> Self {
+        Self::new_exact_with(seq, b'~')
+    }
+
     /// Creates a new [`TranslatedNucleotidesIter`], using
     /// `partial_codon_encoding` to encode partial codons.
     ///
@@ -146,6 +189,24 @@ impl<'a> TranslatedNucleotidesIter<'a> {
         Self {
             codons,
             has_remainder,
+            partial_codon_encoding,
+        }
+    }
+
+    /// Creates a new [`TranslatedNucleotidesIter`] using
+    /// `partial_codon_encoding` to encode partial codons, as well as aborting
+    /// iteration when fewer than three bases remain (rather than issuing a
+    /// partial codon at the end).
+    ///
+    /// See the documentation for [`TranslatedNucleotidesIter`] for more details
+    /// on partial codons.
+    #[inline]
+    #[must_use]
+    fn new_exact_with(seq: &'a [u8], partial_codon_encoding: u8) -> Self {
+        let codons = seq.as_chunks::<3>().0.iter();
+        Self {
+            codons,
+            has_remainder: false,
             partial_codon_encoding,
         }
     }
