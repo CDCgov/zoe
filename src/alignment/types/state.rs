@@ -89,6 +89,20 @@ impl AlignmentStates {
         self.0.as_mut_slice()
     }
 
+    /// Returns the [`Ciglet`] elements as a mutable reference to a vector.
+    ///
+    /// ## Validity
+    ///
+    /// Any mutations performed should ensure that increments are non-zero and
+    /// that adjacent [`Ciglet`] values have distinct operations. Otherwise, the
+    /// assumptions of [`AlignmentStates`](AlignmentStates#validity) may be
+    /// invalidated.
+    #[inline]
+    #[must_use]
+    pub fn as_mut_vec(&mut self) -> &mut Vec<Ciglet> {
+        &mut self.0
+    }
+
     /// Adds a state to the rightmost end of the alignment, merging state where
     /// appropriate.
     pub fn add_state(&mut self, op: u8) {

@@ -6,6 +6,10 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ## [0.0.27] - TBD
 
+### Added
+
+- Added `as_mut_vec` to `AlignmentStates` to enable custom editing, including deleting ciglets
+
 ### Changed
 
 - Implemented Copy for several immutable views
