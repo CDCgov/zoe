@@ -4,15 +4,15 @@ All notable changes to this project will be documented in this file. The format
 is roughly based on [Keep a Changelog], and this project tries to adheres to
 [Semantic Versioning].
 
-## [0.0.26] - TBD
+## [0.0.26] - 2026-03-06
 
 ### Added
 
+- Adds the `sneaky_snake` pre-alignment filter for imposing an edit distance threshold
 - Added convenience methods for checking the variant of `SeqSrc`
 - Implemented `to_reverse` and `make_reverse` for `MaybeAligned<Alignment<_>>`
 - Implemented `SequenceReadable` for profile sets
 - Implemented `PartialOrd` for `Alignment` and `MaybeAligned`
-- Adds the `sneaky_snake` pre-alignment filter (edit distance)
 
 ### Changed
 
