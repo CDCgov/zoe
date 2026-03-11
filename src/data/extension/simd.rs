@@ -147,7 +147,7 @@ impl<const N: usize> SimdByteFunctions<N> for Simd<u8, N> {
 
     #[inline]
     fn is_ascii_alphabetic(&self) -> Mask<i8, N> {
-        self.is_ascii_lowercase() & self.is_ascii_uppercase()
+        self.is_ascii_lowercase() | self.is_ascii_uppercase()
     }
 
     #[inline]
@@ -248,5 +248,17 @@ mod tests {
             String::from_utf8_lossy(&test1.to_ascii_uppercase()),
             String::from_utf8_lossy(simd.to_ascii_uppercase().as_array())
         );
+    }
+
+    #[test]
+    fn test_is_ascii_alphabetic() {
+        let p = b"ABCdefgh.... \t\n\r";
+        let n = b"ABCDefghIJKlmnoZ";
+
+        let neg = Simd::from_slice(n);
+        let pos = Simd::from_slice(p);
+
+        assert_eq!(Mask::from(p.map(|c| c.is_ascii_alphabetic())), pos.is_ascii_alphabetic());
+        assert_eq!(Mask::from(n.map(|c| c.is_ascii_alphabetic())), neg.is_ascii_alphabetic());
     }
 }
