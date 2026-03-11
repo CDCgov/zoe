@@ -62,21 +62,22 @@ pub fn p_distance_acgt<const N: usize>(x: &[u8], y: &[u8]) -> Option<f64> {
     for (c1, c2) in x.by_ref().zip(y.by_ref()) {
         let mut accum: Simd<u8, N> = Simd::splat(0);
 
-        let mut c1 = c1.chunks_exact(N);
-        let mut c2 = c2.chunks_exact(N);
+        let c1 = c1.chunks_exact(N);
+        let c2 = c2.chunks_exact(N);
 
-        for (v1, v2) in c1.by_ref().zip(c2.by_ref()) {
+        for (v1, v2) in c1.zip(c2) {
             let mut v1: Simd<u8, N> = Simd::from_slice(v1).to_ascii_uppercase();
             let mut v2: Simd<u8, N> = Simd::from_slice(v2).to_ascii_uppercase();
             v1.if_value_then_replace(b'U', b'T');
             v2.if_value_then_replace(b'U', b'T');
 
-            let mut valid = Mask::from_array([false; N]);
+            let mut valid1 = Mask::from_array([false; N]);
+            let mut valid2 = valid1;
             for a in alpha_v {
-                valid |= a.simd_eq(v1);
-                valid |= a.simd_eq(v2);
+                valid1 |= a.simd_eq(v1);
+                valid2 |= a.simd_eq(v2);
             }
-
+            let valid = valid1 & valid2;
             valid_length += valid.to_bitmask().count_ones() as usize;
 
             let m = (v1.simd_ne(v2) & valid).to_simd();
@@ -99,20 +100,22 @@ pub fn p_distance_acgt<const N: usize>(x: &[u8], y: &[u8]) -> Option<f64> {
         let mut v2: Simd<u8, N> = Simd::from_slice(v2).to_ascii_uppercase();
         v1.if_value_then_replace(b'U', b'T');
         v2.if_value_then_replace(b'U', b'T');
+
         let mut valid1 = Mask::from_array([false; N]);
-        let mut valid2 = Mask::from_array([false; N]);
+        let mut valid2 = valid1;
         for a in alpha_v {
             valid1 |= a.simd_eq(v1);
             valid2 |= a.simd_eq(v2);
         }
-        let valid = valid1 & valid2;
 
+        let valid = valid1 & valid2;
         valid_length += valid.to_bitmask().count_ones() as usize;
 
         let m = (v1.simd_ne(v2) & valid).to_simd();
         // True => -1, so - -1 => +1
         accum -= m.cast();
     }
+
     let accum2: Simd<u16, N> = accum.cast();
     mismatches += accum2.reduce_sum() as usize;
 

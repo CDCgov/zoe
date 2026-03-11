@@ -17,6 +17,10 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 - Implemented Copy for several immutable views
 
+### Fixes
+
+- Fixes a bug in `p_distance_acgt` where longer sequences could be normalized incorrectly.
+
 ## [0.0.26] - 2026-03-06
 
 ### Added

@@ -128,3 +128,26 @@ fn test_tn93() {
         assert_fp_eq!(tamura_nei_93(a, b), expected);
     }
 }
+
+#[test]
+fn test_p_distance_invalid_long() {
+    let mut seq1 = vec![b'A'; 2 * 255 + 2];
+    let mut seq2 = vec![b'A'; 2 * 255 + 2];
+
+    seq1[0] = b'N';
+    seq1[1] = b'X';
+
+    seq2[0] = b'T';
+    seq2[1] = b'T';
+
+    assert_fp_eq!(p_distance_acgt::<2>(&seq1, &seq2), Some(0.0));
+}
+
+#[test]
+fn test_p_distance_all_invalid_long() {
+    let seq1 = vec![b'N'; 2 * 255 + 2];
+    let seq2 = vec![b'A'; 2 * 255 + 2];
+
+    let result = p_distance_acgt::<2>(&seq1, &seq2);
+    assert_eq!(result, None);
+}
