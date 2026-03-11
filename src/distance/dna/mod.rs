@@ -17,14 +17,17 @@ pub use tabulation::dna_substitution_matrix;
 pub(crate) use tabulation::{hamming_dist_from_sub_matrix, total_and_frequencies};
 
 /// Calculates the p-distance (proportion of differing sites) between two
-/// nucleotide sequences. The p-distance considers only valid, canonical
-/// nucleotide pairs (A, C, G, T/U). Casing is ignored and only shared sequence
-/// length--the smaller of the two--are compared. The algorithm uses SIMD
-/// operations for improved performance.
+/// nucleotide sequences.
+///
+/// The p-distance considers only valid, canonical nucleotide pairs (A, C, G,
+/// T/U). Casing is ignored and only shared sequence length--the smaller of the
+/// two--are compared. The algorithm uses SIMD operations for improved
+/// performance.
 ///
 /// ## Returns
 ///
-/// - `Some(f64)` - The p-distance between sequences if valid positions are found.
+/// - `Some(f64)` - The p-distance between sequences if valid positions are
+///   found.
 /// - `None` - If no valid positions are found to compare.
 ///
 /// ## Type Parameters
@@ -62,12 +65,13 @@ pub fn p_distance_acgt<const N: usize>(x: &[u8], y: &[u8]) -> Option<f64> {
     for (c1, c2) in x.by_ref().zip(y.by_ref()) {
         let mut accum: Simd<u8, N> = Simd::splat(0);
 
-        let c1 = c1.chunks_exact(N);
-        let c2 = c2.chunks_exact(N);
+        // No remainder since the the length of c1 and c2 are N*255
+        let (c1, _) = c1.as_chunks::<N>();
+        let (c2, _) = c2.as_chunks::<N>();
 
-        for (v1, v2) in c1.zip(c2) {
-            let mut v1: Simd<u8, N> = Simd::from_slice(v1).to_ascii_uppercase();
-            let mut v2: Simd<u8, N> = Simd::from_slice(v2).to_ascii_uppercase();
+        for (&v1, &v2) in c1.iter().zip(c2) {
+            let mut v1: Simd<u8, N> = Simd::from_array(v1).to_ascii_uppercase();
+            let mut v2: Simd<u8, N> = Simd::from_array(v2).to_ascii_uppercase();
             v1.if_value_then_replace(b'U', b'T');
             v2.if_value_then_replace(b'U', b'T');
 
@@ -92,12 +96,12 @@ pub fn p_distance_acgt<const N: usize>(x: &[u8], y: &[u8]) -> Option<f64> {
     let x = x.remainder();
     let y = y.remainder();
     let mut accum: Simd<u8, N> = Simd::splat(0);
-    let mut c1 = x.chunks_exact(N);
-    let mut c2 = y.chunks_exact(N);
+    let (c1, r1) = x.as_chunks::<N>();
+    let (c2, r2) = y.as_chunks::<N>();
 
-    for (v1, v2) in c1.by_ref().zip(c2.by_ref()) {
-        let mut v1: Simd<u8, N> = Simd::from_slice(v1).to_ascii_uppercase();
-        let mut v2: Simd<u8, N> = Simd::from_slice(v2).to_ascii_uppercase();
+    for (&v1, &v2) in c1.iter().zip(c2) {
+        let mut v1: Simd<u8, N> = Simd::from_array(v1).to_ascii_uppercase();
+        let mut v2: Simd<u8, N> = Simd::from_array(v2).to_ascii_uppercase();
         v1.if_value_then_replace(b'U', b'T');
         v2.if_value_then_replace(b'U', b'T');
 
@@ -118,9 +122,6 @@ pub fn p_distance_acgt<const N: usize>(x: &[u8], y: &[u8]) -> Option<f64> {
 
     let accum2: Simd<u16, N> = accum.cast();
     mismatches += accum2.reduce_sum() as usize;
-
-    let r1 = c1.remainder();
-    let r2 = c2.remainder();
 
     mismatches += r1
         .iter()
