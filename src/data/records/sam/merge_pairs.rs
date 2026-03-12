@@ -303,6 +303,10 @@ impl SamData {
                     ref_index += inc;
                 }
                 b'I' => {
+                    debug_assert!(
+                        ref_index > 0,
+                        "Local alignment invariant violated: leading insertion at reference start"
+                    );
                     let ins = SamInsertion {
                         // Insertion reference index uses 5' site (0-based)
                         // by convention.
@@ -342,8 +346,12 @@ impl SamData {
     }
 
     /// Merges SAM read pairs using the reference alignment to parsimoniously
-    /// detect and correct errors. Based on the work by Shepard et al. 2016 for
+    /// detect and correct errors. Based on the work by **Shepard et al. 2016** for
     /// IRMA.
+    ///
+    /// ## Notes
+    ///
+    /// This algorithm is designed for local alignment.
     #[allow(clippy::too_many_lines)]
     #[must_use]
     pub fn merge_pair_using_reference(
