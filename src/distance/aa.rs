@@ -117,7 +117,11 @@ pub fn physiochemical(seq1: &[u8], seq2: &[u8]) -> Result<f32, DistanceError> {
     }
 
     if seq1 == seq2 {
-        return Ok(0.0);
+        return if seq1.iter().any(|&aa| dm[b'A' as usize][aa as usize].is_some()) {
+            Ok(0.0)
+        } else {
+            Err(NotComparable)
+        };
     }
 
     let (number_valid, mut pcd_distance) = seq1
@@ -134,5 +138,18 @@ pub fn physiochemical(seq1: &[u8], seq2: &[u8]) -> Result<f32, DistanceError> {
         Ok(pcd_distance)
     } else {
         Err(NotComparable)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::{assert_fp_eq, distance::DistanceError::NotComparable};
+
+    #[test]
+    fn pcd_identical_sequences() {
+        assert!(matches!(physiochemical(b"???", b"???"), Err(NotComparable)));
+        assert_fp_eq!(physiochemical(b"MANATEE", b"MANATEE").unwrap(), 0.0);
+        assert_fp_eq!(physiochemical(b"MA?A", b"MA?A").unwrap(), 0.0);
     }
 }
