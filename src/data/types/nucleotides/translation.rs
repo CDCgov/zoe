@@ -1,7 +1,9 @@
+use std::ops::Range;
+
 use super::{
     AminoAcids, Nucleotides, NucleotidesMutable, NucleotidesView, NucleotidesViewMut, getter_traits::NucleotidesReadable,
 };
-use crate::{data::mappings::StdGeneticCode, private::Sealed};
+use crate::{DEFAULT_SIMD_LANES, data::mappings::StdGeneticCode, private::Sealed, search::find_uc_start_codon_simd};
 
 /// Provides methods for translating nucleotides into amino acids.
 pub trait Translate: NucleotidesReadable + Sealed {
@@ -57,6 +59,26 @@ pub trait Translate: NucleotidesReadable + Sealed {
     fn find_next_aa_in_frame(&self, aa: u8) -> Option<usize> {
         let needle = aa.to_ascii_uppercase();
         self.to_aa_iter().position(|aa| aa == needle).map(|x| x * 3)
+    }
+
+    /// Returns the starting index of the first start codon (`ATG` or `AUG`) or
+    /// `None` otherwise.
+    ///
+    /// If the sequence is known to not contain `U`, then [`find_substring`] may
+    /// be faster. This function uses the same logic as [`find_substring`] but
+    /// is specialized to handle the two possibilities for the middle of the
+    /// codon.
+    ///
+    /// ## Limitations
+    ///
+    /// The input sequence must be in uppercase (i.e., the search is
+    /// case-sensitive).
+    ///
+    /// [`find_substring`]: crate::search::ByteSubstring::find_substring
+    #[inline]
+    #[must_use]
+    fn find_uc_start_codon(&self) -> Option<Range<usize>> {
+        find_uc_start_codon_simd::<{ DEFAULT_SIMD_LANES }>(self.nucleotide_bytes()).map(|s| s..s + 3)
     }
 
     /// Creates an iterator for [`AminoAcids`] translation.

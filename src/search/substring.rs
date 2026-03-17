@@ -273,6 +273,89 @@ pub fn substring_match_simd<const N: usize>(haystack: &[u8], needle: &[u8]) -> O
     }
 }
 
+/// Returns the starting index of the first start codon (`ATG` or `AUG`) or
+/// `None` otherwise.
+///
+/// ## Limitations
+///
+/// This is a naïve implementation and should only be used for small byte
+/// strings. Also, the input sequence must be in uppercase (i.e., the search is
+/// case-sensitive).
+#[inline]
+#[must_use]
+pub fn find_uc_start_codon(seq: &[u8]) -> Option<usize> {
+    if seq.len() < 3 {
+        return None;
+    }
+
+    for (i, w) in seq.array_windows::<3>().enumerate() {
+        if w == b"ATG" || w == b"AUG" {
+            return Some(i);
+        }
+    }
+
+    None
+}
+
+/// Returns the starting index of the first start codon (`ATG` or `AUG`) or
+/// `None` otherwise.
+///
+/// If the sequence is known to not contain `U`, then [`substring_match_simd`]
+/// may be faster. This function uses the same logic as [`substring_match_simd`]
+/// but is specialized to handle the two possibilities for the middle of the
+/// codon.
+///
+/// ## Parameters
+///
+/// `N` - The number of SIMD lanes to use for the search.
+///
+/// ## Limitations
+///
+/// The input sequence must be in uppercase (i.e., the search is
+/// case-sensitive).
+#[inline]
+#[must_use]
+#[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
+pub fn find_uc_start_codon_simd<const N: usize>(seq: &[u8]) -> Option<usize> {
+    if seq.len() < 3 {
+        return None;
+    }
+
+    let n1 = Simd::from_array([b'A'; N]);
+    let n2 = Simd::from_array([b'G'; N]);
+
+    // In order to verify the needle, we need to subtract it off. However, the
+    // last character in the vector counts.
+    let chunks1 = seq[..=(seq.len() - 3)].chunks_exact(N).map(Simd::from_slice);
+    let chunks2 = seq[2..].chunks_exact(N).map(Simd::from_slice);
+    let z = std::iter::zip(chunks1, chunks2);
+
+    let mut i = 0;
+    for (c1, c2) in z {
+        let f1 = n1.simd_eq(c1);
+        let f2 = n2.simd_eq(c2);
+
+        let mut m = (f1 & f2).to_bitmask();
+
+        while m > 0 {
+            let bit_position = m.trailing_zeros() as usize;
+            let candidate_index = i + bit_position;
+
+            if seq[candidate_index + 1] == b'T' || seq[candidate_index + 1] == b'U' {
+                return Some(candidate_index);
+            }
+            m &= m - 1;
+        }
+        i += N;
+    }
+
+    if N <= 8 {
+        find_uc_start_codon(&seq[i..]).map(|j| i + j)
+    } else {
+        find_uc_start_codon_simd::<8>(&seq[i..]).map(|j| i + j)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
