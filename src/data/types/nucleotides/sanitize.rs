@@ -158,6 +158,9 @@ pub enum RefineDNAStrat {
     AcgtnWithGapsUc,
     /// Retains and recodes to uppercase ACGTN bases with standard gaps (`-`)
     AcgtnStdGapsUc,
+
+    // Retains and recodes to uppercase ACGT bases without gaps
+    AcgtNoGapsUc,
 }
 
 impl RefineDNAStrat {
@@ -173,6 +176,8 @@ impl RefineDNAStrat {
             RefineDNAStrat::AcgtnNoGapsUc => &TO_DNA_ACGTN_NO_GAPS_UC,
             RefineDNAStrat::AcgtnWithGapsUc => &TO_DNA_ACGTN_WITH_GAPS_UC,
             RefineDNAStrat::AcgtnStdGapsUc => &TO_DNA_ACGTN_STD_GAPS_UC,
+
+            RefineDNAStrat::AcgtNoGapsUc => &TO_DNA_ACGT_NO_GAPS_UC,
         }
     }
 }

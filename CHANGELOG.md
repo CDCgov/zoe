@@ -14,6 +14,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `to_aa_iter_exact` and `to_aa_iter_exact_with` for amino acid translation that does not include a partial codon for codons with less than 3 bases at the end of a sequence
 - Added `find_next_aa` and `find_next_aa_in_frame` to `RangeSearch`
 - Added `SanitizeBase` extension trait for `u8` to perform DNA validation, recoding, and refinement on a single byte
+- Added `AcgtNoGapsUc` strategy for retaining/recoding DNA
 
 ### Changed
 

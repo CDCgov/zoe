@@ -72,6 +72,15 @@ pub(crate) const TO_DNA_ACGTN_NO_GAPS_UC: [u8; 256] = make_mapping_with_default(
     0,
 );
 
+/// Used to convert nucleotide sequences to uppercase ACGT without gaps. The
+/// 0-byte is used for filtering out unwanted patterns.
+#[rustfmt::skip]
+pub(crate) const TO_DNA_ACGT_NO_GAPS_UC: [u8; 256] = make_mapping_with_default(
+    b"acgtuACGTU",
+    b"ACGTTACGTT",
+    0,
+);
+
 /// Used to convert nucleotide sequences to uppercase ACGTN with gaps. The
 /// 0-byte is used for filtering out unwanted patterns.
 #[rustfmt::skip]
