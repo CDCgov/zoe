@@ -1,5 +1,5 @@
 use super::*;
-use crate::data::{alphas::DNA_IUPAC_NO_GAPS, types::nucleotides::make_reverse_complement};
+use crate::data::{alphas::DNA_IUPAC_NO_GAPS, byte_types::SanitizeBase, types::nucleotides::make_reverse_complement};
 use std::sync::LazyLock;
 
 const N: usize = 1200;
@@ -210,7 +210,7 @@ fn check_refine_dna() {
             let seq = get_refined(base, refine_strat);
             if base.eq_ignore_ascii_case(&b'U') {
                 assert_eq!(seq, b"T", "{} vs T in {valid_strat:?}", seq[0] as char);
-            } else if valid_strat.is_valid(base) {
+            } else if base.is_valid(valid_strat) {
                 let b = base.to_ascii_uppercase();
                 assert_eq!(seq, &[b], "{} vs {} in {valid_strat:?}", seq[0] as char, b as char);
             } else {
@@ -222,7 +222,7 @@ fn check_refine_dna() {
         let seq = get_refined(base, refine_strat);
         if base.eq_ignore_ascii_case(&b'U') {
             assert_eq!(seq, b"T");
-        } else if valid_strat.is_valid(base) {
+        } else if base.is_valid(valid_strat) {
             assert_eq!(seq, &[base.to_ascii_uppercase()]);
         } else if base == b':' || base == b'~' || base == b'-' {
             assert_eq!(seq, b"-");
@@ -236,7 +236,7 @@ fn check_refine_dna() {
         let seq = get_refined(base, refine_strat);
         if base.eq_ignore_ascii_case(&b'U') {
             assert_eq!(seq, b"T", "{} vs T in {valid_strat:?}", seq[0] as char);
-        } else if valid_strat.is_valid(base) {
+        } else if base.is_valid(valid_strat) {
             assert_eq!(seq, &[base.to_ascii_uppercase()]);
         } else if base == b'-' || base == b'.' {
             assert_eq!(seq, &[base]);
@@ -248,7 +248,7 @@ fn check_refine_dna() {
         let seq = get_refined(base, refine_strat);
         if base.eq_ignore_ascii_case(&b'U') {
             assert_eq!(seq, b"T", "{} vs T in {valid_strat:?}", seq[0] as char);
-        } else if valid_strat.is_valid(base) {
+        } else if base.is_valid(valid_strat) {
             assert_eq!(seq, &[base.to_ascii_uppercase()]);
         } else if base == b'-' || base == b'.' || base == b':' || base == b'~' {
             assert_eq!(seq, b"-");

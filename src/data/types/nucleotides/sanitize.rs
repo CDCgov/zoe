@@ -1,6 +1,7 @@
 use crate::{
     DEFAULT_SIMD_LANES,
     data::{
+        byte_types::SanitizeBase,
         mappings::dna::*,
         types::nucleotides::{NucleotidesMutable, NucleotidesReadable},
         validation::{recode::Recode, retain::RetainSequence},
@@ -75,7 +76,7 @@ impl RecodeDNAStrat {
     /// Returns the corresponding mapping array for the selected recoding
     /// strategy
     #[inline]
-    const fn mapping(self) -> &'static [u8; 256] {
+    pub(crate) const fn mapping(self) -> &'static [u8; 256] {
         match self {
             RecodeDNAStrat::IupacToAcgtnWithGaps => &IUPAC_TO_DNA_ACGTN_WITH_GAPS,
             RecodeDNAStrat::IupacToAcgtnWithGapsUpper => &IUPAC_TO_DNA_ACGTN_WITH_GAPS_UC,
@@ -138,13 +139,6 @@ impl IsValidDNA {
             IsValidDNA::AcgtNoGapsUc => &IS_DNA_ACGT_NO_GAPS_UC,
         }
     }
-
-    /// Checks whether a single byte is valid under the given validation
-    /// strategy
-    #[inline]
-    pub(crate) const fn is_valid(self, index: u8) -> bool {
-        self.mapping()[index as usize]
-    }
 }
 
 /// DNA retention strategies. Data that cannot be recoded is not retained.
@@ -170,7 +164,7 @@ impl RefineDNAStrat {
     /// Returns the corresponding recoding array for the selected retention and
     /// recoding strategy
     #[inline]
-    const fn mapping(self) -> &'static [u8; 256] {
+    pub(crate) const fn mapping(self) -> &'static [u8; 256] {
         match self {
             RefineDNAStrat::IupacNoGapsUc => &TO_DNA_IUPAC_NO_GAPS_UC,
             RefineDNAStrat::IupacWithGapsUc => &TO_DNA_IUPAC_WITH_GAPS_UC,
@@ -297,7 +291,7 @@ pub trait CheckNucleotides: Sealed {
 impl<T: NucleotidesReadable + Sealed> CheckNucleotides for T {
     #[inline]
     fn is_valid_dna(&self, strategy: IsValidDNA) -> bool {
-        self.nucleotide_bytes().iter().all(|&b| strategy.is_valid(b))
+        self.nucleotide_bytes().iter().all(|&b| b.is_valid(strategy))
     }
 
     #[inline]
@@ -309,7 +303,7 @@ impl<T: NucleotidesReadable + Sealed> CheckNucleotides for T {
 impl CheckNucleotides for &[u8] {
     #[inline]
     fn is_valid_dna(&self, strategy: IsValidDNA) -> bool {
-        self.iter().all(|&b| strategy.is_valid(b))
+        self.iter().all(|&b| b.is_valid(strategy))
     }
 
     #[inline]
@@ -321,7 +315,7 @@ impl CheckNucleotides for &[u8] {
 impl CheckNucleotides for Vec<u8> {
     #[inline]
     fn is_valid_dna(&self, strategy: IsValidDNA) -> bool {
-        self.iter().all(|&b| strategy.is_valid(b))
+        self.iter().all(|&b| b.is_valid(strategy))
     }
 
     #[inline]
@@ -351,5 +345,5 @@ fn is_acgtn_uc_simd(s: &[u8]) -> bool {
         }
     }
 
-    left.iter().chain(right).all(|&b| IsValidDNA::AcgtnNoGapsUc.is_valid(b))
+    left.iter().chain(right).all(|&b| b.is_valid(IsValidDNA::AcgtnNoGapsUc))
 }
