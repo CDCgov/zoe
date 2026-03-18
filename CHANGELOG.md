@@ -15,6 +15,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `find_next_aa` and `find_next_aa_in_frame` to `RangeSearch`
 - Added `SanitizeBase` extension trait for `u8` to perform DNA validation, recoding, and refinement on a single byte
 - Added `AcgtNoGapsUc` strategy for retaining/recoding DNA
+- Added `find_start_codon` as well as a modified string search routine supporting lazy transformations of the haystack (`find_mapped_match_simd`)
 
 ### Changed
 

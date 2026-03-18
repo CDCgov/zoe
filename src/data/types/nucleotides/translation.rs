@@ -3,7 +3,11 @@ use std::ops::Range;
 use super::{
     AminoAcids, Nucleotides, NucleotidesMutable, NucleotidesView, NucleotidesViewMut, getter_traits::NucleotidesReadable,
 };
-use crate::{DEFAULT_SIMD_LANES, data::mappings::StdGeneticCode, private::Sealed, search::find_uc_start_codon_simd};
+use crate::{
+    DEFAULT_SIMD_LANES, data::mappings::StdGeneticCode, private::Sealed, search::find_mapped_match_simd,
+    simd::SimdByteFunctions,
+};
+use std::simd::prelude::*;
 
 /// Provides methods for translating nucleotides into amino acids.
 pub trait Translate: NucleotidesReadable + Sealed {
@@ -77,8 +81,24 @@ pub trait Translate: NucleotidesReadable + Sealed {
     /// [`find_substring`]: crate::search::ByteSubstring::find_substring
     #[inline]
     #[must_use]
-    fn find_uc_start_codon(&self) -> Option<Range<usize>> {
-        find_uc_start_codon_simd::<{ DEFAULT_SIMD_LANES }>(self.nucleotide_bytes()).map(|s| s..s + 3)
+    fn find_start_codon(&self) -> Option<Range<usize>> {
+        const N: usize = DEFAULT_SIMD_LANES;
+
+        fn simd_map(s: Simd<u8, N>) -> Simd<u8, N> {
+            let mut xformed = s.to_ascii_uppercase();
+            xformed.if_value_then_replace(b'U', b'T');
+            xformed
+        }
+
+        fn byte_map(b: u8) -> u8 {
+            let mut xformed = b.to_ascii_uppercase();
+            if xformed == b'U' {
+                xformed = b'T';
+            }
+            xformed
+        }
+
+        find_mapped_match_simd::<N, _, _>(self.nucleotide_bytes(), b"ATG", simd_map, byte_map).map(|s| s..s + 3)
     }
 
     /// Creates an iterator for [`AminoAcids`] translation.

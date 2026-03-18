@@ -6,6 +6,9 @@ use crate::{
 
 use std::{ops::Range, simd::prelude::*};
 
+// Short-circuiting note:
+// 0 < needle ≤ haystack IMPLIES 0 < haystack
+
 /// Trait for searching byte substrings.
 ///
 /// [`Nucleotides`](crate::data::types::nucleotides::Nucleotides),
@@ -190,7 +193,7 @@ impl<T: AsMut<Vec<u8>> + AsRef<[u8]> + Sealed> ByteSubstringMut for T {
 #[inline]
 #[must_use]
 pub fn substring_match(haystack: &[u8], needle: &[u8]) -> Option<usize> {
-    if needle.len() > haystack.len() || needle.is_empty() || haystack.is_empty() {
+    if needle.len() > haystack.len() || needle.is_empty() {
         return None;
     }
 
@@ -217,13 +220,13 @@ pub fn substring_match(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 ///
 /// 1. Muła, Wojciech (2018). "SIMD-friendly algorithms for substring
 ///    searching." Available at:
-///    <http://0x80.pl/articles/simd-strfind.html#algorithm-1-generic-simd>.
+///    <http://0x80.pl/notesen/2016-11-28-simd-strfind.html#algorithm-1-generic-simd>.
 ///    Accessed September 3, 2024.
 #[inline]
 #[must_use]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
 pub fn substring_match_simd<const N: usize>(haystack: &[u8], needle: &[u8]) -> Option<usize> {
-    if needle.len() > haystack.len() || needle.is_empty() || haystack.is_empty() {
+    if needle.len() > haystack.len() || needle.is_empty() {
         return None;
     }
 
@@ -273,61 +276,59 @@ pub fn substring_match_simd<const N: usize>(haystack: &[u8], needle: &[u8]) -> O
     }
 }
 
-/// Returns the starting index of the first start codon (`ATG` or `AUG`) or
-/// `None` otherwise.
+/// Similar to [`substring_match_simd`] but takes a transformation of the
+/// haystack before matching.
+///
+/// A transformation mapping for both bytes and SIMD vectors is required in
+/// order to verify potential matches.
 ///
 /// ## Limitations
 ///
-/// This is a naïve implementation and should only be used for small byte
-/// strings. Also, the input sequence must be in uppercase (i.e., the search is
-/// case-sensitive).
-#[inline]
-#[must_use]
-pub fn find_uc_start_codon(seq: &[u8]) -> Option<usize> {
-    if seq.len() < 3 {
-        return None;
-    }
-
-    for (i, w) in seq.array_windows::<3>().enumerate() {
-        if w == b"ATG" || w == b"AUG" {
-            return Some(i);
-        }
-    }
-
-    None
-}
-
-/// Returns the starting index of the first start codon (`ATG` or `AUG`) or
-/// `None` otherwise.
-///
-/// If the sequence is known to not contain `U`, then [`substring_match_simd`]
-/// may be faster. This function uses the same logic as [`substring_match_simd`]
-/// but is specialized to handle the two possibilities for the middle of the
-/// codon.
-///
-/// ## Parameters
-///
-/// `N` - The number of SIMD lanes to use for the search.
-///
-/// ## Limitations
-///
-/// The input sequence must be in uppercase (i.e., the search is
-/// case-sensitive).
+/// This is not designed for needles consisting of a single repeated byte.
 #[inline]
 #[must_use]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
-pub fn find_uc_start_codon_simd<const N: usize>(seq: &[u8]) -> Option<usize> {
-    if seq.len() < 3 {
+pub fn find_mapped_match_simd<const N: usize, S, B>(
+    haystack: &[u8], needle: &[u8], simd_transform: S, byte_transform: B,
+) -> Option<usize>
+where
+    S: Fn(Simd<u8, N>) -> Simd<u8, N>,
+    B: Fn(u8) -> u8, {
+    if needle.len() > haystack.len() || needle.is_empty() {
         return None;
     }
 
-    let n1 = Simd::from_array([b'A'; N]);
-    let n2 = Simd::from_array([b'G'; N]);
+    let first = needle[0];
+    if needle.len() == 1 {
+        return haystack.iter().position(|b| byte_transform(*b) == first);
+    }
 
-    // In order to verify the needle, we need to subtract it off. However, the
-    // last character in the vector counts.
-    let chunks1 = seq[..=(seq.len() - 3)].chunks_exact(N).map(Simd::from_slice);
-    let chunks2 = seq[2..].chunks_exact(N).map(Simd::from_slice);
+    // We do not specialize needles that are a single run but instead fall back
+    // to first and last. This could be optimized to delegation if desired.
+    let (n2_offset, last) = needle
+        .iter()
+        .copied()
+        .enumerate()
+        .rev()
+        .find(|(_, b)| *b != first)
+        .unwrap_or((needle.len() - 1, first));
+
+    let n1 = Simd::from_array([first; N]);
+    let n2 = Simd::from_array([last; N]);
+    let candidate_start_limit = haystack.len() - needle.len() + 1;
+    let matches_candidate = |candidate_index| {
+        std::iter::zip(&haystack[candidate_index..candidate_index + needle.len()], needle)
+            .all(|(h, n)| *n == byte_transform(*h))
+    };
+
+    let chunks1 = haystack[..candidate_start_limit]
+        .chunks_exact(N)
+        .map(Simd::from_slice)
+        .map(&simd_transform);
+    let chunks2 = haystack[n2_offset..]
+        .chunks_exact(N)
+        .map(Simd::from_slice)
+        .map(&simd_transform);
     let z = std::iter::zip(chunks1, chunks2);
 
     let mut i = 0;
@@ -341,7 +342,7 @@ pub fn find_uc_start_codon_simd<const N: usize>(seq: &[u8]) -> Option<usize> {
             let bit_position = m.trailing_zeros() as usize;
             let candidate_index = i + bit_position;
 
-            if seq[candidate_index + 1] == b'T' || seq[candidate_index + 1] == b'U' {
+            if matches_candidate(candidate_index) {
                 return Some(candidate_index);
             }
             m &= m - 1;
@@ -349,16 +350,40 @@ pub fn find_uc_start_codon_simd<const N: usize>(seq: &[u8]) -> Option<usize> {
         i += N;
     }
 
-    if N <= 8 {
-        find_uc_start_codon(&seq[i..]).map(|j| i + j)
-    } else {
-        find_uc_start_codon_simd::<8>(&seq[i..]).map(|j| i + j)
+    let remaining_candidates = candidate_start_limit - i;
+    if remaining_candidates == 0 {
+        return None;
     }
+
+    // Pack the leftover candidate starts into one padded SIMD block so the
+    // tail still uses the same fast prefilter as the main loop.
+    let mut tail1 = [0u8; N];
+    tail1[..remaining_candidates].copy_from_slice(&haystack[i..i + remaining_candidates]);
+    let mut tail2 = [0u8; N];
+    tail2[..remaining_candidates].copy_from_slice(&haystack[i + n2_offset..i + n2_offset + remaining_candidates]);
+
+    let active_lanes = Mask::from_array(std::array::from_fn(|lane| lane < remaining_candidates));
+    let f1 = n1.simd_eq(simd_transform(Simd::from_array(tail1)));
+    let f2 = n2.simd_eq(simd_transform(Simd::from_array(tail2)));
+    let mut m = (f1 & f2 & active_lanes).to_bitmask();
+
+    while m > 0 {
+        let bit_position = m.trailing_zeros() as usize;
+        let candidate_index = i + bit_position;
+
+        if matches_candidate(candidate_index) {
+            return Some(candidate_index);
+        }
+        m &= m - 1;
+    }
+
+    None
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::simd::SimdByteFunctions;
 
     static PAD: &[u8; 150] = &[b'a'; 150];
     static NEEDLE: &[u8; 5] = b"hello";
@@ -398,6 +423,35 @@ mod test {
                 substring_match_simd::<16>(&haystack, &needle)
             );
         }
+    }
+
+    #[test]
+    fn mapped_match() {
+        fn simd_map<const N: usize>(s: Simd<u8, N>) -> Simd<u8, N> {
+            let mut xformed = s.to_ascii_uppercase();
+            xformed.if_value_then_replace(b'U', b'T');
+            xformed
+        }
+
+        fn byte_map(b: u8) -> u8 {
+            let mut xformed = b.to_ascii_uppercase();
+            if xformed == b'U' {
+                xformed = b'T';
+            }
+            xformed
+        }
+
+        let haystack = b"AAAAAAAAAAAAAAAAAAAAAAAAaugAAAAAAAAAA";
+        assert_eq!(
+            Some(24),
+            find_mapped_match_simd::<8, _, _>(haystack, b"ATG", simd_map, byte_map)
+        );
+
+        let haystack = b"CCCCCCCCCCCCCCCCCCCCCCCCuCCCCCCCCCC";
+        assert_eq!(
+            Some(24),
+            find_mapped_match_simd::<8, _, _>(haystack, b"T", simd_map, byte_map)
+        );
     }
 
     #[test]

@@ -57,6 +57,18 @@ fn test_overlapping_codon_iter() {
 }
 
 #[test]
+fn test_find_start_codon_regressions() {
+    let lower_dna = Nucleotides::from(b"AAAAAAAAAAAAAAAAAAAAAAAAatgAAAAAAAAAA");
+    assert_eq!(lower_dna.find_start_codon(), Some(24..27));
+
+    let rna = Nucleotides::from(b"AAAAAAAAAAAAAAAAAAAAAAAAAUGAAAAAAAAAA");
+    assert_eq!(rna.find_start_codon(), Some(24..27));
+
+    let mixed_rna = Nucleotides::from(b"AAAAAAAAAAAAAAAAAAAAAAAAAuGAAAAAAAAAA");
+    assert_eq!(mixed_rna.find_start_codon(), Some(24..27));
+}
+
+#[test]
 fn test_codons() {
     let s = Nucleotides(b"ATGTCAGAT".to_vec());
     assert_eq!(
