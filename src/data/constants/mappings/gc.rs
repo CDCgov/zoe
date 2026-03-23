@@ -35,7 +35,10 @@ static STD_GENETIC_CODE: [u32; StdGeneticCode::TABLE_SIZE] = fill_std_gc!(
     b"ACB"=>b'T', b"ACC"=>b'T', b"ACD"=>b'T', b"ACG"=>b'T', b"ACH"=>b'T', b"ACK"=>b'T', b"ACM"=>b'T', b"ACN"=>b'T', b"ACR"=>b'T', b"ACS"=>b'T', b"ACT"=>b'T',
     b"ACV"=>b'T', b"ACW"=>b'T', b"ACY"=>b'T', b"GTA"=>b'V', b"GTB"=>b'V', b"GTC"=>b'V', b"GTD"=>b'V', b"GTG"=>b'V', b"GTH"=>b'V', b"GTK"=>b'V', b"GTM"=>b'V',
     b"GTN"=>b'V', b"GTR"=>b'V', b"GTS"=>b'V', b"GTT"=>b'V', b"GTV"=>b'V', b"GTW"=>b'V', b"GTY"=>b'V', b"TGG"=>b'W', b"TAC"=>b'Y', b"TAT"=>b'Y', b"TAY"=>b'Y',
-    b"..."=>b'.', b"---"=>b'-', b"NNN"=>b'X',
+
+    b"NNN"=>b'X',
+    b"..."=>b'.', b"---"=>b'-',
+    b"..-"=>b'.', b".--"=>b'.', b"--."=>b'.', b"-.."=>b'.', b"-.-"=>b'.', b".-."=>b'.',
 
     b"UAA"=>b'*', b"UAG"=>b'*', b"UAR"=>b'*', b"UGA"=>b'*', b"URA"=>b'*', b"GCU"=>b'A', b"UGC"=>b'C', b"UGU"=>b'C', b"UGY"=>b'C', b"GAU"=>b'D', b"UUC"=>b'F',
     b"UUU"=>b'F', b"UUY"=>b'F', b"GGU"=>b'G', b"CAU"=>b'H', b"AUA"=>b'I', b"AUC"=>b'I', b"AUH"=>b'I', b"AUM"=>b'I', b"AUU"=>b'I', b"AUW"=>b'I', b"AUY"=>b'I',
