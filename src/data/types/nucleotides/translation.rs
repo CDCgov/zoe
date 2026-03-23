@@ -550,7 +550,7 @@ pub trait CodonExtension {
     /// Returns `true` if the codon can be resolved to a translation (amino
     /// acid, deletion, missing codon, or stop codon) under the standard genetic
     /// code.
-    fn is_valid_codon(&self) -> bool;
+    fn is_resolvable_codon(&self) -> bool;
 
     /// Returns `true` if the codon is *partial* (contains one or two gap-like
     /// characters: `-`, `~`, or `.`).
@@ -569,7 +569,7 @@ impl CodonExtension for [u8; 3] {
     }
 
     #[inline]
-    fn is_valid_codon(&self) -> bool {
+    fn is_resolvable_codon(&self) -> bool {
         StdGeneticCode::get(self).is_some()
     }
 
