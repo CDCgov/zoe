@@ -4,7 +4,10 @@ use super::{
     AminoAcids, Nucleotides, NucleotidesMutable, NucleotidesView, NucleotidesViewMut, getter_traits::NucleotidesReadable,
 };
 use crate::{
-    DEFAULT_SIMD_LANES, data::mappings::StdGeneticCode, private::Sealed, search::find_mapped_match_simd,
+    DEFAULT_SIMD_LANES,
+    data::{DnaDisambiguation, mappings::StdGeneticCode},
+    private::Sealed,
+    search::find_mapped_match_simd,
     simd::SimdByteFunctions,
 };
 use std::simd::prelude::*;
@@ -531,7 +534,15 @@ impl GetCodonsMut for NucleotidesViewMut<'_> {}
 pub trait CodonExtension {
     /// Returns `true` if the codon is a standard stop codon (`TAA`, `TAG`,
     /// `TGA`, or RNA equivalents including some ambiguous forms).
+    #[must_use]
     fn is_std_stop_codon(&self) -> bool;
+
+    /// Returns `true` if the codon potentially codes for a standard stop codon.
+    ///
+    /// This returns `true` for unresolvable codons such as `TGR` which _could_
+    /// be a stop codon. `NNN` also returns `true`.
+    #[must_use]
+    fn maybe_std_stop_codon(&self) -> bool;
 
     /// Returns `true` if the codon translates to an amino acid.
     ///
@@ -539,15 +550,18 @@ pub trait CodonExtension {
     /// an amino acid in order to return `true`. Stop codons, partial codons,
     /// deletions (e.g., `---`), and the ambiguous codon `NNN` all return
     /// `false`.
+    #[must_use]
     fn is_amino_acid(&self) -> bool;
 
     /// Returns `true` if the codon can be resolved to a translation (amino
     /// acid, deletion, missing codon, or stop codon) under the standard genetic
     /// code.
+    #[must_use]
     fn is_resolvable_codon(&self) -> bool;
 
     /// Returns `true` if the codon is *partial* (contains one or two gap-like
     /// characters: `-`, `~`, or `.`).
+    #[must_use]
     fn is_partial_codon(&self) -> bool;
 }
 
@@ -555,6 +569,11 @@ impl CodonExtension for [u8; 3] {
     #[inline]
     fn is_std_stop_codon(&self) -> bool {
         StdGeneticCode::is_stop_codon(self)
+    }
+
+    #[inline]
+    fn maybe_std_stop_codon(&self) -> bool {
+        DnaDisambiguation::maybe_std_stop_codon(*self)
     }
 
     #[inline]

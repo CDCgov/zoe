@@ -158,6 +158,12 @@ mod validation;
 /// [`impl_traits`]: crate::impl_traits
 mod whichever;
 
+// TODO: Remove this in future versions once it is confirmed it won't break
+// downstream code
+pub use constants::mappings::{
+    AA_ALL_AMBIG_PROFILE_MAP_WITH_STOP, AA_PROFILE_MAP, AA_UNAMBIG_PROFILE_MAP, ByteIndexMap, ByteMap, ByteValidator,
+    DNA_PROFILE_MAP, DNA_UNAMBIG_PROFILE_MAP, DnaDisambiguation, StdGeneticCode,
+};
 pub use extension::byte_types::SanitizeBase;
 pub use matrices::WeightMatrix;
 pub use records::{fasta, fastq, sam};
@@ -165,13 +171,6 @@ pub use types::{amino_acids, cigar, nucleotides, phred};
 pub use validation::{CheckSequence, Recode, RetainSequence, StdForSequences};
 
 pub use constants::mappings;
-
-// TODO: Remove this in future versions once it is confirmed it won't break
-// downstream code
-pub use constants::mappings::{
-    AA_ALL_AMBIG_PROFILE_MAP_WITH_STOP, AA_PROFILE_MAP, AA_UNAMBIG_PROFILE_MAP, ByteIndexMap, ByteMap, ByteValidator,
-    DNA_PROFILE_MAP, DNA_UNAMBIG_PROFILE_MAP, StdGeneticCode,
-};
 
 pub(crate) use constants::alphas;
 pub(crate) use extension::{array_types, byte_types, id_types, vec_types};

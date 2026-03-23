@@ -1,8 +1,11 @@
+use std::collections::HashMap;
+
 use crate::{
     composition::ByteIndexCounts,
     data::{
         alphas::*,
         mappings::{validator::ByteValidator, *},
+        nucleotides::CodonExtension,
     },
     prelude::Nucleotides,
 };
@@ -474,4 +477,160 @@ fn test_empty_range() {
     assert_eq!(MAP1, ByteMap::all(0));
     assert_eq!(MAP2, ByteMap::all(0));
     assert_eq!(MAP3, ByteMap::identity());
+}
+
+fn ambig_residues() -> HashMap<u8, &'static [u8]> {
+    let mut out: HashMap<u8, &[u8]> = HashMap::new();
+    out.insert(b'A', b"A");
+    out.insert(b'C', b"C");
+    out.insert(b'G', b"G");
+    out.insert(b'T', b"T");
+    out.insert(b'U', b"T");
+    out.insert(b'R', b"AG");
+    out.insert(b'Y', b"CT");
+    out.insert(b'S', b"GC");
+    out.insert(b'W', b"AT");
+    out.insert(b'K', b"GT");
+    out.insert(b'M', b"AC");
+    out.insert(b'B', b"CGT");
+    out.insert(b'D', b"AGT");
+    out.insert(b'H', b"ACT");
+    out.insert(b'V', b"ACG");
+    out.insert(b'N', b"ACGT");
+    out.insert(b'a', b"A");
+    out.insert(b'c', b"C");
+    out.insert(b'g', b"G");
+    out.insert(b't', b"T");
+    out.insert(b'u', b"T");
+    out.insert(b'r', b"AG");
+    out.insert(b'y', b"CT");
+    out.insert(b's', b"GC");
+    out.insert(b'w', b"AT");
+    out.insert(b'k', b"GT");
+    out.insert(b'm', b"AC");
+    out.insert(b'b', b"CGT");
+    out.insert(b'd', b"AGT");
+    out.insert(b'h', b"ACT");
+    out.insert(b'v', b"ACG");
+    out.insert(b'n', b"ACGT");
+    out
+}
+
+#[test]
+fn disambiguate() {
+    for (residue, possibilities) in ambig_residues() {
+        if possibilities.contains(&b'A') {
+            assert!(DnaDisambiguation::maybe_a(residue));
+            assert!(DnaDisambiguation::maybe_ac(residue));
+            assert!(DnaDisambiguation::maybe_ag(residue));
+            assert!(DnaDisambiguation::maybe_at(residue));
+            assert!(DnaDisambiguation::maybe_acg(residue));
+            assert!(DnaDisambiguation::maybe_act(residue));
+            assert!(DnaDisambiguation::maybe_agt(residue));
+            assert!(DnaDisambiguation::maybe_acgt(residue));
+        } else {
+            assert!(!DnaDisambiguation::maybe_a(residue));
+        }
+
+        if possibilities.contains(&b'C') {
+            assert!(DnaDisambiguation::maybe_c(residue));
+            assert!(DnaDisambiguation::maybe_ac(residue));
+            assert!(DnaDisambiguation::maybe_cg(residue));
+            assert!(DnaDisambiguation::maybe_ct(residue));
+            assert!(DnaDisambiguation::maybe_acg(residue));
+            assert!(DnaDisambiguation::maybe_act(residue));
+            assert!(DnaDisambiguation::maybe_cgt(residue));
+            assert!(DnaDisambiguation::maybe_acgt(residue));
+        } else {
+            assert!(!DnaDisambiguation::maybe_c(residue));
+        }
+
+        if possibilities.contains(&b'G') {
+            assert!(DnaDisambiguation::maybe_g(residue));
+            assert!(DnaDisambiguation::maybe_ag(residue));
+            assert!(DnaDisambiguation::maybe_cg(residue));
+            assert!(DnaDisambiguation::maybe_gt(residue));
+            assert!(DnaDisambiguation::maybe_acg(residue));
+            assert!(DnaDisambiguation::maybe_agt(residue));
+            assert!(DnaDisambiguation::maybe_cgt(residue));
+            assert!(DnaDisambiguation::maybe_acgt(residue));
+        } else {
+            assert!(!DnaDisambiguation::maybe_g(residue));
+        }
+
+        if possibilities.contains(&b'T') {
+            assert!(DnaDisambiguation::maybe_t(residue));
+            assert!(DnaDisambiguation::maybe_at(residue));
+            assert!(DnaDisambiguation::maybe_ct(residue));
+            assert!(DnaDisambiguation::maybe_gt(residue));
+            assert!(DnaDisambiguation::maybe_act(residue));
+            assert!(DnaDisambiguation::maybe_agt(residue));
+            assert!(DnaDisambiguation::maybe_cgt(residue));
+            assert!(DnaDisambiguation::maybe_acgt(residue));
+        } else {
+            assert!(!DnaDisambiguation::maybe_t(residue));
+        }
+    }
+}
+
+#[test]
+fn maybe_stop_codon() {
+    let ambig_residues = ambig_residues();
+
+    let residues_t = ambig_residues
+        .iter()
+        .filter_map(|(residue, possibilities)| possibilities.contains(&b'T').then_some(*residue))
+        .collect::<Vec<_>>();
+
+    let residues_a = ambig_residues
+        .iter()
+        .filter_map(|(residue, possibilities)| possibilities.contains(&b'A').then_some(*residue))
+        .collect::<Vec<_>>();
+
+    let residues_g = ambig_residues
+        .iter()
+        .filter_map(|(residue, possibilities)| possibilities.contains(&b'G').then_some(*residue))
+        .collect::<Vec<_>>();
+
+    for residue1 in &residues_t {
+        for residue2 in &residues_a {
+            for residue3 in &residues_a {
+                let stop_codon = [*residue1, *residue2, *residue3];
+                assert!(stop_codon.maybe_std_stop_codon());
+            }
+        }
+    }
+
+    for residue1 in &residues_t {
+        for residue2 in &residues_a {
+            for residue3 in &residues_g {
+                let stop_codon = [*residue1, *residue2, *residue3];
+                assert!(stop_codon.maybe_std_stop_codon());
+            }
+        }
+    }
+
+    for residue1 in &residues_t {
+        for residue2 in &residues_g {
+            for residue3 in &residues_a {
+                let stop_codon = [*residue1, *residue2, *residue3];
+                assert!(stop_codon.maybe_std_stop_codon());
+            }
+        }
+    }
+
+    for residue1 in &residues_t {
+        for residue2 in &residues_g {
+            if DnaDisambiguation::maybe_a(*residue2) {
+                continue;
+            }
+            for residue3 in &residues_g {
+                if DnaDisambiguation::maybe_a(*residue3) {
+                    continue;
+                }
+                let stop_codon = [*residue1, *residue2, *residue3];
+                assert!(!stop_codon.maybe_std_stop_codon());
+            }
+        }
+    }
 }

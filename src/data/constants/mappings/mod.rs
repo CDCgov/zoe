@@ -6,7 +6,8 @@
 
 pub(crate) mod aa;
 pub(crate) mod byte_index;
-mod dna;
+mod disambiguation;
+pub(crate) mod dna;
 pub(crate) mod gc;
 mod validator;
 
@@ -15,6 +16,7 @@ mod test;
 
 pub use aa::*;
 pub use byte_index::*;
+pub use disambiguation::*;
 pub use dna::*;
 pub use gc::*;
 pub use validator::*;

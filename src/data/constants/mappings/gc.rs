@@ -1,3 +1,5 @@
+use crate::data::mappings::disambiguation::DnaDisambiguation;
+
 macro_rules! fill_std_gc {
     ($( $key: expr => $val: expr ),*) => {{
         let mut map = StdGeneticCode::new_raw_table();
@@ -105,13 +107,13 @@ impl StdGeneticCode {
         Self::get(codon).unwrap_or(b'X')
     }
 
-    /// Determine whether the provided codon is a stop codon.
+    /// Determines whether the provided codon is a stop codon.
     ///
     /// Any additional elements past the first three are ignored and partial
     /// codons are considered `false`. Any ambiguous codons must always
     /// translate to a stop codon for this to return `true`.
-    #[must_use]
     #[inline]
+    #[must_use]
     pub fn is_stop_codon(c: &[u8]) -> bool {
         c.len() > 2
             && matches!(
@@ -122,6 +124,20 @@ impl StdGeneticCode {
                 ],
                 b"TAA" | b"TAG" | b"TAR" | b"TGA" | b"TRA" | b"UAA" | b"UAG" | b"UAR" | b"UGA" | b"URA"
             )
+    }
+
+    /// Returns whether the codon potentially codes for a stop codon under the
+    /// standard genetic code (`TAA`, `TAG`, or `TGA`).
+    ///
+    /// Note that `NNN` returns `true`.
+    #[inline]
+    #[must_use]
+    pub fn maybe_stop_codon(c: &[u8]) -> bool {
+        if let Some(codon) = c.first_chunk() {
+            DnaDisambiguation::maybe_std_stop_codon(*codon)
+        } else {
+            false
+        }
     }
 
     /// Initializes the [`StdGeneticCode`] perfect hashmap such that no entries

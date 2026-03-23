@@ -6,6 +6,11 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ## [0.0.29] - TBD
 
+### Added
+
+- Adds `DnaDisambiguation` for checking whether an ambiguous residue potentially codes for an A, C, G, or T
+- Adds `maybe_stop_codon` to check whether a codon with ambiguous residues potentially codes for a stop codon
+
 ### Changed
 
 - Optional auxilary fields in SAM files `SamTags` is now `SamAuxRaw`.
