@@ -539,15 +539,13 @@ pub trait CodonExtension {
     /// `TGA`, or RNA equivalents including some ambiguous forms).
     fn is_std_stop_codon(&self) -> bool;
 
-    /// Returns `true` if the codon translates to an amino acid (not a stop
-    /// codon, missing codon, or deletion).
-    fn is_amino_acid(&self) -> bool;
-
-    /// Like [`Self::is_amino_acid`] but excludes `X`.
+    /// Returns `true` if the codon translates to an amino acid.
     ///
-    /// Note that *Zoe* does not translate nucleotides to the codes `B`, `J`,
-    /// and `Z`, and instead uses `X` for all unknown amino acids.
-    fn is_known_amino_acid(&self) -> bool;
+    /// Ambiguous codons are supported, but they must unambiguously translate to
+    /// an amino acid in order to return `true`. Stop codons, partial codons,
+    /// deletions (e.g., `---`), and the ambiguous codon `NNN` all return
+    /// `false`.
+    fn is_amino_acid(&self) -> bool;
 
     /// Returns `true` if the codon can be resolved to a translation (amino
     /// acid, deletion, missing codon, or stop codon) under the standard genetic
@@ -567,11 +565,6 @@ impl CodonExtension for [u8; 3] {
 
     #[inline]
     fn is_amino_acid(&self) -> bool {
-        matches!(StdGeneticCode::get(self), Some(aa) if aa.is_ascii_alphabetic())
-    }
-
-    #[inline]
-    fn is_known_amino_acid(&self) -> bool {
         matches!(StdGeneticCode::get(self), Some(aa) if aa.is_ascii_alphabetic() && aa != b'X')
     }
 

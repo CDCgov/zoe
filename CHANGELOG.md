@@ -22,6 +22,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Implemented Copy for several immutable views
 - `RangeSearch` now contains a generic with the original type to allow search methods to restrict the types of data they are used on
 - `StdGeneticCode` now translates codons with mixed `-` and `.` bytes to `.`
+- `is_amino_acid` now behaves the same as `is_known_amino_acid`, and `is_known_amino_acid` is removed
 
 ### Fixes
 

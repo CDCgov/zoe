@@ -62,7 +62,8 @@ impl StdGeneticCode {
     /// the translation cannot be resolved.
     ///
     /// To instead return 'X', see
-    /// [`translate_codon`](StdGeneticCode::translate_codon).
+    /// [`translate_codon`](StdGeneticCode::translate_codon). This function
+    /// returns `X` only for the codon `NNN`.
     ///
     /// ## Panics
     ///
@@ -89,6 +90,9 @@ impl StdGeneticCode {
     /// Retrieves the amino acid corresponding to a codon, or return `X` if the
     /// translation cannot be resolved.
     ///
+    /// Note that `X` is also returned for codon `NNN`, which is considered
+    /// resolvable to `X`.
+    ///
     /// To instead return an `Option`, see [`get`](StdGeneticCode::get).
     ///
     /// ## Panics
@@ -104,7 +108,8 @@ impl StdGeneticCode {
     /// Determine whether the provided codon is a stop codon.
     ///
     /// Any additional elements past the first three are ignored and partial
-    /// codons are considered `false`.
+    /// codons are considered `false`. Any ambiguous codons must always
+    /// translate to a stop codon for this to return `true`.
     #[must_use]
     #[inline]
     pub fn is_stop_codon(c: &[u8]) -> bool {
