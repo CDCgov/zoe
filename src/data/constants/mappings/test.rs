@@ -69,8 +69,8 @@ fn test_dna_map() {
 
 #[test]
 fn test_dna_map_ignores_case() {
-    const MAP1: ByteIndexMap<5> = ByteIndexMap::new_ignoring_case(*b"acgtn", b'N').add_synonym_ignoring_case(b'u', b'T');
-    const MAP2: ByteIndexMap<5> = ByteIndexMap::new_ignoring_case(*b"AcGtN", b'n').add_synonym_ignoring_case(b'U', b't');
+    const MAP1: ByteIndexMap<5> = ByteIndexMap::new_ignoring_case(*b"acgtn", b'N').add_synonym_ignore_case(b'u', b'T');
+    const MAP2: ByteIndexMap<5> = ByteIndexMap::new_ignoring_case(*b"AcGtN", b'n').add_synonym_ignore_case(b'U', b't');
 
     assert_eq!(DNA_PROFILE_MAP, MAP1);
     assert_eq!(DNA_PROFILE_MAP, MAP2);
@@ -78,7 +78,7 @@ fn test_dna_map_ignores_case() {
 
 #[test]
 fn test_def_a_map() {
-    const DEF_A_MAP: ByteIndexMap<4> = ByteIndexMap::new_ignoring_case(*b"ACGT", b'A').add_synonym_ignoring_case(b'U', b'T');
+    const DEF_A_MAP: ByteIndexMap<4> = ByteIndexMap::new_ignoring_case(*b"ACGT", b'A').add_synonym_ignore_case(b'U', b'T');
     for i in 0..=255 {
         match i {
             b'C' | b'c' => assert!(DEF_A_MAP.to_index(i) == 1),
@@ -112,13 +112,13 @@ fn test_case_sensitive() {
 }
 
 #[test]
-#[should_panic = "assertion failed: array_types::is_unique(&byte_keys)"]
+#[should_panic = "Attempted to map a byte multiple times in the same call!"]
 fn test_duplicate() {
     let _ = ByteIndexMap::new(*b"ACGTNA", b'N');
 }
 
 #[test]
-#[should_panic = "assertion failed: array_types::is_unique(&byte_keys)"]
+#[should_panic = "Attempted to map a byte multiple times in the same call!"]
 fn test_duplicate_nocase() {
     let _ = ByteIndexMap::new_ignoring_case(*b"ACGTNA", b'N');
 }
@@ -183,10 +183,7 @@ fn test_iupac_to_dna_acgtn_uc() {
         if matches!(c, b'u' | b'U') {
             assert_eq!(IUPAC_TO_DNA_ACGTN_WITH_GAPS_UC[c], b'T');
         } else if DNA_ACGTN_NO_GAPS.contains(&c) {
-            assert_eq!(
-                IUPAC_TO_DNA_ACGTN_WITH_GAPS_UC[c],
-                c.to_ascii_uppercase()
-            );
+            assert_eq!(IUPAC_TO_DNA_ACGTN_WITH_GAPS_UC[c], c.to_ascii_uppercase());
         } else if DNA_IUPAC_NO_GAPS.contains(&c) {
             assert_eq!(IUPAC_TO_DNA_ACGTN_WITH_GAPS_UC[c], b'N');
         } else {
@@ -214,6 +211,39 @@ fn test_iupac_to_dna_acgtn() {
             assert_eq!(IUPAC_TO_DNA_ACGTN_WITH_GAPS[c], c);
         }
     }
+}
+
+#[test]
+fn test_byte_map_preserve_both_cases() {
+    const MAP: ByteMap = ByteMap::all(0).preserve_both_cases(b"ACGT");
+
+    assert_eq!(MAP[b'A'], b'A');
+    assert_eq!(MAP[b'a'], b'a');
+    assert_eq!(MAP[b'T'], b'T');
+    assert_eq!(MAP[b't'], b't');
+    assert_eq!(MAP[b'N'], 0);
+}
+
+#[test]
+fn test_byte_map_map_ignore_case_uses_literal_dest() {
+    const MAP: ByteMap = ByteMap::identity().map_ignore_case(b"U", b"T");
+
+    assert_eq!(MAP[b'U'], b'T');
+    assert_eq!(MAP[b'u'], b'T');
+    assert_eq!(MAP[b'B'], b'B');
+}
+
+#[test]
+fn test_byte_map_indexing_ignore_case() {
+    const MAP: ByteMap = ByteMap::all(9).indexing_ignore_case(b"ACG");
+
+    assert_eq!(MAP[b'A'], 0);
+    assert_eq!(MAP[b'a'], 0);
+    assert_eq!(MAP[b'C'], 1);
+    assert_eq!(MAP[b'c'], 1);
+    assert_eq!(MAP[b'G'], 2);
+    assert_eq!(MAP[b'g'], 2);
+    assert_eq!(MAP[b'N'], 9);
 }
 
 #[test]
@@ -250,10 +280,7 @@ fn test_any_to_dna_iupac_with_gaps_uc() {
         if matches!(c, b'u' | b'U') {
             assert_eq!(ANY_TO_DNA_IUPAC_WITH_GAPS_UC[c], b'T');
         } else if DNA_IUPAC_WITH_GAPS.contains(&c) {
-            assert_eq!(
-                ANY_TO_DNA_IUPAC_WITH_GAPS_UC[c],
-                c.to_ascii_uppercase()
-            );
+            assert_eq!(ANY_TO_DNA_IUPAC_WITH_GAPS_UC[c], c.to_ascii_uppercase());
         } else {
             assert_eq!(ANY_TO_DNA_IUPAC_WITH_GAPS_UC[c], b'N');
         }

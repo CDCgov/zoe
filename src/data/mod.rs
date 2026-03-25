@@ -158,8 +158,8 @@ mod validation;
 mod whichever;
 
 pub use constants::mappings::{
-    AA_ALL_AMBIG_PROFILE_MAP_WITH_STOP, AA_PROFILE_MAP, AA_UNAMBIG_PROFILE_MAP, ByteIndexMap, ByteMap, ByteMapBuilder,
-    DNA_PROFILE_MAP, DNA_UNAMBIG_PROFILE_MAP, FromCase, StdGeneticCode, ToCase,
+    AA_ALL_AMBIG_PROFILE_MAP_WITH_STOP, AA_PROFILE_MAP, AA_UNAMBIG_PROFILE_MAP, ByteIndexMap, ByteMap, DNA_PROFILE_MAP,
+    DNA_UNAMBIG_PROFILE_MAP, StdGeneticCode,
 };
 pub use extension::byte_types::SanitizeBase;
 pub use matrices::WeightMatrix;

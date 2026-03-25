@@ -14,7 +14,10 @@ use std::ops::Index;
 ///    consider using [`ByteIndexMap`] which also allows for converting back to
 ///    regular sequences again.
 ///
-/// TODO: Add more doc links
+/// To build a custom map, start with a complete mapping such as
+/// [`ByteMap::identity`] or [`ByteMap::all`], then apply cumulative overrides
+/// with methods such as [`ByteMap::preserve`], [`ByteMap::many_to_one`],
+/// [`ByteMap::map`], or [`ByteMap::indexing`].
 #[repr(transparent)]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct ByteMap([u8; 256]);
@@ -34,11 +37,168 @@ impl ByteMap {
         Self(mapping)
     }
 
+    /// Creates a [`ByteMap`] that maps every byte to the same destination byte.
+    #[inline]
+    #[must_use]
+    pub const fn all(dest: u8) -> Self {
+        Self([dest; 256])
+    }
+
+    /// Creates a [`ByteMap`] that maps each byte to itself.
+    #[must_use]
+    pub const fn identity() -> Self {
+        let mut mapping = [0; 256];
+        let mut i = 0u8;
+        loop {
+            mapping[i as usize] = i;
+            if i == u8::MAX {
+                return Self(mapping);
+            }
+            i += 1;
+        }
+    }
+
     /// Returns the inner array of a [`ByteMap`].
     #[inline]
     #[must_use]
     pub const fn into_inner(self) -> [u8; 256] {
         self.0
+    }
+
+    /// Preserves the identity of the given bytes in the map.
+    ///
+    /// Any later calls can still override these mappings.
+    #[must_use]
+    pub const fn preserve<const S: usize>(self, bytes: &[u8; S]) -> Self {
+        self.map(bytes, bytes)
+    }
+
+    /// Preserves the given bytes in both ASCII cases.
+    ///
+    /// ASCII alphabetic bytes preserve the case of the matched input byte.
+    /// Non-alphabetic bytes are preserved unchanged.
+    #[must_use]
+    pub const fn preserve_both_cases<const S: usize>(mut self, bytes: &[u8; S]) -> Self {
+        Self::assert_unique_ignore_case(bytes);
+
+        let mut i = 0;
+        while i < S {
+            self.set_byte(
+                bytes[i].to_ascii_lowercase(),
+                Self::match_case(bytes[i], bytes[i].to_ascii_lowercase()),
+            );
+            self.set_byte(
+                bytes[i].to_ascii_uppercase(),
+                Self::match_case(bytes[i], bytes[i].to_ascii_uppercase()),
+            );
+            i += 1;
+        }
+        self
+    }
+
+    /// Maps many source bytes to one destination byte.
+    #[must_use]
+    pub const fn many_to_one<const S: usize>(mut self, from: &[u8; S], to: u8) -> Self {
+        Self::assert_unique(from);
+
+        let mut i = 0;
+        while i < S {
+            self.set_byte(from[i], to);
+            i += 1;
+        }
+        self
+    }
+
+    /// Maps many source bytes to one destination byte while matching their
+    /// uppercase and lowercase forms.
+    ///
+    /// The destination byte is used literally. Use [`Self::preserve_both_cases`]
+    /// when the output should follow the matched input case.
+    #[must_use]
+    pub const fn many_to_one_ignore_case<const S: usize>(mut self, from: &[u8; S], to: u8) -> Self {
+        Self::assert_unique_ignore_case(from);
+
+        let mut i = 0;
+        while i < S {
+            self.set_byte(from[i].to_ascii_lowercase(), to);
+            self.set_byte(from[i].to_ascii_uppercase(), to);
+            i += 1;
+        }
+        self
+    }
+
+    /// Maps source bytes to destination bytes pairwise.
+    #[must_use]
+    pub const fn map<const S: usize>(mut self, from: &[u8; S], to: &[u8; S]) -> Self {
+        Self::assert_unique(from);
+
+        let mut i = 0;
+        while i < S {
+            self.set_byte(from[i], to[i]);
+            i += 1;
+        }
+        self
+    }
+
+    /// Maps source bytes to destination bytes pairwise while matching their
+    /// uppercase and lowercase forms.
+    ///
+    /// Destination bytes are used literally. Use [`Self::preserve_both_cases`] when
+    /// the output should follow the matched input case.
+    #[must_use]
+    pub const fn map_ignore_case<const S: usize>(mut self, from: &[u8; S], to: &[u8; S]) -> Self {
+        Self::assert_unique_ignore_case(from);
+
+        let mut i = 0;
+        while i < S {
+            self.set_byte(from[i].to_ascii_lowercase(), to[i]);
+            self.set_byte(from[i].to_ascii_uppercase(), to[i]);
+            i += 1;
+        }
+        self
+    }
+
+    /// Maps the provided bytes to ascending indexes.
+    ///
+    /// This maps `bytes[0]` to `0`, `bytes[1]` to `1`, and so on.
+    ///
+    /// ## Panics
+    ///
+    /// `bytes` must contain at most 256 unique values.
+    #[allow(clippy::cast_possible_truncation)]
+    #[must_use]
+    pub const fn indexing<const S: usize>(mut self, bytes: &[u8; S]) -> Self {
+        assert!(S <= 256, "Cannot index more than 256 distinct bytes!");
+        Self::assert_unique(bytes);
+
+        let mut i = 0;
+        while i < S {
+            self.set_byte(bytes[i], i as u8);
+            i += 1;
+        }
+        self
+    }
+
+    /// Maps the provided bytes to ascending indexes while matching their
+    /// uppercase and lowercase forms.
+    ///
+    /// ## Panics
+    ///
+    /// `bytes` must contain at most 256 values that are unique after
+    /// lowercasing them.
+    #[allow(clippy::cast_possible_truncation)]
+    #[must_use]
+    pub const fn indexing_ignore_case<const S: usize>(mut self, bytes: &[u8; S]) -> Self {
+        assert!(S <= 256, "Cannot index more than 256 distinct bytes!");
+        Self::assert_unique_ignore_case(bytes);
+
+        let mut i = 0;
+        while i < S {
+            self.set_byte(bytes[i].to_ascii_lowercase(), i as u8);
+            self.set_byte(bytes[i].to_ascii_uppercase(), i as u8);
+            i += 1;
+        }
+        self
     }
 
     /// Sets the destination byte for a source byte.
@@ -47,20 +207,48 @@ impl ByteMap {
         self.0[src as usize] = dest;
     }
 
-    /// Changes the [`ByteMap`] so that `new_key` maps to the same thing as
-    /// `previous_key`.
-    #[inline]
-    #[must_use]
-    pub const fn add_synonym(mut self, new_key: u8, previous_key: u8) -> Self {
-        self.set_byte(new_key, self.copy_mapped_val(previous_key));
-        self
-    }
-
     /// Converts a base `b` into an index.
     #[inline]
     #[must_use]
     pub const fn to_index(&self, b: u8) -> usize {
         self.0[b as usize] as usize
+    }
+
+    /// Converts the case of `byte` to match `match_case_of`.
+    #[inline]
+    #[must_use]
+    const fn match_case(byte: u8, match_case_of: u8) -> u8 {
+        if match_case_of.is_ascii_lowercase() {
+            byte.to_ascii_lowercase()
+        } else {
+            byte.to_ascii_uppercase()
+        }
+    }
+
+    /// Ensures a byte slice does not contain duplicates.
+    #[inline]
+    const fn assert_unique<const S: usize>(bytes: &[u8; S]) {
+        assert!(
+            array_types::is_unique(bytes),
+            "Attempted to map a byte multiple times in the same call!"
+        );
+    }
+
+    /// Ensures a byte slice does not contain duplicates after lowercasing them.
+    #[inline]
+    const fn assert_unique_ignore_case<const S: usize>(bytes: &[u8; S]) {
+        let mut i = 0;
+        while i < S {
+            let mut j = i + 1;
+            while j < S {
+                assert!(
+                    !bytes[i].eq_ignore_ascii_case(&bytes[j]),
+                    "Attempted to map a byte multiple times in the same call!"
+                );
+                j += 1;
+            }
+            i += 1;
+        }
     }
 
     /// Copies the value to which `b` maps.
@@ -103,25 +291,14 @@ impl<const S: usize> ByteIndexMap<S> {
     #[allow(clippy::cast_possible_truncation)]
     #[must_use]
     pub const fn new(byte_keys: [u8; S], catch_all: u8) -> Self {
-        assert!(array_types::is_unique(&byte_keys));
-
         let catch_all_index =
             position(&byte_keys, catch_all).expect("The catch_all must be present in the byte_keys.") as u8;
 
-        let mut out = Self {
-            index_map: ByteMap([catch_all_index; 256]),
+        Self {
+            // `indexing` validates that `byte_keys` are unique.
+            index_map: ByteMap::all(catch_all_index).indexing(&byte_keys),
             byte_keys,
-        };
-
-        let mut i = 0;
-        while i < byte_keys.len() {
-            // Truncation will not occur because i cannot exceed
-            // byte_keys.len(), and index must contain unique u8 values
-            out.index_map.set_byte(byte_keys[i], i as u8);
-
-            i += 1;
         }
-        out
     }
 
     /// Creates a new [`ByteIndexMap`] struct to represent a mapping between
@@ -138,26 +315,16 @@ impl<const S: usize> ByteIndexMap<S> {
     #[must_use]
     pub const fn new_ignoring_case(mut byte_keys: [u8; S], catch_all: u8) -> Self {
         byte_keys = array_types::make_uppercase(&byte_keys);
-        assert!(array_types::is_unique(&byte_keys));
 
         let catch_all_index = position(&byte_keys, catch_all.to_ascii_uppercase())
             .expect("The catch_all must be present in the byte_keys.") as u8;
 
-        let mut out = Self {
-            index_map: ByteMap([catch_all_index; 256]),
+        Self {
+            // `indexing_ignore_case` validates that `byte_keys` are unique after
+            // lowercasing them.
+            index_map: ByteMap::all(catch_all_index).indexing_ignore_case(&byte_keys),
             byte_keys,
-        };
-
-        let mut i = 0;
-        while i < byte_keys.len() {
-            // Truncation will not occur because i cannot exceed
-            // byte_keys.len(), and byte_keys must contain unique u8 values
-            out.index_map.set_byte(byte_keys[i].to_ascii_lowercase(), i as u8);
-            out.index_map.set_byte(byte_keys[i].to_ascii_uppercase(), i as u8);
-
-            i += 1;
         }
-        out
     }
 
     /// Changes the [`ByteIndexMap`] so that `new_key` maps to the same thing as
@@ -165,7 +332,7 @@ impl<const S: usize> ByteIndexMap<S> {
     #[inline]
     #[must_use]
     pub const fn add_synonym(mut self, new_key: u8, previous_key: u8) -> Self {
-        self.index_map = self.index_map.add_synonym(new_key, previous_key);
+        self.index_map.set_byte(new_key, self.index_map.copy_mapped_val(previous_key));
         self
     }
 
@@ -176,11 +343,10 @@ impl<const S: usize> ByteIndexMap<S> {
         self.index_map.set_byte(byte.to_ascii_uppercase(), index);
     }
 
-    /// Changes the mapping so that `new_key` maps to the same thing as
-    /// `previous_key`, ignoring case.
+    /// Adds source bytes as synonyms for the canonical byte, ignoring case.
     #[inline]
     #[must_use]
-    pub const fn add_synonym_ignoring_case(mut self, new_key: u8, previous_key: u8) -> Self {
+    pub const fn add_synonym_ignore_case(mut self, new_key: u8, previous_key: u8) -> Self {
         self.set_byte_ignoring_case(new_key, self.index_map.copy_mapped_val(previous_key));
         self
     }
@@ -238,302 +404,5 @@ impl<const S: usize> Index<u8> for ByteIndexMap<S> {
     #[inline]
     fn index(&self, index: u8) -> &u8 {
         &self.index_map[index]
-    }
-}
-
-/// An enum specifying the case of bytes to match in [`ByteMapBuilder`].
-#[derive(Clone, Copy, Default)]
-pub enum FromCase {
-    #[default]
-    Exact,
-    Any,
-}
-
-/// An enum specifying the case of bytes to map to in [`ByteMapBuilder`].
-#[derive(Clone, Copy, Default)]
-pub enum ToCase {
-    /// Uses the case directly as is specified in the destination bytes
-    #[default]
-    Exact,
-    /// Maps to lowercase bytes
-    Lower,
-    /// Maps to uppercase bytes
-    Upper,
-    /// Maps to bytes of the same case as the input/source bytes
-    Preserve,
-}
-
-/// A builder for a [`ByteMap`].
-///
-/// This struct provides convenient and robust methods for constructing a
-/// [`ByteMap`] for a particular set of specifications, all at compile time.
-/// Using this has the following steps (all of which are optional, except the
-/// first and last):
-///
-/// 1. Call the [`new`] method to initialize the builder
-/// 2. Call [`handle_case`] to enable case-insensitive matching and/or case
-///    conversion
-/// 3. Define the mapping with [`map`], [`map_many`], and/or [`map_to_self`]
-/// 4. Optionally override the default behavior (mapping any other byte to
-///    itself) using a function such as [`default_to_byte`]
-/// 5. Call the [`build`] method to get a [`ByteMap`]
-///
-/// [`new`]: ByteMapBuilder::new
-/// [`handle_case`]: ByteMapBuilder::handle_case
-/// [`map`]: ByteMapBuilder::map
-/// [`map_many`]: ByteMapBuilder::map_many
-/// [`map_to_self`]: ByteMapBuilder::map_to_self
-/// [`default_to_byte`]: ByteMapBuilder::default_to_byte
-/// [`build`]: ByteMapBuilder::build
-pub struct ByteMapBuilder {
-    /// The values that have been set so far
-    vals:               [Option<u8>; 256],
-    /// The behavior for which case of bytes to match
-    from_case:          FromCase,
-    /// The behavior for which case of bytes to map to
-    to_case:            ToCase,
-    /// Whether [`handle_case`] has already been called
-    ///
-    /// [`handle_case`]: ByteMapBuilder::handle_case
-    handle_case_called: bool,
-}
-
-impl ByteMapBuilder {
-    /// Initializes a new (empty) [`ByteMapBuilder`].
-    ///
-    /// Unless [`handle_case`] is used to change the behavior, all matching will
-    /// be done case-sensitively.
-    ///
-    /// [`handle_case`]: ByteMapBuilder::handle_case
-    #[must_use]
-    pub const fn new() -> Self {
-        ByteMapBuilder {
-            vals:               [None; 256],
-            from_case:          FromCase::Exact,
-            to_case:            ToCase::Exact,
-            handle_case_called: false,
-        }
-    }
-
-    /// Sets the case-sensitivity and case conversion of the builder.
-    ///
-    /// By default, [`ByteMapBuilder`] will match bases case-sensitively. To
-    /// change this, pass [`FromCase::Any`] for `from_case`. Similarly, the
-    /// bytes that are mapped to will by default be the same case as they are
-    /// specified. To convert to a different case, use [`ToCase::Lower`] or
-    /// [`ToCase::Upper`]. Alternatively, to match the case of the input byte,
-    /// use [`ToCase::Preserve`].
-    ///
-    /// The default behavior is equivalent to calling this with
-    /// [`FromCase::Exact`] and [`ToCase::Exact`].
-    ///
-    /// ## Panics
-    ///
-    /// This must be called directly after [`new`].
-    ///
-    /// [`new`]: ByteMapBuilder::new
-    #[must_use]
-    pub const fn handle_case(mut self, from_case: FromCase, to_case: ToCase) -> ByteMapBuilder {
-        assert!(
-            !self.handle_case_called,
-            "handle_case should only be called once!"
-        );
-
-        let mut i = 0;
-        while i < 256 {
-            assert!(
-                self.vals[i].is_none(),
-                "handle_case must be called directly after new!"
-            );
-            i += 1;
-        }
-
-        self.handle_case_called = true;
-        self.from_case = from_case;
-        self.to_case = to_case;
-        self
-    }
-
-    /// Converts the case of `byte` to the same case as `match_case_of`.
-    #[must_use]
-    const fn match_case(byte: u8, match_case_of: u8) -> u8 {
-        if match_case_of.is_ascii_lowercase() {
-            byte.to_ascii_lowercase()
-        } else {
-            byte.to_ascii_uppercase()
-        }
-    }
-
-    /// Sets a byte in the [`ByteMapBuilder`].
-    #[must_use]
-    const fn set_byte_exact_case(mut self, from: u8, dest: u8) -> Self {
-        self.vals[from as usize] = Some(dest);
-        self
-    }
-
-    /// Maps one byte `from` to another byte `dest`.
-    ///
-    /// This respects the case behavior specified with [`handle_case`].
-    ///
-    /// [`handle_case`]: ByteMapBuilder::handle_case
-    #[must_use]
-    const fn map_one(self, from: u8, dest: u8) -> Self {
-        match (self.from_case, self.to_case) {
-            (FromCase::Exact, ToCase::Exact) => self.set_byte_exact_case(from, dest),
-            (FromCase::Exact, ToCase::Lower) => self.set_byte_exact_case(from, dest.to_ascii_lowercase()),
-            (FromCase::Exact, ToCase::Upper) => self.set_byte_exact_case(from, dest.to_ascii_uppercase()),
-            (FromCase::Exact, ToCase::Preserve) => self.set_byte_exact_case(from, Self::match_case(dest, from)),
-            (FromCase::Any, ToCase::Exact) => self
-                .set_byte_exact_case(from.to_ascii_lowercase(), dest)
-                .set_byte_exact_case(from.to_ascii_uppercase(), dest),
-            (FromCase::Any, ToCase::Lower) => self
-                .set_byte_exact_case(from.to_ascii_lowercase(), dest.to_ascii_lowercase())
-                .set_byte_exact_case(from.to_ascii_uppercase(), dest.to_ascii_lowercase()),
-            (FromCase::Any, ToCase::Upper) => self
-                .set_byte_exact_case(from.to_ascii_lowercase(), dest.to_ascii_uppercase())
-                .set_byte_exact_case(from.to_ascii_uppercase(), dest.to_ascii_uppercase()),
-            (FromCase::Any, ToCase::Preserve) => self
-                .set_byte_exact_case(from.to_ascii_lowercase(), dest.to_ascii_lowercase())
-                .set_byte_exact_case(from.to_ascii_uppercase(), dest.to_ascii_uppercase()),
-        }
-    }
-
-    /// Maps many bytes `from` to a single byte `dest`.
-    ///
-    /// This respects the case behavior specified with [`handle_case`].
-    ///
-    /// [`handle_case`]: ByteMapBuilder::handle_case
-    #[must_use]
-    pub const fn map_many<const S: usize>(mut self, from: &[u8; S], dest: u8) -> Self {
-        let mut i = 0;
-        while i < S {
-            self = self.map_one(from[i], dest);
-            i += 1;
-        }
-        self
-    }
-
-    /// Maps many bytes `from` to corresponding bytes `dest`.
-    ///
-    /// This respects the case behavior specified with [`handle_case`].
-    ///
-    /// [`handle_case`]: ByteMapBuilder::handle_case
-    #[must_use]
-    pub const fn map<const S: usize>(mut self, from: &[u8; S], dest: &[u8; S]) -> Self {
-        let mut i = 0;
-        while i < S {
-            self = self.map_one(from[i], dest[i]);
-            i += 1;
-        }
-        self
-    }
-
-    /// Maps many bytes to themselves.
-    ///
-    /// This respects the case behavior specified with [`handle_case`].
-    ///
-    /// [`handle_case`]: ByteMapBuilder::handle_case
-    #[must_use]
-    pub const fn map_to_self<const S: usize>(mut self, bytes: &[u8; S]) -> Self {
-        let mut i = 0;
-        while i < S {
-            self = self.map_one(bytes[i], bytes[i]);
-            i += 1;
-        }
-        self
-    }
-
-    /// Maps any unspecified bytes to themselves, but in uppercase.
-    #[must_use]
-    pub const fn default_to_self_upper(mut self) -> ByteMapBuilder {
-        let mut i = 0u8;
-        loop {
-            if self.vals[i as usize].is_none() {
-                self.vals[i as usize] = Some(i.to_ascii_uppercase());
-            }
-            if i == u8::MAX {
-                return self;
-            }
-            i += 1;
-        }
-    }
-
-    /// Maps any unspecified bytes to themselves, but in lowercase.
-    #[must_use]
-    pub const fn default_to_self_lower(mut self) -> ByteMapBuilder {
-        let mut i = 0u8;
-        loop {
-            if self.vals[i as usize].is_none() {
-                self.vals[i as usize] = Some(i.to_ascii_lowercase());
-            }
-            if i == u8::MAX {
-                return self;
-            }
-            i += 1;
-        }
-    }
-
-    /// Maps any unspecified bytes to a default byte.
-    ///
-    /// This does NOT use the behavior specified with [`handle_case`]. To
-    /// preserve the case of the unspecified byte, use
-    /// [`default_to_byte_preserve_case`].
-    ///
-    /// [`handle_case`]: ByteMapBuilder::handle_case
-    /// [`default_to_byte_preserve_case`]: ByteMapBuilder::default_to_byte_preserve_case
-    #[must_use]
-    pub const fn default_to_byte(mut self, byte: u8) -> ByteMapBuilder {
-        let mut i = 0u8;
-        loop {
-            if self.vals[i as usize].is_none() {
-                self.vals[i as usize] = Some(byte);
-            }
-            if i == u8::MAX {
-                return self;
-            }
-            i += 1;
-        }
-    }
-
-    /// Maps any unspecified bytes to a default byte, matching its case.
-    #[must_use]
-    pub const fn default_to_byte_preserve_case(mut self, byte: u8) -> ByteMapBuilder {
-        let mut i = 0u8;
-        loop {
-            if self.vals[i as usize].is_none() {
-                self.vals[i as usize] = Some(Self::match_case(byte, i));
-            }
-            if i == u8::MAX {
-                return self;
-            }
-            i += 1;
-        }
-    }
-
-    /// Builds a [`ByteMap`] from the builder.
-    ///
-    /// If no default behavior was specified, then any unset bytes are mapped to
-    /// themselves.
-    #[must_use]
-    pub const fn build(self) -> ByteMap {
-        let mut mapping = [0; 256];
-        let mut i = 0;
-        loop {
-            mapping[i as usize] = match self.vals[i as usize] {
-                Some(val) => val,
-                None => i,
-            };
-            if i == u8::MAX {
-                return ByteMap::new(mapping);
-            }
-            i += 1;
-        }
-    }
-}
-
-impl Default for ByteMapBuilder {
-    #[inline]
-    fn default() -> Self {
-        Self::new()
     }
 }
