@@ -321,14 +321,12 @@ trait SamHmmConfig<const S: usize, const L: usize> {
         print_params(&mut writer, Self::ungroup_params(&current_layer))?;
         current_layer = first_layer.clone();
 
-        let mut i = 1;
-        for layer in rest {
+        for (i, layer) in (1..).zip(rest.iter()) {
             write!(writer, "{i} ")?;
             current_layer.transition[Insert] = layer.transition[Insert];
             current_layer.emission_insert = layer.emission_insert.clone();
             print_params(&mut writer, Self::ungroup_params(&current_layer))?;
             current_layer = layer.clone();
-            i += 1;
         }
 
         write!(writer, "END ")?;

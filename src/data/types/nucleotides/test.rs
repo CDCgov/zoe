@@ -226,7 +226,7 @@ fn check_refine_dna() {
                 let b = base.to_ascii_uppercase();
                 assert_eq!(seq, &[b], "{} vs {} in {valid_strat:?}", seq[0] as char, b as char);
             } else {
-                assert!(seq.is_empty(), "ø vs {} in {valid_strat:?}", base as char,);
+                assert!(seq.is_empty(), "ø vs {} in {valid_strat:?}", base as char);
             }
         }
 

@@ -150,10 +150,7 @@ impl StdGeneticCode {
         let num = Self::to_upper_u32(codon);
         let index = Self::get_index(num);
 
-        assert!(
-            raw_table[index] == 0,
-            "A collision occurred between codons.",
-        );
+        assert!(raw_table[index] == 0, "A collision occurred between codons.");
 
         raw_table[index] = ((aa as u32) << 24) | num;
     }
