@@ -1,4 +1,4 @@
-use crate::data::array_types::{self, position};
+use crate::data::array_types::{self, make_lowercase, position};
 use std::ops::Index;
 
 /// A mapping from bytes to other bytes.
@@ -73,29 +73,6 @@ impl ByteMap {
         self.map(bytes, bytes)
     }
 
-    /// Preserves the given bytes in both ASCII cases.
-    ///
-    /// ASCII alphabetic bytes preserve the case of the matched input byte.
-    /// Non-alphabetic bytes are preserved unchanged.
-    #[must_use]
-    pub const fn preserve_both_cases<const S: usize>(mut self, bytes: &[u8; S]) -> Self {
-        Self::assert_unique_ignore_case(bytes);
-
-        let mut i = 0;
-        while i < S {
-            self.set_byte(
-                bytes[i].to_ascii_lowercase(),
-                Self::match_case(bytes[i], bytes[i].to_ascii_lowercase()),
-            );
-            self.set_byte(
-                bytes[i].to_ascii_uppercase(),
-                Self::match_case(bytes[i], bytes[i].to_ascii_uppercase()),
-            );
-            i += 1;
-        }
-        self
-    }
-
     /// Maps many source bytes to one destination byte.
     #[must_use]
     pub const fn many_to_one<const S: usize>(mut self, from: &[u8; S], to: u8) -> Self {
@@ -109,24 +86,6 @@ impl ByteMap {
         self
     }
 
-    /// Maps many source bytes to one destination byte while matching their
-    /// uppercase and lowercase forms.
-    ///
-    /// The destination byte is used literally. Use [`Self::preserve_both_cases`]
-    /// when the output should follow the matched input case.
-    #[must_use]
-    pub const fn many_to_one_ignore_case<const S: usize>(mut self, from: &[u8; S], to: u8) -> Self {
-        Self::assert_unique_ignore_case(from);
-
-        let mut i = 0;
-        while i < S {
-            self.set_byte(from[i].to_ascii_lowercase(), to);
-            self.set_byte(from[i].to_ascii_uppercase(), to);
-            i += 1;
-        }
-        self
-    }
-
     /// Maps source bytes to destination bytes pairwise.
     #[must_use]
     pub const fn map<const S: usize>(mut self, from: &[u8; S], to: &[u8; S]) -> Self {
@@ -135,24 +94,6 @@ impl ByteMap {
         let mut i = 0;
         while i < S {
             self.set_byte(from[i], to[i]);
-            i += 1;
-        }
-        self
-    }
-
-    /// Maps source bytes to destination bytes pairwise while matching their
-    /// uppercase and lowercase forms.
-    ///
-    /// Destination bytes are used literally. Use [`Self::preserve_both_cases`] when
-    /// the output should follow the matched input case.
-    #[must_use]
-    pub const fn map_ignore_case<const S: usize>(mut self, from: &[u8; S], to: &[u8; S]) -> Self {
-        Self::assert_unique_ignore_case(from);
-
-        let mut i = 0;
-        while i < S {
-            self.set_byte(from[i].to_ascii_lowercase(), to[i]);
-            self.set_byte(from[i].to_ascii_uppercase(), to[i]);
             i += 1;
         }
         self
@@ -179,28 +120,6 @@ impl ByteMap {
         self
     }
 
-    /// Maps the provided bytes to ascending indexes while matching their
-    /// uppercase and lowercase forms.
-    ///
-    /// ## Panics
-    ///
-    /// `bytes` must contain at most 256 values that are unique after
-    /// lowercasing them.
-    #[allow(clippy::cast_possible_truncation)]
-    #[must_use]
-    pub const fn indexing_ignore_case<const S: usize>(mut self, bytes: &[u8; S]) -> Self {
-        assert!(S <= 256, "Cannot index more than 256 distinct bytes!");
-        Self::assert_unique_ignore_case(bytes);
-
-        let mut i = 0;
-        while i < S {
-            self.set_byte(bytes[i].to_ascii_lowercase(), i as u8);
-            self.set_byte(bytes[i].to_ascii_uppercase(), i as u8);
-            i += 1;
-        }
-        self
-    }
-
     /// Sets the destination byte for a source byte.
     #[inline]
     pub(crate) const fn set_byte(&mut self, src: u8, dest: u8) {
@@ -214,17 +133,6 @@ impl ByteMap {
         self.0[b as usize] as usize
     }
 
-    /// Converts the case of `byte` to match `match_case_of`.
-    #[inline]
-    #[must_use]
-    const fn match_case(byte: u8, match_case_of: u8) -> u8 {
-        if match_case_of.is_ascii_lowercase() {
-            byte.to_ascii_lowercase()
-        } else {
-            byte.to_ascii_uppercase()
-        }
-    }
-
     /// Ensures a byte slice does not contain duplicates.
     #[inline]
     const fn assert_unique<const S: usize>(bytes: &[u8; S]) {
@@ -232,23 +140,6 @@ impl ByteMap {
             array_types::is_unique(bytes),
             "Attempted to map a byte multiple times in the same call!"
         );
-    }
-
-    /// Ensures a byte slice does not contain duplicates after lowercasing them.
-    #[inline]
-    const fn assert_unique_ignore_case<const S: usize>(bytes: &[u8; S]) {
-        let mut i = 0;
-        while i < S {
-            let mut j = i + 1;
-            while j < S {
-                assert!(
-                    !bytes[i].eq_ignore_ascii_case(&bytes[j]),
-                    "Attempted to map a byte multiple times in the same call!"
-                );
-                j += 1;
-            }
-            i += 1;
-        }
     }
 
     /// Copies the value to which `b` maps.
@@ -322,7 +213,9 @@ impl<const S: usize> ByteIndexMap<S> {
         Self {
             // `indexing_ignore_case` validates that `byte_keys` are unique after
             // lowercasing them.
-            index_map: ByteMap::all(catch_all_index).indexing_ignore_case(&byte_keys),
+            index_map: ByteMap::all(catch_all_index)
+                .indexing(&byte_keys)
+                .indexing(&make_lowercase(&byte_keys)),
             byte_keys,
         }
     }

@@ -16,6 +16,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `SanitizeBase` extension trait for `u8` to perform DNA validation, recoding, and refinement on a single byte
 - Added `AcgtNoGapsUc` strategy for retaining/recoding DNA
 - Added `find_start_codon` as well as a modified string search routine supporting lazy transformations of the haystack (`find_mapped_match_simd`)
+- Added `ByteMap` for defining and representing maps from `u8` values to other `u8` values (e.g., for sanitization/recoding)
 
 ### Changed
 

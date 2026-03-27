@@ -214,39 +214,6 @@ fn test_iupac_to_dna_acgtn() {
 }
 
 #[test]
-fn test_byte_map_preserve_both_cases() {
-    const MAP: ByteMap = ByteMap::all(0).preserve_both_cases(b"ACGT");
-
-    assert_eq!(MAP[b'A'], b'A');
-    assert_eq!(MAP[b'a'], b'a');
-    assert_eq!(MAP[b'T'], b'T');
-    assert_eq!(MAP[b't'], b't');
-    assert_eq!(MAP[b'N'], 0);
-}
-
-#[test]
-fn test_byte_map_map_ignore_case_uses_literal_dest() {
-    const MAP: ByteMap = ByteMap::identity().map_ignore_case(b"U", b"T");
-
-    assert_eq!(MAP[b'U'], b'T');
-    assert_eq!(MAP[b'u'], b'T');
-    assert_eq!(MAP[b'B'], b'B');
-}
-
-#[test]
-fn test_byte_map_indexing_ignore_case() {
-    const MAP: ByteMap = ByteMap::all(9).indexing_ignore_case(b"ACG");
-
-    assert_eq!(MAP[b'A'], 0);
-    assert_eq!(MAP[b'a'], 0);
-    assert_eq!(MAP[b'C'], 1);
-    assert_eq!(MAP[b'c'], 1);
-    assert_eq!(MAP[b'G'], 2);
-    assert_eq!(MAP[b'g'], 2);
-    assert_eq!(MAP[b'N'], 9);
-}
-
-#[test]
 fn test_any_to_dna_acgtn_uc() {
     for c in u8::MIN..=u8::MAX {
         if matches!(c, b'u' | b'U') {

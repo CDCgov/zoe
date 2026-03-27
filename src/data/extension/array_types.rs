@@ -3,6 +3,18 @@
 
 use crate::math::AnyInt;
 
+/// Converts all bytes in an array to ASCII lowercase using
+/// [`u8::to_ascii_lowercase`].
+pub(crate) const fn make_lowercase<const N: usize>(a: &[u8; N]) -> [u8; N] {
+    let mut b = [0; N];
+    let mut i = 0;
+    while i < a.len() {
+        b[i] = a[i].to_ascii_lowercase();
+        i += 1;
+    }
+    b
+}
+
 /// Converts all bytes in an array to ASCII uppercase using
 /// [`u8::to_ascii_uppercase`].
 pub(crate) const fn make_uppercase<const N: usize>(a: &[u8; N]) -> [u8; N] {

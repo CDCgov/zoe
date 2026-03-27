@@ -1,5 +1,5 @@
 use super::*;
-use crate::data::alphas::*;
+use crate::data::{alphas::*, array_types::make_lowercase};
 
 //
 // Typically used by:   RetainSequence::retain_by_validation, std::slice::Iter::all
@@ -41,46 +41,51 @@ pub(crate) const IS_DNA_ACGT_NO_GAPS_UC: [bool; 256] = make_is_alpha_mapping(b"A
 /// Used to convert nucleotide sequences to valid, uppercase IUPAC DNA without
 /// gaps. The 0-byte is used for filtering out unwanted patterns.
 pub(crate) const TO_DNA_IUPAC_NO_GAPS_UC: ByteMap = ByteMap::all(0)
-    .map_ignore_case(DNA_IUPAC_NO_GAPS_UC, DNA_IUPAC_NO_GAPS_UC)
-    .map_ignore_case(b"U", b"T");
+    .preserve(DNA_IUPAC_NO_GAPS_UC)
+    .map(&make_lowercase(DNA_IUPAC_NO_GAPS_UC), DNA_IUPAC_NO_GAPS_UC)
+    .map(b"Uu", b"TT");
 
 /// Used to convert nucleotide sequences to valid, uppercase IUPAC DNA, allowing
 /// gaps. The 0-byte is used for filtering out unwanted patterns.
 pub(crate) const TO_DNA_IUPAC_WITH_GAPS_UC: ByteMap = ByteMap::all(0)
-    .map_ignore_case(DNA_IUPAC_WITH_GAPS_UC, DNA_IUPAC_WITH_GAPS_UC)
-    .map_ignore_case(b"U", b"T");
+    .preserve(DNA_IUPAC_WITH_GAPS_UC)
+    .map(&make_lowercase(DNA_IUPAC_WITH_GAPS_UC), DNA_IUPAC_WITH_GAPS_UC)
+    .map(b"Uu", b"TT");
 
 /// Used to convert nucleotide sequences to valid, uppercase IUPAC DNA, also
 /// correcting non-standard gaps. The 0-byte is used for filtering out unwanted
 /// patterns.
 pub(crate) const TO_DNA_IUPAC_CORRECT_GAPS_UC: ByteMap = ByteMap::all(0)
-    .map_ignore_case(DNA_IUPAC_WITH_GAPS_UC, DNA_IUPAC_WITH_GAPS_UC)
-    .map_ignore_case(b"U", b"T")
+    .preserve(DNA_IUPAC_WITH_GAPS_UC)
+    .map(&make_lowercase(DNA_IUPAC_WITH_GAPS_UC), DNA_IUPAC_WITH_GAPS_UC)
+    .map(b"Uu", b"TT")
     .map(b":~", b"--");
 
 /// Used to convert nucleotide sequences to uppercase ACGTN without gaps. The
 /// 0-byte is used for filtering out unwanted patterns.
 pub(crate) const TO_DNA_ACGTN_NO_GAPS_UC: ByteMap = ByteMap::all(0)
-    .map_ignore_case(DNA_ACGTN_NO_GAPS_UC, DNA_ACGTN_NO_GAPS_UC)
-    .map_ignore_case(b"U", b"T");
+    .preserve(DNA_ACGTN_NO_GAPS_UC)
+    .map(&make_lowercase(DNA_ACGTN_NO_GAPS_UC), DNA_ACGTN_NO_GAPS_UC)
+    .map(b"Uu", b"TT");
 
 /// Used to convert nucleotide sequences to uppercase ACGT without gaps. The
 /// 0-byte is used for filtering out unwanted patterns.
-pub(crate) const TO_DNA_ACGT_NO_GAPS_UC: ByteMap =
-    ByteMap::all(0).map_ignore_case(b"ACGT", b"ACGT").map_ignore_case(b"U", b"T");
+pub(crate) const TO_DNA_ACGT_NO_GAPS_UC: ByteMap = ByteMap::all(0).map(b"ACGTacgt", b"ACGTACGT").map(b"Uu", b"TT");
 
 /// Used to convert nucleotide sequences to uppercase ACGTN with gaps. The
 /// 0-byte is used for filtering out unwanted patterns.
 pub(crate) const TO_DNA_ACGTN_WITH_GAPS_UC: ByteMap = ByteMap::all(0)
-    .map_ignore_case(DNA_ACGTN_NO_GAPS_UC, DNA_ACGTN_NO_GAPS_UC)
-    .map_ignore_case(b"U", b"T")
+    .preserve(DNA_ACGTN_NO_GAPS_UC)
+    .map(&make_lowercase(DNA_ACGTN_NO_GAPS_UC), DNA_ACGTN_NO_GAPS_UC)
+    .map(b"Uu", b"TT")
     .preserve(b".-");
 
 /// Used to convert nucleotide sequences to uppercase ACGTN and standardizing
 /// gaps to `-`. The 0-byte is used for filtering out unwanted patterns.
 pub(crate) const TO_DNA_ACGTN_STD_GAPS_UC: ByteMap = ByteMap::all(0)
-    .map_ignore_case(DNA_ACGTN_NO_GAPS_UC, DNA_ACGTN_NO_GAPS_UC)
-    .map_ignore_case(b"U", b"T")
+    .preserve(DNA_ACGTN_NO_GAPS_UC)
+    .map(&make_lowercase(DNA_ACGTN_NO_GAPS_UC), DNA_ACGTN_NO_GAPS_UC)
+    .map(b"Uu", b"TT")
     .map(b".-:~", b"----");
 
 //
@@ -90,13 +95,16 @@ pub(crate) const TO_DNA_ACGTN_STD_GAPS_UC: ByteMap = ByteMap::all(0)
 
 /// Used to convert any valid IUPAC DNA to uppercase ACGTN.
 pub(crate) const IUPAC_TO_DNA_ACGTN_WITH_GAPS_UC: ByteMap = ByteMap::identity()
-    .map_ignore_case(DNA_IUPAC_NO_GAPS_UC, DNA_IUPAC_NO_GAPS_UC)
-    .map_ignore_case(b"U", b"T")
-    .many_to_one_ignore_case(b"RYSWKMBDHVN", b'N');
+    .preserve(DNA_IUPAC_NO_GAPS_UC)
+    .map(&make_lowercase(DNA_IUPAC_NO_GAPS_UC), DNA_IUPAC_NO_GAPS_UC)
+    .map(b"Uu", b"TT")
+    .many_to_one(b"RYSWKMBDHVN", b'N')
+    .many_to_one(b"ryswkmbdhvn", b'N');
 
 /// Used to convert any valid IUPAC DNA to ACGTN.
 pub(crate) const IUPAC_TO_DNA_ACGTN_WITH_GAPS: ByteMap = ByteMap::identity()
-    .preserve_both_cases(DNA_IUPAC_NO_GAPS_UC)
+    .preserve(DNA_IUPAC_NO_GAPS_UC)
+    .preserve(&make_lowercase(DNA_IUPAC_NO_GAPS_UC))
     .map(b"Uu", b"Tt")
     .many_to_one(b"RYSWKMBDHVN", b'N')
     .many_to_one(b"ryswkmbdhvn", b'n');
@@ -116,41 +124,46 @@ pub(crate) const TO_REVERSE_COMPLEMENT: ByteMap = ByteMap::identity()
 //
 
 /// Maps bytes to themselves but converts `T` to `U` for converting DNA to RNA.
-pub(crate) const TO_RNA: ByteMap = ByteMap::all(b'N').preserve_both_cases(b"ACGUN").map(b"Tt", b"Uu");
+pub(crate) const TO_RNA: ByteMap = ByteMap::all(b'N').preserve(b"ACGUNacgun").map(b"Tt", b"Uu");
 
 /// Used to convert any byte to uppercase RNA. Replaces `T` with `U`.
-pub(crate) const TO_RNA_UC: ByteMap = ByteMap::all(b'N').map_ignore_case(b"ACGUT", b"ACGUU");
+pub(crate) const TO_RNA_UC: ByteMap = ByteMap::all(b'N').map(b"ACGUT", b"ACGUU").map(b"acgut", b"ACGUU");
 
 /// Used to convert any byte to uppercase ACGTN. N is used as a catch-all.
 pub(crate) const ANY_TO_DNA_ACGTN_NO_GAPS_UC: ByteMap = ByteMap::all(b'N')
-    .map_ignore_case(DNA_ACGTN_NO_GAPS_UC, DNA_ACGTN_NO_GAPS_UC)
-    .map_ignore_case(b"U", b"T");
+    .preserve(DNA_ACGTN_NO_GAPS_UC)
+    .map(&make_lowercase(DNA_ACGTN_NO_GAPS_UC), DNA_ACGTN_NO_GAPS_UC)
+    .map(b"Uu", b"TT");
 
 /// Used to convert any byte to uppercase ACGTN. N is used as a catch-all. Allow
 /// gaps.
 pub(crate) const ANY_TO_DNA_ACGTN_WITH_GAPS_UC: ByteMap = ByteMap::all(b'N')
-    .map_ignore_case(DNA_ACGTN_NO_GAPS_UC, DNA_ACGTN_NO_GAPS_UC)
-    .map_ignore_case(b"U", b"T")
+    .preserve(DNA_ACGTN_NO_GAPS_UC)
+    .map(&make_lowercase(DNA_ACGTN_NO_GAPS_UC), DNA_ACGTN_NO_GAPS_UC)
+    .map(b"Uu", b"TT")
     .preserve(b".-");
 
 /// Used to convert nucleotide sequences to IUPAC nomenclature (no case change),
 /// while allowing for gaps and replacing unknown characters with N.
 pub(crate) const ANY_TO_DNA_IUPAC_WITH_GAPS: ByteMap = ByteMap::all(b'N')
-    .preserve_both_cases(DNA_IUPAC_WITH_GAPS_UC)
+    .preserve(DNA_IUPAC_WITH_GAPS_UC)
+    .preserve(&make_lowercase(DNA_IUPAC_WITH_GAPS_UC))
     .map(b"Uu", b"Tt");
 
 /// Used to convert nucleotide sequences to upprecase IUPAC nomenclature,
 /// while allowing for gaps and replacing unknown characters with N.
 pub(crate) const ANY_TO_DNA_IUPAC_WITH_GAPS_UC: ByteMap = ByteMap::all(b'N')
-    .map_ignore_case(DNA_IUPAC_WITH_GAPS_UC, DNA_IUPAC_WITH_GAPS_UC)
-    .map_ignore_case(b"U", b"T");
+    .preserve(DNA_IUPAC_WITH_GAPS_UC)
+    .map(&make_lowercase(DNA_IUPAC_WITH_GAPS_UC), DNA_IUPAC_WITH_GAPS_UC)
+    .map(b"Uu", b"TT");
 
 /// Used to convert nucleotide sequences to upprecase IUPAC nomenclature, while
 /// allowing for and correcting non-standard gaps and replacing unknown
 /// characters with N.
 pub(crate) const ANY_TO_DNA_IUPAC_CORRECT_GAPS_UC: ByteMap = ByteMap::all(b'N')
-    .map_ignore_case(DNA_IUPAC_WITH_GAPS_UC, DNA_IUPAC_WITH_GAPS_UC)
-    .map_ignore_case(b"U", b"T")
+    .preserve(DNA_IUPAC_WITH_GAPS_UC)
+    .map(&make_lowercase(DNA_IUPAC_WITH_GAPS_UC), DNA_IUPAC_WITH_GAPS_UC)
+    .map(b"Uu", b"TT")
     .map(b":~", b"--");
 
 //
@@ -174,11 +187,13 @@ pub const DNA_UNAMBIG_PROFILE_MAP: ByteIndexMap<4> =
 /// [`ThreeBitKmerEncoder`]:
 ///     crate::kmer::encoders::three_bit::ThreeBitKmerEncoder
 pub(crate) const THREE_BIT_MAPPING: ByteMap = ByteMap::all(3)
-    .map_ignore_case(b"ACG", &[4, 5, 6])
-    .many_to_one_ignore_case(b"TU", 7);
+    .map(b"ACG", &[4, 5, 6])
+    .map(b"acg", &[4, 5, 6])
+    .many_to_one(b"TUtu", 7);
 
 /// Used to convert any byte to `u8` indices where {0: A, 1: C, 2: G, 3: T, 4:
 /// N, 5: Gap, 6: Other IUPAC, 7: Invalid}. U is treated as T.
 pub(crate) const DNA_COUNT_PROFILE_MAP: ByteMap = ByteMap::all(7)
-    .many_to_one_ignore_case(DNA_IUPAC_WITH_GAPS_UC, 6)
-    .map_ignore_case(b"ACGTUN-", &[0, 1, 2, 3, 3, 4, 5]);
+    .many_to_one(DNA_IUPAC_WITH_GAPS, 6)
+    .map(b"ACGTUN-", &[0, 1, 2, 3, 3, 4, 5])
+    .map(b"acgtun", &[0, 1, 2, 3, 3, 4]);
