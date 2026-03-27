@@ -16,8 +16,8 @@ use std::ops::Index;
 ///
 /// To build a custom map, start with a complete mapping such as
 /// [`ByteMap::identity`] or [`ByteMap::all`], then apply cumulative overrides
-/// with methods such as [`ByteMap::preserve`], [`ByteMap::many_to_one`],
-/// [`ByteMap::map`], or [`ByteMap::indexing`].
+/// with methods such as [`ByteMap::preserve`], [`ByteMap::map`], or
+/// [`ByteMap::map_to_one`].
 #[repr(transparent)]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct ByteMap([u8; 256]);
@@ -75,7 +75,7 @@ impl ByteMap {
 
     /// Maps many source bytes to one destination byte.
     #[must_use]
-    pub const fn many_to_one<const S: usize>(mut self, from: &[u8; S], to: u8) -> Self {
+    pub const fn map_to_one<const S: usize>(mut self, from: &[u8; S], to: u8) -> Self {
         Self::assert_unique(from);
 
         let mut i = 0;
@@ -108,7 +108,7 @@ impl ByteMap {
     /// `bytes` must contain at most 256 unique values.
     #[allow(clippy::cast_possible_truncation)]
     #[must_use]
-    pub const fn indexing<const S: usize>(mut self, bytes: &[u8; S]) -> Self {
+    pub(crate) const fn indexing<const S: usize>(mut self, bytes: &[u8; S]) -> Self {
         assert!(S <= 256, "Cannot index more than 256 distinct bytes!");
         Self::assert_unique(bytes);
 

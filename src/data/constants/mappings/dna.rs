@@ -98,16 +98,16 @@ pub(crate) const IUPAC_TO_DNA_ACGTN_WITH_GAPS_UC: ByteMap = ByteMap::identity()
     .preserve(DNA_IUPAC_NO_GAPS_UC)
     .map(&make_lowercase(DNA_IUPAC_NO_GAPS_UC), DNA_IUPAC_NO_GAPS_UC)
     .map(b"Uu", b"TT")
-    .many_to_one(b"RYSWKMBDHVN", b'N')
-    .many_to_one(b"ryswkmbdhvn", b'N');
+    .map_to_one(b"RYSWKMBDHVN", b'N')
+    .map_to_one(b"ryswkmbdhvn", b'N');
 
 /// Used to convert any valid IUPAC DNA to ACGTN.
 pub(crate) const IUPAC_TO_DNA_ACGTN_WITH_GAPS: ByteMap = ByteMap::identity()
     .preserve(DNA_IUPAC_NO_GAPS_UC)
     .preserve(&make_lowercase(DNA_IUPAC_NO_GAPS_UC))
     .map(b"Uu", b"Tt")
-    .many_to_one(b"RYSWKMBDHVN", b'N')
-    .many_to_one(b"ryswkmbdhvn", b'n');
+    .map_to_one(b"RYSWKMBDHVN", b'N')
+    .map_to_one(b"ryswkmbdhvn", b'n');
 
 /// Maps bytes to themselves but valid IUPAC nucleotides to their reverse
 /// complement.
@@ -189,11 +189,11 @@ pub const DNA_UNAMBIG_PROFILE_MAP: ByteIndexMap<4> =
 pub(crate) const THREE_BIT_MAPPING: ByteMap = ByteMap::all(3)
     .map(b"ACG", &[4, 5, 6])
     .map(b"acg", &[4, 5, 6])
-    .many_to_one(b"TUtu", 7);
+    .map_to_one(b"TUtu", 7);
 
 /// Used to convert any byte to `u8` indices where {0: A, 1: C, 2: G, 3: T, 4:
 /// N, 5: Gap, 6: Other IUPAC, 7: Invalid}. U is treated as T.
 pub(crate) const DNA_COUNT_PROFILE_MAP: ByteMap = ByteMap::all(7)
-    .many_to_one(DNA_IUPAC_WITH_GAPS, 6)
+    .map_to_one(DNA_IUPAC_WITH_GAPS, 6)
     .map(b"ACGTUN-", &[0, 1, 2, 3, 3, 4, 5])
     .map(b"acgtun", &[0, 1, 2, 3, 3, 4]);
