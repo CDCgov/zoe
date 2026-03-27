@@ -1,5 +1,8 @@
-use super::*;
-use crate::data::{alphas::*, array_types::make_lowercase};
+use crate::data::{
+    alphas::*,
+    array_types::make_lowercase,
+    mappings::{ByteIndexMap, ByteMap, make_is_alpha_mapping},
+};
 
 //
 // Typically used by:   RetainSequence::retain_by_validation, std::slice::Iter::all
@@ -47,10 +50,7 @@ pub const RETAIN_DNA_IUPAC_NO_GAPS_UC: ByteMap = ByteMap::all(0)
 
 /// Converts to uppercase IUPAC DNA with gaps preserved. The 0-byte is used for
 /// filtering out unwanted patterns.
-pub const RETAIN_DNA_IUPAC_WITH_GAPS_UC: ByteMap = ByteMap::all(0)
-    .preserve(DNA_IUPAC_WITH_GAPS_UC)
-    .map(&make_lowercase(DNA_IUPAC_WITH_GAPS_UC), DNA_IUPAC_WITH_GAPS_UC)
-    .map(b"Uu", b"TT");
+pub const RETAIN_DNA_IUPAC_WITH_GAPS_UC: ByteMap = RETAIN_DNA_IUPAC_NO_GAPS_UC.preserve(b".-");
 
 /// Converts to uppercase `ACGTN` without gaps. The 0-byte is used for filtering
 /// out unwanted patterns.
@@ -61,32 +61,20 @@ pub const RETAIN_DNA_ACGTN_NO_GAPS_UC: ByteMap = ByteMap::all(0)
 
 /// Converts to uppercase `ACGTN` with gaps preserved. The 0-byte is used for
 /// filtering out unwanted patterns.
-pub const RETAIN_DNA_ACGTN_WITH_GAPS_UC: ByteMap = ByteMap::all(0)
-    .preserve(DNA_ACGTN_NO_GAPS_UC)
-    .map(&make_lowercase(DNA_ACGTN_NO_GAPS_UC), DNA_ACGTN_NO_GAPS_UC)
-    .map(b"Uu", b"TT")
-    .preserve(b".-");
+pub const RETAIN_DNA_ACGTN_WITH_GAPS_UC: ByteMap = RETAIN_DNA_ACGTN_NO_GAPS_UC.preserve(b".-");
 
 /// Converts to uppercase IUPAC DNA with standard gaps preserved and
 /// non-standard gaps corrected. The 0-byte is used for filtering out unwanted
 /// patterns.
-pub(crate) const RETAIN_DNA_IUPAC_CORRECT_GAPS_UC: ByteMap = ByteMap::all(0)
-    .preserve(DNA_IUPAC_WITH_GAPS_UC)
-    .map(&make_lowercase(DNA_IUPAC_WITH_GAPS_UC), DNA_IUPAC_WITH_GAPS_UC)
-    .map(b"Uu", b"TT")
-    .map(b":~", b"--");
+pub(crate) const RETAIN_DNA_IUPAC_CORRECT_GAPS_UC: ByteMap = RETAIN_DNA_IUPAC_WITH_GAPS_UC.map_to_one(b":~", b'-');
 
 /// Converts to uppercase `ACGT` without gaps. The 0-byte is used for filtering
 /// out unwanted patterns.
-pub(crate) const RETAIN_DNA_ACGT_NO_GAPS_UC: ByteMap = ByteMap::all(0).map(b"ACGTacgt", b"ACGTACGT").map(b"Uu", b"TT");
+pub(crate) const RETAIN_DNA_ACGT_NO_GAPS_UC: ByteMap = RETAIN_DNA_ACGTN_NO_GAPS_UC.map_to_one(b"Nn", 0);
 
 /// Converts to uppercase `ACGTN` with all gaps standardized to `-`. The 0-byte
 /// is used for filtering out unwanted patterns.
-pub(crate) const RETAIN_DNA_ACGTN_STD_GAPS_UC: ByteMap = ByteMap::all(0)
-    .preserve(DNA_ACGTN_NO_GAPS_UC)
-    .map(&make_lowercase(DNA_ACGTN_NO_GAPS_UC), DNA_ACGTN_NO_GAPS_UC)
-    .map(b"Uu", b"TT")
-    .map(b".-:~", b"----");
+pub(crate) const RETAIN_DNA_ACGTN_STD_GAPS_UC: ByteMap = RETAIN_DNA_ACGTN_WITH_GAPS_UC.map_to_one(b".-:~", b'-');
 
 //
 // Typically used by:   Recode::recode
@@ -110,8 +98,11 @@ pub(crate) const IUPAC_TO_DNA_ACGTN: ByteMap = ByteMap::identity()
 #[rustfmt::skip]
 pub(crate) const TO_COMPLEMENT: ByteMap = ByteMap::identity()
     .map(
-        b"GCATRYKMBVDHUgcatrykmbvdhu",
-        b"CGTAYRMKVBHDAcgtayrmkvbhda"
+        b"GCATRYKMBVDHU",
+        b"CGTAYRMKVBHDA"
+    ).map(
+        b"gcatrykmbvdhu", 
+        b"cgtayrmkvbhda"
     );
 
 //
@@ -127,11 +118,7 @@ pub const RECODE_TO_DNA_ACGTN_NO_GAPS_UC: ByteMap = ByteMap::all(b'N')
 
 /// Converts to uppercase `ACGTN` with gaps preserved. `N` is used for invalid
 /// data.
-pub const RECODE_TO_DNA_ACGTN_WITH_GAPS_UC: ByteMap = ByteMap::all(b'N')
-    .preserve(DNA_ACGTN_NO_GAPS_UC)
-    .map(&make_lowercase(DNA_ACGTN_NO_GAPS_UC), DNA_ACGTN_NO_GAPS_UC)
-    .map(b"Uu", b"TT")
-    .preserve(b".-");
+pub const RECODE_TO_DNA_ACGTN_WITH_GAPS_UC: ByteMap = RECODE_TO_DNA_ACGTN_NO_GAPS_UC.preserve(b".-");
 
 /// Converts to `ACGTN` without gaps while preserving case. Capital `N` is used
 /// for invalid data.
@@ -142,11 +129,7 @@ pub const RECODE_TO_DNA_ACGTN_NO_GAPS: ByteMap = ByteMap::all(b'N')
 
 /// Converts to `ACGTN` with gaps and case preserved. Capital `N` is used for
 /// invalid data.
-pub const RECODE_TO_DNA_ACGTN_WITH_GAPS: ByteMap = ByteMap::all(b'N')
-    .preserve(DNA_ACGTN_NO_GAPS_UC)
-    .preserve(&make_lowercase(DNA_ACGTN_NO_GAPS_UC))
-    .map(b"Uu", b"Tt")
-    .preserve(b".-");
+pub const RECODE_TO_DNA_ACGTN_WITH_GAPS: ByteMap = RECODE_TO_DNA_ACGTN_NO_GAPS.preserve(b".-");
 
 /// Converts to uppercase IUPAC DNA without gaps. `N` is used for invalid data.
 pub const RECODE_TO_DNA_IUPAC_NO_GAPS_UC: ByteMap = ByteMap::all(b'N')
@@ -156,10 +139,7 @@ pub const RECODE_TO_DNA_IUPAC_NO_GAPS_UC: ByteMap = ByteMap::all(b'N')
 
 /// Converts to uppercase IUPAC DNA with gaps preserved. `N` is used for invalid
 /// data.
-pub const RECODE_TO_DNA_IUPAC_WITH_GAPS_UC: ByteMap = ByteMap::all(b'N')
-    .preserve(DNA_IUPAC_WITH_GAPS_UC)
-    .map(&make_lowercase(DNA_IUPAC_WITH_GAPS_UC), DNA_IUPAC_WITH_GAPS_UC)
-    .map(b"Uu", b"TT");
+pub const RECODE_TO_DNA_IUPAC_WITH_GAPS_UC: ByteMap = RECODE_TO_DNA_IUPAC_NO_GAPS_UC.preserve(b".-");
 
 /// Converts to IUPAC DNA without gaps while preserving case. Capital `N` is
 /// used for invalid data.
@@ -170,10 +150,7 @@ pub const RECODE_TO_DNA_IUPAC_NO_GAPS: ByteMap = ByteMap::all(b'N')
 
 /// Converts to IUPAC DNA with gaps and case preserved. Capital `N` is used for
 /// invalid data.
-pub const RECODE_TO_DNA_IUPAC_WITH_GAPS: ByteMap = ByteMap::all(b'N')
-    .preserve(DNA_IUPAC_WITH_GAPS_UC)
-    .preserve(&make_lowercase(DNA_IUPAC_WITH_GAPS_UC))
-    .map(b"Uu", b"Tt");
+pub const RECODE_TO_DNA_IUPAC_WITH_GAPS: ByteMap = RECODE_TO_DNA_IUPAC_NO_GAPS.preserve(b".-");
 
 /// Converts any byte to RNA while preserving case, replacing `T` with `U`.
 /// Capital `N` is used for invalid data.
@@ -185,11 +162,7 @@ pub(crate) const TO_RNA_UC: ByteMap = ByteMap::all(b'N').map(b"ACGUT", b"ACGUU")
 
 /// Converts to upprecase IUPAC DNA, allowing for and correcting non-standard
 /// gaps. `N` is used for invalid data.
-pub(crate) const RECODE_TO_DNA_IUPAC_CORRECT_GAPS_UC: ByteMap = ByteMap::all(b'N')
-    .preserve(DNA_IUPAC_WITH_GAPS_UC)
-    .map(&make_lowercase(DNA_IUPAC_WITH_GAPS_UC), DNA_IUPAC_WITH_GAPS_UC)
-    .map(b"Uu", b"TT")
-    .map(b":~", b"--");
+pub(crate) const RECODE_TO_DNA_IUPAC_CORRECT_GAPS_UC: ByteMap = RECODE_TO_DNA_IUPAC_WITH_GAPS_UC.map(b":~", b"--");
 
 //
 // Typically used by:   ByteIndexMap
@@ -219,6 +192,8 @@ pub(crate) const THREE_BIT_MAPPING: ByteMap = ByteMap::all(3)
 /// Used to convert any byte to `u8` indices where {0: A, 1: C, 2: G, 3: T, 4:
 /// N, 5: Gap, 6: Other IUPAC, 7: Invalid}. U is treated as T.
 pub(crate) const DNA_COUNT_PROFILE_MAP: ByteMap = ByteMap::all(7)
-    .map_to_one(DNA_IUPAC_WITH_GAPS, 6)
-    .map(b"ACGTUN-", &[0, 1, 2, 3, 3, 4, 5])
+    .map_to_one(DNA_IUPAC_NO_GAPS, 6)
+    .map(b".", &[6])
+    .map(b"-", &[5])
+    .map(b"ACGTUN", &[0, 1, 2, 3, 3, 4])
     .map(b"acgtun", &[0, 1, 2, 3, 3, 4]);
