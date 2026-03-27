@@ -20,7 +20,7 @@ use crate::{
         CorePhmm, EmissionParams, PhmmNumber,
         indexing::{PhmmIndex, PhmmIndexable, QueryIndex, QueryIndexable},
     },
-    data::ByteIndexMap,
+    data::mappings::ByteIndexMap,
 };
 
 /// A module placed before or after a pHMM to support semilocal alignment

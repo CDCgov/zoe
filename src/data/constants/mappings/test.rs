@@ -1,17 +1,6 @@
-use super::{
-    ByteIndexMap, DNA_PROFILE_MAP, IS_DNA_ACGTN_NO_GAPS, IS_DNA_ACGTN_NO_GAPS_UC, IS_DNA_IUPAC_NO_GAPS,
-    IS_DNA_IUPAC_NO_GAPS_UC, TO_DNA_IUPAC_NO_GAPS_UC, TO_DNA_IUPAC_WITH_GAPS_UC,
-};
 use crate::{
     composition::ByteIndexCounts,
-    data::{
-        alphas::{DNA_ACGTN_NO_GAPS, DNA_ACGTN_NO_GAPS_UC, DNA_IUPAC_NO_GAPS, DNA_IUPAC_NO_GAPS_UC, DNA_IUPAC_WITH_GAPS},
-        mappings::{
-            ANY_TO_DNA_ACGTN_NO_GAPS_UC, ANY_TO_DNA_IUPAC_WITH_GAPS, ANY_TO_DNA_IUPAC_WITH_GAPS_UC, ByteMap,
-            DNA_UNAMBIG_PROFILE_MAP, IS_DNA_IUPAC_WITH_GAPS, IUPAC_TO_DNA_ACGTN_WITH_GAPS, IUPAC_TO_DNA_ACGTN_WITH_GAPS_UC,
-            StdGeneticCode,
-        },
-    },
+    data::{alphas::*, mappings::*},
     prelude::Nucleotides,
 };
 
@@ -135,12 +124,16 @@ fn test_missing_catch_all_nocase() {
     let _ = ByteIndexMap::new_ignoring_case(*b"ACGT", b'N');
 }
 
-const VALIDATOR_PAIRS: [(&[u8], [bool; 256]); 5] = [
-    (DNA_IUPAC_WITH_GAPS, IS_DNA_IUPAC_WITH_GAPS),
+const VALIDATOR_PAIRS: &[(&[u8], [bool; 256])] = &[
     (DNA_IUPAC_NO_GAPS, IS_DNA_IUPAC_NO_GAPS),
     (DNA_IUPAC_NO_GAPS_UC, IS_DNA_IUPAC_NO_GAPS_UC),
+    (DNA_IUPAC_WITH_GAPS, IS_DNA_IUPAC_WITH_GAPS),
+    (DNA_IUPAC_WITH_GAPS_UC, IS_DNA_IUPAC_WITH_GAPS_UC),
     (DNA_ACGTN_NO_GAPS, IS_DNA_ACGTN_NO_GAPS),
     (DNA_ACGTN_NO_GAPS_UC, IS_DNA_ACGTN_NO_GAPS_UC),
+    (DNA_ACGTN_STD_GAPS_UC, IS_DNA_ACGTN_STD_GAPS_UC),
+    (b"acgtACGT", IS_DNA_ACGT_NO_GAPS),
+    (b"ACGT", IS_DNA_ACGT_NO_GAPS_UC),
 ];
 
 #[test]
@@ -152,20 +145,22 @@ fn test_alphabet_validators() {
     }
 }
 
-const TO_DNA_PAIRS: [(&[u8], ByteMap); 2] = [
-    (DNA_IUPAC_NO_GAPS, TO_DNA_IUPAC_NO_GAPS_UC),
-    (DNA_IUPAC_WITH_GAPS, TO_DNA_IUPAC_WITH_GAPS_UC),
+const RETAIN_DNA_PAIRS: [(&[u8], ByteMap); 4] = [
+    (DNA_IUPAC_NO_GAPS, RETAIN_DNA_IUPAC_NO_GAPS_UC),
+    (DNA_IUPAC_WITH_GAPS, RETAIN_DNA_IUPAC_WITH_GAPS_UC),
+    (DNA_ACGTN_NO_GAPS, RETAIN_DNA_ACGTN_NO_GAPS_UC),
+    (b"acgtnACGTN-.", RETAIN_DNA_ACGTN_WITH_GAPS_UC),
 ];
 
 #[test]
-fn test_to_dna() {
-    for (alphabet, converter) in TO_DNA_PAIRS {
+fn test_retain_dna() {
+    for (alphabet, converter) in RETAIN_DNA_PAIRS {
         for c in u8::MIN..=u8::MAX {
             let in_alphabet = alphabet.contains(&c);
-            if in_alphabet {
-                if matches!(c, b'u' | b'U') {
-                    assert_eq!(converter[c], b'T');
-                } else if c.is_ascii_lowercase() {
+            if matches!(c, b'u' | b'U') {
+                assert_eq!(converter[c], b'T');
+            } else if in_alphabet {
+                if c.is_ascii_lowercase() {
                     assert_eq!(converter[c], c.to_ascii_uppercase());
                 } else {
                     assert_eq!(converter[c], c);
@@ -178,16 +173,49 @@ fn test_to_dna() {
 }
 
 #[test]
+fn test_retain_dna_iupac_correct_gaps_uc() {
+    for c in u8::MIN..=u8::MAX {
+        if matches!(c, b':' | b'~') {
+            assert_eq!(RETAIN_DNA_IUPAC_CORRECT_GAPS_UC[c], b'-');
+        } else {
+            assert_eq!(RETAIN_DNA_IUPAC_CORRECT_GAPS_UC[c], RETAIN_DNA_IUPAC_WITH_GAPS_UC[c]);
+        }
+    }
+}
+
+#[test]
+fn test_retain_dna_acgt_no_gaps_uc() {
+    for c in u8::MIN..=u8::MAX {
+        if matches!(c, b'n' | b'N') {
+            assert_eq!(RETAIN_DNA_ACGT_NO_GAPS_UC[c], 0);
+        } else {
+            assert_eq!(RETAIN_DNA_ACGT_NO_GAPS_UC[c], RETAIN_DNA_ACGTN_NO_GAPS_UC[c]);
+        }
+    }
+}
+
+#[test]
+fn test_retain_dna_acgtn_std_gaps_uc() {
+    for c in u8::MIN..=u8::MAX {
+        if matches!(c, b'.' | b':' | b'~') {
+            assert_eq!(RETAIN_DNA_ACGTN_STD_GAPS_UC[c], b'-');
+        } else {
+            assert_eq!(RETAIN_DNA_ACGTN_STD_GAPS_UC[c], RETAIN_DNA_ACGTN_WITH_GAPS_UC[c]);
+        }
+    }
+}
+
+#[test]
 fn test_iupac_to_dna_acgtn_uc() {
     for c in u8::MIN..=u8::MAX {
         if matches!(c, b'u' | b'U') {
-            assert_eq!(IUPAC_TO_DNA_ACGTN_WITH_GAPS_UC[c], b'T');
+            assert_eq!(IUPAC_TO_DNA_ACGTN_UC[c], b'T');
         } else if DNA_ACGTN_NO_GAPS.contains(&c) {
-            assert_eq!(IUPAC_TO_DNA_ACGTN_WITH_GAPS_UC[c], c.to_ascii_uppercase());
+            assert_eq!(IUPAC_TO_DNA_ACGTN_UC[c], c.to_ascii_uppercase());
         } else if DNA_IUPAC_NO_GAPS.contains(&c) {
-            assert_eq!(IUPAC_TO_DNA_ACGTN_WITH_GAPS_UC[c], b'N');
+            assert_eq!(IUPAC_TO_DNA_ACGTN_UC[c], b'N');
         } else {
-            assert_eq!(IUPAC_TO_DNA_ACGTN_WITH_GAPS_UC[c], c);
+            assert_eq!(IUPAC_TO_DNA_ACGTN_UC[c], c);
         }
     }
 }
@@ -196,61 +224,156 @@ fn test_iupac_to_dna_acgtn_uc() {
 fn test_iupac_to_dna_acgtn() {
     for c in u8::MIN..=u8::MAX {
         if c == b'u' {
-            assert_eq!(IUPAC_TO_DNA_ACGTN_WITH_GAPS[c], b't');
+            assert_eq!(IUPAC_TO_DNA_ACGTN[c], b't');
         } else if c == b'U' {
-            assert_eq!(IUPAC_TO_DNA_ACGTN_WITH_GAPS[c], b'T');
+            assert_eq!(IUPAC_TO_DNA_ACGTN[c], b'T');
         } else if DNA_ACGTN_NO_GAPS.contains(&c) {
-            assert_eq!(IUPAC_TO_DNA_ACGTN_WITH_GAPS[c], c);
+            assert_eq!(IUPAC_TO_DNA_ACGTN[c], c);
         } else if DNA_IUPAC_NO_GAPS.contains(&c) {
             if c.is_ascii_lowercase() {
-                assert_eq!(IUPAC_TO_DNA_ACGTN_WITH_GAPS[c], b'n');
+                assert_eq!(IUPAC_TO_DNA_ACGTN[c], b'n');
             } else {
-                assert_eq!(IUPAC_TO_DNA_ACGTN_WITH_GAPS[c], b'N');
+                assert_eq!(IUPAC_TO_DNA_ACGTN[c], b'N');
             }
         } else {
-            assert_eq!(IUPAC_TO_DNA_ACGTN_WITH_GAPS[c], c);
+            assert_eq!(IUPAC_TO_DNA_ACGTN[c], c);
         }
     }
 }
 
 #[test]
-fn test_any_to_dna_acgtn_uc() {
+fn test_recode_to_dna_acgtn_no_gaps_uc() {
     for c in u8::MIN..=u8::MAX {
         if matches!(c, b'u' | b'U') {
-            assert_eq!(ANY_TO_DNA_ACGTN_NO_GAPS_UC[c], b'T');
+            assert_eq!(RECODE_TO_DNA_ACGTN_NO_GAPS_UC[c], b'T');
         } else if DNA_ACGTN_NO_GAPS.contains(&c) {
-            assert_eq!(ANY_TO_DNA_ACGTN_NO_GAPS_UC[c], c.to_ascii_uppercase());
+            assert_eq!(RECODE_TO_DNA_ACGTN_NO_GAPS_UC[c], c.to_ascii_uppercase());
         } else {
-            assert_eq!(ANY_TO_DNA_ACGTN_NO_GAPS_UC[c], b'N');
+            assert_eq!(RECODE_TO_DNA_ACGTN_NO_GAPS_UC[c], b'N');
         }
     }
 }
 
 #[test]
-fn test_any_to_dna_iupac_with_gaps() {
+fn test_recode_to_dna_acgtn_with_gaps_uc() {
+    for c in u8::MIN..=u8::MAX {
+        if matches!(c, b'u' | b'U') {
+            assert_eq!(RECODE_TO_DNA_ACGTN_WITH_GAPS_UC[c], b'T');
+        } else if DNA_ACGTN_NO_GAPS.contains(&c) {
+            assert_eq!(RECODE_TO_DNA_ACGTN_WITH_GAPS_UC[c], c.to_ascii_uppercase());
+        } else if matches!(c, b'-' | b'.') {
+            assert_eq!(RECODE_TO_DNA_ACGTN_WITH_GAPS_UC[c], c);
+        } else {
+            assert_eq!(RECODE_TO_DNA_ACGTN_WITH_GAPS_UC[c], b'N');
+        }
+    }
+}
+
+#[test]
+fn test_recode_to_dna_acgtn_no_gaps() {
     for c in u8::MIN..=u8::MAX {
         if c == b'u' {
-            assert_eq!(ANY_TO_DNA_IUPAC_WITH_GAPS[c], b't');
+            assert_eq!(RECODE_TO_DNA_ACGTN_NO_GAPS[c], b't');
         } else if c == b'U' {
-            assert_eq!(ANY_TO_DNA_IUPAC_WITH_GAPS[c], b'T');
-        } else if DNA_IUPAC_WITH_GAPS.contains(&c) {
-            assert_eq!(ANY_TO_DNA_IUPAC_WITH_GAPS[c], c);
+            assert_eq!(RECODE_TO_DNA_ACGTN_NO_GAPS[c], b'T');
+        } else if DNA_ACGTN_NO_GAPS.contains(&c) {
+            assert_eq!(RECODE_TO_DNA_ACGTN_NO_GAPS[c], c);
         } else {
-            assert_eq!(ANY_TO_DNA_IUPAC_WITH_GAPS[c], b'N');
+            assert_eq!(RECODE_TO_DNA_ACGTN_NO_GAPS_UC[c], b'N');
         }
     }
 }
 
 #[test]
-fn test_any_to_dna_iupac_with_gaps_uc() {
+fn test_recode_to_dna_acgtn_with_gaps() {
+    for c in u8::MIN..=u8::MAX {
+        if c == b'u' {
+            assert_eq!(RECODE_TO_DNA_ACGTN_WITH_GAPS[c], b't');
+        } else if c == b'U' {
+            assert_eq!(RECODE_TO_DNA_ACGTN_WITH_GAPS[c], b'T');
+        } else if DNA_ACGTN_NO_GAPS.contains(&c) || matches!(c, b'-' | b'.') {
+            assert_eq!(RECODE_TO_DNA_ACGTN_WITH_GAPS[c], c);
+        } else {
+            assert_eq!(RECODE_TO_DNA_ACGTN_WITH_GAPS[c], b'N');
+        }
+    }
+}
+
+#[test]
+fn test_recode_to_dna_iupac_no_gaps_uc() {
     for c in u8::MIN..=u8::MAX {
         if matches!(c, b'u' | b'U') {
-            assert_eq!(ANY_TO_DNA_IUPAC_WITH_GAPS_UC[c], b'T');
-        } else if DNA_IUPAC_WITH_GAPS.contains(&c) {
-            assert_eq!(ANY_TO_DNA_IUPAC_WITH_GAPS_UC[c], c.to_ascii_uppercase());
+            assert_eq!(RECODE_TO_DNA_IUPAC_NO_GAPS_UC[c], b'T');
+        } else if DNA_IUPAC_NO_GAPS.contains(&c) {
+            assert_eq!(RECODE_TO_DNA_IUPAC_NO_GAPS_UC[c], c.to_ascii_uppercase());
         } else {
-            assert_eq!(ANY_TO_DNA_IUPAC_WITH_GAPS_UC[c], b'N');
+            assert_eq!(RECODE_TO_DNA_IUPAC_NO_GAPS_UC[c], b'N');
         }
+    }
+}
+
+#[test]
+fn test_recode_to_dna_iupac_with_gaps_uc() {
+    for c in u8::MIN..=u8::MAX {
+        if matches!(c, b'u' | b'U') {
+            assert_eq!(RECODE_TO_DNA_IUPAC_WITH_GAPS_UC[c], b'T');
+        } else if DNA_IUPAC_WITH_GAPS.contains(&c) {
+            assert_eq!(RECODE_TO_DNA_IUPAC_WITH_GAPS_UC[c], c.to_ascii_uppercase());
+        } else {
+            assert_eq!(RECODE_TO_DNA_IUPAC_WITH_GAPS_UC[c], b'N');
+        }
+    }
+}
+
+#[test]
+fn test_recode_to_dna_iupac_no_gaps() {
+    for c in u8::MIN..=u8::MAX {
+        if c == b'u' {
+            assert_eq!(RECODE_TO_DNA_IUPAC_NO_GAPS[c], b't');
+        } else if c == b'U' {
+            assert_eq!(RECODE_TO_DNA_IUPAC_NO_GAPS[c], b'T');
+        } else if DNA_IUPAC_NO_GAPS.contains(&c) {
+            assert_eq!(RECODE_TO_DNA_IUPAC_NO_GAPS[c], c);
+        } else {
+            assert_eq!(RECODE_TO_DNA_IUPAC_NO_GAPS[c], b'N');
+        }
+    }
+}
+
+#[test]
+fn test_recode_to_dna_iupac_with_gaps() {
+    for c in u8::MIN..=u8::MAX {
+        if c == b'u' {
+            assert_eq!(RECODE_TO_DNA_IUPAC_WITH_GAPS[c], b't');
+        } else if c == b'U' {
+            assert_eq!(RECODE_TO_DNA_IUPAC_WITH_GAPS[c], b'T');
+        } else if DNA_IUPAC_WITH_GAPS.contains(&c) {
+            assert_eq!(RECODE_TO_DNA_IUPAC_WITH_GAPS[c], c);
+        } else {
+            assert_eq!(RECODE_TO_DNA_IUPAC_WITH_GAPS[c], b'N');
+        }
+    }
+}
+
+#[test]
+fn test_to_rna() {
+    for c in u8::MIN..=u8::MAX {
+        if b"acgunACGUN".contains(&c) {
+            assert_eq!(TO_RNA[c], c);
+        } else if c == b't' {
+            assert_eq!(TO_RNA[c], b'u');
+        } else if c == b'T' {
+            assert_eq!(TO_RNA[c], b'U');
+        } else {
+            assert_eq!(TO_RNA[c], b'N');
+        }
+    }
+}
+
+#[test]
+fn test_to_rna_uc() {
+    for c in u8::MIN..=u8::MAX {
+        assert_eq!(TO_RNA_UC[c], TO_RNA[c].to_ascii_uppercase());
     }
 }
 

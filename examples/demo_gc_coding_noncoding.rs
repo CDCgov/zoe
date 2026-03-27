@@ -1,5 +1,5 @@
 use std::{env, ops::Range};
-use zoe::{data::StdGeneticCode, prelude::*};
+use zoe::{data::mappings::StdGeneticCode, prelude::*};
 
 // Given a FASTQ file containing sequences, calculate the percent GC content of
 // the coding regions (anywhere between a start and stop codon, or after a start

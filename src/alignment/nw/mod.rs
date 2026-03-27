@@ -62,7 +62,7 @@
 //! assert_eq!(states, AlignmentStates::try_from(b"12M1D2M").unwrap());
 //! ```
 //!
-//! [`ByteIndexMap::new`]: crate::data::ByteIndexMap::new
+//! [`ByteIndexMap::new`]: crate::data::mappings::ByteIndexMap::new
 //! [`WeightMatrix`]: crate::data::matrices::WeightMatrix
 //! [`WeightMatrix::new`]: crate::data::matrices::WeightMatrix::new
 //! [`new_dna_matrix`]: crate::data::matrices::WeightMatrix::new_dna_matrix

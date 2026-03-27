@@ -1,7 +1,7 @@
 //! A private module for helper functions on [`u8`].
 
 use crate::{
-    data::DNA_PROFILE_MAP,
+    data::mappings::DNA_PROFILE_MAP,
     prelude::{IsValidDNA, RecodeDNAStrat, RefineDNAStrat},
 };
 

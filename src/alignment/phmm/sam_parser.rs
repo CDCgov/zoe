@@ -10,7 +10,7 @@ use crate::{
         indexing::PhmmIndexable,
     },
     data::{
-        ByteIndexMap,
+        mappings::ByteIndexMap,
         mappings::{AA_UNAMBIG_PROFILE_MAP, DNA_UNAMBIG_PROFILE_MAP},
     },
     unwrap_or_return_some_err,

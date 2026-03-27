@@ -1,4 +1,4 @@
-use crate::data::{AA_ALL_AMBIG_PROFILE_MAP_WITH_STOP, matrices::WeightMatrix};
+use crate::data::{mappings::AA_ALL_AMBIG_PROFILE_MAP_WITH_STOP, matrices::WeightMatrix};
 
 /// Fetches the BLOSUM matrix of number `n` if it is available in *Zoe*.
 #[must_use]

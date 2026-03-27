@@ -2,7 +2,15 @@ use crate::{
     DEFAULT_SIMD_LANES,
     data::{
         SanitizeBase,
-        mappings::{ByteMap, dna::*},
+        mappings::{
+            ByteMap, IS_DNA_ACGT_NO_GAPS, IS_DNA_ACGT_NO_GAPS_UC, IS_DNA_ACGTN_NO_GAPS, IS_DNA_ACGTN_NO_GAPS_UC,
+            IS_DNA_ACGTN_STD_GAPS_UC, IS_DNA_IUPAC_NO_GAPS, IS_DNA_IUPAC_NO_GAPS_UC, IS_DNA_IUPAC_WITH_GAPS,
+            IS_DNA_IUPAC_WITH_GAPS_UC, IUPAC_TO_DNA_ACGTN, IUPAC_TO_DNA_ACGTN_UC, RECODE_TO_DNA_ACGTN_NO_GAPS_UC,
+            RECODE_TO_DNA_ACGTN_WITH_GAPS_UC, RECODE_TO_DNA_IUPAC_CORRECT_GAPS_UC, RECODE_TO_DNA_IUPAC_WITH_GAPS,
+            RECODE_TO_DNA_IUPAC_WITH_GAPS_UC, RETAIN_DNA_ACGT_NO_GAPS_UC, RETAIN_DNA_ACGTN_NO_GAPS_UC,
+            RETAIN_DNA_ACGTN_STD_GAPS_UC, RETAIN_DNA_ACGTN_WITH_GAPS_UC, RETAIN_DNA_IUPAC_CORRECT_GAPS_UC,
+            RETAIN_DNA_IUPAC_NO_GAPS_UC, RETAIN_DNA_IUPAC_WITH_GAPS_UC, TO_RNA, TO_RNA_UC,
+        },
         types::nucleotides::{NucleotidesMutable, NucleotidesReadable},
         validation::{recode::Recode, retain::RetainSequence},
         views::SliceRange,
@@ -78,15 +86,15 @@ impl RecodeDNAStrat {
     #[inline]
     pub(crate) const fn mapping(self) -> &'static ByteMap {
         match self {
-            RecodeDNAStrat::IupacToAcgtnWithGaps => &IUPAC_TO_DNA_ACGTN_WITH_GAPS,
-            RecodeDNAStrat::IupacToAcgtnWithGapsUpper => &IUPAC_TO_DNA_ACGTN_WITH_GAPS_UC,
+            RecodeDNAStrat::IupacToAcgtnWithGaps => &IUPAC_TO_DNA_ACGTN,
+            RecodeDNAStrat::IupacToAcgtnWithGapsUpper => &IUPAC_TO_DNA_ACGTN_UC,
 
-            RecodeDNAStrat::AnyToAcgtnNoGapsUpper => &ANY_TO_DNA_ACGTN_NO_GAPS_UC,
-            RecodeDNAStrat::AnyToAcgtnWithGapsUpper => &ANY_TO_DNA_ACGTN_WITH_GAPS_UC,
+            RecodeDNAStrat::AnyToAcgtnNoGapsUpper => &RECODE_TO_DNA_ACGTN_NO_GAPS_UC,
+            RecodeDNAStrat::AnyToAcgtnWithGapsUpper => &RECODE_TO_DNA_ACGTN_WITH_GAPS_UC,
 
-            RecodeDNAStrat::AnyToIupacWithGaps => &ANY_TO_DNA_IUPAC_WITH_GAPS,
-            RecodeDNAStrat::AnyToIupacWithGapsUpper => &ANY_TO_DNA_IUPAC_WITH_GAPS_UC,
-            RecodeDNAStrat::AnyToIupacCorrectGapsUpper => &ANY_TO_DNA_IUPAC_CORRECT_GAPS_UC,
+            RecodeDNAStrat::AnyToIupacWithGaps => &RECODE_TO_DNA_IUPAC_WITH_GAPS,
+            RecodeDNAStrat::AnyToIupacWithGapsUpper => &RECODE_TO_DNA_IUPAC_WITH_GAPS_UC,
+            RecodeDNAStrat::AnyToIupacCorrectGapsUpper => &RECODE_TO_DNA_IUPAC_CORRECT_GAPS_UC,
 
             RecodeDNAStrat::ToRna => &TO_RNA,
             RecodeDNAStrat::ToRnaUpper => &TO_RNA_UC,
@@ -169,15 +177,15 @@ impl RefineDNAStrat {
     #[inline]
     pub(crate) const fn mapping(self) -> &'static ByteMap {
         match self {
-            RefineDNAStrat::IupacNoGapsUc => &TO_DNA_IUPAC_NO_GAPS_UC,
-            RefineDNAStrat::IupacWithGapsUc => &TO_DNA_IUPAC_WITH_GAPS_UC,
-            RefineDNAStrat::IupacCorrectGapsUc => &TO_DNA_IUPAC_CORRECT_GAPS_UC,
+            RefineDNAStrat::IupacNoGapsUc => &RETAIN_DNA_IUPAC_NO_GAPS_UC,
+            RefineDNAStrat::IupacWithGapsUc => &RETAIN_DNA_IUPAC_WITH_GAPS_UC,
+            RefineDNAStrat::IupacCorrectGapsUc => &RETAIN_DNA_IUPAC_CORRECT_GAPS_UC,
 
-            RefineDNAStrat::AcgtnNoGapsUc => &TO_DNA_ACGTN_NO_GAPS_UC,
-            RefineDNAStrat::AcgtnWithGapsUc => &TO_DNA_ACGTN_WITH_GAPS_UC,
-            RefineDNAStrat::AcgtnStdGapsUc => &TO_DNA_ACGTN_STD_GAPS_UC,
+            RefineDNAStrat::AcgtnNoGapsUc => &RETAIN_DNA_ACGTN_NO_GAPS_UC,
+            RefineDNAStrat::AcgtnWithGapsUc => &RETAIN_DNA_ACGTN_WITH_GAPS_UC,
+            RefineDNAStrat::AcgtnStdGapsUc => &RETAIN_DNA_ACGTN_STD_GAPS_UC,
 
-            RefineDNAStrat::AcgtNoGapsUc => &TO_DNA_ACGT_NO_GAPS_UC,
+            RefineDNAStrat::AcgtNoGapsUc => &RETAIN_DNA_ACGT_NO_GAPS_UC,
         }
     }
 }

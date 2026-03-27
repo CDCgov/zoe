@@ -4,7 +4,7 @@ use crate::{
         indexing::{LastMatch, PhmmIndex, PhmmIndexRange, PhmmIndexable},
         modules::{DomainModule, LocalModule, SemiLocalModule},
     },
-    data::ByteIndexMap,
+    data::mappings::ByteIndexMap,
 };
 use std::ops::{Index, IndexMut};
 

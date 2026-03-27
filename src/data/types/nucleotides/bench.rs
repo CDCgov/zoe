@@ -3,7 +3,7 @@ extern crate test;
 use super::*;
 use crate::data::{
     alphas::{DNA_ACGTN_NO_GAPS_UC, ENGLISH},
-    mappings::TO_DNA_IUPAC_NO_GAPS_UC,
+    mappings::RETAIN_DNA_IUPAC_NO_GAPS_UC,
 };
 use std::sync::LazyLock;
 
@@ -22,7 +22,7 @@ fn translate_sequence_long(b: &mut Bencher) {
 fn validate_retain_iupac_uc(b: &mut Bencher) {
     b.iter(|| {
         SEQ.clone().retain_mut(|b| {
-            *b = TO_DNA_IUPAC_NO_GAPS_UC[*b];
+            *b = RETAIN_DNA_IUPAC_NO_GAPS_UC[*b];
             *b > 0
         });
     });
@@ -35,7 +35,7 @@ fn validate_filtermap_iupac_uc(b: &mut Bencher) {
             .clone()
             .iter_mut()
             .filter_map(|b| {
-                *b = TO_DNA_IUPAC_NO_GAPS_UC[*b];
+                *b = RETAIN_DNA_IUPAC_NO_GAPS_UC[*b];
                 if *b > 0 { Some(*b) } else { None }
             })
             .collect();

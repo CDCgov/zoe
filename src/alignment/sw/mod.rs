@@ -183,7 +183,7 @@
 //! ```
 //! # use zoe::{
 //! #     alignment::{Alignment, AlignmentStates, SeqSrc, StripedProfile},
-//! #     data::{matrices::WeightMatrix, ByteIndexMap},
+//! #     data::{matrices::WeightMatrix, mappings::ByteIndexMap},
 //! # };
 //! let reference: &[u8] = b"BDAACAABDDDB";
 //! let query: &[u8] = b"AABDDAB";
@@ -241,7 +241,7 @@
 //! ```
 //! # use zoe::{
 //! #     alignment::{Alignment, AlignmentStates, LocalProfiles, ProfileSets, SeqSrc},
-//! #     data::{matrices::WeightMatrix, ByteIndexMap},
+//! #     data::{matrices::WeightMatrix, mappings::ByteIndexMap},
 //! # };
 //! let reference: &[u8] = b"BDAACAABDDDB";
 //! let query: &[u8] = b"AABDDAB";
@@ -311,7 +311,7 @@
 //! [`sw_simd_score`]: sw::sw_simd_score
 //! [`sw_scalar_align`]: sw::sw_scalar_align
 //! [`sw_simd_align`]: sw::sw_simd_align
-//! [`ByteIndexMap::new`]: crate::data::ByteIndexMap::new
+//! [`ByteIndexMap::new`]: crate::data::mappings::ByteIndexMap::new
 //! [`WeightMatrix`]: crate::data::matrices::WeightMatrix
 //! [`WeightMatrix::new`]: crate::data::matrices::WeightMatrix::new
 //! [`new_biased_dna_matrix`]:
@@ -330,10 +330,10 @@
 //! [`SharedProfiles`]: SharedProfiles
 //! [`LocalProfiles::sw_score_from_i8`]: LocalProfiles::sw_score_from_i8
 //! [`SharedProfiles::sw_score_from_i8`]: SharedProfiles::sw_score_from_i8
-//! [`DNA_PROFILE_MAP`]: crate::data::DNA_PROFILE_MAP
-//! [`AA_PROFILE_MAP`]: crate::data::AA_PROFILE_MAP
+//! [`DNA_PROFILE_MAP`]: crate::data::mappings::DNA_PROFILE_MAP
+//! [`AA_PROFILE_MAP`]: crate::data::mappings::AA_PROFILE_MAP
 //! [`ByteIndexMap::new_ignoring_case`]:
-//!     crate::data::ByteIndexMap::new_ignoring_case
+//!     crate::data::mappings::ByteIndexMap::new_ignoring_case
 //! [`matrices`]: crate::data::matrices
 //! [`WeightMatrix::new_custom`]:
 //!     crate::data::matrices::WeightMatrix::new_custom

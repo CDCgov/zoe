@@ -1,4 +1,4 @@
-use crate::{data::ByteIndexMap, math::Uint};
+use crate::{data::mappings::ByteIndexMap, math::Uint};
 use std::ops::{Add, AddAssign};
 
 /// Count statistics for use with [`ByteIndexMap`].

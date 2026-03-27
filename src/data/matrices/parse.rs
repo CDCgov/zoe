@@ -1,4 +1,4 @@
-use crate::data::{ByteIndexMap, matrices::WeightMatrix};
+use crate::data::{mappings::ByteIndexMap, matrices::WeightMatrix};
 
 /// Parses a matrix from a file.
 ///

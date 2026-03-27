@@ -150,7 +150,7 @@ impl ByteMap {
     }
 }
 
-/// Represents a mapping between bytes and indices.
+/// A mapping from bytes to indices.
 ///
 /// For example, this could be a map from DNA bases to profile indices, such as
 /// [`DNA_PROFILE_MAP`].

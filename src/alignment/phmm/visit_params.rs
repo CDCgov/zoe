@@ -23,7 +23,7 @@ use crate::{
             modules::{DomainModule, SemiLocalModule},
         },
     },
-    data::{ByteIndexMap, cigar::Ciglet},
+    data::{cigar::Ciglet, mappings::ByteIndexMap},
 };
 use std::ops::Range;
 
