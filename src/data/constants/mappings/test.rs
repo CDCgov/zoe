@@ -422,3 +422,53 @@ fn test_unambig_dna_profile_byte_index_counts() {
     assert_eq!(counts.get_count(b'G'), 7);
     assert_eq!(counts.get_count(b'T'), 3);
 }
+
+#[test]
+fn test_alphabet_range() {
+    const MAP1: ByteMap = ByteMap::all(0).preserve_range(b'A'..=b'Z');
+    const MAP2: ByteMap = MAP1.preserve_range(b'a'..=b'z');
+    const MAP3: ByteMap = MAP2.map_range(b'a'..=b'z', b'A'..=b'Z');
+    const MAP4: ByteMap = ByteMap::identity().map_range_to_one(b'a'..=b'z', 0);
+
+    for byte in u8::MIN..=u8::MAX {
+        if byte.is_ascii_uppercase() {
+            assert_eq!(MAP1[byte], byte);
+            assert_eq!(MAP2[byte], byte);
+            assert_eq!(MAP3[byte], byte);
+            assert_eq!(MAP4[byte], byte);
+        } else if byte.is_ascii_lowercase() {
+            assert_eq!(MAP1[byte], 0);
+            assert_eq!(MAP2[byte], byte);
+            assert_eq!(MAP3[byte], byte.to_ascii_uppercase());
+            assert_eq!(MAP4[byte], 0);
+        } else {
+            assert_eq!(MAP1[byte], 0);
+            assert_eq!(MAP2[byte], 0);
+            assert_eq!(MAP3[byte], 0);
+            assert_eq!(MAP4[byte], byte);
+        }
+    }
+}
+
+#[test]
+fn test_full_range() {
+    const MAP1: ByteMap = ByteMap::all(0).map_range(0..=255, 0..=255);
+    const MAP2: ByteMap = ByteMap::all(0).preserve_range(0..=255);
+    const MAP3: ByteMap = ByteMap::identity().map_range_to_one(0..=255, 0);
+
+    assert_eq!(MAP1, ByteMap::identity());
+    assert_eq!(MAP2, ByteMap::identity());
+    assert_eq!(MAP3, ByteMap::all(0));
+}
+
+#[test]
+#[allow(clippy::reversed_empty_ranges)]
+fn test_empty_range() {
+    const MAP1: ByteMap = ByteMap::all(0).map_range(10..=1, 255..=0);
+    const MAP2: ByteMap = ByteMap::all(0).preserve_range(255..=0);
+    const MAP3: ByteMap = ByteMap::identity().map_range_to_one(255..=0, 0);
+
+    assert_eq!(MAP1, ByteMap::all(0));
+    assert_eq!(MAP2, ByteMap::all(0));
+    assert_eq!(MAP3, ByteMap::identity());
+}

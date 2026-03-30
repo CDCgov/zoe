@@ -1,5 +1,5 @@
 use crate::data::array_types::{self, make_lowercase, position};
-use std::ops::Index;
+use std::ops::{Index, RangeInclusive};
 
 /// A mapping from bytes to other bytes.
 ///
@@ -17,7 +17,7 @@ use std::ops::Index;
 /// To build a custom map, start with a complete mapping such as
 /// [`ByteMap::identity`] or [`ByteMap::all`], then apply cumulative overrides
 /// with methods such as [`ByteMap::preserve`], [`ByteMap::map`], or
-/// [`ByteMap::map_to_one`].
+/// [`ByteMap::map_to_one`] (or the corresponding methods for ranges).
 #[repr(transparent)]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct ByteMap([u8; 256]);
@@ -96,6 +96,70 @@ impl ByteMap {
             self.set_byte(from[i], to[i]);
             i += 1;
         }
+        self
+    }
+
+    /// Preserves the identity of all bytes in the given range within the map.
+    ///
+    /// Any later calls can still override these mappings.
+    #[must_use]
+    pub const fn preserve_range(self, range: RangeInclusive<u8>) -> Self {
+        // TODO: Fix this when clone in const context becomes available, or
+        // ranges implement Copy
+        self.map_range(*range.start()..=*range.end(), range)
+    }
+
+    /// Maps all bytes in the given range to one destination byte.
+    #[must_use]
+    #[allow(clippy::cast_possible_truncation)]
+    pub const fn map_range_to_one(mut self, from: RangeInclusive<u8>, to: u8) -> Self {
+        // Convert from inclusive range to exclusive range, bumping to usize in
+        // case of overflow at end
+        let from = *from.start() as usize..*from.end() as usize + 1;
+
+        let mut src = from.start;
+        while src < from.end {
+            // Validity: this will not truncate since src is strictly less than
+            // the original from.end()+1, which means it is at most from.end(),
+            // which is a `u8`.
+            self.set_byte(src as u8, to);
+            src += 1;
+        }
+        self
+    }
+
+    /// Maps all bytes in the first range to the corresponding bytes in the
+    /// second range.
+    ///
+    /// ## Panics
+    ///
+    /// The ranges must be the same length.
+    #[must_use]
+    #[allow(clippy::cast_possible_truncation)]
+    pub const fn map_range(mut self, from: RangeInclusive<u8>, to: RangeInclusive<u8>) -> Self {
+        // Saturation implies an empty range. If both ranges are empty, the
+        // while loop does nothing.
+        assert!(
+            from.end().saturating_sub(*from.start()) == to.end().saturating_sub(*to.start()),
+            "Attempted to map to a range of a different length!"
+        );
+
+        // Convert from inclusive range to exclusive range, bumping to usize in
+        // case of overflow at end
+        let from = *from.start() as usize..*from.end() as usize + 1;
+
+        let mut src = from.start;
+        while src < from.end {
+            let dest = *to.start() as usize + src - from.start;
+
+            // Validity: this will not truncate since src is strictly less than
+            // the original from.end()+1, which means it is at most from.end(),
+            // which is a `u8`. The cast for dest will not truncate since the
+            // ranges are the same length.
+            self.set_byte(src as u8, dest as u8);
+            src += 1;
+        }
+
         self
     }
 
