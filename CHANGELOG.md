@@ -18,6 +18,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `find_start_codon` as well as a modified string search routine supporting lazy transformations of the haystack (`find_mapped_match_simd`)
 - Added `ByteMap` for defining and representing maps from `u8` values to other `u8` values (e.g., for sanitization/recoding)
 - Added many pre-defined `ByteMap`s for direct use or as a starting point for defining more custom maps
+- Added `find_byte` to `ByteSubstring` (for searching strings and for use with `RangeSearch`)
 
 ### Changed
 

@@ -30,11 +30,16 @@ pub trait ByteSubstring: Sealed {
     #[must_use]
     fn find_substring(&self, needle: impl AsRef<[u8]>) -> Option<Range<usize>>;
 
-    /// Finds the `needle` in the `haystack` using inexact matching up to the
-    /// `DIFFERENCES_ALLOWED`. See [`fuzzy_substring_match_simd`] for
-    /// more details.
+    /// Finds the `needle` in the haystack using inexact matching up to the
+    /// `DIFFERENCES_ALLOWED`.
+    ///
+    /// See [`fuzzy_substring_match_simd`] for more details.
     #[must_use]
     fn find_fuzzy_substring<const DIFFERENCES_ALLOWED: usize>(&self, needle: impl AsRef<[u8]>) -> Option<Range<usize>>;
+
+    /// Finds the first occurrence of the `byte` in the haystack.
+    #[must_use]
+    fn find_byte(&self, byte: u8) -> Option<usize>;
 
     /// Find contiguous, repeating byte characters in a byte slice. See [`find_k_repeating`]
     /// for more details.
@@ -75,6 +80,13 @@ impl<T: AsRef<[u8]> + ?Sized + Sealed> ByteSubstring for T {
 
         fuzzy_substring_match_simd::<{ DEFAULT_SIMD_LANES }, DIFFERENCES_ALLOWED>(haystack, needle)
             .map(|s| s..s + needle.len())
+    }
+
+    #[inline]
+    fn find_byte(&self, byte: u8) -> Option<usize> {
+        let haystack = self.as_ref();
+
+        position_by_byte::<{ DEFAULT_SIMD_LANES }>(haystack, byte)
     }
 
     #[inline]
@@ -127,6 +139,11 @@ impl<Q: ?Sized> ByteSubstring for RangeSearch<'_, Q> {
         self.slice
             .find_fuzzy_substring::<DIFFERENCES_ALLOWED>(needle)
             .map(|r| self.adjust_to_context(&r))
+    }
+
+    #[inline]
+    fn find_byte(&self, byte: u8) -> Option<usize> {
+        self.slice.find_byte(byte).map(|i| self.adjust_to_context(&i))
     }
 
     #[inline]
@@ -383,7 +400,7 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::simd::SimdByteFunctions;
+    use crate::{search::ToRangeSearch, simd::SimdByteFunctions};
 
     static PAD: &[u8; 150] = &[b'a'; 150];
     static NEEDLE: &[u8; 5] = b"hello";
@@ -479,6 +496,56 @@ mod test {
         let b = b"G";
         assert_eq!(b.find_repeating_at_end(b'G', 2), None);
         assert_eq!(b.find_repeating_at_start(b'G', 2), None);
+    }
+
+    #[test]
+    fn search_byte() {
+        let seq = b"GGGAAGCATCACGTATCGA";
+        assert_eq!(seq.find_byte(b'G'), Some(0));
+        assert_eq!(seq.find_byte(b'A'), Some(3));
+        assert_eq!(seq.find_byte(b'C'), Some(6));
+        assert_eq!(seq.find_byte(b'T'), Some(8));
+        assert_eq!(seq.find_byte(b'N'), None);
+    }
+
+    #[test]
+    fn range_search_byte() {
+        let seq = b"GGGAAGCATCACGTATCGA";
+
+        assert_eq!(seq.search_in(0..).find_byte(b'G'), Some(0));
+        assert_eq!(seq.search_in(1..).find_byte(b'G'), Some(1));
+        assert_eq!(seq.search_in(2..).find_byte(b'G'), Some(2));
+        for i in 3..=5 {
+            assert_eq!(seq.search_in(i..).find_byte(b'G'), Some(5));
+        }
+        for i in 6..=12 {
+            assert_eq!(seq.search_in(i..).find_byte(b'G'), Some(12));
+        }
+        for i in 13..=17 {
+            assert_eq!(seq.search_in(i..).find_byte(b'G'), Some(17));
+        }
+        assert_eq!(seq.search_in(18..).find_byte(b'G'), None);
+        assert_eq!(seq.search_in(19..).find_byte(b'G'), None);
+
+        for i in 0..=3 {
+            assert_eq!(seq.search_in_first(i).find_byte(b'A'), None);
+        }
+        for i in 4..=19 {
+            assert_eq!(seq.search_in_first(i).find_byte(b'A'), Some(3));
+        }
+
+        for i in 0..=3 {
+            assert_eq!(seq.search_in_last(i).find_byte(b'T'), None);
+        }
+        for i in 4..=5 {
+            assert_eq!(seq.search_in_last(i).find_byte(b'T'), Some(15));
+        }
+        for i in 6..=10 {
+            assert_eq!(seq.search_in_last(i).find_byte(b'T'), Some(13));
+        }
+        for i in 11..=19 {
+            assert_eq!(seq.search_in_last(i).find_byte(b'T'), Some(8));
+        }
     }
 }
 
