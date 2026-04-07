@@ -1,17 +1,17 @@
 use test::Bencher;
 extern crate test;
 use super::*;
-use crate::data::{
-    alphas::{DNA_ACGTN_NO_GAPS_UC, ENGLISH},
-    mappings::RETAIN_DNA_IUPAC_NO_GAPS_UC,
-};
+use crate::data::{alphas::DNA_ACGTN_UC, mappings::RETAIN_DNA_IUPAC_NO_GAPS_UC};
 use std::sync::LazyLock;
+
+/// Upper and lowercase English alphabet.
+const ENGLISH: &[u8; 52] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 const N: usize = 1200;
 const SEED: u64 = 42;
 
 static SEQ: LazyLock<Vec<u8>> = LazyLock::new(|| crate::generate::rand_sequence(ENGLISH, N, SEED));
-static READ: LazyLock<Vec<u8>> = LazyLock::new(|| crate::generate::rand_sequence(DNA_ACGTN_NO_GAPS_UC, 150, SEED));
+static READ: LazyLock<Vec<u8>> = LazyLock::new(|| crate::generate::rand_sequence(DNA_ACGTN_UC, 150, SEED));
 
 #[bench]
 fn translate_sequence_long(b: &mut Bencher) {

@@ -19,6 +19,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `ByteMap` for defining and representing maps from `u8` values to other `u8` values (e.g., for sanitization/recoding)
 - Added many pre-defined `ByteMap`s for direct use or as a starting point for defining more custom maps
 - Added `find_byte` to `ByteSubstring` (for searching strings and for use with `RangeSearch`)
+- Added `ByteValidator` for defining alphabets or subsets of valid bytes
 
 ### Changed
 

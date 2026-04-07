@@ -169,8 +169,8 @@ pub use constants::mappings;
 // TODO: Remove this in future versions once it is confirmed it won't break
 // downstream code
 pub use constants::mappings::{
-    AA_ALL_AMBIG_PROFILE_MAP_WITH_STOP, AA_PROFILE_MAP, AA_UNAMBIG_PROFILE_MAP, ByteIndexMap, ByteMap, DNA_PROFILE_MAP,
-    DNA_UNAMBIG_PROFILE_MAP, StdGeneticCode,
+    AA_ALL_AMBIG_PROFILE_MAP_WITH_STOP, AA_PROFILE_MAP, AA_UNAMBIG_PROFILE_MAP, ByteIndexMap, ByteMap, ByteValidator,
+    DNA_PROFILE_MAP, DNA_UNAMBIG_PROFILE_MAP, StdGeneticCode,
 };
 
 pub(crate) use constants::alphas;

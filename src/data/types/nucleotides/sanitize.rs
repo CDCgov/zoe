@@ -1,7 +1,7 @@
 use crate::{
     DEFAULT_SIMD_LANES,
     data::{
-        SanitizeBase,
+        ByteValidator, SanitizeBase,
         mappings::{
             ByteMap, IS_DNA_ACGT_NO_GAPS, IS_DNA_ACGT_NO_GAPS_UC, IS_DNA_ACGTN_NO_GAPS, IS_DNA_ACGTN_NO_GAPS_UC,
             IS_DNA_ACGTN_STD_GAPS_UC, IS_DNA_IUPAC_NO_GAPS, IS_DNA_IUPAC_NO_GAPS_UC, IS_DNA_IUPAC_WITH_GAPS,
@@ -132,7 +132,7 @@ impl IsValidDNA {
     /// Returns the corresponding mapping array for the selected validation
     /// strategy
     #[inline]
-    pub(crate) const fn mapping(self) -> &'static [bool; 256] {
+    pub(crate) const fn mapping(self) -> &'static ByteValidator {
         match self {
             IsValidDNA::IupacNoGaps => &IS_DNA_IUPAC_NO_GAPS,
             IsValidDNA::IupacNoGapsUc => &IS_DNA_IUPAC_NO_GAPS_UC,

@@ -68,7 +68,7 @@ pub trait SanitizeBase: Sized + Copy {
 impl SanitizeBase for u8 {
     #[inline]
     fn is_valid(self, strategy: IsValidDNA) -> bool {
-        strategy.mapping()[self as usize]
+        strategy.mapping()[self]
     }
 
     #[inline]

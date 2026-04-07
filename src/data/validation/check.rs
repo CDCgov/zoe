@@ -32,7 +32,9 @@ where
 #[cfg(all(test, feature = "rand"))]
 mod test {
     use super::CheckSequence;
-    use crate::data::alphas::AA_DAIS_WITH_GAPS_X;
+
+    /// DAIS-Ribosome style amino acid codes: IUPAC + gaps + X + partial codons `~`.
+    pub(crate) const AA_DAIS_WITH_GAPS_X: &[u8; 45] = b"ACDEFGHIKLMNPQRSTVWYacdefghiklmnpqrstvwy-.~Xx";
 
     #[test]
     fn is_ascii() {
@@ -44,7 +46,7 @@ mod test {
 #[cfg(all(test, feature = "rand"))]
 mod bench {
     use super::CheckSequence;
-    use crate::data::alphas::AA_DAIS_WITH_GAPS_X;
+    use crate::data::validation::check::test::AA_DAIS_WITH_GAPS_X;
     use std::sync::LazyLock;
     use test::Bencher;
     extern crate test;
