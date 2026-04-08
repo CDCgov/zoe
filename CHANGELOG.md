@@ -10,6 +10,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 - Adds `DnaDisambiguation` for checking whether an ambiguous residue potentially codes for an A, C, G, or T
 - Adds `maybe_stop_codon` to check whether a codon with ambiguous residues potentially codes for a stop codon
+- Adds `with_subitem` to add an indented message beneath an error
 
 ### Changed
 

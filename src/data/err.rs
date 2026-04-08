@@ -42,7 +42,7 @@
 
 use std::{
     error::Error,
-    fmt::{Display, Write},
+    fmt::{Debug, Display, Write},
     hint::cold_path,
     path::Path,
 };
@@ -146,14 +146,20 @@ where
     fn unwrap_or_fail(self) -> T {
         match self {
             Ok(result) => result,
-            Err(e) => e.fail(),
+            Err(e) => {
+                cold_path();
+                e.fail()
+            }
         }
     }
 
     fn unwrap_or_die(self, msg: &str) -> T {
         match self {
             Ok(result) => result,
-            Err(e) => e.die(msg),
+            Err(e) => {
+                cold_path();
+                e.die(msg)
+            }
         }
     }
 }
@@ -192,29 +198,31 @@ where
     fn fail(self) -> ! {
         if let Ok(bin) = std::env::current_exe() {
             eprintln!("Error in {b}", b = bin.display());
-            eprintln!("  → {self}", self = IndentWrapper(&self));
+            eprintln!(
+                "  → {e}",
+                e = IndentWrapper {
+                    val:    &self,
+                    indent: "    ",
+                }
+            );
         } else {
-            eprintln!("Error: {self}");
+            eprintln!("Error: {e}", e = TopLevelErrorDisplay { err: &self });
         }
-        let mut source = self.source();
-        while let Some(err) = source {
-            eprintln!("  → {err}", err = IndentWrapper(err));
-            source = err.source();
-        }
+
+        print_backtrace(&self);
         std::process::exit(self.get_code());
     }
 
     fn die(self, msg: &str) -> ! {
         if let Ok(bin) = std::env::current_exe() {
-            eprintln!("Error in {b}: {msg}\n\n{self}", b = bin.display());
+            eprintln!("Error in {b}: {msg}\n", b = bin.display());
         } else {
-            eprintln!("Error: {msg}\n\n{self}");
+            eprintln!("Error: {msg}\n");
         }
-        let mut source = self.source();
-        while let Some(err) = source {
-            eprintln!("  → {err}", err = IndentWrapper(err));
-            source = err.source();
-        }
+
+        eprintln!("{}", TopLevelErrorDisplay { err: &self });
+
+        print_backtrace(&self);
         std::process::exit(self.get_code());
     }
 }
@@ -222,33 +230,76 @@ where
 /// A wrapper around an error with a new message, and the original error
 /// accessible via [`Error::source`].
 ///
+/// Additional lines of information can also be added to an [`ErrorWithContext`]
+/// using [`with_subitem`].
+///
 /// When [`unwrap_or_fail`] or [`unwrap_or_die`] is used, this will display the
-/// information for the original error as well.
+/// information for the original error as well as any subitems.
 ///
 /// This can be converted to [`std::io::Error`] with [`Into`]. Hence, in
 /// functions returning [`std::io::Result`], the `?` operator can be used after
 /// adding context.
 ///
+/// [`with_subitem`]: WithSubitem::with_subitem
 /// [`unwrap_or_fail`]: OrFail::unwrap_or_fail
 /// [`unwrap_or_die`]: OrFail::unwrap_or_die
 #[must_use]
 #[derive(Debug)]
 pub struct ErrorWithContext {
+    /// The inner representation. Using a single fat pointer is better than
+    /// storing the description and source fields directly, since it minimizes
+    /// the size of [`ErrorWithContext`] and hence the size of `Result<T,
+    /// ErrorWithContext>`.
+    repr: Box<ErrorWithContextRepr>,
+}
+
+/// The inner representation for an [`ErrorWithContext`]. This is wrapped in a
+/// [`Box`] in [`ErrorWithContext`] to reduce the memory of `Result<T,
+/// ErrorWithContext>` in the `Ok` case.
+#[derive(Debug)]
+struct ErrorWithContextRepr {
+    /// The context that was added to the error.
     description: String,
-    source:      Box<dyn Error + Send + Sync>,
+
+    /// Any subitems attached to the error, separated by new lines.
+    subitem: Option<String>,
+
+    /// The source error which the context is added to.
+    source: Option<Box<dyn Error + Send + Sync>>,
+}
+
+impl Display for ErrorWithContextRepr {
+    /// Displays the description of the error as well as any subitems.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.description)?;
+        if let Some(subitem) = &self.subitem {
+            write!(
+                f,
+                "\n| {}",
+                IndentWrapper {
+                    val:    subitem,
+                    indent: "| ",
+                }
+            )?;
+        }
+        Ok(())
+    }
 }
 
 impl std::fmt::Display for ErrorWithContext {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.description)
+        write!(f, "{}", self.repr)
     }
 }
 
 impl Error for ErrorWithContext {
     #[inline]
     fn source(&self) -> Option<&(dyn Error + 'static)> {
-        Some(self.source.as_ref())
+        match &self.repr.source {
+            Some(source) => Some(source.as_ref()),
+            None => None,
+        }
     }
 }
 
@@ -288,15 +339,18 @@ pub trait WithErrorContext {
 }
 
 impl<E: Error + Send + Sync + 'static> WithErrorContext for E {
-    #[inline]
+    // Do not inline, since this is cold code
     fn with_context(self, description: impl Into<String>) -> ErrorWithContext {
         ErrorWithContext {
-            description: description.into(),
-            source:      Box::new(self),
+            repr: Box::new(ErrorWithContextRepr {
+                description: description.into(),
+                subitem:     None,
+                source:      Some(Box::new(self)),
+            }),
         }
     }
 
-    #[inline]
+    // Do not inline, since this is cold code
     fn with_type_context<T>(self) -> ErrorWithContext {
         let name = std::any::type_name::<T>();
         let description = format!(
@@ -305,18 +359,57 @@ impl<E: Error + Send + Sync + 'static> WithErrorContext for E {
         );
 
         ErrorWithContext {
-            description,
-            source: Box::new(self),
+            repr: Box::new(ErrorWithContextRepr {
+                description,
+                subitem: None,
+                source: Some(Box::new(self)),
+            }),
         }
     }
 
-    #[inline]
+    // Do not inline, since this is cold code
     fn with_file_context(self, msg: impl Display, file: impl AsRef<Path>) -> ErrorWithContext {
         self.with_path_context(msg, file)
     }
 
+    // Do not inline, since this is cold code
     fn with_path_context(self, msg: impl Display, file: impl AsRef<Path>) -> ErrorWithContext {
         Self::with_context(self, format!("{msg}: '{path}'", path = file.as_ref().display()))
+    }
+}
+
+/// An extension trait for [`ErrorWithContext`] allowing an indented subitem to
+/// be added to the error (without adding a new error to the backtrace).
+pub trait WithSubitem {
+    /// Adds a subitem with the given `message` to the error without adding a
+    /// new error to the backtrace.
+    ///
+    /// [`WithErrorContext::with_context`] creates a new entry in the backtrace
+    /// (displayed using `→`), whereas this method adds a message that is
+    /// indented beneath the error and indicated using `|`. For example:
+    ///
+    /// ```text
+    /// Error in /path/to/binary
+    ///   → Failed to load reads from file: input.fastq
+    ///   → Failed to deinterleave records due to mismatching headers
+    ///     | Header 1: SIM:1:FCX:1:15:6329:1045 1:N:0:2
+    ///     | Header 2: SIM:1:FCX:1:15:2345:1001 2:N:0:2
+    ///   → x_pos fields did not agree!
+    /// ```
+    fn with_subitem(self, message: impl Into<String>) -> ErrorWithContext;
+}
+
+impl WithSubitem for ErrorWithContext {
+    fn with_subitem(mut self, message: impl Into<String>) -> ErrorWithContext {
+        let subitem = &mut self.repr.subitem;
+        let message = message.into();
+        if let Some(subitem) = subitem {
+            subitem.push('\n');
+            subitem.push_str(&message);
+        } else {
+            *subitem = Some(message);
+        }
+        self
     }
 }
 
@@ -403,25 +496,62 @@ impl<Ok, E: WithErrorContext> ResultWithErrorContext for Result<Ok, E> {
     }
 }
 
+/// An extension trait for `Result<T, WithErrorContext>` allowing information to
+/// be attached to an [`Err`] variant.
+///
+/// The methods are similar to [`WithSubitem`], but are implemented for results.
+pub trait ResultWithSubitem {
+    /// Adds a subitem with the given `message` to an [`Err`] variant without
+    /// adding a new error to the backtrace.
+    ///
+    /// [`ResultWithErrorContext::with_context`] creates a new entry in the
+    /// backtrace (displayed using `→`), whereas this method adds a message that
+    /// is indented beneath the error and indicated using `|`. For example:
+    ///
+    /// ```text
+    /// Error in /path/to/binary
+    ///   → Failed to load reads from file: input.fastq
+    ///   → Failed to deinterleave records due to mismatching headers
+    ///     | Header 1: SIM:1:FCX:1:15:6329:1045 1:N:0:2
+    ///     | Header 2: SIM:1:FCX:1:15:2345:1001 2:N:0:2
+    ///   → x_pos fields did not agree!
+    /// ```
+    #[must_use]
+    fn with_subitem(self, message: impl Into<String>) -> Self;
+}
+
+impl<T> ResultWithSubitem for Result<T, ErrorWithContext> {
+    #[inline]
+    fn with_subitem(self, message: impl Into<String>) -> Self {
+        self.map_err(|e| {
+            cold_path();
+            e.with_subitem(message)
+        })
+    }
+}
+
 /// A wrapper around [`std::fmt::Formatter`] which automatically indents all new
-/// lines by four spaces.
+/// lines with a specified string.
 ///
-/// This is a helper struct for the formatting used in [`unwrap_or_fail`] and
-/// [`unwrap_or_die`].
+/// This is a helper struct for the formatting used in [`fail`] and [`die`].
 ///
-/// [`unwrap_or_fail`]: OrFail::unwrap_or_fail
-/// [`unwrap_or_die`]: OrFail::unwrap_or_die
-struct IndentFormatter<'a, 'b>(&'a mut std::fmt::Formatter<'b>);
+/// [`fail`]: Fail::fail
+/// [`die`]: Fail::die
+struct IndentFormatter<'a, 'b> {
+    formatter: &'a mut std::fmt::Formatter<'b>,
+    indent:    &'static str,
+}
 
 impl Write for IndentFormatter<'_, '_> {
     fn write_str(&mut self, s: &str) -> std::fmt::Result {
         let mut parts = s.split('\n');
         let Some(first_part) = parts.next() else { return Ok(()) };
-        self.0.write_str(first_part)?;
+        self.formatter.write_str(first_part)?;
 
         for part in parts {
-            self.0.write_str("\n    ")?;
-            self.0.write_str(part)?;
+            self.formatter.write_char('\n')?;
+            self.formatter.write_str(self.indent)?;
+            self.formatter.write_str(part)?;
         }
 
         Ok(())
@@ -429,25 +559,106 @@ impl Write for IndentFormatter<'_, '_> {
 
     fn write_char(&mut self, c: char) -> std::fmt::Result {
         if c == '\n' {
-            self.0.write_str("\n    ")
+            self.formatter.write_char('\n')?;
+            self.formatter.write_str(self.indent)
         } else {
-            self.0.write_char(c)
+            self.formatter.write_char(c)
         }
     }
 }
 
 /// A wrapper type altering the implementation of [`Display`], such that any new
-/// lines are automatically indented with four spaces.
+/// lines are automatically indented with a specified string.
 ///
-/// This is a helper struct for the formatting used in [`unwrap_or_fail`] and
-/// [`unwrap_or_die`].
+/// This is a helper struct for the formatting used in [`fail`] and [`die`].
 ///
-/// [`unwrap_or_fail`]: OrFail::unwrap_or_fail
-/// [`unwrap_or_die`]: OrFail::unwrap_or_die
-struct IndentWrapper<T>(T);
+/// [`fail`]: Fail::fail
+/// [`die`]: Fail::die
+struct IndentWrapper<T> {
+    /// The value to display.
+    val:    T,
+    /// The string to use when indenting lines after the first.
+    indent: &'static str,
+}
 
 impl<T: Display> Display for IndentWrapper<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(IndentFormatter(f), "{}", self.0)
+        write!(
+            IndentFormatter {
+                formatter: f,
+                indent:    self.indent,
+            },
+            "{}",
+            self.val
+        )
+    }
+}
+
+/// A wrapper type altering the implementation of [`Display`], designed for an
+/// unindented top-level error in the [`Fail`] backtrace.
+///
+/// If the top-level error is an [`ErrorWithContext`] (potentially wrapped in
+/// some number of [`std::io::Error`]), then the display of the subitems is
+/// indented if there are source errors.
+struct TopLevelErrorDisplay<'a> {
+    /// The error of unknown type.
+    err: &'a (dyn Error + 'static),
+}
+
+impl Display for TopLevelErrorDisplay<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // Peel away any wrapping std::io::Error
+        let mut inner = self.err;
+        while let Some(e) = inner.downcast_ref::<std::io::Error>()
+            && let Some(e) = e.get_ref()
+        {
+            inner = e;
+        }
+
+        if let Some(e) = inner.downcast_ref::<ErrorWithContext>()
+            && e.repr.source.is_some()
+        {
+            write!(f, "{}", e.repr.description)?;
+
+            if let Some(subitem) = &e.repr.subitem {
+                write!(
+                    f,
+                    "\n    | {}",
+                    IndentWrapper {
+                        val:    subitem,
+                        indent: "    | ",
+                    }
+                )?;
+            }
+
+            Ok(())
+        } else {
+            // Write the original error, not the one with std::io::Error removed
+            write!(f, "{}", self.err)
+        }
+    }
+}
+
+/// Prints the backtrace of an error using [`Error::source`].
+///
+/// This encapsulates the shared logic between [`unwrap_or_die`] and
+/// [`unwrap_or_fail`]. Dynamic errors are used to prevent monomorphization on
+/// the cold path.
+///
+/// [`unwrap_or_die`]: OrFail::unwrap_or_die
+/// [`unwrap_or_fail`]: OrFail::unwrap_or_fail
+#[cold]
+fn print_backtrace(e: &(dyn Error + 'static)) {
+    let mut source = e.source();
+    while let Some(e) = source {
+        eprintln!(
+            "  → {e}",
+            e = IndentWrapper {
+                val:    e,
+                indent: "    ",
+            }
+        );
+
+        source = e.source();
     }
 }
