@@ -141,7 +141,7 @@ pub trait OrFail<T> {
 
 impl<T, E> OrFail<T> for Result<T, E>
 where
-    E: GetCode + Display + Error,
+    E: GetCode + Display + Error + 'static,
 {
     fn unwrap_or_fail(self) -> T {
         match self {

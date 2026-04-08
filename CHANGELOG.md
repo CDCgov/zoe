@@ -29,6 +29,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Renamed `is_valid_codon` to `is_resolvable_codon` in `CodonExtension`
 - Renamed `from_filename` to `from_path` for *Zoe*'s readers, deprecating the old functions
 - Renamed `with_file_context` to `with_path_context` for errors, deprecating the old functions
+- `OrFail` is now only implemented on errors with a `'static` lifetime
 
 ### Removed
 
