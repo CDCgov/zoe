@@ -389,8 +389,10 @@ impl<'a, const M: usize, const N: usize, const O: usize, const S: usize> LocalPr
     /// Creates an empty [`LocalProfiles`].
     ///
     /// Usually you instead want to use [`new_with_w128`], [`new_with_w256`], or
-    /// [`new_with_w512`], based on the SIMD register width of your target.
-    /// [`new_with_w256`] is a good default.
+    /// [`new_with_w512`], based on the SIMD register width of your target. See
+    /// [Picking the Register
+    /// Width](crate::alignment::sw#picking-the-register-width) for more
+    /// details.
     ///
     /// ## Errors
     ///
@@ -559,8 +561,10 @@ impl<'a, const M: usize, const N: usize, const O: usize, const S: usize> SharedP
     /// Creates an empty [`SharedProfiles`].
     ///
     /// Usually you instead want to use [`new_with_w128`], [`new_with_w256`], or
-    /// [`new_with_w512`], based on the SIMD register width of your target.
-    /// [`new_with_w256`] is a good default.
+    /// [`new_with_w512`], based on the SIMD register width of your target. See
+    /// [Picking the Register
+    /// Width](crate::alignment::sw#picking-the-register-width) for more
+    /// details.
     ///
     /// ## Errors
     ///

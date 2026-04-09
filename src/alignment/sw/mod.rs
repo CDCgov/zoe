@@ -77,9 +77,10 @@
 //! to larger integer widths when an overflow is encountered (and lazily
 //! building the profiles for these). Depending on the SIMD register width
 //! available, the constructors [`new_with_w128`], [`new_with_w256`], and
-//! [`new_with_w512`] are provided. [`new_with_w256`] is typically a good
-//! default. For DNA sequences, the convenience methods [`into_local_profile`]
-//! and [`into_shared_profile`] are also available.
+//! [`new_with_w512`] are provided. See [Picking the Register
+//! Width](crate::alignment::sw#picking-the-register-width) for more details.
+//! For DNA sequences, the convenience methods [`into_local_profile`] and
+//! [`into_shared_profile`] are also available.
 //!
 //! *Zoe* also provides the alternative options for building profiles:
 //!
@@ -91,17 +92,19 @@
 //!   to be short, an `i8` integer type may be appropriate if it is known the
 //!   score will not overflow. Similarly, if the sequences are known to be long
 //!   (so that the score will certainly exceed [`i8::MAX`] but not
-//!   [`i16::MAX`]), a [`StripedProfile`] could also be applied.
-//!
-//!   For best performance, the number of bits in the integer type multiplied by
-//!   the lane count should typically equal the number of bits in the available
-//!   SIMD registers (e.g., 256 bits). It is best to pick the smallest integer
-//!   type needed to allow for the most simultaneous operations.
+//!   [`i16::MAX`]), a [`StripedProfile`] could also be applied. It is best to
+//!   pick the smallest integer type needed to allow for the most simultaneous
+//!   operations.
 //!
 //!   Manually creating the [`StripedProfile`] also allows unsigned integer
 //!   types to be used, in which case the striped Smith Waterman algorithm is
 //!   applied with a bias applied to all weights. This requires calling
 //!   [`to_biased_matrix`] on the [`WeightMatrix`].
+//!
+//!   After picking the desired register width (e.g., using [this
+//!   guidance](crate::alignment::sw#picking-the-register-width)), the lane
+//!   count can be chosen by dividing the register width by the number of bits
+//!   in the chosen integer type.
 //!
 //! #### 4. Perform the Alignment
 //!
@@ -264,6 +267,16 @@
 //! assert_eq!(score, 5);
 //! assert_eq!(states, AlignmentStates::try_from(b"5M2S").unwrap());
 //! ```
+//!
+//! ### Picking the Register Width
+//!
+//! When constructing profiles for alignment, you must choose the register width
+//! to optimize for. On [`LocalProfiles`] or [`SharedProfiles`], the
+//! constructors [`new_with_w128`], [`new_with_w256`], and [`new_with_w512`] are
+//! provided for 128-bit, 256-bit, and 512-bit SIMD registers.
+//!
+//! [`new_with_w256`] is typically a good default for performing full alignment.
+//! [`new_with_w512`] appears to perform well for the scores-only algorithm.
 //!
 //! ## Module Citations
 //!
