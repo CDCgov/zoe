@@ -3,9 +3,9 @@
 Notable contributions by:
 
 - [David Hufnagel] (CDC/NCIRD/ID)
-- William D. Chettleburgh (CDC/NCIRD/ID, ORISE)
+- William D. Chettleburgh (CDC/NCIRD/ID, STI)
 - [Samuel S. Shepard] (CDC/NCIRD/ID)
-- Samuel C. Wiley (CDC/NCIRD/ID, ORISE)
+- Samuel C. Wiley (CDC/NCIRD/ID, STI)
 
 <!-- Emails -->
 [David Hufnagel]: mailto:David%20Hufnagel<xpk6@cdc.gov>
