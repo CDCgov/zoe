@@ -11,7 +11,7 @@ use zoe::{kmer::encoders::three_bit::ThreeBitKmerSet, prelude::*};
 fn main() {
     let args: Vec<String> = env::args().collect();
 
-    let filename = if args.len() == 2 {
+    let path = if args.len() == 2 {
         args[1].clone()
     } else {
         "examples/example.fastq".to_owned()
@@ -21,9 +21,7 @@ fn main() {
     let mut kmer_set = ThreeBitKmerSet::<17>::new(17).unwrap();
     kmer_set.insert_from_sequence_with_variants::<1>(primer);
 
-    let iterator = FastQReader::from_filename(filename)
-        .unwrap_or_die("Translate file error!")
-        .flatten();
+    let iterator = FastQReader::from_path(path).unwrap_or_fail().flatten();
 
     for fastq_record in iterator {
         let mut fastq_view = fastq_record.as_view();

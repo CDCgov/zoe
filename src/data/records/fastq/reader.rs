@@ -65,19 +65,34 @@ impl<R: std::io::Read> FastQReader<R> {
 }
 
 impl FastQReader<std::fs::File> {
-    /// Creates an iterator over FASTQ data from a FASTQ file, using a buffered
-    /// reader.
+    /// Deprecated, use [`from_path`] instead.
+    ///
+    /// [`from_path`]: FastQReader::from_path
+    #[allow(clippy::missing_errors_doc)]
+    #[deprecated(
+        since = "0.0.27",
+        note = "please use `from_path` instead. This function will be removed in v0.0.29"
+    )]
+    pub fn from_filename<P>(path: P) -> Result<FastQReader<File>, std::io::Error>
+    where
+        P: AsRef<Path>, {
+        Self::from_path(path)
+    }
+
+    /// Creates an iterator over the FASTQ data contained in a path, using a
+    /// buffered reader.
     ///
     /// ## Errors
     ///
-    /// Will return `Err` if file or permissions do not exist, or if the file is
-    /// empty. The file path is included in the error message.
-    pub fn from_filename<P>(filename: P) -> Result<FastQReader<File>, std::io::Error>
+    /// Will return `Err` if the path does not exist, if there are insufficient
+    /// permissions to read from it, or if it contains no data. The path is
+    /// included in the error message.
+    pub fn from_path<P>(path: P) -> Result<FastQReader<File>, std::io::Error>
     where
         P: AsRef<Path>, {
-        let path = filename.as_ref();
-        let file = File::open(path).with_file_context("Failed to open path", path)?;
-        Ok(Self::from_readable(file).with_file_context("Failed to read data at path", path)?)
+        let path = path.as_ref();
+        let file = File::open(path).with_path_context("Failed to open path", path)?;
+        Ok(Self::from_readable(file).with_path_context("Failed to read data at path", path)?)
     }
 }
 

@@ -4,13 +4,13 @@ use zoe::prelude::*;
 fn main() {
     let args: Vec<String> = env::args().collect();
 
-    let filename = if args.len() == 2 {
+    let path = if args.len() == 2 {
         args[1].clone()
     } else {
         "examples/example.fastq".to_owned()
     };
 
-    let fastq_reader = FastQReader::from_filename(filename).unwrap_or_fail().flatten();
+    let fastq_reader = FastQReader::from_path(path).unwrap_or_fail().flatten();
 
     for mut record in fastq_reader {
         record.recode_dna_reads();

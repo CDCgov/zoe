@@ -95,9 +95,9 @@
 //! [`ErrorKind::InvalidData`] or [`ErrorKind::Other`].
 //!
 //! IO failures are assumed to be rare by *Zoe*, and hence the crate will
-//! automatically add the file path to the error messages (such as
-//! [`FastQReader::from_filename`]). If in doubt, check the `Errors` section of
-//! a function's documentation to determine what information is automatically
+//! automatically add the path to the error messages (such as
+//! [`FastQReader::from_path`]). If in doubt, check the `Errors` section of a
+//! function's documentation to determine what information is automatically
 //! added.
 //!
 //! When *Zoe* adds context to an error message, it will store the original
@@ -124,7 +124,8 @@
 //! [`KmerError`]: crate::kmer::KmerError
 //! [`ErrorKind::InvalidData`]: std::io::ErrorKind::InvalidData
 //! [`ErrorKind::Other`]: std::io::ErrorKind::Other
-//! [`FastQReader::from_filename`]: crate::data::records::fastq::FastQReader
+//! [`FastQReader::from_path`]:
+//!     crate::data::records::fastq::FastQReader::from_path
 //! [`Error::source`]: std::error::Error::source
 //! [`unwrap_or_fail`]: crate::data::err::OrFail::unwrap_or_fail
 //! [`unwrap_or_die`]: crate::data::err::OrFail::unwrap_or_die

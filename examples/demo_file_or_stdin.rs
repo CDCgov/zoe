@@ -8,14 +8,14 @@ use zoe::{
     prelude::{FastQReader, Len},
 };
 
-// An example of reading FASTQ data from either a file or stdin, and tallying
+// An example of reading FASTQ data from either a path or stdin, and tallying
 // the total number of bases. Zoe provides a macro `define_whichever` to make
 // this easier.
 
 define_whichever! {
     // This is similar to the excellent `Either` crate, but here you can define
     // as many variants as you like.
-    #[doc = "An enum allowing either reading from a file or from stdin"]
+    #[doc = "An enum allowing either reading from a path or from stdin"]
     pub(crate) enum ReadFileStdin {
         File(std::fs::File),
         Stdin(std::io::Stdin),

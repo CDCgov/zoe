@@ -4,13 +4,13 @@ use zoe::{kmer::encoders::three_bit::ThreeBitKmerSet, prelude::*};
 fn main() {
     let args: Vec<String> = env::args().collect();
 
-    let filename = if args.len() == 2 {
+    let path = if args.len() == 2 {
         args[1].clone()
     } else {
         "examples/example.fasta".to_owned()
     };
 
-    let fasta_reader = FastaReader::from_filename(filename).unwrap_or_die("k-mer counts file error!");
+    let fasta_reader = FastaReader::from_path(path).unwrap_or_fail();
     let mut kmer_set = ThreeBitKmerSet::<2>::new(2).unwrap_or_die("Cannot build k-mer counter.");
 
     for record in fasta_reader {

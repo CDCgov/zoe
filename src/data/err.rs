@@ -18,10 +18,10 @@
 //! *Zoe*'s [`OrFail`], or an external crates like `anyhow`.
 //!
 //! *Zoe* elects to add context by default when available, such as in
-//! [`FastQReader::from_filename`] which will include the path of a
-//! missing/empty file. In bioinformatics, this context is very useful in
-//! complex pipelines, and any runtime penalty is considered negligible compared
-//! to the algorithms being run.
+//! [`FastQReader::from_path`] which will include the path of a missing/empty
+//! file. In bioinformatics, this context is very useful in complex pipelines,
+//! and any runtime penalty is considered negligible compared to the algorithms
+//! being run.
 //!
 //! Internally, this context is added using the [`WithErrorContext`] and
 //! [`ResultWithErrorContext`] traits. These traits are made public so that
@@ -37,7 +37,7 @@
 //! [`WithErrorContext`]: crate::data::err::WithErrorContext
 //! [`GetCode`]: crate::data::err::GetCode
 //! [`OrFail`]: crate::data::err::OrFail
-//! [`FastQReader::from_filename`]: crate::prelude::FastQReader::from_filename
+//! [`FastQReader::from_path`]: crate::prelude::FastQReader::from_path
 //! [`Error::source`]: std::error::Error::source
 
 use std::{
@@ -235,10 +235,19 @@ pub trait WithErrorContext {
     /// Wraps the error in an [`ErrorWithContext`] by adding type context.
     fn with_type_context<T>(self) -> ErrorWithContext;
 
-    /// Wraps the error in an [`ErrorWithContext`] by adding file context.
+    /// Wraps the error in an [`ErrorWithContext`] by adding path context.
     ///
-    /// The context will be formatted as `msg: file`. The `msg` may be anything
-    /// implementing [`Display`].
+    /// The context will be formatted as `msg: 'path'`. The `msg` may be
+    /// anything implementing [`Display`].
+    fn with_path_context(self, msg: impl Display, file: impl AsRef<Path>) -> ErrorWithContext;
+
+    /// Deprecated, use [`with_path_context`] instead.
+    ///
+    /// [`with_path_context`]: WithErrorContext::with_path_context
+    #[deprecated(
+        since = "0.0.27",
+        note = "please use `with_path_context` instead. This function will be removed in v0.0.29"
+    )]
     fn with_file_context(self, msg: impl Display, file: impl AsRef<Path>) -> ErrorWithContext;
 }
 
@@ -267,6 +276,10 @@ impl<E: Error + Send + Sync + 'static> WithErrorContext for E {
 
     #[inline]
     fn with_file_context(self, msg: impl Display, file: impl AsRef<Path>) -> ErrorWithContext {
+        self.with_path_context(msg, file)
+    }
+
+    fn with_path_context(self, msg: impl Display, file: impl AsRef<Path>) -> ErrorWithContext {
         Self::with_context(self, format!("{msg}: '{path}'", path = file.as_ref().display()))
     }
 }
@@ -299,15 +312,25 @@ pub trait ResultWithErrorContext {
     /// Propagates errors in `self`, with the added context.
     fn with_type_context<T>(self) -> Result<Self::Ok, ErrorWithContext>;
 
-    /// Wraps the [`Err`] variant in an [`ErrorWithContext`] by adding file
+    /// Wraps the [`Err`] variant in an [`ErrorWithContext`] by adding path
     /// context.
     ///
-    /// The context will be formatted as `msg: file`. The `msg` may be anything
-    /// implementing [`Display`].
+    /// The context will be formatted as `msg: 'path'`. The `msg` may be
+    /// anything implementing [`Display`].
     ///
     /// ## Errors
     ///
     /// Propagates errors in `self`, with the added context.
+    fn with_path_context(self, msg: impl Display, file: impl AsRef<Path>) -> Result<Self::Ok, ErrorWithContext>;
+
+    /// Deprecated, use [`with_path_context`] instead.
+    ///
+    /// [`with_path_context`]: ResultWithErrorContext::with_path_context
+    #[allow(clippy::missing_errors_doc)]
+    #[deprecated(
+        since = "0.0.27",
+        note = "please use `with_path_context` instead. This function will be removed in v0.0.29"
+    )]
     fn with_file_context(self, msg: impl Display, file: impl AsRef<Path>) -> Result<Self::Ok, ErrorWithContext>;
 }
 
@@ -332,9 +355,14 @@ impl<Ok, E: WithErrorContext> ResultWithErrorContext for Result<Ok, E> {
 
     #[inline]
     fn with_file_context(self, msg: impl Display, file: impl AsRef<Path>) -> Result<Ok, ErrorWithContext> {
+        self.with_path_context(msg, file)
+    }
+
+    #[inline]
+    fn with_path_context(self, msg: impl Display, file: impl AsRef<Path>) -> Result<Ok, ErrorWithContext> {
         self.map_err(|e| {
             cold_path();
-            e.with_file_context(msg, file)
+            e.with_path_context(msg, file)
         })
     }
 }

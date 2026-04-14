@@ -1,9 +1,3 @@
-use std::{
-    fs::File,
-    io::{BufRead, Error as IOError, ErrorKind},
-    path::Path,
-};
-
 use crate::{
     data::{
         cigar::Cigar,
@@ -11,6 +5,11 @@ use crate::{
         sam::{SamData, SamTags},
     },
     unwrap_or_return_some_err,
+};
+use std::{
+    fs::File,
+    io::{BufRead, Error as IOError, ErrorKind},
+    path::Path,
 };
 
 /// Enum for holding either a SAM header or data record.
@@ -257,45 +256,77 @@ impl<R: std::io::Read, const TAGS: bool> Iterator for SAMReader<R, TAGS> {
 }
 
 impl SAMReader<File, true> {
-    /// Reads a SAM text file into an iterator backed by a buffered reader.
+    /// Deprecated, use [`from_path`] instead.
+    ///
+    /// [`from_path`]: SAMReader::from_path
+    #[allow(clippy::missing_errors_doc)]
+    #[deprecated(
+        since = "0.0.27",
+        note = "please use `from_path` instead. This function will be removed in v0.0.29"
+    )]
+    pub fn from_filename<P>(path: P) -> Result<Self, std::io::Error>
+    where
+        P: AsRef<Path>, {
+        Self::from_path(path)
+    }
+
+    /// Creates an iterator over the SAM data contained in a path, using a
+    /// buffered reader.
     ///
     /// If the optional tags in the SAM records are not being used by the
-    /// downstream application, consider using [`from_filename_ignore_tags`] for
+    /// downstream application, consider using [`from_path_ignore_tags`] for
     /// efficiency.
     ///
     /// ## Errors
     ///
-    /// Will return `Err` if file or permissions do not exist, or if the file is
-    /// empty. The file path is included in the error message.
+    /// Will return `Err` if the path does not exist, if there are insufficient
+    /// permissions to read from it, or if it contains no data. The path is
+    /// included in the error message.
     ///
-    /// [`from_filename_ignore_tags`]: SAMReader::from_filename_ignore_tags
-    pub fn from_filename<P>(filename: P) -> Result<Self, std::io::Error>
+    /// [`from_path_ignore_tags`]: SAMReader::from_path_ignore_tags
+    pub fn from_path<P>(path: P) -> Result<Self, std::io::Error>
     where
         P: AsRef<Path>, {
-        let path = filename.as_ref();
-        let file = File::open(path).with_file_context("Failed to open path", path)?;
-        Ok(Self::from_readable(file).with_file_context("Failed to read data at path", path)?)
+        let path = path.as_ref();
+        let file = File::open(path).with_path_context("Failed to open path", path)?;
+        Ok(Self::from_readable(file).with_path_context("Failed to read data at path", path)?)
     }
 }
 
 impl SAMReader<File, false> {
-    /// Reads a SAM text file into an iterator backed by a buffered reader.
+    /// Deprecated, use [`from_path_ignore_tags`] instead.
+    ///
+    /// [`from_path_ignore_tags`]: SAMReader::from_path_ignore_tags
+    #[allow(clippy::missing_errors_doc)]
+    #[deprecated(
+        since = "0.0.27",
+        note = "please use `from_path_ignore_tags` instead. This function will be removed in v0.0.29"
+    )]
+    pub fn from_filename_ignore_tags<P>(path: P) -> Result<Self, std::io::Error>
+    where
+        P: AsRef<Path>, {
+        Self::from_path_ignore_tags(path)
+    }
+
+    /// Creates an iterator over the SAM data contained in a path, using a
+    /// buffered reader.
     ///
     /// This version ignores any optional tags present in the SAM records in
-    /// order to reduce allocations and improve efficiency. Use [`from_filename`] to
+    /// order to reduce allocations and improve efficiency. Use [`from_path`] to
     /// include the tags in the output.
     ///
     /// ## Errors
     ///
-    /// Will return `Err` if file or permissions do not exist, or if the file is
-    /// empty. The file path is included in the error message.
+    /// Will return `Err` if the path does not exist, if there are insufficient
+    /// permissions to read from it, or if it contains no data. The path is
+    /// included in the error message.
     ///
-    /// [`from_filename`]: SAMReader::from_filename
-    pub fn from_filename_ignore_tags<P>(filename: P) -> Result<Self, std::io::Error>
+    /// [`from_path`]: SAMReader::from_path
+    pub fn from_path_ignore_tags<P>(path: P) -> Result<Self, std::io::Error>
     where
         P: AsRef<Path>, {
-        let path = filename.as_ref();
-        let file = File::open(path).with_file_context("Failed to open path", path)?;
-        Ok(Self::from_readable_ignore_tags(file).with_file_context("Failed to read data at path", path)?)
+        let path = path.as_ref();
+        let file = File::open(path).with_path_context("Failed to open path", path)?;
+        Ok(Self::from_readable_ignore_tags(file).with_path_context("Failed to read data at path", path)?)
     }
 }

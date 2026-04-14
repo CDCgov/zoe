@@ -28,7 +28,7 @@ fn find_stop_codon(sequence: NucleotidesView) -> Option<Range<usize>> {
 fn main() {
     let args: Vec<String> = env::args().collect();
 
-    let filename = if args.len() == 2 {
+    let path = if args.len() == 2 {
         args[1].clone()
     } else {
         "examples/example.fastq".to_owned()
@@ -39,9 +39,7 @@ fn main() {
     let mut gc_noncoding = 0;
     let mut total_noncoding = 0;
 
-    let iterator = FastQReader::from_filename(filename)
-        .unwrap_or_die("Translate file error!")
-        .flatten();
+    let iterator = FastQReader::from_path(path).unwrap_or_fail().flatten();
 
     for mut fastq_record in iterator {
         // Create a view, whose bounds we will change to reflect the portion of

@@ -51,8 +51,8 @@ impl SamHmmParser {
     /// - The data must be a model (not a regularizer or null model)
     /// - The specified alphabet must be `dna`
     /// - No negative indices are allowed in layer names
-    pub fn dna_hmm_from_filename(filename: impl AsRef<Path>) -> std::io::Result<GlobalPhmm<f32, 4>> {
-        SupportedConfig::parse_sam_model(File::open(filename)?)
+    pub fn dna_hmm_from_path(path: impl AsRef<Path>) -> std::io::Result<GlobalPhmm<f32, 4>> {
+        SupportedConfig::parse_sam_model(File::open(path)?)
     }
 
     /// Parses a protein pHMM from SAM model specifications in a type
@@ -78,8 +78,8 @@ impl SamHmmParser {
     /// - The data must be a model (not a regularizer or null model)
     /// - The specified alphabet must be `protein`
     /// - No negative indices are allowed in layer names
-    pub fn protein_hmm_from_filename(filename: impl AsRef<Path>) -> Result<GlobalPhmm<f32, 20>, std::io::Error> {
-        SupportedConfig::parse_sam_model(File::open(filename)?)
+    pub fn protein_hmm_from_path(path: impl AsRef<Path>) -> Result<GlobalPhmm<f32, 20>, std::io::Error> {
+        SupportedConfig::parse_sam_model(File::open(path)?)
     }
 }
 
@@ -124,8 +124,8 @@ impl<T: PhmmNumber> GenericSamHmmParser<T> {
     /// - The specified alphabet must be `dna`
     /// - No negative indices are allowed in layer names
     #[allow(dead_code)]
-    pub fn dna_hmm_from_filename(filename: impl AsRef<Path>) -> std::io::Result<GlobalPhmm<T, 4>> {
-        SupportedConfig::parse_sam_model(File::open(filename)?)
+    pub fn dna_hmm_from_path(path: impl AsRef<Path>) -> std::io::Result<GlobalPhmm<T, 4>> {
+        SupportedConfig::parse_sam_model(File::open(path)?)
     }
 
     /// Parses a protein pHMM from SAM model specifications in a type
@@ -153,8 +153,8 @@ impl<T: PhmmNumber> GenericSamHmmParser<T> {
     /// - The specified alphabet must be `protein`
     /// - No negative indices are allowed in layer names
     #[allow(dead_code)]
-    pub fn protein_hmm_from_filename(filename: impl AsRef<Path>) -> std::io::Result<GlobalPhmm<T, 20>> {
-        SupportedConfig::parse_sam_model(File::open(filename)?)
+    pub fn protein_hmm_from_path(path: impl AsRef<Path>) -> std::io::Result<GlobalPhmm<T, 20>> {
+        SupportedConfig::parse_sam_model(File::open(path)?)
     }
 }
 
@@ -171,8 +171,8 @@ impl SamHmmWriter {
     /// - The mapping of the pHMM must correspond to DNA
     /// - The model must have at least one layer
     #[inline]
-    pub fn write_dna_model<T: PhmmNumber>(filename: impl AsRef<Path>, model: &GlobalPhmm<T, 4>) -> std::io::Result<()> {
-        SupportedConfig::write_sam_model_file(filename, model)
+    pub fn write_dna_model<T: PhmmNumber>(path: impl AsRef<Path>, model: &GlobalPhmm<T, 4>) -> std::io::Result<()> {
+        SupportedConfig::write_sam_model_file(path, model)
     }
 
     /// Write a protein pHMM to a SAM model file.
@@ -183,8 +183,8 @@ impl SamHmmWriter {
     /// - The mapping of the pHMM must correspond to DNA
     /// - The model must have at least one layer
     #[inline]
-    pub fn write_protein_model<T: PhmmNumber>(filename: impl AsRef<Path>, model: &GlobalPhmm<T, 20>) -> std::io::Result<()> {
-        SupportedConfig::write_sam_model_file(filename, model)
+    pub fn write_protein_model<T: PhmmNumber>(path: impl AsRef<Path>, model: &GlobalPhmm<T, 20>) -> std::io::Result<()> {
+        SupportedConfig::write_sam_model_file(path, model)
     }
 }
 
@@ -290,7 +290,7 @@ trait SamHmmConfig<const S: usize, const L: usize> {
     /// - IO errors (when creating file or writing to it)
     /// - The mapping of the pHMM must correspond to DNA
     /// - The model must correspond to a reference of length at least 1
-    fn write_sam_model_file<T: PhmmNumber, P>(filename: P, model: &GlobalPhmm<T, S>) -> std::io::Result<()>
+    fn write_sam_model_file<T: PhmmNumber, P>(path: P, model: &GlobalPhmm<T, S>) -> std::io::Result<()>
     where
         P: AsRef<Path>,
         SupportedConfig: SamHmmConfig<S, L>, {
@@ -301,7 +301,7 @@ trait SamHmmConfig<const S: usize, const L: usize> {
             ));
         }
 
-        let mut writer = BufWriter::new(File::create(filename.as_ref())?);
+        let mut writer = BufWriter::new(File::create(path.as_ref())?);
 
         writeln!(writer, "MODEL")?;
         writeln!(writer, "alphabet {}", Self::unparse_mapping(model.mapping())?)?;
