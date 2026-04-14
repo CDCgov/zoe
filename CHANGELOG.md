@@ -31,9 +31,11 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 ### Removed
 
 - `itoa` is no longer a dependency of Zoe.
+- Removes `open_nonempty_file`, which produces incorrect results for piped inputs
 
 ### Fixes
 
+- Fixes a bug where pipes are interpreted as empty files with `FastQReader::from_filename` (and similarly for `FastaReader` and `SAMReader`)
 - Fixes a bug in `p_distance_acgt` where longer sequences could be normalized incorrectly.
 
 ## [0.0.26] - 2026-03-06

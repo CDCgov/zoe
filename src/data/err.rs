@@ -7,8 +7,6 @@
 //!   source chain.
 //! - [`GetCode`] and [`OrFail`] for graceful CLI error handling with exit
 //!   codes.
-//! - [`open_nonempty_file`] for opening files with automatic path context on
-//!   errors.
 //!
 //! ## Error Handling Philosophy
 //!
@@ -39,16 +37,13 @@
 //! [`WithErrorContext`]: crate::data::err::WithErrorContext
 //! [`GetCode`]: crate::data::err::GetCode
 //! [`OrFail`]: crate::data::err::OrFail
-//! [`open_nonempty_file`]: crate::data::err::open_nonempty_file
 //! [`FastQReader::from_filename`]: crate::prelude::FastQReader::from_filename
 //! [`Error::source`]: std::error::Error::source
 
 use std::{
     error::Error,
     fmt::{Display, Write},
-    fs::File,
     hint::cold_path,
-    io::ErrorKind,
     path::Path,
 };
 
@@ -342,40 +337,6 @@ impl<Ok, E: WithErrorContext> ResultWithErrorContext for Result<Ok, E> {
             e.with_file_context(msg, file)
         })
     }
-}
-
-/// Opens a file, checking that it is non-empty, and wrapping any errors with
-/// the file path for context.
-///
-/// ## Errors
-///
-/// Returns an error if:
-///
-/// - The file cannot be opened
-/// - File metadata cannot be read
-/// - The file is empty
-///
-/// All errors include the file path in the error message and preserve the
-/// original error via [`Error::source`].
-#[inline]
-pub fn open_nonempty_file(path: impl AsRef<Path>) -> std::io::Result<File> {
-    let path = path.as_ref();
-
-    let file = File::open(path)
-        .map_err(|e| std::io::Error::other(e.with_context(format!("Failed to open file: '{}'", path.display()))))?;
-
-    let metadata = file
-        .metadata()
-        .map_err(|e| std::io::Error::other(e.with_context(format!("Failed to read metadata: '{}'", path.display()))))?;
-
-    if metadata.len() == 0 {
-        return Err(std::io::Error::new(
-            ErrorKind::InvalidInput,
-            format!("File is empty: '{}'", path.display()),
-        ));
-    }
-
-    Ok(file)
 }
 
 /// A wrapper around [`std::fmt::Formatter`] which automatically indents all new
