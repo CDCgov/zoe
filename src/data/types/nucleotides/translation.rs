@@ -65,18 +65,12 @@ pub trait Translate: NucleotidesReadable + Sealed {
         self.to_aa_iter().position(|aa| aa == needle).map(|x| x * 3)
     }
 
-    /// Returns the starting index of the first start codon (`ATG` or `AUG`) or
-    /// `None` otherwise.
+    /// Returns the starting index of the first case-insensitive start codon
+    /// (`ATG` or `AUG`) or `None` otherwise.
     ///
-    /// If the sequence is known to not contain `U`, then [`find_substring`] may
-    /// be faster. This function uses the same logic as [`find_substring`] but
-    /// is specialized to handle the two possibilities for the middle of the
-    /// codon.
-    ///
-    /// ## Limitations
-    ///
-    /// The input sequence must be in uppercase (i.e., the search is
-    /// case-sensitive).
+    /// If the sequence is known to not contain `U` and be of a particular case,
+    /// then [`find_substring`] may be faster. This function uses
+    /// [`find_mapped_match_simd`] in its implementation.
     ///
     /// [`find_substring`]: crate::search::ByteSubstring::find_substring
     #[inline]

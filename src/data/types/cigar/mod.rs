@@ -258,9 +258,13 @@ impl TryFrom<&str> for Cigar {
     }
 }
 
+/// An extension trait for `Vec<u8>` allowing a ciglet to be formatted into the
+/// buffer.
 pub(crate) trait FormatCigletForCigarVec {
+    /// Extends the buffer with the formatted `ciglet`.
     fn push_formatted_ciglet(&mut self, ciglet: Ciglet);
 }
+
 impl FormatCigletForCigarVec for Vec<u8> {
     #[inline]
     fn push_formatted_ciglet(&mut self, ciglet: Ciglet) {
@@ -348,13 +352,19 @@ impl ExpandedCigar {
             if previous == op {
                 count += 1;
             } else {
-                condensed.push_formatted_ciglet(Ciglet { inc: count, op: previous });
+                condensed.push_formatted_ciglet(Ciglet {
+                    inc: count,
+                    op:  previous,
+                });
                 previous = op;
                 count = 1;
             }
         }
 
-        condensed.push_formatted_ciglet(Ciglet { inc: count, op: previous });
+        condensed.push_formatted_ciglet(Ciglet {
+            inc: count,
+            op:  previous,
+        });
 
         Cigar(condensed)
     }

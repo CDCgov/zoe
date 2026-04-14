@@ -89,7 +89,7 @@ impl AlignmentStates {
         self.0.as_mut_slice()
     }
 
-    /// Returns the [`Ciglet`] elements as a mutable reference to a vector.
+    /// Returns a mutable reference to the vector of [`Ciglet`] elements.
     ///
     /// ## Validity
     ///

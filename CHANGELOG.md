@@ -4,43 +4,44 @@ All notable changes to this project will be documented in this file. The format
 is roughly based on [Keep a Changelog], and this project tries to adheres to
 [Semantic Versioning].
 
-## [0.0.27] - TBD
+## [0.0.27] - 2026-04-15
 
 ### Added
 
+- Added `ByteMap` for defining and representing maps from `u8` values to other `u8` values (e.g., for sanitization/recoding), as well as many pre-defined maps
+- Added `ByteValidator` for defining alphabets or subsets of valid bytes
+- Added `SanitizeBase` extension trait for `u8` to perform DNA validation, recoding, and refinement on a single byte
+- Added `find_start_codon` as well as a modified string search routine supporting lazy transformations of the haystack (`find_mapped_match_simd`)
+- Added `to_aa_iter_exact` and `to_aa_iter_exact_with` for amino acid translation that does not include a partial codon for codons with less than 3 bases at the end of a sequence
+- Added `find_next_aa` and `find_next_aa_in_frame` to `RangeSearch`
+- Added `find_byte` to `ByteSubstring` (for searching strings and for use with `RangeSearch`)
 - Added `as_mut_vec` to `AlignmentStates`, `Nucleotides`, and `AminoAcids` to enable custom editing
 - Added `push`, `starts_with`, and `ends_with` to `Nucleotides` and `AminoAcids`
 - Implemented `Extend` for `Nucleotides` and `AminoAcids`
-- Added `to_aa_iter_exact` and `to_aa_iter_exact_with` for amino acid translation that does not include a partial codon for codons with less than 3 bases at the end of a sequence
-- Added `find_next_aa` and `find_next_aa_in_frame` to `RangeSearch`
-- Added `SanitizeBase` extension trait for `u8` to perform DNA validation, recoding, and refinement on a single byte
 - Added `AcgtNoGapsUc` strategy for retaining/recoding DNA
-- Added `find_start_codon` as well as a modified string search routine supporting lazy transformations of the haystack (`find_mapped_match_simd`)
-- Added `ByteMap` for defining and representing maps from `u8` values to other `u8` values (e.g., for sanitization/recoding)
-- Added many pre-defined `ByteMap`s for direct use or as a starting point for defining more custom maps
-- Added `find_byte` to `ByteSubstring` (for searching strings and for use with `RangeSearch`)
-- Added `ByteValidator` for defining alphabets or subsets of valid bytes
 
 ### Changed
 
-- Implemented Copy for several immutable views
-- `RangeSearch` now contains a generic with the original type to allow search methods to restrict the types of data they are used on
-- `StdGeneticCode` now translates codons with mixed `-` and `.` bytes to `.`
-- `is_amino_acid` now behaves the same as `is_known_amino_acid`, and `is_known_amino_acid` is removed
-- Renamed `is_valid_codon` to `is_resolvable_codon` in `CodonExtension`
 - Renamed `from_filename` to `from_path` for *Zoe*'s readers, deprecating the old functions
 - Renamed `with_file_context` to `with_path_context` for errors, deprecating the old functions
+- Renamed `is_valid_codon` to `is_resolvable_codon` in `CodonExtension`
+- `is_amino_acid` now behaves the same as `is_known_amino_acid`, and `is_known_amino_acid` is removed
+- `RangeSearch` now contains a generic with the original type to allow search methods to restrict the types of data they are used on
+- `StdGeneticCode` now translates codons with mixed `-` and `.` bytes to `.`
 - `OrFail` is now only implemented on errors with a `'static` lifetime
+- `retain_by_recoding` now uses `ByteMap`, and `retain_by_validation` now uses `ByteValidator`
+- Implemented `Copy` for several immutable views
 
 ### Removed
 
-- `itoa` is no longer a dependency of Zoe.
 - Removes `open_nonempty_file`, which produces incorrect results for piped inputs
+- `itoa` is no longer a dependency of Zoe.
 
 ### Fixes
 
 - Fixes a bug where pipes are interpreted as empty files with `FastQReader::from_filename` (and similarly for `FastaReader` and `SAMReader`)
 - Fixes a bug in `p_distance_acgt` where longer sequences could be normalized incorrectly.
+- Fixes a bug in `physiochemical` distance to ensure invalid sequences are not comparable
 
 ## [0.0.26] - 2026-03-06
 

@@ -12,7 +12,7 @@ macro_rules! fill_std_gc {
 /// If a codon involving ambiguous IUPAC letters translates to the same amino
 /// acid in all cases, then it is also included in the hashmap. Stop codons are
 /// translated to `*`, and the codons `...`, `---`, and `NNN` are translated to
-/// `.`, `-`, and `X` respectively.
+/// `.`, `-`, and `X` respectively. A mix of `.` and `-` is translated to `.`.
 #[derive(Debug)]
 pub struct StdGeneticCode;
 

@@ -19,26 +19,21 @@ pub(crate) use tabulation::{hamming_dist_from_sub_matrix, total_and_frequencies}
 /// Calculates the p-distance (proportion of differing sites) between two
 /// nucleotide sequences.
 ///
-/// The p-distance considers only valid, canonical nucleotide pairs (A, C, G,
-/// T/U). Casing is ignored and only shared sequence length--the smaller of the
-/// two--are compared. The algorithm uses SIMD operations for improved
-/// performance.
+/// The p-distance considers only valid, canonical nucleotide pairs (`A`, `C`,
+/// `G`, `T`/`U`). Casing is ignored and only shared sequence length--the
+/// smaller of the two--is compared. The algorithm uses SIMD operations for
+/// improved performance.
 ///
-/// ## Returns
-///
-/// - `Some(f64)` - The p-distance between sequences if valid positions are
-///   found.
-/// - `None` - If no valid positions are found to compare.
+/// `None` is returned if no valid positions are found to compare.
 ///
 /// ## Type Parameters
 ///
-/// - `N` - SIMD lane count, must be a supported lane count
+/// `N` - SIMD lane count, must be a supported lane count
 ///
 /// ## Example
 ///
 /// ```
 /// # use zoe::distance::dna::p_distance_acgt;
-///
 /// let seq1 = b"ATGCATGC";
 /// let seq2 = b"atgtttnc";
 /// let distance = p_distance_acgt::<16>(seq1, seq2);

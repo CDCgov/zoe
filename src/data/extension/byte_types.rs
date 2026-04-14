@@ -52,7 +52,7 @@ impl IsBase for u8 {
 /// [`RetainNucleotides`]: crate::data::types::nucleotides::RetainNucleotides
 pub trait SanitizeBase: Sized + Copy {
     /// Checks whether a single byte is valid under the given validation
-    /// strategy
+    /// strategy.
     #[must_use]
     fn is_valid(self, strategy: IsValidDNA) -> bool;
 

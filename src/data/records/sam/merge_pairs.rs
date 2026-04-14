@@ -134,6 +134,15 @@ impl SamAligned {
 }
 
 impl From<&SamData> for SamAligned {
+    /// Builds a [`SamAligned`] from [`SamData`].
+    ///
+    /// ## Panics
+    ///
+    /// Currently panics on invalid cigar states. To be removed in the future
+    /// for either a `Result` or type-state validated CIGAR strings.
+    ///
+    /// This also has a chance of panicking in debug mode if an insertion
+    /// appears at the start of the alignment.
     #[inline]
     fn from(row: &SamData) -> Self {
         row.get_aligned()
@@ -265,7 +274,10 @@ impl SamData {
     /// ## Panics
     ///
     /// Currently panics on invalid cigar states. To be removed in the future
-    /// for either a `Result` or type-state validated Cigars.
+    /// for either a `Result` or type-state validated CIGAR strings.
+    ///
+    /// This also has a chance of panicking in debug mode if an insertion
+    /// appears at the start of the alignment.
     ///
     /// [`Cigar`]: crate::data::types::cigar::Cigar
     #[must_use]
@@ -346,12 +358,20 @@ impl SamData {
     }
 
     /// Merges SAM read pairs using the reference alignment to parsimoniously
-    /// detect and correct errors. Based on the work by **Shepard et al. 2016** for
-    /// IRMA.
+    /// detect and correct errors. Based on the work by **Shepard et al. 2016**
+    /// for IRMA.
     ///
     /// ## Notes
     ///
     /// This algorithm is designed for local alignment.
+    ///
+    /// ## Panics
+    ///
+    /// Currently panics on invalid cigar states. To be removed in the future
+    /// for either a `Result` or type-state validated CIGAR strings.
+    ///
+    /// This also has a chance of panicking in debug mode if an insertion
+    /// appears at the start of the alignment.
     #[allow(clippy::too_many_lines)]
     #[must_use]
     pub fn merge_pair_using_reference(

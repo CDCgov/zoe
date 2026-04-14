@@ -167,7 +167,7 @@ pub enum RefineDNAStrat {
     /// Retains and recodes to uppercase ACGTN bases with standard gaps (`-`)
     AcgtnStdGapsUc,
 
-    // Retains and recodes to uppercase ACGT bases without gaps
+    /// Retains and recodes to uppercase ACGT bases without gaps
     AcgtNoGapsUc,
 }
 

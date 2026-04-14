@@ -55,8 +55,8 @@
 //! is when a needle must be found in at most the first `n` elements of the
 //! haystack, or at most the last `n` elements of the haystack. Ordinarily, one
 //! would have to ensure the range is in bounds before slicing or using
-//! `search_in`. To simplify this, *Zoe* provides `search_in_first` and
-//! `search_in_last`, as shown below. Once again, the second occurrence of the
+//! [`search_in`]. To simplify this, *Zoe* provides [`search_in_first`] and
+//! [`search_in_last`], as shown below. Once again, the second occurrence of the
 //! needle is returned.
 //!
 //! ```
@@ -76,6 +76,9 @@
 //! [`find_substring`]: crate::search::ByteSubstring::find_substring
 //! [`find_fuzzy_substring`]: crate::search::ByteSubstring::find_fuzzy_substring
 //! [`RangeSearch`]: crate::search::RangeSearch
+//! [`search_in`]: crate::search::ToRangeSearch::search_in
+//! [`search_in_first`]: crate::search::ToRangeSearch::search_in_first
+//! [`search_in_last`]: crate::search::ToRangeSearch::search_in_last
 
 /// Search and/or replace bytes.
 mod bytes;

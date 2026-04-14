@@ -79,9 +79,9 @@ impl AminoAcidsDistance for AminoAcids {}
 impl AminoAcidsDistance for AminoAcidsView<'_> {}
 impl AminoAcidsDistance for AminoAcidsViewMut<'_> {}
 
-/// Calculates a "physiochemical" distance measure using the euclidean distances
-/// over physiochemical factors. Only valid amino acids are permitted in the
-/// denominator.
+/// Calculates a "physiochemical" distance measure using Euclidean distances
+/// over physiochemical factors, normalized by sequence length. Only valid amino
+/// acids are counted in the denominator.
 ///
 /// ## Example
 ///
@@ -104,8 +104,8 @@ impl AminoAcidsDistance for AminoAcidsViewMut<'_> {}
 ///
 /// ## Errors
 ///
-/// If either argument is empty or the sequence characters are invalid, an error
-/// is thrown. See [`DistanceError`].
+/// If either argument is empty or the sequence characters are all invalid, a
+/// [`DistanceError`] is thrown.
 //
 // TODO: Could make a generic function that depends on distance matrix.
 #[allow(clippy::cast_precision_loss)]
