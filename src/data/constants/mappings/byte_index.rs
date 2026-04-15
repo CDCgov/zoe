@@ -190,13 +190,6 @@ impl ByteMap {
         self.0[src as usize] = dest;
     }
 
-    /// Converts a base `b` into an index.
-    #[inline]
-    #[must_use]
-    pub const fn to_index(&self, b: u8) -> usize {
-        self.0[b as usize] as usize
-    }
-
     /// Ensures a byte slice does not contain duplicates.
     #[inline]
     const fn assert_unique<const S: usize>(bytes: &[u8; S]) {
@@ -323,12 +316,11 @@ impl<const S: usize> ByteIndexMap<S> {
         &self.byte_keys
     }
 
-    // TODO: Consider using const fn in trait when this becomes available
     /// Converts a byte `b` into an index.
     #[inline]
     #[must_use]
     pub const fn to_index(&self, b: u8) -> usize {
-        self.index_map.to_index(b)
+        self.index_map.0[b as usize] as usize
     }
 
     /// Converts an index back into the corresponding byte.

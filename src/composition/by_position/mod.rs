@@ -188,7 +188,7 @@ where
     #[inline]
     fn from(b: u8) -> Self {
         let mut nc = NucleotideCounts { inner: [T::ZERO; 8] };
-        nc.inner[DNA_COUNT_PROFILE_MAP.to_index(b)] = T::ONE;
+        nc.inner[DNA_COUNT_PROFILE_MAP[b] as usize] = T::ONE;
         nc
     }
 }
@@ -227,7 +227,7 @@ where
 
     #[inline]
     fn add(mut self, other: u8) -> Self {
-        self.inner[DNA_COUNT_PROFILE_MAP.to_index(other)] += T::ONE;
+        self.inner[DNA_COUNT_PROFILE_MAP[other] as usize] += T::ONE;
         self
     }
 }
@@ -238,7 +238,7 @@ where
 {
     #[inline]
     fn add_assign(&mut self, other: u8) {
-        self.inner[DNA_COUNT_PROFILE_MAP.to_index(other)] += T::ONE;
+        self.inner[DNA_COUNT_PROFILE_MAP[other] as usize] += T::ONE;
     }
 }
 
