@@ -11,6 +11,7 @@ use crate::{
     simd::SimdAnyInt,
 };
 use std::{
+    borrow::Cow,
     convert::Into,
     ops::Range,
     simd::{SimdElement, prelude::*},
@@ -28,7 +29,7 @@ use std::{
 ///   and 0, inclusive
 /// - [`ProfileError::BadGapWeights`] if `gap_extend` is less than `gap_open`
 #[inline]
-pub(crate) fn validate_profile_args<Q: AsRef<[u8]>>(seq: Q, gap_open: i8, gap_extend: i8) -> Result<(), ProfileError> {
+pub(crate) fn validate_profile_args(seq: &[u8], gap_open: i8, gap_extend: i8) -> Result<(), ProfileError> {
     if seq.as_ref().is_empty() {
         Err(ProfileError::EmptySequence)
     } else if !(-127..=0).contains(&gap_open) {
@@ -53,7 +54,7 @@ pub(crate) fn validate_profile_args<Q: AsRef<[u8]>>(seq: Q, gap_open: i8, gap_ex
 /// `S` - The size of the alphabet (usually 5 for DNA including *N*)
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct ScalarProfile<'a, const S: usize> {
-    pub(crate) seq:        &'a [u8],
+    pub(crate) seq:        Cow<'a, [u8]>,
     pub(crate) matrix:     &'a WeightMatrix<'a, i8, S>,
     pub(crate) gap_open:   i32,
     pub(crate) gap_extend: i32,
@@ -78,12 +79,13 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// - [`ProfileError::BadGapWeights`] if `gap_extend` is less than
     ///   `gap_open`
     #[inline]
-    pub fn new<Q>(
-        seq: &'a Q, matrix: &'a WeightMatrix<'a, i8, S>, gap_open: i8, gap_extend: i8,
-    ) -> Result<Self, ProfileError>
-    where
-        Q: AsRef<[u8]> + ?Sized, {
-        validate_profile_args(seq, gap_open, gap_extend)?;
+    pub fn new(
+        seq: impl Into<Cow<'a, [u8]>>, matrix: &'a WeightMatrix<'a, i8, S>, gap_open: i8, gap_extend: i8,
+    ) -> Result<Self, ProfileError> {
+        let seq = seq.into();
+
+        validate_profile_args(&seq, gap_open, gap_extend)?;
+
         // Validity: validate_profile_args has checked our assumptions
         Ok(Self::new_unchecked(seq, matrix, gap_open, gap_extend))
     }
@@ -102,11 +104,11 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     ///   erroneously swapped.
     #[inline]
     #[must_use]
-    pub fn new_unchecked<Q>(seq: &'a Q, matrix: &'a WeightMatrix<'a, i8, S>, gap_open: i8, gap_extend: i8) -> Self
-    where
-        Q: AsRef<[u8]> + ?Sized, {
+    pub fn new_unchecked(
+        seq: impl Into<Cow<'a, [u8]>>, matrix: &'a WeightMatrix<'a, i8, S>, gap_open: i8, gap_extend: i8,
+    ) -> Self {
         ScalarProfile {
-            seq: seq.as_ref(),
+            seq: seq.into(),
             matrix,
             gap_open: i32::from(gap_open),
             gap_extend: i32::from(gap_extend),

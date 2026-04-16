@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file. The format
 is roughly based on [Keep a Changelog], and this project tries to adheres to
 [Semantic Versioning].
 
+## [0.0.28] - TBD
+
+### Added
+
+- `Nucleotides` and `AminoAcids` (and view types) can now be converted into `Vec`, slices, and `Cow` using `From` 
+
+### Changed
+
+- `LocalProfiles` and `SharedProfiles` now can hold either a borrowed or an owned sequence, enabling sequences and profiles to be stored in the same struct without becoming self-referential
+
 ## [0.0.27] - 2026-04-15
 
 ### Added
@@ -478,6 +488,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - **Added**: Initial internal release. Provides various readers and types for bioinformatics data manipulation.
 
 <!-- Versions -->
+[0.0.28]: https://github.com/CDCgov/zoe/compare/v0.0.27...v0.0.28
 [0.0.27]: https://github.com/CDCgov/zoe/compare/v0.0.26...v0.0.27
 [0.0.26]: https://github.com/CDCgov/zoe/compare/v0.0.25...v0.0.26
 [0.0.25]: https://github.com/CDCgov/zoe/compare/v0.0.24...v0.0.25

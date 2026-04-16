@@ -214,6 +214,55 @@ macro_rules! impl_std_traits_for_sequence {
             }
         }
 
+        impl From<$owned> for Vec<u8> {
+            #[inline]
+            fn from(value: $owned) -> Vec<u8> {
+                value.0
+            }
+        }
+
+        impl<'a> From<&'a $owned> for &'a [u8] {
+            #[inline]
+            fn from(value: &'a $owned) -> &'a [u8] {
+                &value.0
+            }
+        }
+
+        impl<'a> From<$view<'a>> for &'a [u8] {
+            #[inline]
+            fn from(value: $view<'a>) -> &'a [u8] {
+                value.0
+            }
+        }
+
+        impl<'a> From<$viewmut<'a>> for &'a mut [u8] {
+            #[inline]
+            fn from(value: $viewmut<'a>) -> &'a mut [u8] {
+                value.0
+            }
+        }
+
+        impl<'a> From<$owned> for ::std::borrow::Cow<'a, [u8]> {
+            #[inline]
+            fn from(value: $owned) -> ::std::borrow::Cow<'a, [u8]> {
+                value.0.into()
+            }
+        }
+
+        impl<'a> From<&'a $owned> for ::std::borrow::Cow<'a, [u8]> {
+            #[inline]
+            fn from(value: &'a $owned) -> ::std::borrow::Cow<'a, [u8]> {
+                (&value.0).into()
+            }
+        }
+
+        impl<'a> From<$view<'a>> for ::std::borrow::Cow<'a, [u8]> {
+            #[inline]
+            fn from(value: $view<'a>) -> ::std::borrow::Cow<'a, [u8]> {
+                value.0.into()
+            }
+        }
+
         impl IntoIterator for $owned {
             type Item = u8;
             type IntoIter = std::vec::IntoIter<Self::Item>;

@@ -178,13 +178,13 @@ impl SequenceReadable for FastaNTAnnot {
 impl<const M: usize, const N: usize, const O: usize, const S: usize> SequenceReadable for LocalProfiles<'_, M, N, O, S> {
     #[inline]
     fn sequence_bytes(&self) -> &[u8] {
-        self.seq
+        &self.seq
     }
 }
 
 impl<const M: usize, const N: usize, const O: usize, const S: usize> SequenceReadable for SharedProfiles<'_, M, N, O, S> {
     #[inline]
     fn sequence_bytes(&self) -> &[u8] {
-        self.seq
+        &self.seq
     }
 }

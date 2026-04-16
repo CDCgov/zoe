@@ -305,7 +305,7 @@ fn sw_simd_profile_set() {
     let v: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/CY137594.txt"));
     let matrix_i = WeightMatrix::<i8, 5>::new_dna_matrix(2, -5, Some(b'N'));
 
-    let profile = LocalProfiles::new_with_w128(&v, &matrix_i, GAP_OPEN, GAP_EXTEND).unwrap();
+    let profile = LocalProfiles::new_with_w128(v, &matrix_i, GAP_OPEN, GAP_EXTEND).unwrap();
     let score = profile.sw_score_from_i8(&v);
     assert_eq!(MaybeAligned::Some(3372), score);
 }
