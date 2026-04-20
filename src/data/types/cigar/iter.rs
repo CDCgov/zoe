@@ -10,8 +10,8 @@ use crate::{
 ///
 /// This iterator has the following unchecked behavior which is worth noting:
 ///
-/// - If any increment is missing, a [`Ciglet`] with an increment of 0 is
-///   yielded.
+/// - If any increment is zero, a [`Ciglet`] with an increment of 0 is yielded.
+///   If the increment field is empty, the iterator ends early.
 /// - If an invalid operation is encountered, an increment is bigger than
 ///   [`usize::MAX`], or an increment has no following operation, then the
 ///   iterator ends early.
@@ -20,6 +20,14 @@ use crate::{
 #[derive(Clone, Debug)]
 pub struct CigletIterator<'a> {
     buffer: &'a [u8],
+    // TODO: Shouldn't this handle overflow?
+    /// Whether or not an invalid state has been reached via [`next`] (namely,
+    /// an empty increment field or an invalid operation). This is not updated
+    /// with [`next_back`]. This is used for the [`Eq`] implementation of
+    /// [`AlignmentStates`] with [`Cigar`].
+    ///
+    /// [`next`]: CigletIterator::next
+    /// [`next_back`]: CigletIterator::next_back
     valid:  bool,
 }
 
@@ -50,7 +58,14 @@ impl Iterator for CigletIterator<'_> {
             if b.is_ascii_digit() {
                 num *= 10;
                 num += usize::from(b - b'0');
-            } else if is_valid_op(b) && num > 0 {
+            } else if is_valid_op(b) {
+                if index == 0 {
+                    // The increment field was completely missing, which is
+                    // invalid
+                    self.valid = false;
+                    return None;
+                }
+
                 self.buffer = &self.buffer[index + 1..];
                 return Some(Ciglet { inc: num, op: b });
             } else {
@@ -66,7 +81,7 @@ impl Iterator for CigletIterator<'_> {
             if b.is_ascii_digit() {
                 num = num.checked_mul(10)?;
                 num = num.checked_add(usize::from(b - b'0'))?;
-            } else if is_valid_op(b) && num > 0 {
+            } else if is_valid_op(b) {
                 self.buffer = &self.buffer[index + 1..];
                 return Some(Ciglet { inc: num, op: b });
             } else {
@@ -96,12 +111,15 @@ impl DoubleEndedIterator for CigletIterator<'_> {
             if b.is_ascii_digit() {
                 num += usize::from(b - b'0');
             } else {
-                return (num > 0).then_some(Ciglet { inc: num, op });
+                return None;
             }
             self.buffer = rest;
         } else {
             return None;
         }
+
+        // At least one literal digit was present in the increment field, so
+        // even if `num` is 0, it is still valid to yield a Ciglet
 
         let mut multiplier = 1;
         let mut index = 1;
@@ -113,13 +131,14 @@ impl DoubleEndedIterator for CigletIterator<'_> {
                 multiplier *= 10;
                 num += usize::from(b - b'0') * multiplier;
             } else {
-                return (num > 0).then_some(Ciglet { inc: num, op });
+                return Some(Ciglet { inc: num, op });
             }
             self.buffer = rest;
             index += 1;
         }
+
         if self.buffer.is_empty() {
-            return (num > 0).then_some(Ciglet { inc: num, op });
+            return Some(Ciglet { inc: num, op });
         }
 
         let mut num_zeros = 0;
@@ -136,7 +155,7 @@ impl DoubleEndedIterator for CigletIterator<'_> {
                 }
                 self.buffer = rest;
             } else {
-                return (num > 0).then_some(Ciglet { inc: num, op });
+                return Some(Ciglet { inc: num, op });
             }
         }
 

@@ -60,6 +60,26 @@ fn test_iter() {
             })
         );
     }
+
+    // Missing increment
+    let cigar = Cigar::from_slice_unchecked("3M2DM5H");
+    let mut iter = cigar.into_iter();
+    assert_eq!(iter.next(), Some(Ciglet { inc: 3, op: b'M' }));
+    assert_eq!(iter.next(), Some(Ciglet { inc: 2, op: b'D' }));
+    assert_eq!(iter.next(), None);
+    assert_eq!(iter.next(), None);
+    assert_eq!(iter.next(), None);
+
+    // Zero increment
+    let cigar = Cigar::from_slice_unchecked("3M2D0M0M5H0S");
+    let mut iter = cigar.into_iter();
+    assert_eq!(iter.next(), Some(Ciglet { inc: 3, op: b'M' }));
+    assert_eq!(iter.next(), Some(Ciglet { inc: 2, op: b'D' }));
+    assert_eq!(iter.next(), Some(Ciglet { inc: 0, op: b'M' }));
+    assert_eq!(iter.next(), Some(Ciglet { inc: 0, op: b'M' }));
+    assert_eq!(iter.next(), Some(Ciglet { inc: 5, op: b'H' }));
+    assert_eq!(iter.next(), Some(Ciglet { inc: 0, op: b'S' }));
+    assert_eq!(iter.next(), None);
 }
 
 #[test]

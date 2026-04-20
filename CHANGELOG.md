@@ -14,6 +14,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 ### Changed
 
 - `LocalProfiles` and `SharedProfiles` now can hold either a borrowed or an owned sequence, enabling sequences and profiles to be stored in the same struct without becoming self-referential
+- `CigletIterator` now yields empty ciglets when a CIGAR string contains an explicit increment that is 0. A missing increment field ends the iterator early
 
 ## [0.0.27] - 2026-04-15
 
