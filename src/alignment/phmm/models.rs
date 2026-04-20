@@ -57,6 +57,26 @@ impl<T: Copy> TransitionParams<T> {
     pub fn entering_params(&self, state: PhmmState) -> [T; 3] {
         self[state]
     }
+
+    /// Retrieves the inner array from the [`TransitionParams`]. The layout of
+    /// this array is subject to change. Consider indexing directly into the
+    /// [`TransitionParams`] instead.
+    #[inline]
+    #[must_use]
+    #[cfg_attr(feature = "dev-phmm-regression", visibility::make(pub))]
+    pub fn as_array(&self) -> &[[T; 3]; 3] {
+        &self.0
+    }
+
+    /// Constructs a [`TransitionParams`] from an array. The interpretation of
+    /// this array is subject to change. Consider using [`Default`] and then
+    /// mutating each entry.
+    #[inline]
+    #[must_use]
+    #[cfg_attr(feature = "dev-phmm-regression", visibility::make(pub))]
+    pub fn from_array(arr: [[T; 3]; 3]) -> Self {
+        Self(arr)
+    }
 }
 
 impl<T: PhmmNumber> Default for TransitionParams<T> {
