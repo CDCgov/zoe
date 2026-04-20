@@ -69,6 +69,8 @@ pub mod prelude {
 pub(crate) use crate::data::extension::simd;
 
 mod private {
+    #[cfg(feature = "dev-generic-fasta")]
+    use crate::data::views::ViewAssocTypes;
     use crate::{
         data::{
             cigar::{Cigar, CigarView, CigarViewMut},
@@ -98,6 +100,32 @@ mod private {
     impl<T: SimdElement, const N: usize> Sealed for Simd<T, N> {}
     impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> Sealed for KmerCounter<MAX_LEN, E, S> {}
     impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> Sealed for KmerSet<MAX_LEN, E, S> {}
+
+    #[cfg(feature = "dev-generic-fasta")]
+    sealed!(
+        crate::data::fasta::generic::Taxon,
+        crate::data::fasta::generic::TaxonView<'_>,
+        crate::data::fasta::generic::TaxonViewMut<'_>,
+    );
+
+    #[cfg(feature = "dev-generic-fasta")]
+    impl<S> Sealed for crate::data::fasta::generic::Fasta<S> {}
+
+    #[cfg(feature = "dev-generic-fasta")]
+    impl<S: ViewAssocTypes> Sealed for crate::data::fasta::generic::FastaView<'_, S> {}
+
+    #[cfg(feature = "dev-generic-fasta")]
+    impl<S: ViewAssocTypes> Sealed for crate::data::fasta::generic::FastaViewMut<'_, S> {}
+
+    #[cfg(feature = "dev-generic-fasta")]
+    impl<M, S> Sealed for crate::data::fasta::generic::FastaAnnot<M, S> {}
+
+    #[cfg(feature = "dev-generic-fasta")]
+    impl<M: ViewAssocTypes, S: ViewAssocTypes> Sealed for crate::data::fasta::generic::FastaAnnotView<'_, M, S> {}
+
+    #[cfg(feature = "dev-generic-fasta")]
+    impl<M: ViewAssocTypes, S: ViewAssocTypes> Sealed for crate::data::fasta::generic::FastaAnnotViewMut<'_, M, S> {}
+
     sealed!(
         AminoAcids,
         AminoAcidsView<'_>,

@@ -60,6 +60,9 @@ dev-max-score-for-type = []
 # regression testing of pHMMs
 dev-phmm-regression = []
 
+# An optional feature enabling a FASTA record generic over the sequence type
+dev-generic-fasta = []
+
 [dependencies]
 arbitrary = { version = "1", optional = true, features = ["derive"] }
 multiversion = { version = "0.8", optional = true }
