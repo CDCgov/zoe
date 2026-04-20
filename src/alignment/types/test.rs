@@ -206,6 +206,94 @@ fn states_sequence_mut() {
 }
 
 #[test]
+fn states_sequence_zero_ciglets() {
+    // The cigar string is not valid here, but we are using it to exercise all
+    // options
+    let cigar = Cigar::from_slice_unchecked(b"0H0S0P0I10M0D10N1S0H");
+    let alignment_states = AlignmentStates::from_cigar_unchecked(&cigar);
+    let mut alignment_states_mut = alignment_states.clone();
+    let mut cigar_slice = alignment_states.as_slice();
+    let mut cigar_mut_slice = alignment_states_mut.as_mut_slice();
+    let mut ciglet_iterator = cigar.into_iter();
+
+    assert_eq!(cigar_slice.peek_op(), Some(b'M'));
+    assert_eq!(cigar_mut_slice.peek_op(), Some(b'M'));
+    assert_eq!(ciglet_iterator.peek_op(), Some(b'M'));
+    assert_eq!(cigar_slice.peek_back_op(), Some(b'S'));
+    assert_eq!(cigar_mut_slice.peek_back_op(), Some(b'S'));
+    assert_eq!(ciglet_iterator.peek_back_op(), Some(b'S'));
+
+    // Shouldn't have changed, since we didn't advance
+    assert_eq!(cigar_slice.peek_op(), Some(b'M'));
+    assert_eq!(cigar_mut_slice.peek_op(), Some(b'M'));
+    assert_eq!(ciglet_iterator.peek_op(), Some(b'M'));
+    assert_eq!(cigar_slice.peek_back_op(), Some(b'S'));
+    assert_eq!(cigar_mut_slice.peek_back_op(), Some(b'S'));
+    assert_eq!(ciglet_iterator.peek_back_op(), Some(b'S'));
+
+    assert_eq!(cigar_slice.remove_clipping_front(), 0);
+    assert_eq!(cigar_mut_slice.remove_clipping_front(), 0);
+    assert_eq!(ciglet_iterator.remove_clipping_front(), 0);
+    assert_eq!(cigar_slice.remove_clipping_back(), 1);
+    assert_eq!(cigar_mut_slice.remove_clipping_back(), 1);
+    assert_eq!(ciglet_iterator.remove_clipping_back(), 1);
+
+    assert_eq!(cigar_slice.peek_op(), Some(b'M'));
+    assert_eq!(cigar_mut_slice.peek_op(), Some(b'M'));
+    assert_eq!(ciglet_iterator.peek_op(), Some(b'M'));
+    assert_eq!(cigar_slice.peek_back_op(), Some(b'N'));
+    assert_eq!(cigar_mut_slice.peek_back_op(), Some(b'N'));
+    assert_eq!(ciglet_iterator.peek_back_op(), Some(b'N'));
+
+    assert_eq!(cigar_slice.remove_clipping_front(), 0);
+    assert_eq!(cigar_mut_slice.remove_clipping_front(), 0);
+    assert_eq!(ciglet_iterator.remove_clipping_front(), 0);
+    assert_eq!(cigar_slice.remove_clipping_back(), 0);
+    assert_eq!(cigar_mut_slice.remove_clipping_back(), 0);
+    assert_eq!(ciglet_iterator.remove_clipping_back(), 0);
+
+    assert_eq!(cigar_slice.next_if_op(|op| op == b'P'), None);
+    assert_eq!(cigar_mut_slice.next_if_op(|op| op == b'P'), None);
+    assert_eq!(ciglet_iterator.next_if_op(|op| op == b'P'), None);
+    assert_eq!(cigar_slice.next_back_if_op(|op| op == b'P'), None);
+    assert_eq!(cigar_mut_slice.next_back_if_op(|op| op == b'P'), None);
+    assert_eq!(ciglet_iterator.next_back_if_op(|op| op == b'P'), None);
+
+    assert_eq!(cigar_slice.next_if_op(|op| op == b'M'), Some(Ciglet { inc: 10, op: b'M' }));
+    assert_eq!(
+        cigar_mut_slice.next_if_op(|op| op == b'M'),
+        Some(Ciglet { inc: 10, op: b'M' })
+    );
+    assert_eq!(
+        ciglet_iterator.next_if_op(|op| op == b'M'),
+        Some(Ciglet { inc: 10, op: b'M' })
+    );
+    assert_eq!(
+        cigar_slice.next_back_if_op(|op| op == b'N'),
+        Some(Ciglet { inc: 10, op: b'N' })
+    );
+    assert_eq!(
+        cigar_mut_slice.next_back_if_op(|op| op == b'N'),
+        Some(Ciglet { inc: 10, op: b'N' })
+    );
+    assert_eq!(
+        ciglet_iterator.next_back_if_op(|op| op == b'N'),
+        Some(Ciglet { inc: 10, op: b'N' })
+    );
+
+    assert_eq!(cigar_slice.next_ciglet(), None);
+    assert_eq!(cigar_mut_slice.next_ciglet(), None);
+    assert_eq!(ciglet_iterator.next_ciglet(), None);
+    assert_eq!(cigar_slice.next_ciglet_back(), None);
+    assert_eq!(cigar_mut_slice.next_ciglet_back(), None);
+    assert_eq!(ciglet_iterator.next_ciglet_back(), None);
+
+    assert!(cigar_slice.is_empty());
+    assert!(cigar_mut_slice.is_empty());
+    assert!(ciglet_iterator.is_empty());
+}
+
+#[test]
 fn align_with_cigar() {
     let data: [(usize, Cigar, [AminoAcids; 4]); 1] = [(
         2,

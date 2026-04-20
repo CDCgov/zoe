@@ -5,6 +5,7 @@ use crate::{
     data::cigar::{Cigar, CigarError, CigarView, CigarViewMut, Ciglet, USIZE_WIDTH, is_valid_op},
     unwrap_or_return_some_err,
 };
+use std::hint::cold_path;
 
 /// An iterator over a CIGAR string.
 ///
@@ -171,13 +172,39 @@ impl DoubleEndedIterator for CigletIterator<'_> {
 
 impl StatesSequence for CigletIterator<'_> {
     #[inline]
-    fn peek_op(&self) -> Option<u8> {
-        self.buffer.iter().find(|x| !x.is_ascii_digit()).copied()
+    fn peek_op(&mut self) -> Option<u8> {
+        loop {
+            let op_pos = self.buffer.iter().position(|x| !x.is_ascii_digit())?;
+            let (inc, rest) = self.buffer.split_at(op_pos);
+            let op = rest[0];
+
+            if inc.iter().all(|b| *b == b'0') {
+                cold_path();
+                self.buffer = &self.buffer[op_pos + 1..];
+            } else {
+                return Some(op);
+            }
+        }
     }
 
     #[inline]
-    fn peek_back_op(&self) -> Option<u8> {
-        self.buffer.last().copied()
+    fn peek_back_op(&mut self) -> Option<u8> {
+        loop {
+            let (op, rest) = self.buffer.split_last()?;
+
+            let inc_start_idx = rest
+                .iter()
+                .rposition(|x| !x.is_ascii_digit())
+                .map_or(0, |next_op_idx| next_op_idx + 1);
+            let inc = &rest[inc_start_idx..];
+
+            if inc.iter().all(|b| *b == b'0') {
+                cold_path();
+                self.buffer = &self.buffer[..inc_start_idx];
+            } else {
+                return Some(*op);
+            }
+        }
     }
 
     #[inline]
@@ -187,12 +214,28 @@ impl StatesSequence for CigletIterator<'_> {
 
     #[inline]
     fn next_ciglet(&mut self) -> Option<Ciglet> {
-        self.next()
+        loop {
+            let ciglet = self.next()?;
+
+            if ciglet.inc == 0 {
+                cold_path();
+            } else {
+                return Some(ciglet);
+            }
+        }
     }
 
     #[inline]
     fn next_ciglet_back(&mut self) -> Option<Ciglet> {
-        self.next_back()
+        loop {
+            let ciglet = self.next_back()?;
+
+            if ciglet.inc == 0 {
+                cold_path();
+            } else {
+                return Some(ciglet);
+            }
+        }
     }
 }
 

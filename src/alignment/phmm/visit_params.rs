@@ -547,7 +547,7 @@ where
 /// passed through), and the state that is transitioned to after the module and
 /// Begin state.
 fn resolve_ambiguous_start<T: PhmmNumber, const S: usize>(
-    begin_module: &SemiLocalModule<T>, core: &CorePhmm<T, S>, score: T, ciglets: &[Ciglet],
+    begin_module: &SemiLocalModule<T>, core: &CorePhmm<T, S>, score: T, mut ciglets: &[Ciglet],
 ) -> Result<(T, DpIndex, Option<T>, PhmmState), PhmmError> {
     use PhmmState::*;
 
@@ -1165,7 +1165,7 @@ impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
     ///
     /// [`visit_params`]: SemiLocalPhmm::visit_params
     fn visit_params_helper<F>(
-        &self, seq: &[u8], ciglets: &[Ciglet], ref_range: Range<usize>, mut f: F,
+        &self, seq: &[u8], mut ciglets: &[Ciglet], ref_range: Range<usize>, mut f: F,
     ) -> Result<T, PhmmError>
     where
         F: FnMut(PhmmParam<T>), {
