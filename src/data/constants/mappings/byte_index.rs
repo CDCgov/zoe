@@ -336,6 +336,16 @@ impl<const S: usize> ByteIndexMap<S> {
     pub const fn in_byte_keys(&self, b: u8) -> bool {
         b == self.to_byte(self.to_index(b))
     }
+
+    /// Returns the [`ByteIndexMap`] as a regular [`ByteMap`], which is
+    /// compatible with [`Recode`].
+    ///
+    /// [`Recode`]: crate::data::Recode
+    #[inline]
+    #[must_use]
+    pub const fn as_map(&self) -> &ByteMap {
+        &self.index_map
+    }
 }
 
 impl Index<u8> for ByteMap {

@@ -10,6 +10,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 - `Nucleotides` and `AminoAcids` (and view types) can now be converted into `Vec`, slices, and `Cow` using `From` 
 - `NucleotidesView`, `AminoAcidsView`, and `QualityScoresView` now have inherent `slice` methods offering a longer lifetime of the returned view
+- Added `as_map` accessor to convert `ByteIndexMap` to `ByteMap`
 
 ### Changed
 
