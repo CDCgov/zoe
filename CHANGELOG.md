@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file. The format
 is roughly based on [Keep a Changelog], and this project tries to adheres to
 [Semantic Versioning].
 
+## [0.0.30] - TBD
+
+### Changed
+
+- `SAMReader` no longer automatically uppercases the nucleotide sequence
+
 ## [0.0.29] - 2026-06-02
 
 ### Added
@@ -530,6 +536,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - **Added**: Initial internal release. Provides various readers and types for bioinformatics data manipulation.
 
 <!-- Versions -->
+[0.0.30]: https://github.com/CDCgov/zoe/compare/v0.0.29...v0.0.30
 [0.0.29]: https://github.com/CDCgov/zoe/compare/v0.0.28...v0.0.29
 [0.0.28]: https://github.com/CDCgov/zoe/compare/v0.0.27...v0.0.28
 [0.0.27]: https://github.com/CDCgov/zoe/compare/v0.0.26...v0.0.27

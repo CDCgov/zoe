@@ -252,8 +252,7 @@ impl<R: std::io::Read, const OPT: bool> Iterator for SAMReader<R, OPT> {
                 }
             };
 
-            // TODO: Where should casing be handled?
-            let seq = parts[9].as_bytes().to_ascii_uppercase().into();
+            let seq = parts[9].into();
 
             let qual = unwrap_or_return_some_err!(parts[10].as_bytes().try_into());
 
