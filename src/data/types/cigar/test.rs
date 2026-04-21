@@ -168,3 +168,19 @@ fn test_try_from() {
     assert!(Cigar::try_from("10M3I2M4M").is_ok());
     assert!(Cigar::try_from("10S6S").is_ok());
 }
+
+#[test]
+fn invalid_next_back() {
+    let cigar = Cigar::from_slice_unchecked(b"12M16H2MM");
+    let mut iter = cigar.iter();
+
+    assert_eq!(iter.next_back(), None);
+    assert_eq!(iter.next_back(), None);
+    assert_eq!(iter.next(), Some(Ciglet { inc: 12, op: b'M' }));
+    assert_eq!(iter.next(), Some(Ciglet { inc: 16, op: b'H' }));
+    assert_eq!(iter.next(), Some(Ciglet { inc: 2, op: b'M' }));
+    assert_eq!(iter.next(), None);
+    assert_eq!(iter.next(), None);
+    assert_eq!(iter.next_back(), None);
+    assert_eq!(iter.next_back(), None);
+}

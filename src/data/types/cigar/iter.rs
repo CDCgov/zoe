@@ -97,23 +97,25 @@ impl Iterator for CigletIterator<'_> {
 
 impl DoubleEndedIterator for CigletIterator<'_> {
     fn next_back(&mut self) -> Option<Self::Item> {
-        let op = match self.buffer {
-            [rest @ .., op] if is_valid_op(*op) => {
-                self.buffer = rest;
-                *op
-            }
-            _ => return None,
+        let [buffer @ .., op] = self.buffer else {
+            return None;
         };
+        let mut buffer = buffer;
+        let op = *op;
+
+        if !is_valid_op(op) {
+            return None;
+        }
 
         let mut num = 0;
 
-        if let [rest @ .., b] = self.buffer {
+        if let [rest @ .., b] = buffer {
             if b.is_ascii_digit() {
                 num += usize::from(b - b'0');
             } else {
                 return None;
             }
-            self.buffer = rest;
+            buffer = rest;
         } else {
             return None;
         }
@@ -124,26 +126,28 @@ impl DoubleEndedIterator for CigletIterator<'_> {
         let mut multiplier = 1;
         let mut index = 1;
 
-        while let [rest @ .., b] = self.buffer
+        while let [rest @ .., b] = buffer
             && index < USIZE_WIDTH - 1
         {
             if b.is_ascii_digit() {
                 multiplier *= 10;
                 num += usize::from(b - b'0') * multiplier;
             } else {
+                self.buffer = buffer;
                 return Some(Ciglet { inc: num, op });
             }
-            self.buffer = rest;
+            buffer = rest;
             index += 1;
         }
 
-        if self.buffer.is_empty() {
+        if buffer.is_empty() {
+            self.buffer = buffer;
             return Some(Ciglet { inc: num, op });
         }
 
         let mut num_zeros = 0;
 
-        while let [rest @ .., b] = self.buffer {
+        while let [rest @ .., b] = buffer {
             if b.is_ascii_digit() {
                 if *b == b'0' {
                     num_zeros += 1;
@@ -153,12 +157,14 @@ impl DoubleEndedIterator for CigletIterator<'_> {
                     }
                     num = usize::from(b - b'0').checked_mul(multiplier)?.checked_add(num)?;
                 }
-                self.buffer = rest;
+                buffer = rest;
             } else {
+                self.buffer = buffer;
                 return Some(Ciglet { inc: num, op });
             }
         }
 
+        self.buffer = buffer;
         Some(Ciglet { inc: num, op })
     }
 }
