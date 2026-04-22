@@ -21,6 +21,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 - Subsequent calls to `next_back` in `CigletIterator` now properly return `None` after invalid state is reached
 - Methods in `StatesSequence` and `StatesSequenceMut` now properly skip empty `Ciglet`s (with an increment of 0)
+- Pre-alignment filter `sneaky_snake` now properly handles inputs with length differences greater than provided threshold.
 
 ## [0.0.27] - 2026-04-15
 

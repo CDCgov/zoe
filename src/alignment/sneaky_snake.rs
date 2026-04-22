@@ -80,31 +80,22 @@ pub fn sneaky_snake(reference: &[u8], query: &[u8], threshold: f32) -> Option<bo
         return None;
     }
 
-    let edit_thresh = ((query.len() as f32) * threshold).round() as usize;
-
-    if reference.is_empty() {
-        return Some(query.len() <= edit_thresh);
-    }
-    if query.is_empty() {
-        return Some(reference.len() <= edit_thresh);
-    }
-    if edit_thresh == query.len() {
-        return Some(true);
-    }
-    if edit_thresh == 0 {
-        return Some(reference == query);
-    }
-
-    // choose shorter string
-    let (s1, s2, len_diff) = if reference.len() > query.len() {
-        (query, reference, reference.len() - query.len())
-    } else {
-        (reference, query, query.len() - reference.len())
-    };
+    let edit_thresh = ((query.len() as f32) * threshold).floor() as usize;
+    let len_diff = reference.len().abs_diff(query.len());
 
     if len_diff > edit_thresh {
         return None;
     }
+    if edit_thresh == query.len() {
+        return Some(true)
+    }
+
+    // choose shorter string
+    let (s1, s2) = if reference.len() > query.len() {
+        (query, reference)
+    } else {
+        (reference, query)
+    };
 
     let window = 2 * edit_thresh + 1;
     let diffpad_len = len_diff / 2;
