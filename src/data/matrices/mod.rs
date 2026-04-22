@@ -130,11 +130,7 @@ pub use parse::*;
 /// Physiochemical distance matrix using the Euclidean distance between all
 /// amino acid factors.
 pub(crate) static PHYSIOCHEMICAL_FACTORS: [[Option<f32>; 256]; 256] = {
-    const AA: [u8; 43] = [
-        b'A', b'C', b'D', b'E', b'F', b'G', b'H', b'I', b'K', b'L', b'M', b'N', b'P', b'Q', b'R', b'S', b'T', b'V', b'W',
-        b'Y', b'X', b'a', b'c', b'd', b'e', b'f', b'g', b'h', b'i', b'k', b'l', b'm', b'n', b'p', b'q', b'r', b's', b't',
-        b'v', b'w', b'y', b'x', b'-',
-    ];
+    const AA: [u8; 43] = *b"ACDEFGHIKLMNPQRSTVWYXacdefghiklmnpqrstvwyx-";
 
     /// # Citation
     /// For factor analysis used by the function:

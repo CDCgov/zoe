@@ -71,13 +71,7 @@ fn test_find_start_codon_regressions() {
 #[test]
 fn test_codons() {
     let s = Nucleotides(b"ATGTCAGAT".to_vec());
-    assert_eq!(
-        s.as_codons(),
-        (
-            [[b'A', b'T', b'G'], [b'T', b'C', b'A'], [b'G', b'A', b'T']].as_slice(),
-            [].as_slice()
-        )
-    );
+    assert_eq!(s.as_codons(), ([*b"ATG", *b"TCA", *b"GAT"].as_slice(), [].as_slice()));
     assert_eq!(&s.nth_codon(0), b"ATG");
     assert_eq!(&s.nth_codon(1), b"TCA");
     assert_eq!(&s.nth_codon(2), b"GAT");
@@ -90,13 +84,7 @@ fn test_codons() {
     assert_eq!(&s.nth_codon(0), b"ATG");
 
     let mut s = Nucleotides(b"ATGTCAGATAC".to_vec());
-    assert_eq!(
-        s.as_codons(),
-        (
-            [[b'A', b'T', b'G'], [b'T', b'C', b'A'], [b'G', b'A', b'T']].as_slice(),
-            b"AC".as_slice()
-        )
-    );
+    assert_eq!(s.as_codons(), ([*b"ATG", *b"TCA", *b"GAT"].as_slice(), b"AC".as_slice()));
     assert_eq!(&s.nth_codon(0), b"ATG");
     assert_eq!(&s.nth_codon(1), b"TCA");
     assert_eq!(&s.nth_codon(2), b"GAT");
