@@ -1,9 +1,9 @@
 use crate::{
     composition::{get_median, get_min_med_max, tally_from_unchecked},
+    data::phred::{QScoreFloat, QScoreInt},
+    prelude::{Len, QualityScores, QualityScoresView, QualityScoresViewMut},
     private::Sealed,
 };
-
-use super::{Len, QScoreFloat, QScoreInt, QualityScores, QualityScoresView, QualityScoresViewMut};
 use std::convert::Into;
 
 /// Methods for calculating statistics on quality scores. All methods assume

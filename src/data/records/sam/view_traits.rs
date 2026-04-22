@@ -2,47 +2,17 @@ use super::*;
 use crate::{
     data::{
         sam::SamData,
-        views::{impl_len_for_views, impl_view_assoc_types},
+        views::{AsView, AsViewMut, ToOwnedData, ToView, impl_len_for_views_generic, impl_view_assoc_types_generic},
     },
-    prelude::{DataOwned, DataView, DataViewMut},
+    prelude::{DataView, DataViewMut},
 };
 
-impl_len_for_views!(SamData, SamDataView, SamDataViewMut, seq);
-impl_view_assoc_types!(SamData, SamDataView, SamDataViewMut);
+impl_len_for_views_generic!(SamData, SamDataView, SamDataViewMut, seq);
+impl_view_assoc_types_generic!(SamData, SamDataView, SamDataViewMut);
 
-impl DataOwned for SamData {
+impl ToOwnedData for SamDataView<'_> {
     #[inline]
-    fn as_view(&self) -> Self::View<'_> {
-        SamDataView::new(
-            &self.qname,
-            self.flag,
-            &self.rname,
-            self.pos,
-            self.mapq,
-            self.cigar.as_view(),
-            self.seq.as_view(),
-            self.qual.as_view(),
-        )
-    }
-
-    #[inline]
-    fn as_view_mut(&mut self) -> Self::ViewMut<'_> {
-        SamDataViewMut::new(
-            &mut self.qname,
-            self.flag,
-            &mut self.rname,
-            self.pos,
-            self.mapq,
-            self.cigar.as_view_mut(),
-            self.seq.as_view_mut(),
-            self.qual.as_view_mut(),
-        )
-    }
-}
-
-impl<'a> DataView<'a> for SamDataView<'a> {
-    #[inline]
-    fn to_owned_data(&self) -> Self::Owned {
+    fn to_owned_data(&self) -> SamData {
         SamData {
             qname:      self.qname.to_string(),
             flag:       self.flag,
@@ -58,7 +28,89 @@ impl<'a> DataView<'a> for SamDataView<'a> {
             opt_fields: SamOptRaw::new(),
         }
     }
+}
 
+impl ToOwnedData for SamDataViewMut<'_> {
+    #[inline]
+    fn to_owned_data(&self) -> SamData {
+        SamData::new(
+            (*self.qname).clone(),
+            self.flag,
+            (*self.rname).clone(),
+            self.pos,
+            self.mapq,
+            self.cigar.to_owned_data(),
+            self.seq.to_owned_data(),
+            self.qual.to_owned_data(),
+        )
+    }
+}
+
+impl AsView for SamData {
+    #[inline]
+    fn as_view(&self) -> SamDataView<'_> {
+        SamDataView::new(
+            &self.qname,
+            self.flag,
+            &self.rname,
+            self.pos,
+            self.mapq,
+            self.cigar.as_view(),
+            self.seq.as_view(),
+            self.qual.as_view(),
+        )
+    }
+}
+
+impl AsView for SamDataViewMut<'_> {
+    #[inline]
+    fn as_view(&self) -> Self::View<'_> {
+        SamDataView::new(
+            self.qname,
+            self.flag,
+            self.rname,
+            self.pos,
+            self.mapq,
+            self.cigar.as_view(),
+            self.seq.as_view(),
+            self.qual.as_view(),
+        )
+    }
+}
+
+impl AsViewMut for SamData {
+    #[inline]
+    fn as_view_mut(&mut self) -> Self::ViewMut<'_> {
+        SamDataViewMut::new(
+            &mut self.qname,
+            self.flag,
+            &mut self.rname,
+            self.pos,
+            self.mapq,
+            self.cigar.as_view_mut(),
+            self.seq.as_view_mut(),
+            self.qual.as_view_mut(),
+        )
+    }
+}
+
+impl<'a> ToView<'a> for SamDataViewMut<'a> {
+    #[inline]
+    fn to_view(self) -> SamDataView<'a> {
+        SamDataView::new(
+            self.qname,
+            self.flag,
+            self.rname,
+            self.pos,
+            self.mapq,
+            self.cigar.to_view(),
+            self.seq.to_view(),
+            self.qual.to_view(),
+        )
+    }
+}
+
+impl<'a> DataView<'a> for SamDataView<'a> {
     #[inline]
     fn reborrow_view<'b>(&'b self) -> Self::View<'b>
     where
@@ -80,48 +132,6 @@ impl<'a> DataView<'a> for SamDataView<'a> {
 }
 
 impl<'a> DataViewMut<'a> for SamDataViewMut<'a> {
-    #[inline]
-    fn as_view(&self) -> Self::View<'_> {
-        SamDataView::new(
-            self.qname,
-            self.flag,
-            self.rname,
-            self.pos,
-            self.mapq,
-            self.cigar.as_view(),
-            self.seq.as_view(),
-            self.qual.as_view(),
-        )
-    }
-
-    #[inline]
-    fn to_view(self) -> Self::View<'a> {
-        SamDataView::new(
-            self.qname,
-            self.flag,
-            self.rname,
-            self.pos,
-            self.mapq,
-            self.cigar.to_view(),
-            self.seq.to_view(),
-            self.qual.to_view(),
-        )
-    }
-
-    #[inline]
-    fn to_owned_data(&self) -> Self::Owned {
-        SamData::new(
-            (*self.qname).clone(),
-            self.flag,
-            (*self.rname).clone(),
-            self.pos,
-            self.mapq,
-            self.cigar.to_owned_data(),
-            self.seq.to_owned_data(),
-            self.qual.to_owned_data(),
-        )
-    }
-
     #[inline]
     fn reborrow_view_mut<'b>(&'b mut self) -> Self::ViewMut<'b>
     where

@@ -1,7 +1,7 @@
 use crate::{data::views::SliceRange, private::Sealed};
 
 /// A trait for types which have a length. The benefit of including this in a
-/// trait is that it can be used in a trait bound, such as [`Slice`].
+/// trait is that it can be used in a trait bound or in generic code.
 pub trait Len {
     /// Return whether the data type is empty or not.
     fn is_empty(&self) -> bool;
@@ -10,45 +10,67 @@ pub trait Len {
     fn len(&self) -> usize;
 }
 
-/// A trait for associating a type with its corresponding views and owned type.
+/// Associates an owned data type with `Self`. This can be used as a trait
+/// bound, such as for [`ToOwnedData`].
 ///
-/// The trait bounds on the associated types require that each type implements
-/// the corresponding trait ([`DataOwned`], [`DataView`], or [`DataViewMut`]).
-/// Furthermore, each must also implement [`ViewAssocTypes`] with the same
-/// associated types.
-pub trait ViewAssocTypes: Sealed {
-    /// The associated owned type.
-    type Owned: DataOwned
-        + for<'a> ViewAssocTypes<Owned = Self::Owned, View<'a> = Self::View<'a>, ViewMut<'a> = Self::ViewMut<'a>>;
-
-    /// The associated view type.
-    type View<'a>: DataView<'a>
-        + for<'b> ViewAssocTypes<Owned = Self::Owned, View<'b> = Self::View<'b>, ViewMut<'b> = Self::ViewMut<'b>>;
-
-    /// The associated mutable view type.
-    type ViewMut<'a>: DataViewMut<'a>
-        + for<'b> ViewAssocTypes<Owned = Self::Owned, View<'b> = Self::View<'b>, ViewMut<'b> = Self::ViewMut<'b>>;
+/// The view API expects this to also be implemented for owned types, with the
+/// associated type equal to `Self`.
+pub trait AssocOwnedType: Sealed {
+    /// The owned data type associated with `Self`.
+    type Owned: AssocOwnedType<Owned = Self::Owned>;
 }
 
-/// A trait for data which is owned, and from which views and mutable views can
-/// be created.
-pub trait DataOwned: ViewAssocTypes<Owned = Self> {
+/// Associates a view data type with `Self`. This can be used as a trait bound,
+/// such as for [`AsView`], [`ToView`], [`DataView`], or [`Slice`].
+///
+/// The view API expects this to also be implemented for view types, with the
+/// associated type equal to `Self` but with the generic lifetime.
+pub trait AssocViewType: Sealed {
+    /// The view data type associated with `Self`.
+    type View<'a>: DataView<'a> + for<'b> AssocViewType<View<'b> = Self::View<'b>>;
+}
+
+/// Associates a mutable view data type with `Self`. This can be used as a trait
+/// bound, such as for [`AsViewMut`], [`DataViewMut`], or [`SliceMut`].
+///
+/// The view API expects this to also be implemented for mutable view types,
+/// with the associated type equal to `Self` but with the generic lifetime.
+pub trait AssocViewMutType: Sealed {
+    /// The mutable view data type associated with `Self`.
+    type ViewMut<'a>: DataViewMut<'a> + for<'b> AssocViewMutType<ViewMut<'b> = Self::ViewMut<'b>>;
+}
+
+/// A trait for converting immutable or mutable view types into owned types via
+/// cloning.
+pub trait ToOwnedData: AssocOwnedType {
+    /// Creates an owned copy of the data via cloning.
+    #[must_use]
+    fn to_owned_data(&self) -> Self::Owned;
+}
+
+/// A trait for forming an immutable view from an owned type (or a mutable
+/// view).
+pub trait AsView: AssocViewType {
     /// Creates an immutable view of the data.
     #[must_use]
     fn as_view(&self) -> Self::View<'_>;
+}
 
+/// A trait for forming a mutable view from an owned type.
+pub trait AsViewMut: AssocViewMutType {
     /// Creates a mutable view of the data.
     #[must_use]
     fn as_view_mut(&mut self) -> Self::ViewMut<'_>;
 }
 
-/// A trait for data which is an immutable view, and from which owned data can
-/// be created (via cloning).
-pub trait DataView<'a>: ViewAssocTypes {
-    /// Creates an owned copy of the data via cloning.
-    #[must_use]
-    fn to_owned_data(&self) -> Self::Owned;
+/// A trait for converting a mutable view into an immutable view.
+pub trait ToView<'a>: AssocViewType {
+    /// Creates an immutable view by consuming the mutable one.
+    fn to_view(self) -> Self::View<'a>;
+}
 
+/// A trait for other functions specific to immutable view types.
+pub trait DataView<'a>: AssocViewType {
     /// Reborrows the view, reducing the lifetime to `'b`.
     #[must_use]
     fn reborrow_view<'b>(&'b self) -> Self::View<'b>
@@ -56,25 +78,8 @@ pub trait DataView<'a>: ViewAssocTypes {
         'a: 'b;
 }
 
-/// A trait for data which is a mutable view, and from which an immutable view
-/// or owned data can be created (the latter requiring cloning).
-///
-/// ## Parameters
-///
-/// The lifetime parameter is the lifetime of the stored data inside the view,
-/// required to facilitate [`to_view`].
-///
-/// [`to_view`]: DataViewMut::to_view
-pub trait DataViewMut<'a>: ViewAssocTypes {
-    /// Creates an immutable view of the data.
-    fn as_view(&self) -> Self::View<'_>;
-
-    /// Creates an immutable view by consuming the mutable one.
-    fn to_view(self) -> Self::View<'a>;
-
-    /// Creates an owned copy of the data via cloning.
-    fn to_owned_data(&self) -> Self::Owned;
-
+/// A trait for other functions specific to mutable view types.
+pub trait DataViewMut<'a>: AssocViewMutType {
     /// Reborrows the mutable view, reducing the lifetime to `'b`.
     fn reborrow_view_mut<'b>(&'b mut self) -> Self::ViewMut<'b>
     where
@@ -83,106 +88,152 @@ pub trait DataViewMut<'a>: ViewAssocTypes {
 
 /// Provides the ability to resize a view in-place.
 pub trait Restrict {
-    /// Re-slice the view in-place, changing the view to hold only a subslice of
-    /// its original data.
+    /// Re-slices the view in-place, changing the view to hold only a subslice
+    /// of its original data.
     fn restrict<R: SliceRange>(&mut self, range: R);
 
-    /// Clear the view so that it is empty (this does not affect the underlying
+    /// Clears the view so that it is empty (this does not affect the underlying
     /// data).
     fn clear(&mut self);
 }
 
 /// Provides the ability to obtain an immutable view of a range of the data.
-pub trait Slice: ViewAssocTypes + Len {
-    /// Create an immutable view of the data contained in `range`.
+pub trait Slice: AssocViewType {
+    /// Creates an immutable view of the data contained in `range`.
     fn slice<R: SliceRange>(&self, range: R) -> Self::View<'_>;
-    /// Create an immutable view of the data contained in `range`, or return
+
+    /// Creates an immutable view of the data contained in `range`, or return
     /// `None` if it is out of bounds.
     fn get_slice<R: SliceRange>(&self, range: R) -> Option<Self::View<'_>>;
 }
 
+/// Similar to [`Slice`], but designed to be implemented on immutable view types
+/// that implement [`Copy`]. The functionality is the same, but the lifetimes of
+/// the returned views are not tied to the input view.
+pub trait SliceCopy: Copy {
+    /// Creates an immutable view of the data contained in `range`.
+    #[must_use]
+    fn slice<R: SliceRange>(self, range: R) -> Self;
+
+    /// Creates an immutable view of the data contained in `range`, or return
+    /// `None` if it is out of bounds.
+    #[must_use]
+    fn get_slice<R: SliceRange>(self, range: R) -> Option<Self>;
+}
+
 /// Provides the ability to obtain a mutable view of a range of the data.
-pub trait SliceMut: Slice {
-    /// Create a mutable view of the data contained in `range`.
+pub trait SliceMut: AssocViewMutType {
+    /// Creates a mutable view of the data contained in `range`.
     fn slice_mut<R: SliceRange>(&mut self, range: R) -> Self::ViewMut<'_>;
 
-    /// Create a mutable view of the data contained in `range`, or return `None`
-    /// if it is out of bounds.
+    /// Creates a mutable view of the data contained in `range`, or return
+    /// `None` if it is out of bounds.
     fn get_slice_mut<R: SliceRange>(&mut self, range: R) -> Option<Self::ViewMut<'_>>;
 }
 
 impl Len for Vec<u8> {
-    #[inline]
     fn is_empty(&self) -> bool {
         self.is_empty()
     }
 
-    #[inline]
     fn len(&self) -> usize {
         self.len()
     }
 }
 
 impl Len for &[u8] {
-    #[inline]
     fn is_empty(&self) -> bool {
         (*self).is_empty()
     }
 
-    #[inline]
     fn len(&self) -> usize {
         (*self).len()
     }
 }
 
 impl Len for &mut [u8] {
-    #[inline]
     fn is_empty(&self) -> bool {
-        self.as_ref().is_empty()
+        (**self).is_empty()
     }
 
-    #[inline]
     fn len(&self) -> usize {
-        self.as_ref().len()
+        (**self).len()
     }
 }
 
-impl ViewAssocTypes for Vec<u8> {
+impl AssocOwnedType for Vec<u8> {
     type Owned = Vec<u8>;
+}
+
+impl AssocViewType for Vec<u8> {
     type View<'a> = &'a [u8];
+}
+
+impl AssocViewMutType for Vec<u8> {
     type ViewMut<'a> = &'a mut [u8];
 }
 
-impl ViewAssocTypes for &[u8] {
+impl AssocOwnedType for &[u8] {
     type Owned = Vec<u8>;
+}
+
+impl AssocViewType for &[u8] {
     type View<'a> = &'a [u8];
+}
+
+impl AssocViewMutType for &[u8] {
     type ViewMut<'a> = &'a mut [u8];
 }
 
-impl ViewAssocTypes for &mut [u8] {
+impl AssocOwnedType for &mut [u8] {
     type Owned = Vec<u8>;
+}
+
+impl AssocViewType for &mut [u8] {
     type View<'a> = &'a [u8];
+}
+
+impl AssocViewMutType for &mut [u8] {
     type ViewMut<'a> = &'a mut [u8];
 }
 
-impl DataOwned for Vec<u8> {
-    #[inline]
+impl AsView for Vec<u8> {
     fn as_view(&self) -> Self::View<'_> {
         self
     }
+}
 
-    #[inline]
+impl AsView for &mut [u8] {
+    fn as_view(&self) -> Self::View<'_> {
+        self
+    }
+}
+
+impl AsViewMut for Vec<u8> {
     fn as_view_mut(&mut self) -> Self::ViewMut<'_> {
         self
     }
 }
 
-impl<'a> DataView<'a> for &'a [u8] {
-    #[inline]
+impl ToOwnedData for &[u8] {
     fn to_owned_data(&self) -> Self::Owned {
         self.to_vec()
     }
+}
 
+impl ToOwnedData for &mut [u8] {
+    fn to_owned_data(&self) -> Self::Owned {
+        self.to_vec()
+    }
+}
+
+impl<'a> ToView<'a> for &'a mut [u8] {
+    fn to_view(self) -> Self::View<'a> {
+        self
+    }
+}
+
+impl<'a> DataView<'a> for &'a [u8] {
     #[inline]
     fn reborrow_view<'b>(&'b self) -> Self::View<'b>
     where
@@ -192,21 +243,6 @@ impl<'a> DataView<'a> for &'a [u8] {
 }
 
 impl<'a> DataViewMut<'a> for &'a mut [u8] {
-    #[inline]
-    fn as_view(&self) -> Self::View<'_> {
-        self
-    }
-
-    #[inline]
-    fn to_view(self) -> Self::View<'a> {
-        self
-    }
-
-    #[inline]
-    fn to_owned_data(&self) -> Self::Owned {
-        self.to_vec()
-    }
-
     #[inline]
     fn reborrow_view_mut<'b>(&'b mut self) -> Self::ViewMut<'b>
     where
@@ -260,6 +296,18 @@ impl Slice for &[u8] {
 
     #[inline]
     fn get_slice<R: SliceRange>(&self, range: R) -> Option<Self::View<'_>> {
+        self.get(range)
+    }
+}
+
+impl SliceCopy for &[u8] {
+    #[inline]
+    fn slice<R: SliceRange>(self, range: R) -> Self {
+        &self[range]
+    }
+
+    #[inline]
+    fn get_slice<R: SliceRange>(self, range: R) -> Option<Self> {
         self.get(range)
     }
 }

@@ -1,7 +1,4 @@
-use crate::{
-    data::views::impl_view_assoc_types,
-    prelude::{DataOwned, DataView, DataViewMut},
-};
+use crate::data::views::{impl_view_assoc_types_generic, impl_view_conversion_generic};
 
 /// A taxon for a record.
 #[repr(transparent)]
@@ -112,54 +109,5 @@ impl std::fmt::Display for TaxonViewMut<'_> {
     }
 }
 
-impl_view_assoc_types!(Taxon, TaxonView, TaxonViewMut);
-
-impl DataOwned for Taxon {
-    #[inline]
-    fn as_view(&self) -> TaxonView<'_> {
-        TaxonView(&self.0)
-    }
-
-    #[inline]
-    fn as_view_mut(&mut self) -> TaxonViewMut<'_> {
-        TaxonViewMut(&mut self.0)
-    }
-}
-
-impl<'a> DataView<'a> for TaxonView<'a> {
-    #[inline]
-    fn to_owned_data(&self) -> Taxon {
-        Taxon(self.0.into())
-    }
-
-    #[inline]
-    fn reborrow_view<'b>(&'b self) -> Self::View<'b>
-    where
-        'a: 'b, {
-        TaxonView(self.0)
-    }
-}
-
-impl<'a> DataViewMut<'a> for TaxonViewMut<'a> {
-    #[inline]
-    fn as_view(&self) -> TaxonView<'_> {
-        TaxonView(self.0)
-    }
-
-    #[inline]
-    fn to_view(self) -> TaxonView<'a> {
-        TaxonView(self.0)
-    }
-
-    #[inline]
-    fn to_owned_data(&self) -> Taxon {
-        Taxon(self.0.clone())
-    }
-
-    #[inline]
-    fn reborrow_view_mut<'b>(&'b mut self) -> Self::ViewMut<'b>
-    where
-        'a: 'b, {
-        TaxonViewMut(self.0)
-    }
-}
+impl_view_assoc_types_generic!(Taxon, TaxonView, TaxonViewMut);
+impl_view_conversion_generic!(Taxon, TaxonView, TaxonViewMut);

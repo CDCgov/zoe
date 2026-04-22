@@ -20,9 +20,10 @@ macro_rules! impl_len_for_wrapper {
 
 /// A macro for implementing [`Len`], given the owning type, the view type, the
 /// mutable view type, and the name of the field which determines the length.
+/// The lifetime parameter is assumed to be a generic on the view types.
 ///
 /// [`Len`]: crate::data::views::Len
-macro_rules! impl_len_for_views {
+macro_rules! impl_len_for_views_generic {
     ($owned:ident, $view:ident, $viewmut:ident, $lenfield:tt) => {
         $crate::data::views::impl_len_for_wrapper! {$owned, $lenfield}
         $crate::data::views::impl_len_for_wrapper! {$view<'_>, $lenfield}
@@ -30,61 +31,93 @@ macro_rules! impl_len_for_views {
     };
 }
 
-/// A macro for implementing [`ViewAssocTypes`], given the three types.
-///
-/// [`ViewAssocTypes`]: crate::data::views::ViewAssocTypes
-macro_rules! impl_view_assoc_types {
+/// A macro for implementing the associated type traits for views, given the
+/// owned type, the view type, and the mutable view type. The lifetime parameter
+/// is assumed to be a generic on the view types.
+macro_rules! impl_view_assoc_types_generic {
     ($owned:ident, $view:ident, $viewmut:ident) => {
-        impl $crate::data::views::ViewAssocTypes for $owned {
+        impl $crate::data::views::AssocOwnedType for $owned {
             type Owned = $owned;
+        }
+
+        impl $crate::data::views::AssocViewType for $owned {
             type View<'a> = $view<'a>;
+        }
+
+        impl $crate::data::views::AssocViewMutType for $owned {
             type ViewMut<'a> = $viewmut<'a>;
         }
 
-        impl $crate::data::views::ViewAssocTypes for $view<'_> {
+        impl $crate::data::views::AssocOwnedType for $view<'_> {
             type Owned = $owned;
+        }
+
+        impl $crate::data::views::AssocViewType for $view<'_> {
             type View<'a> = $view<'a>;
+        }
+
+        impl $crate::data::views::AssocViewMutType for $view<'_> {
             type ViewMut<'a> = $viewmut<'a>;
         }
 
-        impl $crate::data::views::ViewAssocTypes for $viewmut<'_> {
+        impl $crate::data::views::AssocOwnedType for $viewmut<'_> {
             type Owned = $owned;
+        }
+
+        impl $crate::data::views::AssocViewType for $viewmut<'_> {
             type View<'a> = $view<'a>;
+        }
+
+        impl $crate::data::views::AssocViewMutType for $viewmut<'_> {
             type ViewMut<'a> = $viewmut<'a>;
         }
     };
 }
 
-/// Implements the conversions between the owned types and views for wrapper
-/// types around byte slices/vectors.
-///
-/// This also automatically calls [`impl_view_assoc_types`].
-///
-/// The arguments are the owned type, the view type, and the mutable view type.
-macro_rules! impl_views_for_wrapper {
+/// A macro for implementing traits for converting between owned and view types,
+/// assuming that the lifetime on the view types is a generic.
+macro_rules! impl_view_conversion_generic {
     ($owned:ident, $view:ident, $viewmut:ident) => {
-        $crate::data::views::impl_view_assoc_types!($owned, $view, $viewmut);
-
-        impl $crate::data::views::DataOwned for $owned {
+        impl $crate::data::views::ToOwnedData for $view<'_> {
             #[inline]
+            fn to_owned_data(&self) -> Self::Owned {
+                $owned(self.0.into())
+            }
+        }
+
+        impl $crate::data::views::ToOwnedData for $viewmut<'_> {
+            #[inline]
+            fn to_owned_data(&self) -> $owned {
+                $owned((&*self.0).into())
+            }
+        }
+
+        impl $crate::data::views::AsView for $owned {
             fn as_view(&self) -> $view<'_> {
                 $view(&self.0)
             }
+        }
 
-            #[inline]
+        impl $crate::data::views::AsView for $viewmut<'_> {
+            fn as_view(&self) -> $view<'_> {
+                $view(&self.0)
+            }
+        }
+
+        impl $crate::data::views::AsViewMut for $owned {
             fn as_view_mut(&mut self) -> $viewmut<'_> {
                 $viewmut(&mut self.0)
             }
         }
 
-        impl<'a> $crate::data::views::DataView<'a> for $view<'a> {
-            #[inline]
-            fn to_owned_data(&self) -> $owned {
-                $owned(self.0.into())
+        impl<'a> $crate::data::views::ToView<'a> for $viewmut<'a> {
+            fn to_view(self) -> $view<'a> {
+                $view(self.0)
             }
+        }
 
-            #[inline]
-            fn reborrow_view<'b>(&'b self) -> Self::View<'b>
+        impl<'a> $crate::data::views::DataView<'a> for $view<'a> {
+            fn reborrow_view<'b>(&'b self) -> $view<'b>
             where
                 'a: 'b, {
                 $view(self.0)
@@ -92,22 +125,6 @@ macro_rules! impl_views_for_wrapper {
         }
 
         impl<'a> $crate::data::views::DataViewMut<'a> for $viewmut<'a> {
-            #[inline]
-            fn as_view(&self) -> $view<'_> {
-                $view(&self.0)
-            }
-
-            #[inline]
-            fn to_view(self) -> $view<'a> {
-                $view(self.0)
-            }
-
-            #[inline]
-            fn to_owned_data(&self) -> $owned {
-                $owned(self.0.to_vec())
-            }
-
-            #[inline]
             fn reborrow_view_mut<'b>(&'b mut self) -> $viewmut<'b>
             where
                 'a: 'b, {
@@ -143,6 +160,18 @@ macro_rules! impl_slice_for_wrapper {
 
             #[inline]
             fn get_slice<R: $crate::data::views::SliceRange>(&self, range: R) -> Option<$view<'_>> {
+                Some($view(self.0.get(range)?))
+            }
+        }
+
+        impl $crate::data::views::SliceCopy for $view<'_> {
+            #[inline]
+            fn slice<R: $crate::data::views::SliceRange>(self, range: R) -> Self {
+                $view(&self.0[range])
+            }
+
+            #[inline]
+            fn get_slice<R: $crate::data::views::SliceRange>(self, range: R) -> Option<Self> {
                 Some($view(self.0.get(range)?))
             }
         }
@@ -214,9 +243,9 @@ macro_rules! impl_restrict_for_wrapper {
     };
 }
 
-pub(crate) use impl_len_for_views;
+pub(crate) use impl_len_for_views_generic;
 pub(crate) use impl_len_for_wrapper;
 pub(crate) use impl_restrict_for_wrapper;
 pub(crate) use impl_slice_for_wrapper;
-pub(crate) use impl_view_assoc_types;
-pub(crate) use impl_views_for_wrapper;
+pub(crate) use impl_view_assoc_types_generic;
+pub(crate) use impl_view_conversion_generic;

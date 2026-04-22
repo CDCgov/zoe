@@ -2,7 +2,7 @@
 
 use crate::data::{
     cigar::{Cigar, CigarError, CigletIterator},
-    views::impl_views_for_wrapper,
+    views::{impl_len_for_views_generic, impl_view_assoc_types_generic, impl_view_conversion_generic},
 };
 
 /// A view of a [`Cigar`] string.
@@ -181,4 +181,6 @@ impl<'a, const N: usize> TryFrom<&'a mut [u8; N]> for CigarViewMut<'a> {
     }
 }
 
-impl_views_for_wrapper!(Cigar, CigarView, CigarViewMut);
+impl_len_for_views_generic!(Cigar, CigarView, CigarViewMut, 0);
+impl_view_assoc_types_generic!(Cigar, CigarView, CigarViewMut);
+impl_view_conversion_generic!(Cigar, CigarView, CigarViewMut);

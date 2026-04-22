@@ -7,8 +7,11 @@ use crate::{
         },
         modules::{DomainModule, LocalModule, SemiLocalModule},
     },
-    data::{ByteIndexMap, views::ViewAssocTypes},
-    prelude::{DataOwned, DataView, DataViewMut},
+    data::{
+        ByteIndexMap,
+        views::{AsView, AsViewMut, AssocOwnedType, AssocViewMutType, AssocViewType, ToOwnedData, ToView},
+    },
+    prelude::{DataView, DataViewMut},
 };
 
 /// The corresponding immutable view type for [`GlobalPhmm`].
@@ -130,34 +133,67 @@ impl<T, const S: usize> Clone for SemiLocalPhmmView<'_, T, S> {
 
 impl<T, const S: usize> Copy for SemiLocalPhmmView<'_, T, S> {}
 
-impl<T, const S: usize> ViewAssocTypes for GlobalPhmm<T, S>
+impl<T, const S: usize> AssocOwnedType for GlobalPhmm<T, S> {
+    type Owned = GlobalPhmm<T, S>;
+}
+
+impl<T, const S: usize> AssocViewType for GlobalPhmm<T, S>
+where
+    T: Clone + 'static,
+{
+    type View<'a> = GlobalPhmmView<'a, T, S>;
+}
+
+impl<T, const S: usize> AssocViewMutType for GlobalPhmm<T, S>
+where
+    T: Clone + 'static,
+{
+    type ViewMut<'a> = GlobalPhmmViewMut<'a, T, S>;
+}
+
+impl<T, const S: usize> AssocOwnedType for GlobalPhmmView<'_, T, S>
 where
     T: Clone + 'static,
 {
     type Owned = GlobalPhmm<T, S>;
+}
+
+impl<T, const S: usize> AssocViewType for GlobalPhmmView<'_, T, S>
+where
+    T: Clone + 'static,
+{
     type View<'a> = GlobalPhmmView<'a, T, S>;
+}
+
+impl<T, const S: usize> AssocViewMutType for GlobalPhmmView<'_, T, S>
+where
+    T: Clone + 'static,
+{
     type ViewMut<'a> = GlobalPhmmViewMut<'a, T, S>;
 }
 
-impl<T, const S: usize> ViewAssocTypes for GlobalPhmmView<'_, T, S>
+impl<T, const S: usize> AssocOwnedType for GlobalPhmmViewMut<'_, T, S>
 where
     T: Clone + 'static,
 {
     type Owned = GlobalPhmm<T, S>;
-    type View<'a> = GlobalPhmmView<'a, T, S>;
-    type ViewMut<'a> = GlobalPhmmViewMut<'a, T, S>;
 }
 
-impl<T, const S: usize> ViewAssocTypes for GlobalPhmmViewMut<'_, T, S>
+impl<T, const S: usize> AssocViewType for GlobalPhmmViewMut<'_, T, S>
 where
     T: Clone + 'static,
 {
-    type Owned = GlobalPhmm<T, S>;
     type View<'a> = GlobalPhmmView<'a, T, S>;
+}
+
+impl<T, const S: usize> AssocViewMutType for GlobalPhmmViewMut<'_, T, S>
+where
+    T: Clone + 'static,
+{
     type ViewMut<'a> = GlobalPhmmViewMut<'a, T, S>;
 }
 
-impl<T, const S: usize> DataOwned for GlobalPhmm<T, S>
+impl<T, const S: usize> AsView for GlobalPhmm<T, S>
 where
     T: Clone + 'static,
 {
@@ -168,7 +204,12 @@ where
             core:    self.core(),
         }
     }
+}
 
+impl<T, const S: usize> AsViewMut for GlobalPhmm<T, S>
+where
+    T: Clone + 'static,
+{
     #[inline]
     fn as_view_mut(&mut self) -> Self::ViewMut<'_> {
         GlobalPhmmViewMut {
@@ -178,7 +219,7 @@ where
     }
 }
 
-impl<'a, T, const S: usize> DataView<'a> for GlobalPhmmView<'a, T, S>
+impl<T, const S: usize> ToOwnedData for GlobalPhmmView<'_, T, S>
 where
     T: Clone + 'static,
 {
@@ -189,7 +230,12 @@ where
             core:    self.core.clone(),
         }
     }
+}
 
+impl<'a, T, const S: usize> DataView<'a> for GlobalPhmmView<'a, T, S>
+where
+    T: Clone + 'static,
+{
     #[inline]
     fn reborrow_view<'b>(&'b self) -> Self::View<'b>
     where
@@ -201,7 +247,7 @@ where
     }
 }
 
-impl<'a, T, const S: usize> DataViewMut<'a> for GlobalPhmmViewMut<'a, T, S>
+impl<T, const S: usize> AsView for GlobalPhmmViewMut<'_, T, S>
 where
     T: Clone + 'static,
 {
@@ -212,7 +258,12 @@ where
             core:    self.core,
         }
     }
+}
 
+impl<'a, T, const S: usize> ToView<'a> for GlobalPhmmViewMut<'a, T, S>
+where
+    T: Clone + 'static,
+{
     #[inline]
     fn to_view(self) -> Self::View<'a> {
         GlobalPhmmView {
@@ -220,7 +271,12 @@ where
             core:    self.core,
         }
     }
+}
 
+impl<T, const S: usize> ToOwnedData for GlobalPhmmViewMut<'_, T, S>
+where
+    T: Clone + 'static,
+{
     #[inline]
     fn to_owned_data(&self) -> Self::Owned {
         GlobalPhmm {
@@ -228,7 +284,12 @@ where
             core:    self.core.clone(),
         }
     }
+}
 
+impl<'a, T, const S: usize> DataViewMut<'a> for GlobalPhmmViewMut<'a, T, S>
+where
+    T: Clone + 'static,
+{
     #[inline]
     fn reborrow_view_mut<'b>(&'b mut self) -> Self::ViewMut<'b>
     where
@@ -240,34 +301,67 @@ where
     }
 }
 
-impl<T, const S: usize> ViewAssocTypes for LocalPhmm<T, S>
+impl<T, const S: usize> AssocOwnedType for LocalPhmm<T, S> {
+    type Owned = LocalPhmm<T, S>;
+}
+
+impl<T, const S: usize> AssocViewType for LocalPhmm<T, S>
+where
+    T: Clone + 'static,
+{
+    type View<'a> = LocalPhmmView<'a, T, S>;
+}
+
+impl<T, const S: usize> AssocViewMutType for LocalPhmm<T, S>
+where
+    T: Clone + 'static,
+{
+    type ViewMut<'a> = LocalPhmmViewMut<'a, T, S>;
+}
+
+impl<T, const S: usize> AssocOwnedType for LocalPhmmView<'_, T, S>
 where
     T: Clone + 'static,
 {
     type Owned = LocalPhmm<T, S>;
+}
+
+impl<T, const S: usize> AssocViewType for LocalPhmmView<'_, T, S>
+where
+    T: Clone + 'static,
+{
     type View<'a> = LocalPhmmView<'a, T, S>;
+}
+
+impl<T, const S: usize> AssocViewMutType for LocalPhmmView<'_, T, S>
+where
+    T: Clone + 'static,
+{
     type ViewMut<'a> = LocalPhmmViewMut<'a, T, S>;
 }
 
-impl<T, const S: usize> ViewAssocTypes for LocalPhmmView<'_, T, S>
+impl<T, const S: usize> AssocOwnedType for LocalPhmmViewMut<'_, T, S>
 where
     T: Clone + 'static,
 {
     type Owned = LocalPhmm<T, S>;
-    type View<'a> = LocalPhmmView<'a, T, S>;
-    type ViewMut<'a> = LocalPhmmViewMut<'a, T, S>;
 }
 
-impl<T, const S: usize> ViewAssocTypes for LocalPhmmViewMut<'_, T, S>
+impl<T, const S: usize> AssocViewType for LocalPhmmViewMut<'_, T, S>
 where
     T: Clone + 'static,
 {
-    type Owned = LocalPhmm<T, S>;
     type View<'a> = LocalPhmmView<'a, T, S>;
+}
+
+impl<T, const S: usize> AssocViewMutType for LocalPhmmViewMut<'_, T, S>
+where
+    T: Clone + 'static,
+{
     type ViewMut<'a> = LocalPhmmViewMut<'a, T, S>;
 }
 
-impl<T, const S: usize> DataOwned for LocalPhmm<T, S>
+impl<T, const S: usize> AsView for LocalPhmm<T, S>
 where
     T: Clone + 'static,
 {
@@ -280,7 +374,12 @@ where
             end:     self.end(),
         }
     }
+}
 
+impl<T, const S: usize> AsViewMut for LocalPhmm<T, S>
+where
+    T: Clone + 'static,
+{
     #[inline]
     fn as_view_mut(&mut self) -> Self::ViewMut<'_> {
         let mapping = self.mapping();
@@ -295,7 +394,64 @@ where
     }
 }
 
+impl<T, const S: usize> ToOwnedData for LocalPhmmView<'_, T, S>
+where
+    T: Clone + 'static,
+{
+    #[inline]
+    fn to_owned_data(&self) -> Self::Owned {
+        LocalPhmm::new(self.mapping, self.core.clone(), self.begin().clone(), self.end().clone())
+    }
+}
+
 impl<'a, T, const S: usize> DataView<'a> for LocalPhmmView<'a, T, S>
+where
+    T: Clone + 'static,
+{
+    #[inline]
+    fn reborrow_view<'b>(&'b self) -> Self::View<'b>
+    where
+        'a: 'b, {
+        LocalPhmmView {
+            mapping: self.mapping,
+            core:    self.core,
+            begin:   self.begin(),
+            end:     self.end(),
+        }
+    }
+}
+
+impl<T, const S: usize> AsView for LocalPhmmViewMut<'_, T, S>
+where
+    T: Clone + 'static,
+{
+    #[inline]
+    fn as_view(&self) -> Self::View<'_> {
+        LocalPhmmView {
+            mapping: self.mapping,
+            core:    self.core,
+            begin:   self.begin,
+            end:     self.end,
+        }
+    }
+}
+
+impl<'a, T, const S: usize> ToView<'a> for LocalPhmmViewMut<'a, T, S>
+where
+    T: Clone + 'static,
+{
+    #[inline]
+    fn to_view(self) -> Self::View<'a> {
+        LocalPhmmView {
+            mapping: self.mapping,
+            core:    self.core,
+            begin:   self.begin,
+            end:     self.end,
+        }
+    }
+}
+
+impl<T, const S: usize> ToOwnedData for LocalPhmmViewMut<'_, T, S>
 where
     T: Clone + 'static,
 {
@@ -306,18 +462,6 @@ where
             core:    self.core.clone(),
             begin:   self.begin.clone(),
             end:     self.end.clone(),
-        }
-    }
-
-    #[inline]
-    fn reborrow_view<'b>(&'b self) -> Self::View<'b>
-    where
-        'a: 'b, {
-        LocalPhmmView {
-            mapping: self.mapping,
-            core:    self.core,
-            begin:   self.begin,
-            end:     self.end,
         }
     }
 }
@@ -327,36 +471,6 @@ where
     T: Clone + 'static,
 {
     #[inline]
-    fn as_view(&self) -> Self::View<'_> {
-        LocalPhmmView {
-            mapping: self.mapping,
-            core:    self.core,
-            begin:   self.begin,
-            end:     self.end,
-        }
-    }
-
-    #[inline]
-    fn to_view(self) -> Self::View<'a> {
-        LocalPhmmView {
-            mapping: self.mapping,
-            core:    self.core,
-            begin:   self.begin,
-            end:     self.end,
-        }
-    }
-
-    #[inline]
-    fn to_owned_data(&self) -> Self::Owned {
-        LocalPhmm {
-            mapping: self.mapping,
-            core:    self.core.clone(),
-            begin:   self.begin.clone(),
-            end:     self.end.clone(),
-        }
-    }
-
-    #[inline]
     fn reborrow_view_mut<'b>(&'b mut self) -> Self::ViewMut<'b>
     where
         'a: 'b, {
@@ -369,34 +483,67 @@ where
     }
 }
 
-impl<T, const S: usize> ViewAssocTypes for SemiLocalPhmm<T, S>
+impl<T, const S: usize> AssocOwnedType for SemiLocalPhmm<T, S> {
+    type Owned = SemiLocalPhmm<T, S>;
+}
+
+impl<T, const S: usize> AssocViewType for SemiLocalPhmm<T, S>
+where
+    T: Clone + 'static,
+{
+    type View<'a> = SemiLocalPhmmView<'a, T, S>;
+}
+
+impl<T, const S: usize> AssocViewMutType for SemiLocalPhmm<T, S>
+where
+    T: Clone + 'static,
+{
+    type ViewMut<'a> = SemiLocalPhmmViewMut<'a, T, S>;
+}
+
+impl<T, const S: usize> AssocOwnedType for SemiLocalPhmmView<'_, T, S>
 where
     T: Clone + 'static,
 {
     type Owned = SemiLocalPhmm<T, S>;
+}
+
+impl<T, const S: usize> AssocViewType for SemiLocalPhmmView<'_, T, S>
+where
+    T: Clone + 'static,
+{
     type View<'a> = SemiLocalPhmmView<'a, T, S>;
+}
+
+impl<T, const S: usize> AssocViewMutType for SemiLocalPhmmView<'_, T, S>
+where
+    T: Clone + 'static,
+{
     type ViewMut<'a> = SemiLocalPhmmViewMut<'a, T, S>;
 }
 
-impl<T, const S: usize> ViewAssocTypes for SemiLocalPhmmView<'_, T, S>
+impl<T, const S: usize> AssocOwnedType for SemiLocalPhmmViewMut<'_, T, S>
 where
     T: Clone + 'static,
 {
     type Owned = SemiLocalPhmm<T, S>;
-    type View<'a> = SemiLocalPhmmView<'a, T, S>;
-    type ViewMut<'a> = SemiLocalPhmmViewMut<'a, T, S>;
 }
 
-impl<T, const S: usize> ViewAssocTypes for SemiLocalPhmmViewMut<'_, T, S>
+impl<T, const S: usize> AssocViewType for SemiLocalPhmmViewMut<'_, T, S>
 where
     T: Clone + 'static,
 {
-    type Owned = SemiLocalPhmm<T, S>;
     type View<'a> = SemiLocalPhmmView<'a, T, S>;
+}
+
+impl<T, const S: usize> AssocViewMutType for SemiLocalPhmmViewMut<'_, T, S>
+where
+    T: Clone + 'static,
+{
     type ViewMut<'a> = SemiLocalPhmmViewMut<'a, T, S>;
 }
 
-impl<T, const S: usize> DataOwned for SemiLocalPhmm<T, S>
+impl<T, const S: usize> AsView for SemiLocalPhmm<T, S>
 where
     T: Clone + 'static,
 {
@@ -409,7 +556,12 @@ where
             end:     self.end(),
         }
     }
+}
 
+impl<T, const S: usize> AsViewMut for SemiLocalPhmm<T, S>
+where
+    T: Clone + 'static,
+{
     #[inline]
     fn as_view_mut(&mut self) -> Self::ViewMut<'_> {
         let mapping = self.mapping();
@@ -424,7 +576,7 @@ where
     }
 }
 
-impl<'a, T, const S: usize> DataView<'a> for SemiLocalPhmmView<'a, T, S>
+impl<T, const S: usize> ToOwnedData for SemiLocalPhmmView<'_, T, S>
 where
     T: Clone + 'static,
 {
@@ -437,7 +589,12 @@ where
             end:     self.end.clone(),
         }
     }
+}
 
+impl<'a, T, const S: usize> DataView<'a> for SemiLocalPhmmView<'a, T, S>
+where
+    T: Clone + 'static,
+{
     #[inline]
     fn reborrow_view<'b>(&'b self) -> Self::View<'b>
     where
@@ -451,7 +608,7 @@ where
     }
 }
 
-impl<'a, T, const S: usize> DataViewMut<'a> for SemiLocalPhmmViewMut<'a, T, S>
+impl<T, const S: usize> AsView for SemiLocalPhmmViewMut<'_, T, S>
 where
     T: Clone + 'static,
 {
@@ -464,7 +621,12 @@ where
             end:     self.end,
         }
     }
+}
 
+impl<'a, T, const S: usize> ToView<'a> for SemiLocalPhmmViewMut<'a, T, S>
+where
+    T: Clone + 'static,
+{
     #[inline]
     fn to_view(self) -> Self::View<'a> {
         SemiLocalPhmmView {
@@ -474,7 +636,12 @@ where
             end:     self.end,
         }
     }
+}
 
+impl<T, const S: usize> ToOwnedData for SemiLocalPhmmViewMut<'_, T, S>
+where
+    T: Clone + 'static,
+{
     #[inline]
     fn to_owned_data(&self) -> Self::Owned {
         SemiLocalPhmm {
@@ -484,7 +651,12 @@ where
             end:     self.end.clone(),
         }
     }
+}
 
+impl<'a, T, const S: usize> DataViewMut<'a> for SemiLocalPhmmViewMut<'a, T, S>
+where
+    T: Clone + 'static,
+{
     #[inline]
     fn reborrow_view_mut<'b>(&'b mut self) -> Self::ViewMut<'b>
     where
@@ -498,34 +670,67 @@ where
     }
 }
 
-impl<T, const S: usize> ViewAssocTypes for DomainPhmm<T, S>
+impl<T, const S: usize> AssocOwnedType for DomainPhmm<T, S> {
+    type Owned = DomainPhmm<T, S>;
+}
+
+impl<T, const S: usize> AssocViewType for DomainPhmm<T, S>
+where
+    T: Clone + 'static,
+{
+    type View<'a> = DomainPhmmView<'a, T, S>;
+}
+
+impl<T, const S: usize> AssocViewMutType for DomainPhmm<T, S>
+where
+    T: Clone + 'static,
+{
+    type ViewMut<'a> = DomainPhmmViewMut<'a, T, S>;
+}
+
+impl<T, const S: usize> AssocOwnedType for DomainPhmmView<'_, T, S>
 where
     T: Clone + 'static,
 {
     type Owned = DomainPhmm<T, S>;
+}
+
+impl<T, const S: usize> AssocViewType for DomainPhmmView<'_, T, S>
+where
+    T: Clone + 'static,
+{
     type View<'a> = DomainPhmmView<'a, T, S>;
+}
+
+impl<T, const S: usize> AssocViewMutType for DomainPhmmView<'_, T, S>
+where
+    T: Clone + 'static,
+{
     type ViewMut<'a> = DomainPhmmViewMut<'a, T, S>;
 }
 
-impl<T, const S: usize> ViewAssocTypes for DomainPhmmView<'_, T, S>
+impl<T, const S: usize> AssocOwnedType for DomainPhmmViewMut<'_, T, S>
 where
     T: Clone + 'static,
 {
     type Owned = DomainPhmm<T, S>;
-    type View<'a> = DomainPhmmView<'a, T, S>;
-    type ViewMut<'a> = DomainPhmmViewMut<'a, T, S>;
 }
 
-impl<T, const S: usize> ViewAssocTypes for DomainPhmmViewMut<'_, T, S>
+impl<T, const S: usize> AssocViewType for DomainPhmmViewMut<'_, T, S>
 where
     T: Clone + 'static,
 {
-    type Owned = DomainPhmm<T, S>;
     type View<'a> = DomainPhmmView<'a, T, S>;
+}
+
+impl<T, const S: usize> AssocViewMutType for DomainPhmmViewMut<'_, T, S>
+where
+    T: Clone + 'static,
+{
     type ViewMut<'a> = DomainPhmmViewMut<'a, T, S>;
 }
 
-impl<T, const S: usize> DataOwned for DomainPhmm<T, S>
+impl<T, const S: usize> AsView for DomainPhmm<T, S>
 where
     T: Clone + 'static,
 {
@@ -538,7 +743,12 @@ where
             end:     self.end(),
         }
     }
+}
 
+impl<T, const S: usize> AsViewMut for DomainPhmm<T, S>
+where
+    T: Clone + 'static,
+{
     #[inline]
     fn as_view_mut(&mut self) -> Self::ViewMut<'_> {
         let mapping = self.mapping();
@@ -553,7 +763,7 @@ where
     }
 }
 
-impl<'a, T, const S: usize> DataView<'a> for DomainPhmmView<'a, T, S>
+impl<T, const S: usize> ToOwnedData for DomainPhmmView<'_, T, S>
 where
     T: Clone + 'static,
 {
@@ -566,7 +776,12 @@ where
             end:     self.end.clone(),
         }
     }
+}
 
+impl<'a, T, const S: usize> DataView<'a> for DomainPhmmView<'a, T, S>
+where
+    T: Clone + 'static,
+{
     #[inline]
     fn reborrow_view<'b>(&'b self) -> Self::View<'b>
     where
@@ -580,7 +795,7 @@ where
     }
 }
 
-impl<'a, T, const S: usize> DataViewMut<'a> for DomainPhmmViewMut<'a, T, S>
+impl<T, const S: usize> AsView for DomainPhmmViewMut<'_, T, S>
 where
     T: Clone + 'static,
 {
@@ -593,7 +808,12 @@ where
             end:     self.end,
         }
     }
+}
 
+impl<'a, T, const S: usize> ToView<'a> for DomainPhmmViewMut<'a, T, S>
+where
+    T: Clone + 'static,
+{
     #[inline]
     fn to_view(self) -> Self::View<'a> {
         DomainPhmmView {
@@ -603,7 +823,12 @@ where
             end:     self.end,
         }
     }
+}
 
+impl<T, const S: usize> ToOwnedData for DomainPhmmViewMut<'_, T, S>
+where
+    T: Clone + 'static,
+{
     #[inline]
     fn to_owned_data(&self) -> Self::Owned {
         DomainPhmm {
@@ -613,7 +838,12 @@ where
             end:     self.end.clone(),
         }
     }
+}
 
+impl<'a, T, const S: usize> DataViewMut<'a> for DomainPhmmViewMut<'a, T, S>
+where
+    T: Clone + 'static,
+{
     #[inline]
     fn reborrow_view_mut<'b>(&'b mut self) -> Self::ViewMut<'b>
     where

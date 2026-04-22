@@ -56,7 +56,9 @@ pub mod prelude {
                 },
                 phred::{QualityScores, QualityScoresView, QualityScoresViewMut, QualityStats},
             },
-            views::{DataOwned, DataView, DataViewMut, Len, Restrict, Slice, SliceMut},
+            views::{
+                AsView, AsViewMut, DataView, DataViewMut, Len, Restrict, Slice, SliceCopy, SliceMut, ToOwnedData, ToView,
+            },
         },
         kmer::{EncodedKmerCollection, FindKmers, FindKmersInSeq, KmerCounter, KmerEncoder, KmerSet},
         search::{ByteSubstring, ByteSubstringMut},
@@ -77,8 +79,6 @@ mod private {
             SemiLocalPhmmView, SemiLocalPhmmViewMut,
         },
     };
-    #[cfg(feature = "dev-generic-fasta")]
-    use crate::data::views::ViewAssocTypes;
     use crate::{
         data::{
             cigar::{Cigar, CigarView, CigarViewMut},
@@ -90,6 +90,9 @@ mod private {
         hash::BuildHasher,
         simd::{Simd, SimdElement},
     };
+
+    #[cfg(feature = "dev-generic-fasta")]
+    use crate::data::views::{AssocViewMutType, AssocViewType};
 
     macro_rules! sealed {
         ($($t:ty),* $(,)?) => { $( impl Sealed for $t {} )* };
@@ -120,19 +123,19 @@ mod private {
     impl<S> Sealed for crate::data::fasta::generic::Fasta<S> {}
 
     #[cfg(feature = "dev-generic-fasta")]
-    impl<S: ViewAssocTypes> Sealed for crate::data::fasta::generic::FastaView<'_, S> {}
+    impl<S: AssocViewType> Sealed for crate::data::fasta::generic::FastaView<'_, S> {}
 
     #[cfg(feature = "dev-generic-fasta")]
-    impl<S: ViewAssocTypes> Sealed for crate::data::fasta::generic::FastaViewMut<'_, S> {}
+    impl<S: AssocViewMutType> Sealed for crate::data::fasta::generic::FastaViewMut<'_, S> {}
 
     #[cfg(feature = "dev-generic-fasta")]
     impl<M, S> Sealed for crate::data::fasta::generic::FastaAnnot<M, S> {}
 
     #[cfg(feature = "dev-generic-fasta")]
-    impl<M: ViewAssocTypes, S: ViewAssocTypes> Sealed for crate::data::fasta::generic::FastaAnnotView<'_, M, S> {}
+    impl<M: AssocViewType, S: AssocViewType> Sealed for crate::data::fasta::generic::FastaAnnotView<'_, M, S> {}
 
     #[cfg(feature = "dev-generic-fasta")]
-    impl<M: ViewAssocTypes, S: ViewAssocTypes> Sealed for crate::data::fasta::generic::FastaAnnotViewMut<'_, M, S> {}
+    impl<M: AssocViewMutType, S: AssocViewMutType> Sealed for crate::data::fasta::generic::FastaAnnotViewMut<'_, M, S> {}
 
     #[cfg(feature = "dev-phmm")]
     impl<T, const S: usize> Sealed for GlobalPhmm<T, S> {}

@@ -5,9 +5,9 @@ use crate::{
             amino_acids::AminoAcids,
             nucleotides::{Nucleotides, ToDNA, Translate},
         },
-        views::ViewAssocTypes,
+        views::{AssocViewMutType, AssocViewType},
     },
-    prelude::{AminoAcidsView, DataOwned, NucleotidesView},
+    prelude::{AminoAcidsView, NucleotidesView},
 };
 
 mod reader;
@@ -46,7 +46,7 @@ pub struct Fasta<S = Vec<u8>> {
 #[derive(Eq, PartialEq, Hash, Debug, Default)]
 pub struct FastaView<'a, S = Vec<u8>>
 where
-    S: ViewAssocTypes, {
+    S: AssocViewType, {
     pub header:   &'a str,
     pub sequence: S::View<'a>,
 }
@@ -70,11 +70,11 @@ where
 /// [`NucleotidesViewMut`]: crate::data::types::nucleotides::NucleotidesViewMut
 /// [`AminoAcidsViewMut`]: crate::data::types::amino_acids::AminoAcidsViewMut
 /// [`annotate_taxon`]: Fasta::annotate_taxon
-/// [`as_view_mut`]: DataOwned::as_view_mut
+/// [`as_view_mut`]: crate::data::views::AsViewMut::as_view_mut
 #[derive(Eq, PartialEq, Hash, Debug)]
 pub struct FastaViewMut<'a, S = Vec<u8>>
 where
-    S: ViewAssocTypes, {
+    S: AssocViewMutType, {
     pub header:   &'a mut String,
     pub sequence: S::ViewMut<'a>,
 }
@@ -176,7 +176,7 @@ impl<S> Fasta<S> {
     /// If no taxon is found, the original input is returned as an `Err` for
     /// proper handling.
     ///
-    /// [`as_view`]: DataOwned::as_view
+    /// [`as_view`]: crate::data::views::AsView::as_view
     pub fn annotate_taxon(self) -> Result<FastaAnnot<Taxon, S>, Fasta<S>> {
         if let Some((id, taxon)) = self.header.get_id_taxon() {
             Ok(FastaAnnot {
@@ -204,14 +204,14 @@ impl<S> Fasta<S> {
 
 impl<'a, S> FastaView<'a, S>
 where
-    S: DataOwned,
+    S: AssocViewType,
 {
     /// Constructs an annotated record from the provided metadata.
     #[inline]
     #[must_use]
     pub fn with_annot<M>(self, annot: M::View<'a>) -> FastaAnnotView<'a, M, S>
     where
-        M: DataOwned, {
+        M: AssocViewType, {
         FastaAnnotView {
             header: self.header,
             sequence: self.sequence,
@@ -248,14 +248,14 @@ where
 
 impl<'a, S> FastaViewMut<'a, S>
 where
-    S: DataOwned,
+    S: AssocViewMutType,
 {
     /// Constructs an annotated record from the provided metadata.
     #[inline]
     #[must_use]
     pub fn with_annot<M>(self, annot: M::ViewMut<'a>) -> FastaAnnotViewMut<'a, M, S>
     where
-        M: DataOwned, {
+        M: AssocViewMutType, {
         FastaAnnotViewMut {
             header: self.header,
             sequence: self.sequence,
@@ -298,8 +298,8 @@ pub struct FastaAnnot<M, S = Vec<u8>> {
 #[derive(Eq, PartialEq, Hash, Debug)]
 pub struct FastaAnnotView<'a, M, S = Vec<u8>>
 where
-    S: ViewAssocTypes,
-    M: ViewAssocTypes, {
+    S: AssocViewType,
+    M: AssocViewType, {
     pub header:   &'a str,
     pub sequence: S::View<'a>,
     pub annot:    M::View<'a>,
@@ -320,8 +320,8 @@ where
 #[derive(Eq, PartialEq, Hash, Debug)]
 pub struct FastaAnnotViewMut<'a, M, S = Vec<u8>>
 where
-    S: ViewAssocTypes,
-    M: ViewAssocTypes, {
+    S: AssocViewMutType,
+    M: AssocViewMutType, {
     pub header:   &'a mut String,
     pub sequence: S::ViewMut<'a>,
     pub annot:    M::ViewMut<'a>,

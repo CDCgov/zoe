@@ -1,9 +1,9 @@
 use crate::{
     data::{
         fasta::generic::{Fasta, FastaAnnot, FastaAnnotView, FastaAnnotViewMut, FastaView, FastaViewMut},
-        views::{SliceRange, ViewAssocTypes},
+        views::{AsView, AsViewMut, AssocOwnedType, AssocViewMutType, AssocViewType, SliceRange, ToOwnedData, ToView},
     },
-    prelude::{DataOwned, DataView, DataViewMut, Len, Restrict, Slice, SliceMut},
+    prelude::{DataView, DataViewMut, Len, Restrict, Slice, SliceMut},
 };
 
 impl<S: Len> Len for Fasta<S> {
@@ -20,7 +20,7 @@ impl<S: Len> Len for Fasta<S> {
 
 impl<'a, S> Len for FastaView<'a, S>
 where
-    S: ViewAssocTypes<View<'a>: Len>,
+    S: AssocViewType<View<'a>: Len>,
 {
     #[inline]
     fn is_empty(&self) -> bool {
@@ -35,7 +35,7 @@ where
 
 impl<'a, S> Len for FastaViewMut<'a, S>
 where
-    S: ViewAssocTypes<ViewMut<'a>: Len>,
+    S: AssocViewMutType<ViewMut<'a>: Len>,
 {
     #[inline]
     fn is_empty(&self) -> bool {
@@ -48,36 +48,95 @@ where
     }
 }
 
-impl<S> ViewAssocTypes for Fasta<S>
+impl<S> AssocOwnedType for Fasta<S> {
+    type Owned = Fasta<S>;
+}
+
+impl<S> AssocOwnedType for FastaView<'_, S>
 where
-    S: DataOwned,
+    S: AssocViewType,
 {
     type Owned = Fasta<S>;
+}
+
+impl<S> AssocOwnedType for FastaViewMut<'_, S>
+where
+    S: AssocViewMutType,
+{
+    type Owned = Fasta<S>;
+}
+
+impl<S> AssocViewType for Fasta<S>
+where
+    S: AssocViewType,
+{
     type View<'a> = FastaView<'a, S>;
+}
+
+impl<S> AssocViewType for FastaView<'_, S>
+where
+    S: AssocViewType,
+{
+    type View<'a> = FastaView<'a, S>;
+}
+
+impl<S> AssocViewType for FastaViewMut<'_, S>
+where
+    S: AssocViewType + AssocViewMutType,
+{
+    type View<'a> = FastaView<'a, S>;
+}
+
+impl<S> AssocViewMutType for Fasta<S>
+where
+    S: AssocViewMutType,
+{
     type ViewMut<'a> = FastaViewMut<'a, S>;
 }
 
-impl<S> ViewAssocTypes for FastaView<'_, S>
+impl<S> AssocViewMutType for FastaView<'_, S>
 where
-    S: DataOwned,
+    S: AssocViewType + AssocViewMutType,
 {
-    type Owned = Fasta<S>;
-    type View<'a> = FastaView<'a, S>;
     type ViewMut<'a> = FastaViewMut<'a, S>;
 }
 
-impl<S> ViewAssocTypes for FastaViewMut<'_, S>
+impl<S> AssocViewMutType for FastaViewMut<'_, S>
 where
-    S: DataOwned,
+    S: AssocViewMutType,
 {
-    type Owned = Fasta<S>;
-
-    type View<'a> = FastaView<'a, S>;
-
     type ViewMut<'a> = FastaViewMut<'a, S>;
 }
 
-impl<S: DataOwned> DataOwned for Fasta<S> {
+impl<'a, S> ToOwnedData for FastaView<'a, S>
+where
+    S: AssocViewType<View<'a>: ToOwnedData<Owned = S>>,
+{
+    fn to_owned_data(&self) -> Self::Owned {
+        Fasta {
+            header:   self.header.to_string(),
+            sequence: self.sequence.to_owned_data(),
+        }
+    }
+}
+
+impl<'a, S> ToOwnedData for FastaViewMut<'a, S>
+where
+    S: AssocViewMutType<ViewMut<'a>: ToOwnedData<Owned = S>>,
+{
+    #[inline]
+    fn to_owned_data(&self) -> Fasta<S> {
+        Fasta {
+            header:   (*self.header).clone(),
+            sequence: self.sequence.to_owned_data(),
+        }
+    }
+}
+
+impl<S> AsView for Fasta<S>
+where
+    S: AssocViewType + AsView,
+{
     #[inline]
     fn as_view(&self) -> FastaView<'_, S> {
         FastaView {
@@ -85,7 +144,25 @@ impl<S: DataOwned> DataOwned for Fasta<S> {
             sequence: self.sequence.as_view(),
         }
     }
+}
 
+impl<'a, S> AsView for FastaViewMut<'a, S>
+where
+    S: AssocViewType + for<'b> AssocViewMutType<ViewMut<'a>: AsView<View<'b> = S::View<'b>>>,
+{
+    #[inline]
+    fn as_view(&self) -> FastaView<'_, S> {
+        FastaView {
+            header:   self.header,
+            sequence: self.sequence.as_view(),
+        }
+    }
+}
+
+impl<S> AsViewMut for Fasta<S>
+where
+    S: AsViewMut,
+{
     #[inline]
     fn as_view_mut(&mut self) -> FastaViewMut<'_, S> {
         FastaViewMut {
@@ -95,18 +172,23 @@ impl<S: DataOwned> DataOwned for Fasta<S> {
     }
 }
 
-impl<'a, S> DataView<'a> for FastaView<'a, S>
+impl<'a, S> ToView<'a> for FastaViewMut<'a, S>
 where
-    S: DataOwned,
+    S: AssocViewType + AssocViewMutType<ViewMut<'a>: ToView<'a, View<'a> = S::View<'a>>>,
 {
     #[inline]
-    fn to_owned_data(&self) -> Fasta<S> {
-        Fasta {
-            header:   self.header.to_string(),
-            sequence: self.sequence.to_owned_data(),
+    fn to_view(self) -> FastaView<'a, S> {
+        FastaView {
+            header:   self.header,
+            sequence: self.sequence.to_view(),
         }
     }
+}
 
+impl<'a, S> DataView<'a> for FastaView<'a, S>
+where
+    S: AssocViewType,
+{
     #[inline]
     fn reborrow_view<'b>(&'b self) -> Self::View<'b>
     where
@@ -120,32 +202,8 @@ where
 
 impl<'a, S> DataViewMut<'a> for FastaViewMut<'a, S>
 where
-    S: DataOwned,
+    S: AssocViewMutType,
 {
-    #[inline]
-    fn as_view(&self) -> FastaView<'_, S> {
-        FastaView {
-            header:   self.header,
-            sequence: self.sequence.as_view(),
-        }
-    }
-
-    #[inline]
-    fn to_view(self) -> FastaView<'a, S> {
-        FastaView {
-            header:   self.header,
-            sequence: self.sequence.to_view(),
-        }
-    }
-
-    #[inline]
-    fn to_owned_data(&self) -> Fasta<S> {
-        Fasta {
-            header:   (*self.header).clone(),
-            sequence: self.sequence.to_owned_data(),
-        }
-    }
-
     #[inline]
     fn reborrow_view_mut<'b>(&'b mut self) -> Self::ViewMut<'b>
     where
@@ -159,7 +217,7 @@ where
 
 impl<'a, S> Restrict for FastaView<'a, S>
 where
-    S: ViewAssocTypes<View<'a>: Restrict>,
+    S: AssocViewType<View<'a>: Restrict>,
 {
     #[inline]
     fn restrict<R: SliceRange>(&mut self, range: R) {
@@ -174,7 +232,7 @@ where
 
 impl<'a, S> Restrict for FastaViewMut<'a, S>
 where
-    S: ViewAssocTypes<ViewMut<'a>: Restrict>,
+    S: AssocViewMutType<ViewMut<'a>: Restrict>,
 {
     #[inline]
     fn restrict<R: SliceRange>(&mut self, range: R) {
@@ -189,7 +247,7 @@ where
 
 impl<S> Slice for Fasta<S>
 where
-    S: DataOwned + Slice,
+    S: AssocViewType + Slice,
 {
     #[inline]
     fn slice<R: SliceRange>(&self, range: R) -> FastaView<'_, S> {
@@ -210,7 +268,7 @@ where
 
 impl<S> SliceMut for Fasta<S>
 where
-    S: DataOwned + SliceMut,
+    S: AssocViewMutType + SliceMut,
 {
     #[inline]
     fn slice_mut<R: SliceRange>(&mut self, range: R) -> FastaViewMut<'_, S> {
@@ -231,7 +289,7 @@ where
 
 impl<'a, S> Slice for FastaView<'a, S>
 where
-    S: DataOwned<View<'a>: Slice> + 'a,
+    S: AssocViewType<View<'a>: Slice> + 'a,
 {
     #[inline]
     fn slice<R: SliceRange>(&self, range: R) -> FastaView<'_, S> {
@@ -252,7 +310,7 @@ where
 
 impl<'a, S> Slice for FastaViewMut<'a, S>
 where
-    S: DataOwned<ViewMut<'a>: Slice> + 'a,
+    S: AssocViewType + AssocViewMutType<ViewMut<'a>: for<'b> Slice<View<'b> = S::View<'b>>> + 'a,
 {
     #[inline]
     fn slice<R: SliceRange>(&self, range: R) -> FastaView<'_, S> {
@@ -273,7 +331,7 @@ where
 
 impl<'a, S> SliceMut for FastaViewMut<'a, S>
 where
-    S: DataOwned<ViewMut<'a>: SliceMut> + 'a,
+    S: AssocViewMutType<ViewMut<'a>: SliceMut> + 'a,
 {
     #[inline]
     fn slice_mut<R: SliceRange>(&mut self, range: R) -> FastaViewMut<'_, S> {
@@ -306,8 +364,8 @@ impl<M, S: Len> Len for FastaAnnot<M, S> {
 
 impl<'a, M, S> Len for FastaAnnotView<'a, M, S>
 where
-    M: ViewAssocTypes,
-    S: ViewAssocTypes<View<'a>: Len>,
+    M: AssocViewType,
+    S: AssocViewType<View<'a>: Len>,
 {
     #[inline]
     fn is_empty(&self) -> bool {
@@ -322,8 +380,8 @@ where
 
 impl<'a, M, S> Len for FastaAnnotViewMut<'a, M, S>
 where
-    M: ViewAssocTypes,
-    S: ViewAssocTypes<ViewMut<'a>: Len>,
+    M: AssocViewMutType,
+    S: AssocViewMutType<ViewMut<'a>: Len>,
 {
     #[inline]
     fn is_empty(&self) -> bool {
@@ -336,40 +394,107 @@ where
     }
 }
 
-impl<M, S> ViewAssocTypes for FastaAnnot<M, S>
+impl<M, S> AssocOwnedType for FastaAnnot<M, S> {
+    type Owned = FastaAnnot<M, S>;
+}
+
+impl<M, S> AssocOwnedType for FastaAnnotView<'_, M, S>
 where
-    M: DataOwned,
-    S: DataOwned,
+    M: AssocViewType,
+    S: AssocViewType,
 {
     type Owned = FastaAnnot<M, S>;
+}
+
+impl<M, S> AssocOwnedType for FastaAnnotViewMut<'_, M, S>
+where
+    M: AssocViewMutType,
+    S: AssocViewMutType,
+{
+    type Owned = FastaAnnot<M, S>;
+}
+
+impl<M, S> AssocViewType for FastaAnnot<M, S>
+where
+    M: AssocViewType,
+    S: AssocViewType,
+{
     type View<'a> = FastaAnnotView<'a, M, S>;
+}
+
+impl<M, S> AssocViewType for FastaAnnotView<'_, M, S>
+where
+    M: AssocViewType,
+    S: AssocViewType,
+{
+    type View<'a> = FastaAnnotView<'a, M, S>;
+}
+
+impl<M, S> AssocViewType for FastaAnnotViewMut<'_, M, S>
+where
+    M: AssocViewType + AssocViewMutType,
+    S: AssocViewType + AssocViewMutType,
+{
+    type View<'a> = FastaAnnotView<'a, M, S>;
+}
+
+impl<M, S> AssocViewMutType for FastaAnnot<M, S>
+where
+    M: AssocViewMutType,
+    S: AssocViewMutType,
+{
     type ViewMut<'a> = FastaAnnotViewMut<'a, M, S>;
 }
 
-impl<M, S> ViewAssocTypes for FastaAnnotView<'_, M, S>
+impl<M, S> AssocViewMutType for FastaAnnotView<'_, M, S>
 where
-    M: DataOwned,
-    S: DataOwned,
+    M: AssocViewType + AssocViewMutType,
+    S: AssocViewType + AssocViewMutType,
 {
-    type Owned = FastaAnnot<M, S>;
-    type View<'a> = FastaAnnotView<'a, M, S>;
     type ViewMut<'a> = FastaAnnotViewMut<'a, M, S>;
 }
 
-impl<M, S> ViewAssocTypes for FastaAnnotViewMut<'_, M, S>
+impl<M, S> AssocViewMutType for FastaAnnotViewMut<'_, M, S>
 where
-    M: DataOwned,
-    S: DataOwned,
+    M: AssocViewMutType,
+    S: AssocViewMutType,
 {
-    type Owned = FastaAnnot<M, S>;
-    type View<'a> = FastaAnnotView<'a, M, S>;
     type ViewMut<'a> = FastaAnnotViewMut<'a, M, S>;
 }
 
-impl<M, S> DataOwned for FastaAnnot<M, S>
+impl<'a, M, S> ToOwnedData for FastaAnnotView<'a, M, S>
 where
-    M: DataOwned,
-    S: DataOwned,
+    M: AssocViewType<View<'a>: ToOwnedData<Owned = M>>,
+    S: AssocViewType<View<'a>: ToOwnedData<Owned = S>>,
+{
+    fn to_owned_data(&self) -> FastaAnnot<M, S> {
+        FastaAnnot {
+            header:   self.header.to_string(),
+            sequence: self.sequence.to_owned_data(),
+            annot:    self.annot.to_owned_data(),
+        }
+    }
+}
+
+impl<'a, M, S> ToOwnedData for FastaAnnotViewMut<'a, M, S>
+where
+    M: AssocViewMutType<ViewMut<'a>: ToOwnedData<Owned = M>>,
+    S: AssocViewMutType<ViewMut<'a>: ToOwnedData<Owned = S>>,
+{
+    #[inline]
+    fn to_owned_data(&self) -> FastaAnnot<M, S> {
+        FastaAnnot {
+            header:   (*self.header).clone(),
+            sequence: self.sequence.to_owned_data(),
+            annot:    self.annot.to_owned_data(),
+        }
+    }
+}
+
+impl<M, S> AsView for FastaAnnot<M, S>
+where
+    M: AsView,
+    S: AsView,
 {
     #[inline]
     fn as_view(&self) -> FastaAnnotView<'_, M, S> {
@@ -379,7 +504,28 @@ where
             annot:    self.annot.as_view(),
         }
     }
+}
 
+impl<'a, M, S> AsView for FastaAnnotViewMut<'a, M, S>
+where
+    M: AssocViewType + for<'b> AssocViewMutType<ViewMut<'a>: AsView<View<'b> = M::View<'b>>>,
+    S: AssocViewType + for<'b> AssocViewMutType<ViewMut<'a>: AsView<View<'b> = S::View<'b>>>,
+{
+    #[inline]
+    fn as_view(&self) -> FastaAnnotView<'_, M, S> {
+        FastaAnnotView {
+            header:   self.header,
+            sequence: self.sequence.as_view(),
+            annot:    self.annot.as_view(),
+        }
+    }
+}
+
+impl<M, S> AsViewMut for FastaAnnot<M, S>
+where
+    M: AsViewMut,
+    S: AsViewMut,
+{
     #[inline]
     fn as_view_mut(&mut self) -> FastaAnnotViewMut<'_, M, S> {
         FastaAnnotViewMut {
@@ -392,18 +538,9 @@ where
 
 impl<'a, M, S> DataView<'a> for FastaAnnotView<'a, M, S>
 where
-    M: DataOwned<View<'a>: DataView<'a, Owned = M>>,
-    S: DataOwned<View<'a>: DataView<'a, Owned = S>>,
+    M: AssocViewType<View<'a>: DataView<'a>>,
+    S: AssocViewType<View<'a>: DataView<'a>>,
 {
-    #[inline]
-    fn to_owned_data(&self) -> FastaAnnot<M, S> {
-        FastaAnnot {
-            header:   self.header.to_string(),
-            sequence: self.sequence.to_owned_data(),
-            annot:    self.annot.to_owned_data(),
-        }
-    }
-
     #[inline]
     fn reborrow_view<'b>(&'b self) -> FastaAnnotView<'b, M, S>
     where
@@ -416,54 +553,11 @@ where
     }
 }
 
-impl<'a, M, S> Restrict for FastaAnnotView<'a, M, S>
-where
-    M: DataOwned,
-    S: DataOwned<View<'a>: Restrict>,
-{
-    #[inline]
-    fn restrict<R: SliceRange>(&mut self, range: R) {
-        self.sequence.restrict(range);
-    }
-
-    #[inline]
-    fn clear(&mut self) {
-        self.sequence.clear();
-    }
-}
-
 impl<'a, M, S> DataViewMut<'a> for FastaAnnotViewMut<'a, M, S>
 where
-    M: DataOwned,
-    S: DataOwned,
+    M: AssocViewMutType,
+    S: AssocViewMutType,
 {
-    #[inline]
-    fn as_view(&self) -> FastaAnnotView<'_, M, S> {
-        FastaAnnotView {
-            header:   self.header,
-            sequence: self.sequence.as_view(),
-            annot:    self.annot.as_view(),
-        }
-    }
-
-    #[inline]
-    fn to_view(self) -> FastaAnnotView<'a, M, S> {
-        FastaAnnotView {
-            header:   self.header,
-            sequence: self.sequence.to_view(),
-            annot:    self.annot.to_view(),
-        }
-    }
-
-    #[inline]
-    fn to_owned_data(&self) -> FastaAnnot<M, S> {
-        FastaAnnot {
-            header:   (*self.header).clone(),
-            sequence: self.sequence.to_owned_data(),
-            annot:    self.annot.to_owned_data(),
-        }
-    }
-
     #[inline]
     fn reborrow_view_mut<'b>(&'b mut self) -> FastaAnnotViewMut<'b, M, S>
     where
@@ -476,10 +570,26 @@ where
     }
 }
 
+impl<'a, M, S> Restrict for FastaAnnotView<'a, M, S>
+where
+    M: AssocViewType,
+    S: AssocViewType<View<'a>: Restrict>,
+{
+    #[inline]
+    fn restrict<R: SliceRange>(&mut self, range: R) {
+        self.sequence.restrict(range);
+    }
+
+    #[inline]
+    fn clear(&mut self) {
+        self.sequence.clear();
+    }
+}
+
 impl<'a, M, S> Restrict for FastaAnnotViewMut<'a, M, S>
 where
-    M: DataOwned,
-    S: DataOwned<ViewMut<'a>: Restrict>,
+    M: AssocViewMutType,
+    S: AssocViewMutType<ViewMut<'a>: Restrict>,
 {
     #[inline]
     fn restrict<R: SliceRange>(&mut self, range: R) {
@@ -494,8 +604,8 @@ where
 
 impl<M, S> Slice for FastaAnnot<M, S>
 where
-    M: DataOwned,
-    S: DataOwned + Slice,
+    M: AsView,
+    S: Slice,
 {
     #[inline]
     fn slice<R: SliceRange>(&self, range: R) -> FastaAnnotView<'_, M, S> {
@@ -518,8 +628,8 @@ where
 
 impl<M, S> SliceMut for FastaAnnot<M, S>
 where
-    M: DataOwned,
-    S: DataOwned + SliceMut,
+    M: AsViewMut,
+    S: SliceMut,
 {
     #[inline]
     fn slice_mut<R: SliceRange>(&mut self, range: R) -> FastaAnnotViewMut<'_, M, S> {
@@ -542,8 +652,8 @@ where
 
 impl<'a, M, S> Slice for FastaAnnotView<'a, M, S>
 where
-    M: DataOwned,
-    S: DataOwned<View<'a>: Slice> + 'a,
+    M: AssocViewType,
+    S: AssocViewType<View<'a>: Slice>,
 {
     #[inline]
     fn slice<R: SliceRange>(&self, range: R) -> FastaAnnotView<'_, M, S> {
@@ -566,8 +676,8 @@ where
 
 impl<'a, M, S> Slice for FastaAnnotViewMut<'a, M, S>
 where
-    M: DataOwned,
-    S: DataOwned<ViewMut<'a>: SliceMut>,
+    M: AssocViewType + for<'b> AssocViewMutType<ViewMut<'a>: AsView<View<'b> = M::View<'b>>>,
+    S: AssocViewType + for<'b> AssocViewMutType<ViewMut<'a>: Slice<View<'b> = S::View<'b>>>,
 {
     #[inline]
     fn slice<R: SliceRange>(&self, range: R) -> FastaAnnotView<'_, M, S> {
@@ -590,8 +700,8 @@ where
 
 impl<'a, M, S> SliceMut for FastaAnnotViewMut<'a, M, S>
 where
-    M: DataOwned,
-    S: DataOwned<ViewMut<'a>: SliceMut>,
+    M: AssocViewMutType,
+    S: AssocViewMutType<ViewMut<'a>: SliceMut>,
 {
     #[inline]
     fn slice_mut<R: SliceRange>(&mut self, range: R) -> FastaAnnotViewMut<'_, M, S> {

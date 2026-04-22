@@ -91,11 +91,11 @@
 //! [`Cigar`]: types::cigar::Cigar
 //! [`CigarView`]: types::cigar::CigarView
 //! [`CigarViewMut`]: types::cigar::CigarViewMut
-//! [`as_view`]: crate::prelude::DataOwned::as_view
-//! [`as_view_mut`]: crate::prelude::DataOwned::as_view_mut
+//! [`as_view`]: crate::prelude::AsView::as_view
+//! [`as_view_mut`]: crate::prelude::AsViewMut::as_view_mut
 //! [`slice`]: crate::prelude::Slice::slice
 //! [`slice_mut`]: crate::prelude::SliceMut::slice_mut
-//! [`to_owned_data`]: crate::prelude::DataView::to_owned_data
+//! [`to_owned_data`]: crate::prelude::ToOwnedData::to_owned_data
 //! [`restrict`]: crate::prelude::Restrict::restrict
 //! [`FastQReader::from_path`]:
 //!     crate::data::records::fastq::FastQReader::from_path

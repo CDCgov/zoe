@@ -1,6 +1,6 @@
 use crate::data::{
     fasta::generic::{Fasta, FastaAnnotView, FastaView, FastaViewMut},
-    views::ViewAssocTypes,
+    views::{AssocViewMutType, AssocViewType},
 };
 use std::fmt::Display;
 
@@ -12,7 +12,7 @@ impl<S: Display> Display for Fasta<S> {
 
 impl<'a, S> Display for FastaView<'a, S>
 where
-    S: ViewAssocTypes<View<'a>: Display>,
+    S: AssocViewType<View<'a>: Display>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, ">{}\n{}\n", self.header, self.sequence)
@@ -21,7 +21,7 @@ where
 
 impl<'a, S> Display for FastaViewMut<'a, S>
 where
-    S: ViewAssocTypes<ViewMut<'a>: Display>,
+    S: AssocViewMutType<ViewMut<'a>: Display>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, ">{}\n{}\n", self.header, self.sequence)
@@ -32,7 +32,7 @@ where
 // does)
 impl<'a, S> Clone for FastaView<'a, S>
 where
-    S: ViewAssocTypes<View<'a>: Clone>,
+    S: AssocViewType<View<'a>: Clone>,
 {
     #[inline]
     fn clone(&self) -> Self {
@@ -43,14 +43,14 @@ where
     }
 }
 
-impl<'a, S> Copy for FastaView<'a, S> where S: ViewAssocTypes<View<'a>: Copy> {}
+impl<'a, S> Copy for FastaView<'a, S> where S: AssocViewType<View<'a>: Copy> {}
 
 // A non-derived impl is needed since M and S may not implement clone (but
 // S::View and M::View do)
 impl<'a, M, S> Clone for FastaAnnotView<'a, M, S>
 where
-    M: ViewAssocTypes<View<'a>: Clone>,
-    S: ViewAssocTypes<View<'a>: Clone>,
+    M: AssocViewType<View<'a>: Clone>,
+    S: AssocViewType<View<'a>: Clone>,
 {
     #[inline]
     fn clone(&self) -> Self {
@@ -64,7 +64,7 @@ where
 
 impl<'a, M, S> Copy for FastaAnnotView<'a, M, S>
 where
-    M: ViewAssocTypes<View<'a>: Copy>,
-    S: ViewAssocTypes<View<'a>: Copy>,
+    M: AssocViewType<View<'a>: Copy>,
+    S: AssocViewType<View<'a>: Copy>,
 {
 }
