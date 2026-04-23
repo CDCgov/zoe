@@ -5,8 +5,8 @@
 //! - [`ErrorWithContext`], [`ResultWithErrorContext`], and [`WithErrorContext`]
 //!   for wrapping errors with additional context while preserving the error
 //!   source chain.
-//! - [`GetCode`] and [`OrFail`] for graceful CLI error handling with exit
-//!   codes.
+//! - [`GetCode`], [`OrFail`], and [`Fail`] for graceful CLI error handling with
+//!   exit codes.
 //!
 //! ## Error Handling Philosophy
 //!
@@ -15,7 +15,7 @@
 //! distance) use enums in their respective modules. [`std::fmt::Display`] is
 //! implemented only at the immediate error level—callers and loggers must
 //! iterate through the source chain via [`std::error::Error::source`], use
-//! *Zoe*'s [`OrFail`], or an external crates like `anyhow`.
+//! *Zoe*'s [`OrFail`] or [`Fail`], or an external crates like `anyhow`.
 //!
 //! *Zoe* elects to add context by default when available, such as in
 //! [`FastQReader::from_path`] which will include the path of a missing/empty
@@ -29,8 +29,8 @@
 //! [`ErrorWithContext`] struct, containing the original error (boxed) as the
 //! [`Error::source`] and the context as the new top-level error, stored as a
 //! [`String`]. When used in conjuction with an error handling library such as
-//! `anyhow` or *Zoe*'s [`OrFail`] trait, the stack of errors can be displayed
-//! in an application.
+//! `anyhow` or *Zoe*'s [`OrFail`] or [`Fail`] traits, the stack of errors can
+//! be displayed in an application.
 //!
 //! [`ErrorWithContext`]: crate::data::err::ErrorWithContext
 //! [`ResultWithErrorContext`]: crate::data::err::ResultWithErrorContext
@@ -146,40 +146,76 @@ where
     fn unwrap_or_fail(self) -> T {
         match self {
             Ok(result) => result,
-            Err(e) => {
-                if let Ok(bin) = std::env::current_exe() {
-                    eprintln!("Error in {b}", b = bin.display());
-                    eprintln!("  → {e}", e = IndentWrapper(&e));
-                } else {
-                    eprintln!("Error: {e}");
-                }
-                let mut source = e.source();
-                while let Some(err) = source {
-                    eprintln!("  → {err}", err = IndentWrapper(err));
-                    source = err.source();
-                }
-                std::process::exit(e.get_code());
-            }
+            Err(e) => e.fail(),
         }
     }
 
     fn unwrap_or_die(self, msg: &str) -> T {
         match self {
             Ok(result) => result,
-            Err(e) => {
-                if let Ok(bin) = std::env::current_exe() {
-                    eprintln!("Error in {b}: {msg}\n\n{e}", b = bin.display());
-                } else {
-                    eprintln!("Error: {msg}\n\n{e}");
-                }
-                let mut source = e.source();
-                while let Some(err) = source {
-                    eprintln!("  → {err}", err = IndentWrapper(err));
-                    source = err.source();
-                }
-                std::process::exit(e.get_code());
-            }
+            Err(e) => e.die(msg),
         }
+    }
+}
+
+/// A trait for providing more graceful error reporting and aborting. For
+/// similar methods on [`Result`], see [`OrFail`].
+///
+/// A status code is provided by [`GetCode`], and any context available in
+/// [`Error::source`] is displayed.
+///
+/// <div class="warning note">
+///
+/// **Note**
+///
+/// To get full utility out of this trait, custom top-level errors should
+/// manually implement [`std::error::Error::source`] and get whatever field or
+/// variants contains the nested errors. In addition, [`GetCode`] should
+/// likewise be implemented manually to retrieve the underlying codes for nested
+/// [`std::io::Error`].
+///
+/// </div>
+pub trait Fail {
+    /// Exits the program, writing the error and any information in
+    /// [`Error::source`] to stderr.
+    fn fail(self) -> !;
+
+    /// Exits the program, writing the provided message, the error, and any
+    /// information in [`Error::source`] to stderr.
+    fn die(self, msg: &str) -> !;
+}
+
+impl<E> Fail for E
+where
+    E: GetCode + Display + Error + 'static,
+{
+    fn fail(self) -> ! {
+        if let Ok(bin) = std::env::current_exe() {
+            eprintln!("Error in {b}", b = bin.display());
+            eprintln!("  → {self}", self = IndentWrapper(&self));
+        } else {
+            eprintln!("Error: {self}");
+        }
+        let mut source = self.source();
+        while let Some(err) = source {
+            eprintln!("  → {err}", err = IndentWrapper(err));
+            source = err.source();
+        }
+        std::process::exit(self.get_code());
+    }
+
+    fn die(self, msg: &str) -> ! {
+        if let Ok(bin) = std::env::current_exe() {
+            eprintln!("Error in {b}: {msg}\n\n{self}", b = bin.display());
+        } else {
+            eprintln!("Error: {msg}\n\n{self}");
+        }
+        let mut source = self.source();
+        while let Some(err) = source {
+            eprintln!("  → {err}", err = IndentWrapper(err));
+            source = err.source();
+        }
+        std::process::exit(self.get_code());
     }
 }
 
