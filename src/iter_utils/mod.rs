@@ -268,6 +268,7 @@ impl<T, E, I: Iterator<Item = Result<T, E>>> ProcessResultsExt<T, E> for I {}
 /// [`ChunksExact`]: std::slice::ChunksExact
 /// [`final_partial_window`]: SteppedWindows::final_partial_window
 /// [`ChunksExact::remainder`]: std::slice::ChunksExact::remainder
+#[cfg_attr(feature = "fuzzing", visibility::make(pub))]
 pub(crate) struct SteppedWindows<'a, const N: usize, T> {
     /// The remaining bytes to step over and yield from.
     slice:                &'a [T],
@@ -308,6 +309,8 @@ impl<'a, T, const N: usize> SteppedWindows<'a, N, T> {
     /// Returns the remainder of the original slice that is not going to be
     /// returned by the iterator. The returned slice has at most `window_size-1`
     /// elements.
+    #[inline]
+    #[must_use]
     pub fn final_partial_window(&self) -> &'a [T] {
         self.final_partial_window
     }

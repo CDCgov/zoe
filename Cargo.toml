@@ -40,7 +40,8 @@ rand = ["dep:rand_xoshiro", "dep:rand"]
 multiversion = ["dep:multiversion"]
 
 # An optional feature adding additional functionality for fuzzing, including
-# Arbitrary implementations
+# Arbitrary implementations. This also exposes some private functionality so
+# that it can be tested.
 fuzzing = ["dep:arbitrary"]
 
 # An optional feature exposing additional alignment-related functions and
