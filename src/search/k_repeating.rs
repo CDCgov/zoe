@@ -46,9 +46,9 @@ fn find_k_repeating_scalar(haystack: &[u8], needle: u8, size: usize) -> Option<u
 #[must_use]
 fn find_2_repeating_simd<const N: usize>(haystack: &[u8], needle: u8) -> Option<usize> {
     let nv = Simd::<u8, N>::splat(needle);
-    let mut chunks = SteppedWindows::new(haystack, N - 1, N);
+    let mut chunks = SteppedWindows::new(haystack, N - 1);
 
-    for (i, chunk) in chunks.by_ref().map(Simd::from_slice).enumerate() {
+    for (i, chunk) in chunks.by_ref().copied().map(Simd::from_array).enumerate() {
         let mut mask = nv.simd_eq(chunk).to_bitmask();
         mask = mask & (mask >> 1);
 
@@ -57,7 +57,7 @@ fn find_2_repeating_simd<const N: usize>(haystack: &[u8], needle: u8) -> Option<
         }
     }
 
-    let rem = chunks.remainder();
+    let rem = chunks.final_partial_window();
     find_k_repeating_scalar(rem, needle, 2).map(|found| (haystack.len() - rem.len()) + found)
 }
 
@@ -106,10 +106,10 @@ pub fn find_k_repeating<const N: usize>(haystack: &[u8], needle: u8, size: usize
     }
 
     let nv = Simd::<u8, N>::splat(needle);
-    let mut chunks = SteppedWindows::new(haystack, N - 2, N);
+    let mut chunks = SteppedWindows::new(haystack, N - 2);
     let mut running_total = 0;
 
-    for (i, chunk) in chunks.by_ref().map(Simd::from_slice).enumerate() {
+    for (i, chunk) in chunks.by_ref().copied().map(Simd::from_array).enumerate() {
         let mut mask = nv.simd_eq(chunk).to_bitmask();
         mask = mask & (mask >> 1) & (mask >> 2);
 
@@ -156,7 +156,7 @@ pub fn find_k_repeating<const N: usize>(haystack: &[u8], needle: u8, size: usize
         }
     }
 
-    for (j, b) in chunks.remainder().iter().copied().enumerate() {
+    for (j, b) in chunks.final_partial_window().iter().copied().enumerate() {
         if b == needle {
             running_total += 1;
         } else {
@@ -164,7 +164,7 @@ pub fn find_k_repeating<const N: usize>(haystack: &[u8], needle: u8, size: usize
         }
 
         if running_total == size {
-            return Some(haystack.len() - chunks.remainder().len() + j - (size - 1));
+            return Some(haystack.len() - chunks.final_partial_window().len() + j - (size - 1));
         }
     }
 
