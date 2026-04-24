@@ -1,5 +1,5 @@
 use crate::math::Uint;
-use std::{cmp::min, simd::prelude::*};
+use std::{cmp::min, iter::zip, simd::prelude::*};
 
 /// Calculates the number of differences at the byte (or base/residue) level. An
 /// unsigned integer may be supplied as a generic argument. Smaller sizes like
@@ -16,8 +16,29 @@ use std::{cmp::min, simd::prelude::*};
 /// assert!(3 == hamming::<u32>(s1, s2));
 /// ```
 #[must_use]
-pub fn hamming<T: Uint>(a: &[u8], b: &[u8]) -> usize {
-    std::iter::zip(a, b)
+pub fn hamming<T: Uint>(x: &[u8], y: &[u8]) -> usize {
+    let (x, y) = if x.len() < y.len() {
+        (x, &y[..x.len()])
+    } else {
+        (&x[..y.len()], y)
+    };
+
+    let mut x = x.chunks_exact((T::MAX).cast_as::<usize>());
+    let mut y = y.chunks_exact((T::MAX).cast_as::<usize>());
+
+    let mut d = 0;
+
+    for (c1, c2) in x.by_ref().zip(y.by_ref()) {
+        d += zip(c1, c2)
+            .map(|(a, b)| a != b)
+            .fold(T::ZERO, |a, b| a + T::cast_from(b))
+            .cast_as::<usize>();
+    }
+
+    let r1 = x.remainder();
+    let r2 = y.remainder();
+
+    d + zip(r1, r2)
         .map(|(a, b)| a != b)
         .fold(T::ZERO, |a, b| a + T::cast_from(b))
         .cast_as::<usize>()
@@ -107,5 +128,39 @@ mod test {
         }
 
         assert_eq!(hamming_simd::<32>(&x[..20], y), hamming::<usize>(&x[..20], y));
+    }
+
+    #[test]
+    fn test_hamming_u8() {
+        use crate::distance::dna::test::{LONG_READ_1 as x, LONG_READ_2 as y};
+        assert_eq!(hamming::<u8>(&x[..255 * 3 + 10], y), hamming::<usize>(&x[..255 * 3 + 10], y));
+    }
+}
+
+#[cfg(test)]
+mod benches {
+    use super::*;
+    use test::Bencher;
+    extern crate test;
+
+    #[bench]
+    fn hamming_scalar_u32_unchecked(b: &mut Bencher) {
+        use crate::distance::dna::test::{LONG_READ_1 as x, LONG_READ_2 as y};
+
+        b.iter(|| zip(x, y).map(|(a, b)| a != b).fold(0u32, |a, b| a + u32::from(b)) as usize);
+    }
+
+    #[bench]
+    fn hamming_scalar_u8(b: &mut Bencher) {
+        use crate::distance::dna::test::{LONG_READ_1 as x, LONG_READ_2 as y};
+
+        b.iter(|| hamming::<u8>(x, y));
+    }
+
+    #[bench]
+    fn hamming_simd_n32(b: &mut Bencher) {
+        use crate::distance::dna::test::{LONG_READ_1 as x, LONG_READ_2 as y};
+
+        b.iter(|| hamming_simd::<32>(x, y));
     }
 }
