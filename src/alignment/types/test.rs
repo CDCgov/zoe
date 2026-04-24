@@ -1,6 +1,7 @@
 use crate::{
     alignment::{
-        AlignmentStates, PairwiseSequence, StatesSequence, StatesSequenceMut, profile::ScalarProfile, sw::sw_scalar_align,
+        Alignment, AlignmentStates, PairwiseSequence, StatesSequence, StatesSequenceMut, profile::ScalarProfile,
+        sw::sw_scalar_align,
     },
     data::{
         amino_acids::AminoAcids,
@@ -10,8 +11,7 @@ use crate::{
     },
 };
 
-#[test]
-fn alignment_invert() {
+fn example_alignment() -> Alignment<u32> {
     const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
     const GAP_OPEN: i8 = -3;
     const GAP_EXTEND: i8 = -1;
@@ -20,7 +20,12 @@ fn alignment_invert() {
     let query: &[u8] = b"TCTCAGATTGCAGTTT";
 
     let profile = ScalarProfile::<5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-    let alignment = sw_scalar_align(reference, &profile).unwrap();
+    sw_scalar_align(reference, &profile).unwrap()
+}
+
+#[test]
+fn alignment_invert() {
+    let alignment = example_alignment();
     let invert_alignment = alignment.invert();
 
     assert_eq!(alignment.ref_range, 3..15);
@@ -30,6 +35,17 @@ fn alignment_invert() {
     assert_eq!(invert_alignment.ref_range, 1..13);
     assert_eq!(invert_alignment.query_range, 3..15);
     assert_eq!(invert_alignment.states, Cigar::from_slice_unchecked("3S5M1I4M1D2M1S"));
+}
+
+#[test]
+fn alignment_reversal() {
+    let a = example_alignment();
+    assert_eq!(a, a.to_reverse().to_reverse());
+
+    let mut b = a.clone();
+    b.make_reverse();
+    b.make_reverse();
+    assert_eq!(a, b);
 }
 
 #[test]

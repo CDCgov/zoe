@@ -429,8 +429,8 @@ impl<T: Copy> Alignment<T> {
     /// See [`Reversibility`](Alignment#reversibility) for more details.
     #[must_use]
     pub fn to_reverse(&self) -> Self {
-        let ref_range = (self.ref_len - self.ref_range.end)..(self.ref_len - self.ref_range.start - 1);
-        let query_range = (self.query_len - self.query_range.end)..(self.query_len - self.query_range.start - 1);
+        let ref_range = (self.ref_len - self.ref_range.end)..(self.ref_len - self.ref_range.start);
+        let query_range = (self.query_len - self.query_range.end)..(self.query_len - self.query_range.start);
         let states = self.states.to_reverse();
 
         Alignment {
@@ -448,8 +448,8 @@ impl<T: Copy> Alignment<T> {
     ///
     /// See [`Reversibility`](Alignment#reversibility) for more details.
     pub fn make_reverse(&mut self) {
-        self.ref_range = (self.ref_len - self.ref_range.end)..(self.ref_len - self.ref_range.start - 1);
-        self.query_range = (self.query_len - self.query_range.end)..(self.query_len - self.query_range.start - 1);
+        self.ref_range = (self.ref_len - self.ref_range.end)..(self.ref_len - self.ref_range.start);
+        self.query_range = (self.query_len - self.query_range.end)..(self.query_len - self.query_range.start);
         self.states.make_reverse();
     }
 
