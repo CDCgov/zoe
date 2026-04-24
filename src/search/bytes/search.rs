@@ -165,13 +165,42 @@ pub fn position_by_byte3<const N: usize>(haystack: &[u8], b1: u8, b2: u8, b3: u8
 /// The following parameters can be used to adjust performance characteristics:
 ///
 /// - `N` - The number of SIMD lanes to use.
-/// - `UF` - The unroll factor.
+/// - `UF` - The unroll factor, which must be non-zero.
 #[inline]
 #[must_use]
 #[allow(clippy::needless_range_loop)]
 pub fn position_simd<const N: usize, const UF: usize, P>(haystack: &[Simd<u8, N>], predicate: P) -> Option<usize>
 where
     P: Fn(Simd<u8, N>) -> Mask<i8, N>, {
+    position_simd_mapped::<N, UF, _, _>(haystack, predicate, |v| v)
+}
+
+/// Searches the `haystack` using the provide SIMD byte `predicate` returning
+/// the index found, or [`None`] otherwise. The `haystack` is lazily mapped
+/// using `map`.
+///
+/// ## Acknowledgements
+///
+/// The unrolling algorithm inspired from previous work in the excellent [memchr
+/// crate](https://crates.io/crates/memchr).
+///
+/// ## Parameters
+///
+/// The following parameters can be used to adjust performance characteristics:
+///
+/// - `N` - The number of SIMD lanes to use.
+/// - `UF` - The unroll factor, which must be non-zero.
+#[inline]
+#[must_use]
+#[allow(clippy::needless_range_loop)]
+pub fn position_simd_mapped<const N: usize, const UF: usize, P, S>(
+    haystack: &[Simd<u8, N>], predicate: P, map: S,
+) -> Option<usize>
+where
+    P: Fn(Simd<u8, N>) -> Mask<i8, N>,
+    S: Fn(Simd<u8, N>) -> Simd<u8, N>, {
+    const { assert!(UF > 0, "`UF` must be non-zero") }
+
     // unroll factor
 
     let chunk_size = N * UF;
@@ -181,10 +210,10 @@ where
     let mut mask_buffer = [Mask::from_array([false; N]); UF];
 
     for (i, c) in chunks.enumerate() {
-        mask_buffer[0] = predicate(c[0]);
+        mask_buffer[0] = predicate(map(c[0]));
         let mut mask = mask_buffer[0];
         for j in 1..UF {
-            mask_buffer[j] = predicate(c[j]);
+            mask_buffer[j] = predicate(map(c[j]));
             mask |= mask_buffer[j];
         }
 
@@ -201,7 +230,7 @@ where
     }
 
     for (i, &v) in rem.iter().enumerate() {
-        let mask = predicate(v);
+        let mask = predicate(map(v));
         if mask.any() {
             return Some(N * (haystack.len() - rem.len()) + (i * N) + mask.bitmask_offset());
         }

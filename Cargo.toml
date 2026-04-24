@@ -42,7 +42,7 @@ multiversion = ["dep:multiversion"]
 # An optional feature adding additional functionality for fuzzing, including
 # Arbitrary implementations. This also exposes some private functionality so
 # that it can be tested.
-fuzzing = ["dep:arbitrary"]
+fuzzing = ["dep:arbitrary", "dep:visibility"]
 
 # An optional feature exposing additional alignment-related functions and
 # internals, such as for testing
