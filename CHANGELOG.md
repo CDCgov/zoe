@@ -12,7 +12,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - `NucleotidesView`, `AminoAcidsView`, and `QualityScoresView` now have inherent `slice` methods offering a longer lifetime of the returned view
 - Added `as_map` accessor to convert `ByteIndexMap` to `ByteMap`
 - Similar to the `OrFail` trait for `Result`, a `Fail` trait has been introduced to handle errors directly
-- Added `position_simd_mapped` function, similar to `position_simd` but on a lazily-mapped haystack
+- Added `position_simd_mapped` and `position_by_byte_mapped` functions, similar to `position_simd` and `position_by_byte` but on a lazily-mapped haystack
 
 ### Changed
 

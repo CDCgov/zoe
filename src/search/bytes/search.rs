@@ -89,14 +89,52 @@ impl<'a, const N: usize> Iterator for SplitByByte2<'a, N> {
 #[must_use]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
 pub fn position_by_byte<const N: usize>(haystack: &[u8], b: u8) -> Option<usize> {
+    position_by_byte_inner(haystack, b, |v: Simd<u8, N>| v, |b| b)
+}
+
+/// Finds the index of the byte `b` in the `haystack`. The `haystack` is lazily
+/// mapped using `simd_transform` and `byte_transform`.
+///
+/// See [`position_simd_mapped`] for the SIMD byte search leveraged internally.
+///
+/// ## Parameters
+///
+/// `N` - The number of SIMD lanes to use.
+#[inline]
+#[must_use]
+#[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
+pub fn position_by_byte_mapped<const N: usize, S, B>(
+    haystack: &[u8], b: u8, simd_transform: S, byte_transform: B,
+) -> Option<usize>
+where
+    S: Fn(Simd<u8, N>) -> Simd<u8, N>,
+    B: Fn(u8) -> u8, {
+    position_by_byte_inner(haystack, b, simd_transform, byte_transform)
+}
+
+/// The inner functionality shared by [`position_by_byte_mapped`] and
+/// [`position_by_byte`], without multiversioning.
+#[inline]
+#[must_use]
+fn position_by_byte_inner<const N: usize, S, B>(
+    haystack: &[u8], b: u8, simd_transform: S, byte_transform: B,
+) -> Option<usize>
+where
+    S: Fn(Simd<u8, N>) -> Simd<u8, N>,
+    B: Fn(u8) -> u8, {
     let (pre, mid, post) = haystack.as_simd();
 
-    if let Some(p) = pre.iter().position(|x| *x == b) {
+    if let Some(p) = pre.iter().copied().map(&byte_transform).position(|x| x == b) {
         Some(p)
-    } else if let Some(p) = position_simd::<N, 4, _>(mid, |v| v.simd_eq(Simd::from_array([b; N]))) {
+    } else if let Some(p) = position_simd_mapped::<N, 4, _, _>(mid, |v| v.simd_eq(Simd::from_array([b; N])), simd_transform)
+    {
         Some(p + pre.len())
     } else {
-        post.iter().position(|x| *x == b).map(|p| pre.len() + (mid.len() * N) + p)
+        post.iter()
+            .copied()
+            .map(byte_transform)
+            .position(|x| x == b)
+            .map(|p| pre.len() + (mid.len() * N) + p)
     }
 }
 
