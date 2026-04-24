@@ -184,3 +184,15 @@ fn invalid_next_back() {
     assert_eq!(iter.next_back(), None);
     assert_eq!(iter.next_back(), None);
 }
+
+#[test]
+fn equality_with_overflow() {
+    let c1 = Cigar::from_slice_unchecked("1M");
+    // usize::MAX + 1
+    let c2 = Cigar::from_slice_unchecked("1M18446744073709551616M");
+    assert_ne!(c1, c2);
+
+    // C1 is valid
+    let a1 = AlignmentStates::from_cigar_unchecked(&c1);
+    assert_ne!(a1, c2);
+}

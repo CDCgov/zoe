@@ -80,8 +80,11 @@ impl Iterator for CigletIterator<'_> {
             let b = self.buffer[index];
 
             if b.is_ascii_digit() {
-                num = num.checked_mul(10)?;
-                num = num.checked_add(usize::from(b - b'0'))?;
+                let Some(new_num) = num.checked_mul(10).and_then(|n| n.checked_add(usize::from(b - b'0'))) else {
+                    self.valid = false;
+                    return None;
+                };
+                num = new_num;
             } else if is_valid_op(b) {
                 self.buffer = &self.buffer[index + 1..];
                 return Some(Ciglet { inc: num, op: b });
