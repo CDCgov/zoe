@@ -40,12 +40,57 @@ pub(super) fn find_k_repeating_scalar(haystack: &[u8], needle: u8, size: usize) 
     None
 }
 
+// TODO: CONVERT TO DOC LINKS
+/// Non-SIMD component of `find_k_repeating_mapped`.
+///
+/// ## Limitations
+///
+/// Not optimized for small needles <21bp. Use `find_k_repeating_mapped` to more
+/// appropriately handle this case.
+#[inline]
+#[must_use]
+#[allow(dead_code)]
+fn find_k_repeating_mapped_scalar<B>(haystack: &[u8], needle: u8, size: usize, map: B) -> Option<usize>
+where
+    B: Fn(u8) -> u8, {
+    if size == 0 || size > haystack.len() {
+        return None;
+    }
+
+    let mut idx = size - 1;
+    let mut left_limit = 0usize;
+
+    'outer: while idx < haystack.len() {
+        if map(haystack[idx]) == needle {
+            // Single match found: check backwards to see if it occurs `size` times
+            for prev_idx in (left_limit..idx).rev() {
+                if map(haystack[prev_idx]) != needle {
+                    left_limit = idx + 1;
+                    idx = prev_idx + size;
+                    continue 'outer;
+                }
+            }
+
+            // No mismatch found: return the starting index of the match
+            return Some(idx + 1 - size);
+        }
+
+        // Mismatch found: advance idx to righmost position in leftmost possible match
+        left_limit = idx + 1;
+        idx += size;
+    }
+
+    None
+}
+
 /// This is the `size = 2` special case for the SIMD-acclerated portions of
 /// [`find_k_repeating`].
 #[inline]
 #[must_use]
 fn find_2_repeating_simd<const N: usize>(haystack: &[u8], needle: u8) -> Option<usize> {
     let nv = Simd::<u8, N>::splat(needle);
+
+    // Get windows that are overlapping by 1
     let mut chunks = SteppedWindows::new(haystack, N - 1);
 
     for (i, chunk) in chunks.by_ref().copied().map(Simd::from_array).enumerate() {
@@ -59,6 +104,36 @@ fn find_2_repeating_simd<const N: usize>(haystack: &[u8], needle: u8) -> Option<
 
     let rem = chunks.final_partial_window();
     find_k_repeating_scalar(rem, needle, 2).map(|found| (haystack.len() - rem.len()) + found)
+}
+
+// TODO: CONVERT TO DOC LINKS
+/// This is the `size = 2` special case for the SIMD-acclerated portions of
+/// `find_k_repeating_mapped`.
+#[inline]
+#[must_use]
+#[allow(dead_code)]
+fn find_2_repeating_mapped_simd<const N: usize, S, B>(
+    haystack: &[u8], needle: u8, simd_transform: S, byte_transform: B,
+) -> Option<usize>
+where
+    S: Fn(Simd<u8, N>) -> Simd<u8, N>,
+    B: Fn(u8) -> u8, {
+    let nv = Simd::<u8, N>::splat(needle);
+
+    // Get windows that are overlapping by 1
+    let mut chunks = SteppedWindows::new(haystack, N - 1);
+
+    for (i, chunk) in chunks.by_ref().copied().map(Simd::from_array).enumerate() {
+        let mut mask = nv.simd_eq(simd_transform(chunk)).to_bitmask();
+        mask = mask & (mask >> 1);
+
+        if mask > 0 {
+            return Some(i * (N - 1) + mask.trailing_zeros() as usize);
+        }
+    }
+
+    let rem = chunks.final_partial_window();
+    find_k_repeating_mapped_scalar(rem, needle, 2, byte_transform).map(|found| (haystack.len() - rem.len()) + found)
 }
 
 /// Given a haystack, needle and the number of times the needle repeats itself
