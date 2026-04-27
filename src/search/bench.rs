@@ -1,7 +1,7 @@
 extern crate test;
 use crate::search::{
-    ByteSubstring, find_k_repeating, find_k_repeating_scalar, position_by_byte, replace_all_bytes, replace_all_bytes_simd,
-    substring_match, substring_match_simd,
+    ByteSubstring, find_k_repeating, find_k_repeating_scalar, position_by_byte, position_by_byte2, replace_all_bytes,
+    replace_all_bytes_simd, substring_match, substring_match_simd,
 };
 use std::sync::LazyLock;
 use test::{Bencher, black_box};
@@ -217,6 +217,53 @@ mod byte_position {
     #[bench]
     fn position_long_simd(b: &mut Bencher) {
         b.iter(|| position_by_byte::<16>(&LONG, b'1'));
+    }
+}
+
+mod byte_position2 {
+    use super::*;
+
+    static LONG_INNER: [u8; 289] = {
+        let mut out = [b'0'; 289];
+        *out.last_mut().unwrap() = b'1';
+        out
+    };
+
+    static SHORT_INNER: [u8; 12] = {
+        let mut out = [b'0'; 12];
+        *out.last_mut().unwrap() = b'1';
+        out
+    };
+
+    static LONG: &[u8] = &LONG_INNER;
+    static SHORT: &[u8] = &SHORT_INNER;
+
+    #[bench]
+    fn position2_short_scalar(b: &mut Bencher) {
+        b.iter(|| {
+            black_box(SHORT)
+                .iter()
+                .position(|x| *x == black_box(b'1') || *x == black_box(b'2'))
+        });
+    }
+
+    #[bench]
+    fn position2_long_scalar(b: &mut Bencher) {
+        b.iter(|| {
+            black_box(LONG)
+                .iter()
+                .position(|x| *x == black_box(b'1') || *x == black_box(b'2'))
+        });
+    }
+
+    #[bench]
+    fn position2_short_simd(b: &mut Bencher) {
+        b.iter(|| position_by_byte2::<16>(black_box(SHORT), black_box(b'1'), black_box(b'2')));
+    }
+
+    #[bench]
+    fn position2_long_simd(b: &mut Bencher) {
+        b.iter(|| position_by_byte2::<16>(black_box(LONG), black_box(b'1'), black_box(b'2')));
     }
 }
 

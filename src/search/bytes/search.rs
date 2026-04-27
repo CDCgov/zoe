@@ -157,17 +157,62 @@ where
 #[must_use]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
 pub fn position_by_byte2<const N: usize>(haystack: &[u8], b1: u8, b2: u8) -> Option<usize> {
+    position_by_byte2_inner::<N>(haystack, b1, b2)
+}
+
+/// Finds the index of the bytes `b1` or `b2` in the `haystack`. The `haystack`
+/// is lazily mapped using `simd_transform` and `byte_transform`.
+///
+/// See [`position_simd_mapped`] for the SIMD byte search leveraged internally.
+///
+/// ## Parameters
+///
+/// `N` - The number of SIMD lanes to use.
+#[inline]
+#[must_use]
+#[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
+pub fn position_by_byte2_mapped<const N: usize, S, B>(
+    haystack: &[u8], b1: u8, b2: u8, simd_transform: S, byte_transform: B,
+) -> Option<usize>
+where
+    S: Fn(Simd<u8, N>) -> Simd<u8, N>,
+    B: Fn(u8) -> u8, {
+    position_by_byte2_mapped_inner(haystack, b1, b2, simd_transform, byte_transform)
+}
+
+/// Similar to [`position_by_byte2`], but without multiversioning (for use as a
+/// helper function inside other multiversioned functions).
+#[inline]
+#[must_use]
+pub(crate) fn position_by_byte2_inner<const N: usize>(haystack: &[u8], b1: u8, b2: u8) -> Option<usize> {
+    position_by_byte2_mapped_inner(haystack, b1, b2, |v: Simd<u8, N>| v, |b| b)
+}
+
+/// Similar to [`position_by_byte2`], but without multiversioning (for use as a
+/// helper function inside other multiversioned functions).
+#[inline]
+#[must_use]
+pub(crate) fn position_by_byte2_mapped_inner<const N: usize, S, B>(
+    haystack: &[u8], b1: u8, b2: u8, simd_transform: S, byte_transform: B,
+) -> Option<usize>
+where
+    S: Fn(Simd<u8, N>) -> Simd<u8, N>,
+    B: Fn(u8) -> u8, {
     let (pre, mid, post) = haystack.as_simd();
 
-    if let Some(p) = pre.iter().position(|x| *x == b1 || *x == b2) {
+    if let Some(p) = pre.iter().copied().map(&byte_transform).position(|x| x == b1 || x == b2) {
         Some(p)
-    } else if let Some(p) = position_simd::<N, 3, _>(mid, |v| {
-        v.simd_eq(Simd::from_array([b1; N])) | v.simd_eq(Simd::from_array([b2; N]))
-    }) {
+    } else if let Some(p) = position_simd_mapped::<N, 3, _, _>(
+        mid,
+        |v| v.simd_eq(Simd::from_array([b1; N])) | v.simd_eq(Simd::from_array([b2; N])),
+        simd_transform,
+    ) {
         Some(p + pre.len())
     } else {
         post.iter()
-            .position(|x| *x == b1 || *x == b2)
+            .copied()
+            .map(byte_transform)
+            .position(|x| x == b1 || x == b2)
             .map(|p| pre.len() + mid.len() * N + p)
     }
 }
