@@ -55,7 +55,7 @@ impl<'a> DataView<'a> for SamDataView<'a> {
             tlen:  self.tlen,
             seq:   self.seq.to_owned_data(),
             qual:  self.qual.to_owned_data(),
-            tags:  SamTags::new(),
+            aux:   SamAuxRaw::new(),
         }
     }
 

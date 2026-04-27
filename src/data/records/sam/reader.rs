@@ -2,7 +2,7 @@ use crate::{
     data::{
         cigar::Cigar,
         err::ResultWithErrorContext,
-        sam::{SamData, SamTags},
+        sam::{SamAuxRaw, SamData},
     },
     unwrap_or_return_some_err,
 };
@@ -229,10 +229,10 @@ impl<R: std::io::Read, const TAGS: bool> Iterator for SAMReader<R, TAGS> {
 
             let qual = unwrap_or_return_some_err!(parts[10].as_bytes().try_into());
 
-            let tags = if TAGS {
-                parts[11..].iter().map(ToString::to_string).collect::<SamTags>()
+            let aux = if TAGS {
+                parts[11..].iter().map(ToString::to_string).collect::<SamAuxRaw>()
             } else {
-                SamTags::new()
+                SamAuxRaw::new()
             };
 
             let row = SamData {
@@ -247,7 +247,7 @@ impl<R: std::io::Read, const TAGS: bool> Iterator for SAMReader<R, TAGS> {
                 tlen: 0,
                 seq,
                 qual,
-                tags,
+                aux,
             };
             Some(Ok(SamRow::Data(row)))
         }

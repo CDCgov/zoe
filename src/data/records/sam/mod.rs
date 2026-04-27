@@ -2,12 +2,17 @@ use crate::{
     alignment::{Alignment, AlignmentStates, MaybeAligned, StatesSequence},
     data::{
         cigar::LenInAlignment,
+        err::ResultWithErrorContext,
         types::cigar::{Cigar, CigarView, CigarViewMut},
     },
+    iter_utils::ProcessResultsExt,
     math::AnyInt,
     prelude::*,
 };
-use std::{fmt::Display, hash::Hash};
+use std::{
+    fmt::{Display, Formatter},
+    hash::Hash,
+};
 
 mod merge_pairs;
 mod reader;
@@ -55,13 +60,13 @@ pub struct SamData {
     pub seq:   Nucleotides,
     /// Query quality scores in ASCII-encoded format with Phred Quality of +33.
     pub qual:  QualityScores,
-    /// Optional tags which can be lazily parsed/accessed
-    pub tags:  SamTags,
+    /// Optional fields which can be lazily parsed/accessed
+    pub aux:   SamAuxRaw,
 }
 
 impl PartialEq for SamData {
     /// Tests for `self` and `other` values to be equal, and is used by `==`.
-    /// Note that this implementation ignores the `tags` field, which contains
+    /// Note that this implementation ignores the `aux` field, which contains
     /// optional SAM values.
     #[inline]
     fn eq(&self, other: &Self) -> bool {
@@ -83,7 +88,7 @@ impl Eq for SamData {}
 
 impl Hash for SamData {
     /// Feeds this value into the given `Hasher`. Note that this implementation
-    /// ignores the `tags` field, which contains optional SAM values.
+    /// ignores the `aux` field, which contains optional SAM values.
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.qname.hash(state);
         self.flag.hash(state);
@@ -190,7 +195,7 @@ impl SamData {
             tlen: 0,
             seq,
             qual,
-            tags: SamTags::new(),
+            aux: SamAuxRaw::new(),
         }
     }
 
@@ -207,7 +212,8 @@ impl SamData {
     }
 
     /// Constructs a new [`SamData`] record from an [`Alignment`] struct as well
-    /// as the other provided fields. The score is included as a tag under `AS`.
+    /// as the other provided fields. The score is included as a field under the
+    /// TAG `AS`.
     ///
     /// For the opposite transformation, see [`SamData::to_alignment`].
     #[inline]
@@ -219,7 +225,7 @@ impl SamData {
         // positions, so we just need to adjust to 1-based
         let pos = alignment.ref_range.start + 1;
         let cigar = alignment.states.to_cigar_unchecked();
-        let tags = SamTags::new_with_score(alignment.score);
+        let aux = SamAuxRaw::new_with_score(alignment.score);
         SamData {
             qname,
             flag,
@@ -232,7 +238,7 @@ impl SamData {
             tlen: 0,
             seq,
             qual,
-            tags,
+            aux,
         }
     }
 
@@ -245,11 +251,11 @@ impl SamData {
     /// represents the entire `seq` except for soft clipping.
     ///
     /// The `score` must be provided as an argument. If the score is present
-    /// under the `AS` tag, then it can be retrieved with:
+    /// under the `AS` TAG, then it can be retrieved with:
     ///
     /// ```
     /// # use zoe::{
-    /// #     data::{cigar::Cigar, sam::SamData},
+    /// #     data::{cigar::Cigar, sam::{SamAuxValue, SamData}},
     /// #     prelude::{Nucleotides, QualityScores},
     /// # };
     /// #
@@ -264,15 +270,15 @@ impl SamData {
     /// #     QualityScores::new(),
     /// # );
     /// #
-    /// # sam_data.tags.push("AS", 0i64);
+    /// # sam_data.aux.push("AS", &SamAuxValue::Int(0));
     /// #
     /// let score = sam_data
-    ///     .tags
+    ///     .aux
     ///     .get("AS")
-    ///     .expect("The tags must be formatted properly")
-    ///     .expect("The score tag must be present")
+    ///     .expect("The auxiliary data must be formatted properly")
+    ///     .expect("The score TAG must be present")
     ///     .int()
-    ///     .expect("The score tag should be an integer");
+    ///     .expect("The score VALUE should be an integer");
     /// ```
     ///
     /// For the opposite transformation, see [`SamData::from_alignment`].
@@ -410,255 +416,448 @@ impl<'a> SamDataViewMut<'a> {
     }
 }
 
-/// A wrapper around an array for holding optional SAM tags.
+/// A wrapper around an array for holding optional SAM fields.
 #[derive(Clone, Debug, Default)]
-pub struct SamTags(Vec<String>);
+pub struct SamAuxRaw(Vec<String>);
 
-impl SamTags {
-    /// Returns a new empty [`SamTags`] vector.
+impl SamAuxRaw {
+    /// Returns a new empty [`SamAuxRaw`] vector.
     #[inline]
     #[must_use]
     pub fn new() -> Self {
-        SamTags(Vec::new())
+        SamAuxRaw(Vec::new())
     }
 
-    /// Returns a [`SamTags`] vector with a single tag containing the alignment
-    /// score.
+    /// Returns a [`SamAuxRaw`] vector with a single field containing the
+    /// alignment score.
     ///
-    /// The score is represented as an integer using the `AS` tag.
+    /// The score is represented as an integer using the `AS` TAG.
     #[inline]
     #[must_use]
     pub fn new_with_score<T: AnyInt + Into<i64>>(score: T) -> Self {
         let mut inner = Vec::with_capacity(1);
         inner.push(format!("AS:i:{score}", score = score.into()));
-        SamTags(inner)
+        SamAuxRaw(inner)
     }
 
-    /// Returns whether the [`SamTags`] vector is empty.
+    /// Returns whether the [`SamAuxRaw`] vector is empty.
     #[inline]
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
 
-    /// Returns the number of tags present.
+    /// Returns the number of auxilary fields present.
     #[inline]
     #[must_use]
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
-    /// Provides an iterator over the tag names and parsed values.
+    /// Provides an iterator over the field names and parsed values.
     ///
     /// ## Limitations
     ///
-    /// This iterator parses the tags lazily. If the [`SamTags`] struct will be
-    /// iterated over many times, consider parsing the tags once and collecting
-    /// them.
+    /// This iterator parses the fields lazily. If the [`SamAuxRaw`] struct will
+    /// be iterated over many times, consider parsing the fields once and
+    /// collecting them.
     ///
     /// ## Errors
     ///
-    /// The tag in the SAM record must be of the form `TAG:TYPE:VALUE`. `TAG`
-    /// cannot contain a colon. `TYPE` must be supported by *Zoe* (either `A`,
-    /// `i`, or `f`). `VALUE` must successfully parse into the corresponding
-    /// type.
+    /// The field in the SAM record must be of the form `TAG:TYPE:VALUE`. `TAG`
+    /// cannot contain a colon. `TYPE` must be either `A`, `i`, `f`, `Z`, `H`,
+    /// or `B`. `VALUE` must successfully parse into the corresponding type.
     #[inline]
-    pub fn iter(&self) -> impl Iterator<Item = std::io::Result<(&str, SamTagValue)>> {
-        self.0.iter().map(|tag| {
-            let Some((tag_name, rest)) = tag.split_once(':') else {
-                return Err(std::io::Error::other(format!("Tag is missing first colon: {tag}")));
-            };
+    pub fn iter(&self) -> impl Iterator<Item = std::io::Result<SamAuxData>> {
+        self.0.iter().map(|field| {
+            let inv_aux_err_msg = || std::io::Error::other(format!("Invalid optional field {field}"));
 
-            let Some((tag_type, tag_value)) = rest.split_once(':') else {
-                return Err(std::io::Error::other(format!("Tag is missing second colon: {tag}")));
-            };
+            let (tag_text, rest) = field.split_once(':').ok_or_else(inv_aux_err_msg)?;
+            let (type_text, value_text) = rest.split_once(':').ok_or_else(inv_aux_err_msg)?;
 
-            let tag_value = match SamTagValue::parse(tag_type, tag_value) {
-                Ok(value) => value,
-                Err(e) => {
-                    return Err(std::io::Error::other(format!(
-                        "Failed to parse tag '{tag}' due to error: {e}"
-                    )));
-                }
-            };
-
-            Ok((tag_name, tag_value))
+            let aux_tag = SamAuxData::parse_tag(tag_text)?;
+            let aux_type = SamAuxData::parse_type(type_text)?;
+            let sam_aux = SamAuxData::parse_value(aux_tag, aux_type, value_text)
+                .with_context(format!("Failed to parse field '{field}'"))?;
+            Ok(sam_aux)
         })
     }
 
-    /// Retrieves and parses the value for an optional tag in the SAM file
-    /// format.
+    /// Retrieves and parses the value for an optional field with a given TAG in
+    /// the SAM file format.
     ///
     /// ## Limitations
     ///
-    /// This struct parses tags lazily and will repeat the computations each
+    /// This struct parses fields lazily and will repeat the computations each
     /// time [`get`] is called. The function runs in $O(n)$ time where $n$ is
-    /// the number of tags. Validation of the tag format is only performed where
-    /// necessary.
+    /// the number of fields. Validation of the field format is only performed
+    /// where necessary.
     ///
     /// ## Errors
     ///
-    /// The tag in the SAM record must be of the form `TAG:TYPE:VALUE`. `TAG`
-    /// cannot contain a colon. `TYPE` must be supported by *Zoe* (either `A`,
-    /// `i`, or `f`). `VALUE` must successfully parse into the corresponding
-    /// type.
+    /// The field in the SAM record must be of the form `TAG:TYPE:VALUE`. `TAG`
+    /// cannot contain a colon. `TYPE` must be either `A`, `i`, `f`, `Z`, `H`,
+    /// `B`. `VALUE` must successfully parse into the corresponding type.
     ///
-    /// [`get`]: SamTags::get
-    pub fn get(&self, name: &str) -> std::io::Result<Option<SamTagValue>> {
-        for tag in &self.0 {
-            let Some((tag_name, rest)) = tag.split_once(':') else {
-                return Err(std::io::Error::other(format!("Tag is missing first colon: {tag}")));
-            };
-            if tag_name == name {
-                let Some((tag_type, tag_value)) = rest.split_once(':') else {
-                    return Err(std::io::Error::other(format!("Tag is missing second colon: {tag}")));
-                };
-                let tag_value = match SamTagValue::parse(tag_type, tag_value) {
-                    Ok(value) => value,
+    /// [`get`]: SamAuxRaw::get
+    pub fn get(&self, tag: &str) -> std::io::Result<Option<SamAuxData>> {
+        for field in &self.0 {
+            let inv_aux_err_msg = || std::io::Error::other(format!("Invalid optional field {field}"));
+            let (aux_tag_text, rest) = field.split_once(':').ok_or_else(inv_aux_err_msg)?;
+
+            if aux_tag_text == tag {
+                let (type_text, value_text) = rest.split_once(':').ok_or_else(inv_aux_err_msg)?;
+
+                let aux_tag = SamAuxData::parse_tag(aux_tag_text)?;
+                let aux_type = SamAuxData::parse_type(type_text)?;
+
+                let sam_aux = match SamAuxData::parse_value(aux_tag, aux_type, value_text) {
+                    Ok(sam_aux) => sam_aux,
                     Err(e) => {
                         return Err(std::io::Error::other(format!(
-                            "Failed to parse tag '{tag}' due to error: {e}"
+                            "Failed to parse field '{field}' due to error: {e}"
                         )));
                     }
                 };
-                return Ok(Some(tag_value));
+                return Ok(Some(sam_aux));
             }
         }
         Ok(None)
     }
 
-    /// Adds a tag to the [`SamTags`] struct.
+    /// Adds a field to the [`SamAuxRaw`] struct.
     ///
     /// ## Validity
     ///
-    /// The tag name being pushed should not already be present in the tags.
+    /// The tag name being pushed should not already be present in `self`.
     #[inline]
-    pub fn push<T>(&mut self, name: &str, tag: T)
-    where
-        T: Into<SamTagValue>, {
-        self.0.push(format!("{name}:{tag}", tag = tag.into()));
+    pub fn push(&mut self, tag: &str, data: &SamAuxValue) {
+        self.0.push(format!("{tag}:{data}"));
     }
 }
 
-impl FromIterator<String> for SamTags {
+impl FromIterator<String> for SamAuxRaw {
     #[inline]
     fn from_iter<T: IntoIterator<Item = String>>(iter: T) -> Self {
-        SamTags(Vec::from_iter(iter))
+        SamAuxRaw(Vec::from_iter(iter))
     }
 }
 
-/// A parsed optional tag in the SAM file format
-#[non_exhaustive]
-#[derive(Clone, PartialEq, Debug)]
-pub enum SamTagValue {
-    /// A printable character in the range `! ..= ~`.
-    Char(u8),
-    /// A signed integer.
-    Int(i64),
-    /// A single-precision floating point number.
-    Float(f32),
+/// A parsed optional field in the SAM file format.
+#[derive(Clone, Debug)]
+pub struct SamAuxData {
+    /// The tag of the optional SAM field.
+    pub tag:   [u8; 2],
+    /// The value of the optional SAM field.
+    pub value: SamAuxValue,
 }
 
-impl SamTagValue {
-    /// Parses a [`SamTagValue`] from a string for the type and a string for the
-    /// value.
+impl SamAuxData {
+    /// Parses the tag for the optional SAM field from a string slice.
+    fn parse_tag(tag: &str) -> std::io::Result<[u8; 2]> {
+        let bytes = tag.as_bytes();
+        if bytes.len() != 2 || !bytes[0].is_ascii_alphabetic() || !bytes[1].is_ascii_alphanumeric() {
+            return Err(std::io::Error::other(format!("Invalid SAM optional tag {tag}")));
+        }
+        Ok([bytes[0], bytes[1]])
+    }
+
+    /// Parses the type for the optional SAM field from a string slice.
+    fn parse_type(type_text: &str) -> std::io::Result<char> {
+        let mut type_chars = type_text.chars();
+        let Some(typ) = type_chars.next() else {
+            return Err(std::io::Error::other("Missing optional field type"));
+        };
+        if type_chars.next().is_some() {
+            return Err(std::io::Error::other(format!("Invalid optional field type {type_text}")));
+        }
+
+        Ok(typ)
+    }
+
+    /// Parses a [`SamAuxData`] from a tag, type, and value (as a string).
     ///
     /// ## Errors
     ///
-    /// `tag_type` must contain a single valid character supported by *Zoe*
-    /// (currently, `A`, `i`, or `f`). The `value` string must successfully
-    /// parse into that type.
-    fn parse(tag_type: &str, value: &str) -> std::io::Result<SamTagValue> {
-        let Ok([tag_type]) = <[u8; 1]>::try_from(tag_type.as_bytes()) else {
-            return Err(std::io::Error::other(format!("Tag type of {tag_type} is not valid")));
-        };
-        let out = match tag_type {
-            b'A' => Self::Char(
-                value
-                    .parse()
-                    .map_err(|_| std::io::Error::other(format!("Failed to parse character value {value}")))?,
-            ),
-            b'i' => Self::Int(
-                value
-                    .parse()
-                    .map_err(|_| std::io::Error::other(format!("Failed to parse integer value {value}")))?,
-            ),
-            b'f' => Self::Float(
-                value
-                    .parse()
-                    .map_err(|_| std::io::Error::other(format!("Failed to parse floating point value {value}")))?,
-            ),
-            _ => {
-                return Err(std::io::Error::other(format!(
-                    "Tag type {tag_type} is not supported in Zoe",
-                    tag_type = tag_type as char
-                )));
+    /// `aux_type` must contain a single valid character (`A`, `i`, `f`, `Z`,
+    /// `H`, or `B`). The `string_value` must successfully parse into the
+    /// corresponding type.
+    fn parse_value(aux_tag: [u8; 2], aux_type: char, string_value: &str) -> std::io::Result<SamAuxData> {
+        match aux_type {
+            'A' => {
+                let mut chars = string_value.chars();
+                let Some(c) = chars.next() else {
+                    return Err(std::io::Error::other("'A' field has empty value"));
+                };
+                if chars.next().is_some() {
+                    return Err(std::io::Error::other("'A' field must contain excatly one character"));
+                }
+                if !c.is_ascii() {
+                    return Err(std::io::Error::other("'A' field must be ASCII"));
+                }
+                Ok(SamAuxData {
+                    tag:   aux_tag,
+                    value: SamAuxValue::Char(c as u8),
+                })
             }
-        };
-        Ok(out)
+            'i' => {
+                let parsed = string_value
+                    .parse::<i64>()
+                    .map_err(std::io::Error::other)
+                    .with_context("Error parsing 'i' field")?;
+                Ok(SamAuxData {
+                    tag:   aux_tag,
+                    value: SamAuxValue::Int(parsed),
+                })
+            }
+            'f' => {
+                let parsed = string_value.parse::<f32>().with_context("Error parsing 'f' field")?;
+                Ok(SamAuxData {
+                    tag:   aux_tag,
+                    value: SamAuxValue::Float(parsed),
+                })
+            }
+            'Z' => Ok(SamAuxData {
+                tag:   aux_tag,
+                value: SamAuxValue::String(String::from(string_value)),
+            }),
+            'H' => {
+                if !string_value.len().is_multiple_of(2) {
+                    return Err(std::io::Error::other(format!(
+                        "'H' field must contain an even number digits. Found {}",
+                        string_value.len()
+                    )));
+                }
+                if !string_value.as_bytes().iter().all(u8::is_ascii_hexdigit) {
+                    return Err(std::io::Error::other("'H' field must contain hexadecimal digits"));
+                }
+                Ok(SamAuxData {
+                    tag:   aux_tag,
+                    value: SamAuxValue::Hex(string_value.to_ascii_uppercase()),
+                })
+            }
+            'B' => Ok(SamAuxData {
+                tag:   aux_tag,
+                value: SamAuxValue::parse_aux_array(string_value).with_context("Failed to parse 'B' array")?,
+            }),
+            _ => Err(std::io::Error::other(format!(
+                "Unsupported SAM optional field type {aux_type}"
+            ))),
+        }
     }
 
-    /// Returns the stored character from the [`SamTagValue`], or [`None`] if a
+    /// Returns the stored character from the [`SamAuxData`], or [`None`] if a
     /// different variant is present.
     #[inline]
     #[must_use]
     pub fn char(self) -> Option<u8> {
-        match self {
-            SamTagValue::Char(c) => Some(c),
+        match self.value {
+            SamAuxValue::Char(c) => Some(c),
             _ => None,
         }
     }
 
-    /// Returns the stored integer from the [`SamTagValue`], or [`None`] if a
+    /// Returns the stored integer from the [`SamAuxData`], or [`None`] if a
     /// different variant is present.
     #[inline]
     #[must_use]
     pub fn int(self) -> Option<i64> {
-        match self {
-            SamTagValue::Int(i) => Some(i),
+        match self.value {
+            SamAuxValue::Int(i) => Some(i),
             _ => None,
         }
     }
 
-    /// Returns the stored floating point number from the [`SamTagValue`], or
+    /// Returns the stored floating point number from the [`SamAuxData`], or
     /// [`None`] if a different variant is present.
     #[inline]
     #[must_use]
     pub fn float(self) -> Option<f32> {
-        match self {
-            SamTagValue::Float(f) => Some(f),
+        match self.value {
+            SamAuxValue::Float(f) => Some(f),
+            _ => None,
+        }
+    }
+
+    /// Returns the stored string from the [`SamAuxData`], or [`None`] if a
+    /// different variant is present.
+    #[inline]
+    #[must_use]
+    pub fn string(self) -> Option<String> {
+        match self.value {
+            SamAuxValue::String(f) => Some(f),
+            _ => None,
+        }
+    }
+
+    /// Returns the stored Hex string from the [`SamAuxData`], or [`None`] if a
+    /// different variant is present.
+    ///
+    /// For example, the six-character Hex string "1AE301" represents the byte
+    /// array `[0x1a, 0xe3, 0x1]`.
+    #[inline]
+    #[must_use]
+    pub fn hex(self) -> Option<String> {
+        match self.value {
+            SamAuxValue::Hex(f) => Some(f),
+            _ => None,
+        }
+    }
+
+    /// Returns the stored [`AuxArray`] from the [`SamAuxData`], or [`None`] if
+    /// a different variant is present.
+    #[inline]
+    #[must_use]
+    pub fn array(self) -> Option<AuxArray> {
+        match self.value {
+            SamAuxValue::Array(f) => Some(f),
             _ => None,
         }
     }
 }
 
-impl Display for SamTagValue {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            SamTagValue::Char(val) => write!(f, "A:{val}", val = *val as char),
-            SamTagValue::Int(val) => write!(f, "i:{val}"),
-            SamTagValue::Float(val) => write!(f, "f:{val}"),
+/// Value of the optional SAM field
+#[derive(Clone, Debug)]
+pub enum SamAuxValue {
+    /// Printable character, type code `A`
+    Char(u8),
+    /// Signed integer, type code `i`
+    Int(i64),
+    /// Single-precision floating number, type code `f`
+    Float(f32),
+    /// Printable string, including space, type code `Z`
+    String(String),
+    /// Byte array in the Hex format, type code `H`
+    ///
+    /// For example, the six-character Hex string "1AE301" represents the byte
+    /// array `[0x1a, 0xe3, 0x1]`.
+    Hex(String),
+    // Integer or numeric array, type code `B`
+    Array(AuxArray),
+}
+
+impl SamAuxValue {
+    /// Parses the array of optional SAM fields with type `B`.
+    ///
+    /// ## Errors
+    ///
+    /// The first letter in the array indicates the type of numbers in the
+    /// following comma separated array. The letter can be one of `c`, `C`, `s`,
+    /// `S`, `i`, `I`, or `f`.
+    fn parse_aux_array(string_value: &str) -> std::io::Result<Self> {
+        let mut pieces = string_value.split(',');
+        let Some(subtype) = pieces.next() else {
+            return Err(std::io::Error::other("Missing subtype"));
+        };
+
+        match subtype {
+            "c" => {
+                let values = pieces
+                    .map(str::parse::<i8>)
+                    .process_results(|iter| iter.collect())
+                    .with_context("Error parsing 'c' subtype (`i8`)")?;
+
+                Ok(Self::Array(AuxArray::I8(values)))
+            }
+            "C" => {
+                let values = pieces
+                    .map(str::parse::<u8>)
+                    .process_results(|iter| iter.collect())
+                    .with_context("Error parsing 'C' subtype (`u8`)")?;
+                Ok(Self::Array(AuxArray::U8(values)))
+            }
+            "s" => {
+                let values = pieces
+                    .map(str::parse::<i16>)
+                    .process_results(|iter| iter.collect())
+                    .with_context("Error parsing 's' subtype (`i16`)")?;
+                Ok(Self::Array(AuxArray::I16(values)))
+            }
+            "S" => {
+                let values = pieces
+                    .map(str::parse::<u16>)
+                    .process_results(|iter| iter.collect())
+                    .with_context("Error parsing 'S' subtype (`u16`)")?;
+                Ok(Self::Array(AuxArray::U16(values)))
+            }
+            "i" => {
+                let values = pieces
+                    .map(str::parse::<i32>)
+                    .process_results(|iter| iter.collect())
+                    .with_context("Error parsing 'i' subtype (`i32`)")?;
+                Ok(Self::Array(AuxArray::I32(values)))
+            }
+            "I" => {
+                let values = pieces
+                    .map(str::parse::<u32>)
+                    .process_results(|iter| iter.collect())
+                    .with_context("Error parsing 'I' subtype (`u32`)")?;
+                Ok(Self::Array(AuxArray::U32(values)))
+            }
+            "f" => {
+                let values = pieces
+                    .map(str::parse::<f32>)
+                    .process_results(|iter| iter.collect())
+                    .with_context("Error parsing 'f' subtype (`f32`)")?;
+                Ok(Self::Array(AuxArray::F32(values)))
+            }
+            _ => Err(std::io::Error::other(format!("Unsupported subtype {subtype}"))),
         }
     }
 }
 
-impl From<u8> for SamTagValue {
-    #[inline]
-    fn from(value: u8) -> Self {
-        SamTagValue::Char(value)
+impl Display for SamAuxValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SamAuxValue::Char(val) => write!(f, "A:{val}", val = *val as char),
+            SamAuxValue::Int(val) => write!(f, "i:{val}"),
+            SamAuxValue::Float(val) => write!(f, "f:{val}"),
+            SamAuxValue::String(val) => write!(f, "Z:{val}"),
+            SamAuxValue::Hex(val) => write!(f, "H:{val}"),
+            SamAuxValue::Array(val) => match val {
+                AuxArray::I8(vec) => AuxArray::fmt_aux_array(f, 'c', vec),
+                AuxArray::U8(vec) => AuxArray::fmt_aux_array(f, 'C', vec),
+                AuxArray::I16(vec) => AuxArray::fmt_aux_array(f, 's', vec),
+                AuxArray::U16(vec) => AuxArray::fmt_aux_array(f, 'S', vec),
+                AuxArray::I32(vec) => AuxArray::fmt_aux_array(f, 'i', vec),
+                AuxArray::U32(vec) => AuxArray::fmt_aux_array(f, 'I', vec),
+                AuxArray::F32(vec) => AuxArray::fmt_aux_array(f, 'f', vec),
+            },
+        }
     }
 }
 
-impl From<i64> for SamTagValue {
-    #[inline]
-    fn from(value: i64) -> Self {
-        SamTagValue::Int(value)
-    }
+/// Auxiliary data array for `B` field data.
+#[derive(Debug, Clone)]
+pub enum AuxArray {
+    /// Array subtype code `c`
+    I8(Vec<i8>),
+    /// Array subtype code `C`
+    U8(Vec<u8>),
+    /// Array subtype code `s`
+    I16(Vec<i16>),
+    /// Array subtype code `S`
+    U16(Vec<u16>),
+    /// Array subtype code `i`
+    I32(Vec<i32>),
+    /// Array subtype code `I`
+    U32(Vec<u32>),
+    /// Array subtype code `f`
+    F32(Vec<f32>),
 }
 
-impl From<f32> for SamTagValue {
-    #[inline]
-    fn from(value: f32) -> Self {
-        SamTagValue::Float(value)
+impl AuxArray {
+    fn fmt_aux_array<T: Display>(f: &mut Formatter<'_>, aux_type: char, vals: &[T]) -> std::fmt::Result {
+        write!(f, "B:{aux_type}")?;
+
+        let mut iter = vals.iter();
+        if let Some(first) = iter.next() {
+            write!(f, "{first}")?;
+        }
+        for v in iter {
+            write!(f, ",{v}")?;
+        }
+
+        Ok(())
     }
 }
