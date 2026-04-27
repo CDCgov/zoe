@@ -18,6 +18,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 - `LocalProfiles` and `SharedProfiles` now can hold either a borrowed or an owned sequence, enabling sequences and profiles to be stored in the same struct without becoming self-referential
 - `CigletIterator` now yields empty ciglets when a CIGAR string contains an explicit increment that is 0. A missing increment field ends the iterator early
+- `find_mapped_match_simd` now only supports lane counts greater than 2
 
 ### Fixed
 

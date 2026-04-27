@@ -2,8 +2,8 @@ use crate::{
     DEFAULT_SIMD_LANES,
     private::Sealed,
     search::{
-        RangeSearch, inexact::fuzzy_substring_match_simd, k_repeating::find_k_repeating, position_by_byte,
-        position_by_byte_inner,
+        RangeSearch, find_k_repeating_mapped_inner, inexact::fuzzy_substring_match_simd, k_repeating::find_k_repeating,
+        position_by_byte, position_by_byte_inner,
     },
 };
 use std::{ops::Range, simd::prelude::*};
@@ -229,7 +229,8 @@ pub fn substring_match(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 ///
 /// ## Parameters
 ///
-/// `N` - The number of SIMD lanes to use for the search.
+/// `N` - The number of SIMD lanes to use for the search. This must be greater
+/// than 2.
 ///
 /// ## Limitations
 ///
@@ -301,9 +302,18 @@ pub fn substring_match_simd<const N: usize>(haystack: &[u8], needle: &[u8]) -> O
 /// A transformation mapping for both bytes and SIMD vectors is required in
 /// order to verify potential matches.
 ///
+/// ## Parameters
+///
+/// - `N` - The number of SIMD lanes to use for the search. This must be greater
+///   than 2.
+/// - `S` - The type of the `simd_transform` closure (this can often be inferred
+///   by the compiler).
+/// - `B` - The type of the `byte_transform` closure (this can often be inferred
+///   by the compiler).
+///
 /// ## Limitations
 ///
-/// This is not designed for needles consisting of a single repeated byte.
+/// The current version is not optimized for larger needles (> 30 bp).
 #[inline]
 #[must_use]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
@@ -322,15 +332,9 @@ where
         return haystack.iter().position(|b| byte_transform(*b) == first);
     }
 
-    // We do not specialize needles that are a single run but instead fall back
-    // to first and last. This could be optimized to delegation if desired.
-    let (n2_offset, last) = needle
-        .iter()
-        .copied()
-        .enumerate()
-        .rev()
-        .find(|(_, b)| *b != first)
-        .unwrap_or((needle.len() - 1, first));
+    let Some((n2_offset, last)) = needle.iter().copied().enumerate().rev().find(|(_, b)| *b != first) else {
+        return find_k_repeating_mapped_inner::<N, S, B>(haystack, first, needle.len(), simd_transform, byte_transform);
+    };
 
     let n1 = Simd::from_array([first; N]);
     let n2 = Simd::from_array([last; N]);
