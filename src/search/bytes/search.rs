@@ -89,7 +89,7 @@ impl<'a, const N: usize> Iterator for SplitByByte2<'a, N> {
 #[must_use]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
 pub fn position_by_byte<const N: usize>(haystack: &[u8], b: u8) -> Option<usize> {
-    position_by_byte_inner(haystack, b, |v: Simd<u8, N>| v, |b| b)
+    position_by_byte_inner::<N>(haystack, b)
 }
 
 /// Finds the index of the byte `b` in the `haystack`. The `haystack` is lazily
@@ -109,14 +109,22 @@ pub fn position_by_byte_mapped<const N: usize, S, B>(
 where
     S: Fn(Simd<u8, N>) -> Simd<u8, N>,
     B: Fn(u8) -> u8, {
-    position_by_byte_inner(haystack, b, simd_transform, byte_transform)
+    position_by_byte_mapped_inner(haystack, b, simd_transform, byte_transform)
 }
 
-/// The inner functionality shared by [`position_by_byte_mapped`] and
-/// [`position_by_byte`], without multiversioning.
+/// Similar to [`position_by_byte`], but without multiversioning (for use as a
+/// helper function inside other multiversioned functions).
 #[inline]
 #[must_use]
-fn position_by_byte_inner<const N: usize, S, B>(
+pub(crate) fn position_by_byte_inner<const N: usize>(haystack: &[u8], b: u8) -> Option<usize> {
+    position_by_byte_mapped_inner(haystack, b, |v: Simd<u8, N>| v, |b| b)
+}
+
+/// Similar to [`position_by_byte_mapped`], but without multiversioning (for use
+/// as a helper function inside other multiversioned functions).
+#[inline]
+#[must_use]
+pub(crate) fn position_by_byte_mapped_inner<const N: usize, S, B>(
     haystack: &[u8], b: u8, simd_transform: S, byte_transform: B,
 ) -> Option<usize>
 where
