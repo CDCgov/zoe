@@ -323,35 +323,3 @@ mod test {
         }
     }
 }
-
-#[cfg(test)]
-mod bench {
-    use super::*;
-    use std::{iter::once, sync::LazyLock};
-    use test::Bencher;
-
-    extern crate test;
-
-    static LONG: LazyLock<Vec<u8>> = LazyLock::new(|| b"0".repeat(288).into_iter().chain(once(b'1')).collect());
-    static SHORT: LazyLock<Vec<u8>> = LazyLock::new(|| b"0".repeat(11).into_iter().chain(once(b'1')).collect());
-
-    #[bench]
-    fn position_short_scalar(b: &mut Bencher) {
-        b.iter(|| SHORT.iter().position(|x| *x == b'1'));
-    }
-
-    #[bench]
-    fn position_long_scalar(b: &mut Bencher) {
-        b.iter(|| LONG.iter().position(|x| *x == b'1'));
-    }
-
-    #[bench]
-    fn position_short_simd(b: &mut Bencher) {
-        b.iter(|| position_by_byte::<16>(&SHORT, b'1'));
-    }
-
-    #[bench]
-    fn position_long_simd(b: &mut Bencher) {
-        b.iter(|| position_by_byte::<16>(&LONG, b'1'));
-    }
-}

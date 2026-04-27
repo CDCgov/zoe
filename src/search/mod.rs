@@ -91,6 +91,9 @@ mod range_search;
 /// Search byte substrings.
 mod substring;
 
+#[cfg(test)]
+mod bench;
+
 pub use bytes::*;
 pub use inexact::*;
 pub use k_repeating::*;

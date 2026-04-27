@@ -30,35 +30,3 @@ pub fn replace_all_bytes_simd<const N: usize>(haystack: &mut [u8], needle: u8, r
     }
     replace_all_bytes(sfx, needle, replacement);
 }
-
-#[cfg(all(test, feature = "rand"))]
-mod bench {
-    extern crate test;
-    use super::*;
-    use crate::generate::rand_sequence;
-    use std::sync::LazyLock;
-    use test::Bencher;
-
-    static LONG: LazyLock<Vec<u8>> = LazyLock::new(|| rand_sequence(b"AGCT", 15_000, 42));
-    static SHORT: LazyLock<Vec<u8>> = LazyLock::new(|| rand_sequence(b"AGCT", 150, 42));
-
-    #[bench]
-    fn find_replace_long_scalar(b: &mut Bencher) {
-        b.iter(|| replace_all_bytes(&mut LONG.clone(), b'A', b'T'));
-    }
-
-    #[bench]
-    fn find_replace_short_scalar(b: &mut Bencher) {
-        b.iter(|| replace_all_bytes(&mut SHORT.clone(), b'A', b'T'));
-    }
-
-    #[bench]
-    fn find_replace_long_simd32(b: &mut Bencher) {
-        b.iter(|| replace_all_bytes_simd::<32>(&mut LONG.clone(), b'A', b'T'));
-    }
-
-    #[bench]
-    fn find_replace_short_simd32(b: &mut Bencher) {
-        b.iter(|| replace_all_bytes_simd::<32>(&mut SHORT.clone(), b'A', b'T'));
-    }
-}

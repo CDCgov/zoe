@@ -1,9 +1,11 @@
 use crate::{
     DEFAULT_SIMD_LANES,
     private::Sealed,
-    search::{RangeSearch, inexact::fuzzy_substring_match_simd, k_repeating::find_k_repeating, position_by_byte},
+    search::{
+        RangeSearch, inexact::fuzzy_substring_match_simd, k_repeating::find_k_repeating, position_by_byte,
+        position_by_byte_inner,
+    },
 };
-
 use std::{ops::Range, simd::prelude::*};
 
 // Short-circuiting note:
@@ -249,7 +251,7 @@ pub fn substring_match_simd<const N: usize>(haystack: &[u8], needle: &[u8]) -> O
 
     let first = needle[0];
     if needle.len() == 1 {
-        return position_by_byte::<N>(haystack, first);
+        return position_by_byte_inner::<N>(haystack, first);
     }
 
     let Some((n2_offset, last)) = needle.iter().copied().enumerate().rev().find(|(_, b)| *b != first) else {
@@ -545,100 +547,6 @@ mod test {
         }
         for i in 11..=19 {
             assert_eq!(seq.search_in_last(i).find_byte(b'T'), Some(8));
-        }
-    }
-}
-
-#[cfg(test)]
-mod bench {
-    extern crate test;
-    use crate::search::ByteSubstring;
-
-    use test::Bencher;
-    use test::black_box;
-
-    static SEQ: &[u8] = b"GGGGGGGGGGGGAGCAAGCACAAAACAAGTTAAAGTTACTGGCCATAACAGCCAGAGGAAAATTAACTTAATTATATACAAAAACATATTCCTGTTGGCATAGGCAAATTTTAGAAGACAAATCCATGTAAGGAATAGGGGGGGGGGGGGG";
-    static LONG_SEQ: &[u8] = b"GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGAGCAAGCACAAAACAAGTTAAAGTTACTGGCCATAACAGCCAGAGGAAAATTAACTTAATTATATACAAAAACATATTCCTGTTGGCATAGGCAAATTTTAGAAGACAAATCCATGTAAGGAATAGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG";
-
-    mod short {
-        use super::*;
-
-        #[bench]
-        fn bench_starts_with_repeating(b: &mut Bencher) {
-            b.iter(|| {
-                for _ in 0..10 {
-                    let ans = black_box(SEQ).find_repeating_at_start(b'G', 10).is_some()
-                        && black_box(SEQ).find_repeating_at_end(b'G', 10).is_some();
-                    black_box(ans);
-                }
-            });
-        }
-
-        #[bench]
-        fn bench_check_literal(b: &mut Bencher) {
-            let needle = vec![b'G'; 10];
-            b.iter(|| {
-                for _ in 0..10 {
-                    let ans = if black_box(SEQ).starts_with(&needle) {
-                        let offset = SEQ[10..].iter().take_while(|b| **b == b'G').count();
-                        Some(0..10 + offset)
-                    } else {
-                        None
-                    }
-                    .is_some()
-                        && if black_box(SEQ).ends_with(&needle) {
-                            let offset = SEQ[..SEQ.len() - 10].iter().rev().take_while(|b| **b == b'G').count();
-                            Some(10 - offset..SEQ.len())
-                        } else {
-                            None
-                        }
-                        .is_some();
-                    black_box(ans);
-                }
-            });
-        }
-    }
-
-    mod long {
-        use super::*;
-
-        #[bench]
-        fn bench_starts_with_repeating(b: &mut Bencher) {
-            b.iter(|| {
-                for _ in 0..10 {
-                    let ans = black_box(LONG_SEQ).find_repeating_at_start(b'G', 100).is_some()
-                        && black_box(LONG_SEQ).find_repeating_at_end(b'G', 100).is_some();
-                    black_box(ans);
-                }
-            });
-        }
-
-        #[bench]
-        fn bench_check_literal(b: &mut Bencher) {
-            let needle = vec![b'G'; 100];
-            b.iter(|| {
-                for _ in 0..10 {
-                    let ans = if black_box(LONG_SEQ).starts_with(&needle) {
-                        let offset = LONG_SEQ[100..].iter().take_while(|b| **b == b'G').count();
-                        Some(0..100 + offset)
-                    } else {
-                        None
-                    }
-                    .is_some()
-                        && if black_box(LONG_SEQ).ends_with(&needle) {
-                            let offset = LONG_SEQ[..LONG_SEQ.len() - 100]
-                                .iter()
-                                .rev()
-                                .take_while(|b| **b == b'G')
-                                .count();
-                            Some(100 - offset..LONG_SEQ.len())
-                        } else {
-                            None
-                        }
-                        .is_some();
-                    black_box(ans);
-                }
-            });
         }
     }
 }

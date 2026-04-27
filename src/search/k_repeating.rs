@@ -1,4 +1,4 @@
-use crate::iter_utils::SteppedWindows;
+use crate::{iter_utils::SteppedWindows, search::position_by_byte_inner};
 use std::simd::prelude::*;
 
 /// Non-SIMD component of [`find_k_repeating`].
@@ -9,7 +9,7 @@ use std::simd::prelude::*;
 /// appropriately handle this case.
 #[inline]
 #[must_use]
-fn find_k_repeating_scalar(haystack: &[u8], needle: u8, size: usize) -> Option<usize> {
+pub(super) fn find_k_repeating_scalar(haystack: &[u8], needle: u8, size: usize) -> Option<usize> {
     if size == 0 || size > haystack.len() {
         return None;
     }
@@ -95,7 +95,7 @@ pub fn find_k_repeating<const N: usize>(haystack: &[u8], needle: u8, size: usize
     if size == 0 || size > haystack.len() {
         return None;
     } else if size == 1 {
-        return super::bytes::position_by_byte::<N>(haystack, needle);
+        return position_by_byte_inner::<N>(haystack, needle);
     } else if size == 2 {
         return find_2_repeating_simd::<N>(haystack, needle);
     }
@@ -235,78 +235,5 @@ mod test {
 
         assert_eq!(find_k_repeating_naive(&s, b'b', 3), find_k_repeating::<16>(&s, b'b', 3));
         assert_eq!(find_k_repeating_naive(&s, b'b', 3), find_k_repeating_scalar(&s, b'b', 3));
-    }
-}
-
-#[cfg(test)]
-mod bench {
-    use super::super::substring::substring_match_simd;
-    use super::*;
-    use std::sync::LazyLock;
-    use test::Bencher;
-
-    extern crate test;
-
-    static WORST_REPEATING: LazyLock<Vec<u8>> = LazyLock::new(|| {
-        let mut s = b"abb".to_vec();
-        s.extend(b"aabb".repeat(398));
-        s.extend(b"aabbb");
-        s
-    });
-
-    static AVG_REPEATING: LazyLock<Vec<u8>> = LazyLock::new(|| {
-        let mut s = b"aaaaaaab".repeat(199);
-        s.extend(b"aaaaabbb");
-        s
-    });
-
-    mod average {
-        use super::*;
-
-        #[bench]
-        fn using_substring_match(b: &mut Bencher) {
-            let needle = vec![b'b'; 3];
-            b.iter(|| substring_match_simd::<16>(&AVG_REPEATING, &needle));
-        }
-
-        #[bench]
-        fn composite(b: &mut Bencher) {
-            b.iter(|| find_k_repeating::<16>(&AVG_REPEATING, b'b', 3));
-        }
-
-        #[bench]
-        fn simd(b: &mut Bencher) {
-            b.iter(|| find_k_repeating::<16>(&AVG_REPEATING, b'b', 3));
-        }
-
-        #[bench]
-        fn scalar(b: &mut Bencher) {
-            b.iter(|| find_k_repeating_scalar(&AVG_REPEATING, b'b', 3));
-        }
-    }
-
-    mod worst {
-        use super::*;
-
-        #[bench]
-        fn using_substring_match(b: &mut Bencher) {
-            let needle = vec![b'b'; 3];
-            b.iter(|| substring_match_simd::<16>(&WORST_REPEATING, &needle));
-        }
-
-        #[bench]
-        fn composite(b: &mut Bencher) {
-            b.iter(|| find_k_repeating::<16>(&WORST_REPEATING, b'b', 3));
-        }
-
-        #[bench]
-        fn simd(b: &mut Bencher) {
-            b.iter(|| find_k_repeating::<16>(&WORST_REPEATING, b'b', 3));
-        }
-
-        #[bench]
-        fn scalar(b: &mut Bencher) {
-            b.iter(|| find_k_repeating_scalar(&WORST_REPEATING, b'b', 3));
-        }
     }
 }
