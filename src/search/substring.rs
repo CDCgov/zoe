@@ -3,7 +3,7 @@ use crate::{
     private::Sealed,
     search::{
         RangeSearch, find_k_repeating_mapped_inner, inexact::fuzzy_substring_match_simd, k_repeating::find_k_repeating,
-        position_by_byte, position_by_byte_inner,
+        position_by_byte, position_by_byte_inner, position_by_byte_mapped_inner,
     },
 };
 use std::{ops::Range, simd::prelude::*};
@@ -329,7 +329,7 @@ where
 
     let first = needle[0];
     if needle.len() == 1 {
-        return haystack.iter().position(|b| byte_transform(*b) == first);
+        return position_by_byte_mapped_inner(haystack, first, simd_transform, byte_transform);
     }
 
     let Some((n2_offset, last)) = needle.iter().copied().enumerate().rev().find(|(_, b)| *b != first) else {
