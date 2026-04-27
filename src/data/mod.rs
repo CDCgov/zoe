@@ -139,7 +139,7 @@ pub use constants::mappings::{
 };
 pub use extension::byte_types::SanitizeBase;
 pub use matrices::WeightMatrix;
-pub use records::{fasta, fastq, sam};
+pub use records::{bam, fasta, fastq, sam};
 pub use types::{amino_acids, cigar, nucleotides, phred};
 pub use validation::{CheckSequence, Recode, RetainSequence, StdForSequences};
 

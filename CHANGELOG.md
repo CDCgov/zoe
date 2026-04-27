@@ -8,6 +8,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ### Added
 
+- Added `BamWriter` for streaming SAM records to BGZF-compressed BAM, including BAM header and record encoding, custom compression backends, and BAI-compatible binning.
 - Added additional `From` and `TryFrom` impls for sequence types
 - Added additional `DisplayErrStack` convenience implementations
 - `define_whichever` and `impl_traits` now support `DoubleEndedIterator`,

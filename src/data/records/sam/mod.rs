@@ -1,3 +1,7 @@
+//! A module for reading and manipulating
+//! [SAM](https://samtools.github.io/hts-specs/SAMv1.pdf) files. Provides some
+//! special-case functions used by [IRMA](https://wonder.cdc.gov/amd/flu/irma/).
+
 use crate::{
     alignment::{Alignment, AlignmentStates, MaybeAligned, NextCiglet},
     data::{
@@ -616,8 +620,8 @@ impl SamOptField {
                 if chars.next().is_some() {
                     return Err(std::io::Error::other("'A' field must contain exactly one character"));
                 }
-                if !c.is_ascii() {
-                    return Err(std::io::Error::other("'A' field must be ASCII"));
+                if !c.is_ascii_graphic() {
+                    return Err(std::io::Error::other("'A' field must be a printable ASCII character"));
                 }
                 Ok(SamOptField {
                     tag,
@@ -633,15 +637,23 @@ impl SamOptField {
             }
             'f' => {
                 let parsed = string_value.parse::<f32>().with_context("Error parsing 'f' field")?;
+                if !parsed.is_finite() {
+                    return Err(std::io::Error::other("'f' field must be finite"));
+                }
                 Ok(SamOptField {
                     tag,
                     value: SamOptValue::Float(parsed),
                 })
             }
-            'Z' => Ok(SamOptField {
-                tag,
-                value: SamOptValue::String(String::from(string_value)),
-            }),
+            'Z' => {
+                if !string_value.chars().all(|c| c == ' ' || c.is_ascii_graphic()) {
+                    return Err(std::io::Error::other("'Z' field must contain printable ASCII characters"));
+                }
+                Ok(SamOptField {
+                    tag,
+                    value: SamOptValue::String(String::from(string_value)),
+                })
+            }
             'H' => {
                 if !string_value.len().is_multiple_of(2) {
                     return Err(std::io::Error::other(format!(
@@ -738,7 +750,7 @@ impl SamOptField {
 }
 
 /// The value of an optional field (for the SAM file format).
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum SamOptValue {
     /// A printable character (type code `A`).
     Char(u8),
@@ -817,7 +829,13 @@ impl SamOptValue {
             }
             "f" => {
                 let values = pieces
-                    .map(str::parse::<f32>)
+                    .map(|value| {
+                        let parsed = value.parse::<f32>().map_err(std::io::Error::other)?;
+                        if !parsed.is_finite() {
+                            return Err(std::io::Error::other("'B:f' values must be finite"));
+                        }
+                        Ok(parsed)
+                    })
                     .process_results(|iter| iter.collect())
                     .with_context("Error parsing 'f' subtype (`f32`)")?;
                 Ok(Self::Array(OptArray::F32(values)))
@@ -849,7 +867,7 @@ impl Display for SamOptValue {
 }
 
 /// The data array for `B` field data.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum OptArray {
     /// Array subtype code `c`.
     I8(Vec<i8>),

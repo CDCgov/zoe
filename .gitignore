@@ -4,6 +4,7 @@ examples/test*.rs
 *.fasta
 *.fas
 *.fa
+*.bam
 examples/rosalind
 /prototyping
 /comparison

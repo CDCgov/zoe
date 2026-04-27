@@ -378,7 +378,6 @@ pub trait LenInAlignment {
     ///
     /// [`ref_len_in_alignment`]: LenInAlignment::ref_len_in_alignment
     #[must_use]
-    #[cfg(feature = "fuzzing")]
     fn ref_len_in_alignment_checked(&self) -> Option<usize>;
 
     /// A checked version of [`query_len_in_alignment`], returning `None` on
@@ -386,7 +385,6 @@ pub trait LenInAlignment {
     ///
     /// [`query_len_in_alignment`]: LenInAlignment::query_len_in_alignment
     #[must_use]
-    #[cfg(feature = "fuzzing")]
     fn query_len_in_alignment_checked(&self) -> Option<usize>;
 }
 
@@ -409,7 +407,6 @@ where
     }
 
     #[inline]
-    #[cfg(feature = "fuzzing")]
     fn ref_len_in_alignment_checked(&self) -> Option<usize> {
         self.to_ciglet_iterator()
             .filter_map(|Ciglet { inc, op }| matches!(op, b'M' | b'D' | b'N' | b'=' | b'X').then_some(inc))
@@ -417,7 +414,6 @@ where
     }
 
     #[inline]
-    #[cfg(feature = "fuzzing")]
     fn query_len_in_alignment_checked(&self) -> Option<usize> {
         self.to_ciglet_iterator()
             .filter_map(|Ciglet { inc, op }| matches!(op, b'M' | b'I' | b'S' | b'=' | b'X').then_some(inc))
