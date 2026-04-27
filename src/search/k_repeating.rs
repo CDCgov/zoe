@@ -1,4 +1,7 @@
-use crate::{iter_utils::SteppedWindows, search::position_by_byte_inner};
+use crate::{
+    iter_utils::SteppedWindows,
+    search::{position_by_byte_inner, position_by_byte_mapped_inner},
+};
 use std::simd::prelude::*;
 
 /// Non-SIMD component of [`find_k_repeating`].
@@ -40,16 +43,14 @@ pub(super) fn find_k_repeating_scalar(haystack: &[u8], needle: u8, size: usize) 
     None
 }
 
-// TODO: CONVERT TO DOC LINKS
-/// Non-SIMD component of `find_k_repeating_mapped`.
+/// Non-SIMD component of [`find_k_repeating_mapped`].
 ///
 /// ## Limitations
 ///
-/// Not optimized for small needles <21bp. Use `find_k_repeating_mapped` to more
-/// appropriately handle this case.
+/// Not optimized for small needles <21bp. Use [`find_k_repeating_mapped`] to
+/// more appropriately handle this case.
 #[inline]
 #[must_use]
-#[allow(dead_code)]
 fn find_k_repeating_mapped_scalar<B>(haystack: &[u8], needle: u8, size: usize, map: B) -> Option<usize>
 where
     B: Fn(u8) -> u8, {
@@ -106,12 +107,10 @@ fn find_2_repeating_simd<const N: usize>(haystack: &[u8], needle: u8) -> Option<
     find_k_repeating_scalar(rem, needle, 2).map(|found| (haystack.len() - rem.len()) + found)
 }
 
-// TODO: CONVERT TO DOC LINKS
 /// This is the `size = 2` special case for the SIMD-acclerated portions of
-/// `find_k_repeating_mapped`.
+/// [`find_k_repeating_mapped`].
 #[inline]
 #[must_use]
-#[allow(dead_code)]
 fn find_2_repeating_mapped_simd<const N: usize, S, B>(
     haystack: &[u8], needle: u8, simd_transform: S, byte_transform: B,
 ) -> Option<usize>
@@ -233,6 +232,123 @@ pub fn find_k_repeating<const N: usize>(haystack: &[u8], needle: u8, size: usize
 
     for (j, b) in chunks.final_partial_window().iter().copied().enumerate() {
         if b == needle {
+            running_total += 1;
+        } else {
+            running_total = 0;
+        }
+
+        if running_total == size {
+            return Some(haystack.len() - chunks.final_partial_window().len() + j - (size - 1));
+        }
+    }
+
+    None
+}
+
+/// Given a haystack, needle and the number of times the needle repeats itself
+/// in a row, find the starting index of the matching substring or return `None`
+/// otherwise. The `haystack` is lazily mapped using `simd_transform` and
+/// `byte_transform`.
+///
+/// For small needle sizes (`size` < 21), SIMD acceleration is used.
+///
+/// For larger needle sizes (`size` ≥ 21), a scalar implementation is used,
+/// enabling faster skipping through the string in a similar manner to the
+/// Boyer-Moore algorithm.
+///
+/// ## Limitations
+///
+/// Not optimized for needles that are of comparable size to the haystack (e.g.,
+/// over half the size of the haystack).
+///
+/// ## Parameters
+///
+/// `N` - The number of SIMD lanes to use for the search. This must be greater
+/// than 2.
+#[inline]
+#[must_use]
+#[allow(clippy::cast_possible_truncation)]
+#[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
+pub fn find_k_repeating_mapped<const N: usize, S, B>(
+    haystack: &[u8], needle: u8, size: usize, simd_transform: S, byte_transform: B,
+) -> Option<usize>
+where
+    S: Fn(Simd<u8, N>) -> Simd<u8, N>,
+    B: Fn(u8) -> u8, {
+    const SCALAR_THRESHOLD: usize = 21;
+
+    // TODO: fix when we have better const generics
+    const {
+        assert!(N > 2, "`find_k_repeating_simd` requires N > 2");
+    };
+
+    if size == 0 || size > haystack.len() {
+        return None;
+    } else if size == 1 {
+        return position_by_byte_mapped_inner::<N, S, B>(haystack, needle, simd_transform, byte_transform);
+    } else if size == 2 {
+        return find_2_repeating_mapped_simd::<N, S, B>(haystack, needle, simd_transform, byte_transform);
+    }
+
+    // Fall back to Scalar algorithm when it isn't worth it
+    if haystack.len() < N * 2 || size > SCALAR_THRESHOLD {
+        return find_k_repeating_mapped_scalar(haystack, needle, size, byte_transform);
+    }
+
+    let nv = Simd::<u8, N>::splat(needle);
+    // Get windows that are overlapping by 2
+    let mut chunks = SteppedWindows::new(haystack, N - 2);
+    let mut running_total = 0;
+
+    for (i, chunk) in chunks.by_ref().copied().map(Simd::from_array).enumerate() {
+        let mut mask = nv.simd_eq(simd_transform(chunk)).to_bitmask();
+        mask = mask & (mask >> 1) & (mask >> 2);
+
+        if mask == 0 {
+            running_total = 0;
+            continue;
+        }
+
+        let reset = mask & (1 << (N - 3)) == 0;
+        let mut bit_offset = 0;
+        if mask & 1 > 0 {
+            let previous = running_total;
+            bit_offset = mask.trailing_ones();
+            mask >>= bit_offset;
+
+            // CORRECTNESS: `trailing_ones()` cannot be larger than 64, which is
+            // much smaller than the `usize::MAX` of hypothetical 16-bit `usize`
+            // even though the value returned uses a `u32`.
+            running_total += bit_offset as usize;
+
+            if running_total >= size - 2 {
+                return Some(i * (N - 2) - previous);
+            }
+        }
+
+        while mask > 0 {
+            let skip_count = mask.trailing_zeros();
+            mask >>= skip_count;
+            bit_offset += skip_count;
+
+            // Restart running total
+            running_total = mask.trailing_ones() as usize;
+            mask >>= running_total;
+
+            if running_total >= size - 2 {
+                return Some(i * (N - 2) + bit_offset as usize);
+            }
+
+            bit_offset += running_total as u32;
+        }
+
+        if reset {
+            running_total = 0;
+        }
+    }
+
+    for (j, b) in chunks.final_partial_window().iter().copied().enumerate() {
+        if byte_transform(b) == needle {
             running_total += 1;
         } else {
             running_total = 0;
