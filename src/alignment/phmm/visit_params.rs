@@ -17,7 +17,7 @@ use crate::{
     alignment::{
         StatesSequence,
         phmm::{
-            CorePhmm, DomainPhmm, GetLayer, GetModule, GlobalPhmm, LocalPhmm, PhmmError, PhmmNumber, PhmmState,
+            CorePhmm, DomainPhmm, GetCore, GetLayer, GetModule, GlobalPhmm, LocalPhmm, PhmmError, PhmmNumber, PhmmState,
             SemiLocalPhmm,
             indexing::{Begin, DpIndex, End, FirstMatch, LastMatch, PhmmIndex, PhmmIndexable, SeqIndex},
             modules::{DomainModule, SemiLocalModule},
@@ -440,7 +440,10 @@ where
 
             // Need to look at the previous layer to get transitions into this
             // layer
-            let param = core.get_layer(layer_idx.prev_index(core)).emission_match[x_idx];
+            let param = core
+                .get_layer(layer_idx.prev_index(core))
+                .ok_or(PhmmError::InvalidPath)?
+                .emission_match[x_idx];
 
             call_f(f, score, PhmmParam::new_emission_match(param, layer_idx, x_idx, core));
 
@@ -458,7 +461,7 @@ where
             call_f(
                 f,
                 score,
-                PhmmParam::new_emission_insert(core.get_layer(Begin).emission_insert[x_idx], Begin, x_idx, core),
+                PhmmParam::new_emission_insert(core.begin_layer().emission_insert[x_idx], Begin, x_idx, core),
             );
             i += 1;
             // After entering the delete state, we are still in begin layer
@@ -469,9 +472,12 @@ where
     // Main loop: first score transition out of current layer index j, then
     // score emission in new state if applicable
     for op in op_iter {
-        let layer = core.get_layer(DpIndex(j));
+        // Validate op before layer to ensure operations like H get a op error
+        // instead of a layer error
+        let op = PhmmState::from_op(op)?;
+        let layer = core.get_layer(DpIndex(j)).ok_or(PhmmError::InvalidPath)?;
 
-        match PhmmState::from_op(op)? {
+        match op {
             Match => {
                 let x_idx = mapping.to_index(seq_in_alignment[i]);
                 // Must perform the two additions separately, since floating
@@ -554,7 +560,7 @@ fn resolve_ambiguous_start<T: PhmmNumber, const S: usize>(
     let first_op = ciglets.peek_op().ok_or(PhmmError::FullModelNotUsed)?;
     let first_state = PhmmState::from_op(first_op)?;
     let semilocal_begin_param_through_begin = begin_module.get_score(Begin);
-    let transition_from_begin = core.get_layer(Begin).transition[(Match, first_state)];
+    let transition_from_begin = core.begin_layer().transition[(Match, first_state)];
     let score_through_begin = score + semilocal_begin_param_through_begin + transition_from_begin;
 
     let (semilocal_begin_param, to_layer, transition_from_begin) = match first_state {
@@ -613,7 +619,7 @@ fn resolve_ambiguous_end<T: PhmmNumber, const S: usize>(
 ) -> (T, DpIndex, Option<T>) {
     use PhmmState::*;
 
-    let transition_to_end = core.get_layer(LastMatch).transition[(final_state, Match)];
+    let transition_to_end = core.last_match().transition[(final_state, Match)];
     let semilocal_end_param_through_end = end_module.get_score(End);
     let end_param_through_end = if let Some(domain_end_param) = domain_end_param {
         domain_end_param + semilocal_end_param_through_end
@@ -711,7 +717,7 @@ impl<T: PhmmNumber, const S: usize> GlobalPhmm<T, S> {
             &mut f,
             &mut score,
             PhmmParam::new_transition(
-                self.get_layer(Begin).transition[(Match, first_state)],
+                self.begin_layer().transition[(Match, first_state)],
                 Begin,
                 Match,
                 first_state,
@@ -735,7 +741,7 @@ impl<T: PhmmNumber, const S: usize> GlobalPhmm<T, S> {
             &mut f,
             &mut score,
             PhmmParam::new_transition(
-                self.get_layer(LastMatch).transition[(final_state, Match)],
+                self.last_match().transition[(final_state, Match)],
                 LastMatch,
                 final_state,
                 Match,
@@ -1078,7 +1084,7 @@ impl<T: PhmmNumber, const S: usize> DomainPhmm<T, S> {
             &mut f,
             &mut score,
             PhmmParam::new_transition(
-                self.get_layer(Begin).transition[(Match, first_state)],
+                self.begin_layer().transition[(Match, first_state)],
                 Begin,
                 Match,
                 first_state,
@@ -1103,7 +1109,7 @@ impl<T: PhmmNumber, const S: usize> DomainPhmm<T, S> {
             &mut f,
             &mut score,
             PhmmParam::new_transition(
-                self.get_layer(LastMatch).transition[(final_state, Match)],
+                self.last_match().transition[(final_state, Match)],
                 LastMatch,
                 final_state,
                 Match,

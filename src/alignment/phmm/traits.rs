@@ -1,7 +1,7 @@
 #[cfg(feature = "fuzzing")]
 pub mod float_compare {
     use crate::{
-        alignment::phmm::{CorePhmm, EmissionParams, GetLayer, GlobalPhmm, LayerParams, TransitionParams},
+        alignment::phmm::{CorePhmm, EmissionParams, GetCore, GetLayer, GlobalPhmm, LayerParams, TransitionParams},
         math::{NearlyEqual, NearlyEqualMethod},
     };
 

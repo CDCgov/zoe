@@ -1,8 +1,8 @@
 use crate::{
     alignment::phmm::{
-        CorePhmm, DomainPhmm, GetLayer, GetLayerMut, GetModule, GetModuleMut, GetPartsMut, GlobalPhmm, LayerParams,
-        LocalPhmm, SemiLocalPhmm,
-        indexing::{LastMatch, PhmmIndex, PhmmIndexRange, PhmmIndexable},
+        CorePhmm, DomainPhmm, GetCore, GetCoreMut, GetLayer, GetLayerMut, GetModule, GetModuleMut, GetPartsMut, GlobalPhmm,
+        LayerParams, LocalPhmm, SemiLocalPhmm,
+        indexing::{PhmmIndex, PhmmIndexRange, PhmmIndexable},
         modules::{DomainModule, LocalModule, SemiLocalModule},
     },
     data::{ByteIndexMap, views::ViewAssocTypes},
@@ -874,87 +874,231 @@ impl<T, const S: usize> PhmmIndexable for LocalPhmmViewMut<'_, T, S> {
     }
 }
 
-impl<T, const S: usize> GetLayer<T, S> for GlobalPhmmView<'_, T, S> {
+impl<T, const S: usize> GetCore<T, S> for GlobalPhmmView<'_, T, S> {
     #[inline]
     fn core(&self) -> &CorePhmm<T, S> {
         self.core
+    }
+}
+
+impl<T, const S: usize> GetCore<T, S> for GlobalPhmmViewMut<'_, T, S> {
+    #[inline]
+    fn core(&self) -> &CorePhmm<T, S> {
+        self.core
+    }
+}
+
+impl<T, const S: usize> GetCore<T, S> for DomainPhmmView<'_, T, S> {
+    #[inline]
+    fn core(&self) -> &CorePhmm<T, S> {
+        self.core
+    }
+}
+
+impl<T, const S: usize> GetCore<T, S> for DomainPhmmViewMut<'_, T, S> {
+    #[inline]
+    fn core(&self) -> &CorePhmm<T, S> {
+        self.core
+    }
+}
+
+impl<T, const S: usize> GetCore<T, S> for SemiLocalPhmmView<'_, T, S> {
+    #[inline]
+    fn core(&self) -> &CorePhmm<T, S> {
+        self.core
+    }
+}
+
+impl<T, const S: usize> GetCore<T, S> for SemiLocalPhmmViewMut<'_, T, S> {
+    #[inline]
+    fn core(&self) -> &CorePhmm<T, S> {
+        self.core
+    }
+}
+
+impl<T, const S: usize> GetCore<T, S> for LocalPhmmView<'_, T, S> {
+    #[inline]
+    fn core(&self) -> &CorePhmm<T, S> {
+        self.core
+    }
+}
+
+impl<T, const S: usize> GetCore<T, S> for LocalPhmmViewMut<'_, T, S> {
+    #[inline]
+    fn core(&self) -> &CorePhmm<T, S> {
+        self.core
+    }
+}
+
+impl<T, const S: usize> GetCoreMut<T, S> for GlobalPhmmViewMut<'_, T, S> {
+    #[inline]
+    fn core_mut(&mut self) -> &mut CorePhmm<T, S> {
+        self.core
+    }
+}
+
+impl<T, const S: usize> GetCoreMut<T, S> for DomainPhmmViewMut<'_, T, S> {
+    #[inline]
+    fn core_mut(&mut self) -> &mut CorePhmm<T, S> {
+        self.core
+    }
+}
+
+impl<T, const S: usize> GetCoreMut<T, S> for SemiLocalPhmmViewMut<'_, T, S> {
+    #[inline]
+    fn core_mut(&mut self) -> &mut CorePhmm<T, S> {
+        self.core
+    }
+}
+
+impl<T, const S: usize> GetCoreMut<T, S> for LocalPhmmViewMut<'_, T, S> {
+    #[inline]
+    fn core_mut(&mut self) -> &mut CorePhmm<T, S> {
+        self.core
+    }
+}
+
+impl<T, const S: usize> GetLayer<T, S> for GlobalPhmmView<'_, T, S> {
+    #[inline]
+    fn layers(&self) -> &[LayerParams<T, S>] {
+        self.core().layers()
+    }
+
+    #[inline]
+    fn split_last_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
+        self.core().split_last_layer()
     }
 }
 
 impl<T, const S: usize> GetLayer<T, S> for GlobalPhmmViewMut<'_, T, S> {
     #[inline]
-    fn core(&self) -> &CorePhmm<T, S> {
-        self.core
+    fn layers(&self) -> &[LayerParams<T, S>] {
+        self.core().layers()
+    }
+
+    #[inline]
+    fn split_last_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
+        self.core().split_last_layer()
     }
 }
 
 impl<T, const S: usize> GetLayer<T, S> for DomainPhmmView<'_, T, S> {
     #[inline]
-    fn core(&self) -> &CorePhmm<T, S> {
-        self.core
+    fn layers(&self) -> &[LayerParams<T, S>] {
+        self.core().layers()
+    }
+
+    #[inline]
+    fn split_last_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
+        self.core().split_last_layer()
     }
 }
 
 impl<T, const S: usize> GetLayer<T, S> for DomainPhmmViewMut<'_, T, S> {
     #[inline]
-    fn core(&self) -> &CorePhmm<T, S> {
-        self.core
+    fn layers(&self) -> &[LayerParams<T, S>] {
+        self.core().layers()
+    }
+
+    #[inline]
+    fn split_last_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
+        self.core().split_last_layer()
     }
 }
 
 impl<T, const S: usize> GetLayer<T, S> for SemiLocalPhmmView<'_, T, S> {
     #[inline]
-    fn core(&self) -> &CorePhmm<T, S> {
-        self.core
+    fn layers(&self) -> &[LayerParams<T, S>] {
+        self.core().layers()
+    }
+
+    #[inline]
+    fn split_last_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
+        self.core().split_last_layer()
     }
 }
 
 impl<T, const S: usize> GetLayer<T, S> for SemiLocalPhmmViewMut<'_, T, S> {
     #[inline]
-    fn core(&self) -> &CorePhmm<T, S> {
-        self.core
+    fn layers(&self) -> &[LayerParams<T, S>] {
+        self.core().layers()
+    }
+
+    #[inline]
+    fn split_last_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
+        self.core().split_last_layer()
     }
 }
 
 impl<T, const S: usize> GetLayer<T, S> for LocalPhmmView<'_, T, S> {
     #[inline]
-    fn core(&self) -> &CorePhmm<T, S> {
-        self.core
+    fn layers(&self) -> &[LayerParams<T, S>] {
+        self.core().layers()
+    }
+
+    #[inline]
+    fn split_last_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
+        self.core().split_last_layer()
     }
 }
 
 impl<T, const S: usize> GetLayer<T, S> for LocalPhmmViewMut<'_, T, S> {
     #[inline]
-    fn core(&self) -> &CorePhmm<T, S> {
-        self.core
+    fn layers(&self) -> &[LayerParams<T, S>] {
+        self.core().layers()
+    }
+
+    #[inline]
+    fn split_last_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
+        self.core().split_last_layer()
     }
 }
 
 impl<T, const S: usize> GetLayerMut<T, S> for GlobalPhmmViewMut<'_, T, S> {
     #[inline]
-    fn core_mut(&mut self) -> &mut CorePhmm<T, S> {
-        self.core
+    fn layers_mut(&mut self) -> &mut [LayerParams<T, S>] {
+        self.core_mut().layers_mut()
+    }
+
+    #[inline]
+    fn layers_mut_vec(&mut self) -> &mut Vec<LayerParams<T, S>> {
+        self.core_mut().layers_mut_vec()
     }
 }
 
 impl<T, const S: usize> GetLayerMut<T, S> for DomainPhmmViewMut<'_, T, S> {
     #[inline]
-    fn core_mut(&mut self) -> &mut CorePhmm<T, S> {
-        self.core
+    fn layers_mut(&mut self) -> &mut [LayerParams<T, S>] {
+        self.core_mut().layers_mut()
+    }
+
+    #[inline]
+    fn layers_mut_vec(&mut self) -> &mut Vec<LayerParams<T, S>> {
+        self.core_mut().layers_mut_vec()
     }
 }
 
 impl<T, const S: usize> GetLayerMut<T, S> for SemiLocalPhmmViewMut<'_, T, S> {
     #[inline]
-    fn core_mut(&mut self) -> &mut CorePhmm<T, S> {
-        self.core
+    fn layers_mut(&mut self) -> &mut [LayerParams<T, S>] {
+        self.core_mut().layers_mut()
+    }
+
+    #[inline]
+    fn layers_mut_vec(&mut self) -> &mut Vec<LayerParams<T, S>> {
+        self.core_mut().layers_mut_vec()
     }
 }
 
 impl<T, const S: usize> GetLayerMut<T, S> for LocalPhmmViewMut<'_, T, S> {
     #[inline]
-    fn core_mut(&mut self) -> &mut CorePhmm<T, S> {
-        self.core
+    fn layers_mut(&mut self) -> &mut [LayerParams<T, S>] {
+        self.core_mut().layers_mut()
+    }
+
+    #[inline]
+    fn layers_mut_vec(&mut self) -> &mut Vec<LayerParams<T, S>> {
+        self.core_mut().layers_mut_vec()
     }
 }
 
@@ -1084,21 +1228,12 @@ impl<T, const S: usize> GetModuleMut for LocalPhmmViewMut<'_, T, S> {
     }
 }
 
-impl<'a, T, const S: usize> GlobalPhmmView<'a, T, S> {
+impl<T, const S: usize> GlobalPhmmView<'_, T, S> {
     /// Returns a reference to the [`ByteIndexMap`] used by the global pHMM.
     #[inline]
     #[must_use]
     pub fn mapping(&self) -> &'static ByteIndexMap<S> {
         self.mapping
-    }
-
-    /// Returns the view's [`CorePhmm`].
-    ///
-    /// This is similar to [`GetLayer::core`], but returns a longer lifetime.
-    #[inline]
-    #[must_use]
-    pub fn core(&self) -> &'a CorePhmm<T, S> {
-        self.core
     }
 }
 
@@ -1111,39 +1246,12 @@ impl<T, const S: usize> GlobalPhmmViewMut<'_, T, S> {
     }
 }
 
-impl<'a, T, const S: usize> LocalPhmmView<'a, T, S> {
+impl<T, const S: usize> LocalPhmmView<'_, T, S> {
     /// Returns a reference to the [`ByteIndexMap`] used by the local pHMM.
     #[inline]
     #[must_use]
     pub fn mapping(&self) -> &'static ByteIndexMap<S> {
         self.mapping
-    }
-
-    /// Returns the view's [`CorePhmm`].
-    ///
-    /// This is similar to [`GetLayer::core`], but returns a longer lifetime.
-    #[inline]
-    #[must_use]
-    pub fn core(&self) -> &'a CorePhmm<T, S> {
-        self.core
-    }
-
-    /// Returns the view's begin module.
-    ///
-    /// This is similar to [`GetModule::begin`], but returns a longer lifetime.
-    #[inline]
-    #[must_use]
-    pub fn begin(&self) -> &'a LocalModule<T, S> {
-        self.begin
-    }
-
-    /// Returns the view's end module.
-    ///
-    /// This is similar to [`GetModule::begin`], but returns a longer lifetime.
-    #[inline]
-    #[must_use]
-    pub fn end(&self) -> &'a LocalModule<T, S> {
-        self.end
     }
 }
 
@@ -1156,39 +1264,12 @@ impl<T, const S: usize> LocalPhmmViewMut<'_, T, S> {
     }
 }
 
-impl<'a, T, const S: usize> DomainPhmmView<'a, T, S> {
+impl<T, const S: usize> DomainPhmmView<'_, T, S> {
     /// Returns a reference to the [`ByteIndexMap`] used by the domain pHMM.
     #[inline]
     #[must_use]
     pub fn mapping(&self) -> &'static ByteIndexMap<S> {
         self.mapping
-    }
-
-    /// Returns the view's [`CorePhmm`].
-    ///
-    /// This is similar to [`GetLayer::core`], but returns a longer lifetime.
-    #[inline]
-    #[must_use]
-    pub fn core(&self) -> &'a CorePhmm<T, S> {
-        self.core
-    }
-
-    /// Returns the view's begin module.
-    ///
-    /// This is similar to [`GetModule::begin`], but returns a longer lifetime.
-    #[inline]
-    #[must_use]
-    pub fn begin(&self) -> &'a DomainModule<T, S> {
-        self.begin
-    }
-
-    /// Returns the view's end module.
-    ///
-    /// This is similar to [`GetModule::begin`], but returns a longer lifetime.
-    #[inline]
-    #[must_use]
-    pub fn end(&self) -> &'a DomainModule<T, S> {
-        self.end
     }
 }
 
@@ -1201,39 +1282,12 @@ impl<T, const S: usize> DomainPhmmViewMut<'_, T, S> {
     }
 }
 
-impl<'a, T, const S: usize> SemiLocalPhmmView<'a, T, S> {
+impl<T, const S: usize> SemiLocalPhmmView<'_, T, S> {
     /// Returns a reference to the [`ByteIndexMap`] used by the semilocal pHMM.
     #[inline]
     #[must_use]
     pub fn mapping(&self) -> &'static ByteIndexMap<S> {
         self.mapping
-    }
-
-    /// Returns the view's [`CorePhmm`].
-    ///
-    /// This is similar to [`GetLayer::core`], but returns a longer lifetime.
-    #[inline]
-    #[must_use]
-    pub fn core(&self) -> &'a CorePhmm<T, S> {
-        self.core
-    }
-
-    /// Returns the view's begin module.
-    ///
-    /// This is similar to [`GetModule::begin`], but returns a longer lifetime.
-    #[inline]
-    #[must_use]
-    pub fn begin(&self) -> &'a SemiLocalModule<T> {
-        self.begin
-    }
-
-    /// Returns the view's end module.
-    ///
-    /// This is similar to [`GetModule::begin`], but returns a longer lifetime.
-    #[inline]
-    #[must_use]
-    pub fn end(&self) -> &'a SemiLocalModule<T> {
-        self.end
     }
 }
 
@@ -1276,7 +1330,7 @@ pub(crate) trait GetModuleView<'a> {
     ///
     /// </div>
     #[must_use]
-    fn begin(&self) -> &'a Self::Begin;
+    fn begin_view(&self) -> &'a Self::Begin;
 
     /// Returns a reference to the module at the end of the pHMM.
     ///
@@ -1289,7 +1343,7 @@ pub(crate) trait GetModuleView<'a> {
     ///
     /// </div>
     #[must_use]
-    fn end(&self) -> &'a Self::End;
+    fn end_view(&self) -> &'a Self::End;
 }
 
 impl<'a, T, const S: usize> GetModuleView<'a> for LocalPhmmView<'a, T, S> {
@@ -1297,12 +1351,12 @@ impl<'a, T, const S: usize> GetModuleView<'a> for LocalPhmmView<'a, T, S> {
     type End = LocalModule<T, S>;
 
     #[inline]
-    fn begin(&self) -> &'a Self::Begin {
+    fn begin_view(&self) -> &'a Self::Begin {
         self.begin
     }
 
     #[inline]
-    fn end(&self) -> &'a Self::End {
+    fn end_view(&self) -> &'a Self::End {
         self.end
     }
 }
@@ -1312,12 +1366,12 @@ impl<'a, T, const S: usize> GetModuleView<'a> for DomainPhmmView<'a, T, S> {
     type End = DomainModule<T, S>;
 
     #[inline]
-    fn begin(&self) -> &'a Self::Begin {
+    fn begin_view(&self) -> &'a Self::Begin {
         self.begin
     }
 
     #[inline]
-    fn end(&self) -> &'a Self::End {
+    fn end_view(&self) -> &'a Self::End {
         self.end
     }
 }
@@ -1327,14 +1381,22 @@ impl<'a, T, const S: usize> GetModuleView<'a> for SemiLocalPhmmView<'a, T, S> {
     type End = SemiLocalModule<T>;
 
     #[inline]
-    fn begin(&self) -> &'a Self::Begin {
+    fn begin_view(&self) -> &'a Self::Begin {
         self.begin
     }
 
     #[inline]
-    fn end(&self) -> &'a Self::End {
+    fn end_view(&self) -> &'a Self::End {
         self.end
     }
+}
+
+/// A trait providing read-only access to the [`CorePhmm`] within a larger pHMM.
+#[allow(dead_code)]
+pub(crate) trait GetCoreView<'a, T, const S: usize> {
+    /// Returns a reference to the [`CorePhmm`] holding the core parameters.
+    #[must_use]
+    fn core_view(&self) -> &'a CorePhmm<T, S>;
 }
 
 /// A trait providing read-only accessors to the layers of a pHMM view.
@@ -1352,74 +1414,88 @@ impl<'a, T, const S: usize> GetModuleView<'a> for SemiLocalPhmmView<'a, T, S> {
 /// </div>
 #[cfg_attr(feature = "alignment-diagnostics", visibility::make(pub))]
 pub(crate) trait GetLayerView<'a, T, const S: usize>: PhmmIndexable {
-    /// Returns a reference to the [`CorePhmm`] holding the core parameters.
-    #[must_use]
-    fn core(&self) -> &'a CorePhmm<T, S>;
-
     /// Retrieves a slice of the layers contained within the core pHMM.
-    #[inline]
     #[must_use]
-    fn layers(&self) -> &'a [LayerParams<T, S>] {
-        self.core().layers()
-    }
+    fn layers(&self) -> &'a [LayerParams<T, S>];
 
-    /// Get a layer from within the core pHMM.
+    /// Gets a layer from within the core pHMM.
     ///
-    /// Although there is no actual layer for the `End` state, for readability
-    /// we let `End` be synonymous with `LastMatch` since `End` emphasizes it is
-    /// the last layer.
+    /// This returns `None` if the index is out of bounds or [`End`] (since
+    /// there is no layer corresponding to the END state).
+    ///
+    /// [`End`]: crate::alignment::phmm::indexing::End
     #[inline]
     #[must_use]
     #[allow(dead_code)]
-    fn get_layer(&self, j: impl PhmmIndex) -> &'a LayerParams<T, S> {
-        if j.is_end() {
-            self.get_layer(LastMatch)
-        } else {
-            &self.layers()[self.get_dp_index(j)]
-        }
+    fn get_layer(&self, j: impl PhmmIndex) -> Option<&'a LayerParams<T, S>> {
+        self.layers().get(self.get_dp_index(j))
     }
 
-    /// Get a range of layers from within the core pHMM.
+    /// Gets a range of layers from within the core pHMM.
     ///
-    /// ## Panics
-    ///
-    /// If any of the indices are out of bounds, this will panic. Particularly,
-    /// if the range is end-inclusive and ends with `End` (e.g., `..=End`), this
-    /// will panic. This is different behavior than [`get_layer`].
-    ///
-    /// [`get_layer`]: GetLayer::get_layer
+    /// If any of the indices are out of bounds, this will return `None`.
+    /// Particularly, if the range is end-inclusive and ends with `End` (e.g.,
+    /// `..=End`), this will return `None`.
     #[inline]
     #[must_use]
     #[allow(dead_code)]
-    fn get_layers(&self, range: impl PhmmIndexRange) -> &'a [LayerParams<T, S>] {
-        &self.layers()[self.get_dp_range(range)]
+    fn get_layers(&self, range: impl PhmmIndexRange) -> Option<&'a [LayerParams<T, S>]> {
+        self.layers().get(self.get_dp_range(range))
+    }
+}
+
+impl<'a, T, const S: usize> GetCoreView<'a, T, S> for GlobalPhmmView<'a, T, S> {
+    #[inline]
+    fn core_view(&self) -> &'a CorePhmm<T, S> {
+        self.core
+    }
+}
+
+impl<'a, T, const S: usize> GetCoreView<'a, T, S> for DomainPhmmView<'a, T, S> {
+    #[inline]
+    fn core_view(&self) -> &'a CorePhmm<T, S> {
+        self.core
+    }
+}
+
+impl<'a, T, const S: usize> GetCoreView<'a, T, S> for SemiLocalPhmmView<'a, T, S> {
+    #[inline]
+    fn core_view(&self) -> &'a CorePhmm<T, S> {
+        self.core
+    }
+}
+
+impl<'a, T, const S: usize> GetCoreView<'a, T, S> for LocalPhmmView<'a, T, S> {
+    #[inline]
+    fn core_view(&self) -> &'a CorePhmm<T, S> {
+        self.core
     }
 }
 
 impl<'a, T, const S: usize> GetLayerView<'a, T, S> for GlobalPhmmView<'a, T, S> {
     #[inline]
-    fn core(&self) -> &'a CorePhmm<T, S> {
-        self.core
+    fn layers(&self) -> &'a [LayerParams<T, S>] {
+        self.core.layers()
     }
 }
 
 impl<'a, T, const S: usize> GetLayerView<'a, T, S> for DomainPhmmView<'a, T, S> {
     #[inline]
-    fn core(&self) -> &'a CorePhmm<T, S> {
-        self.core
+    fn layers(&self) -> &'a [LayerParams<T, S>] {
+        self.core.layers()
     }
 }
 
 impl<'a, T, const S: usize> GetLayerView<'a, T, S> for SemiLocalPhmmView<'a, T, S> {
     #[inline]
-    fn core(&self) -> &'a CorePhmm<T, S> {
-        self.core
+    fn layers(&self) -> &'a [LayerParams<T, S>] {
+        self.core.layers()
     }
 }
 
 impl<'a, T, const S: usize> GetLayerView<'a, T, S> for LocalPhmmView<'a, T, S> {
     #[inline]
-    fn core(&self) -> &'a CorePhmm<T, S> {
-        self.core
+    fn layers(&self) -> &'a [LayerParams<T, S>] {
+        self.core.layers()
     }
 }

@@ -1,12 +1,15 @@
 use crate::{
     alignment::phmm::{
         InvalidModelError, PhmmError, PhmmNumber, PhmmState,
-        indexing::{LastMatch, PhmmIndex, PhmmIndexRange, PhmmIndexable},
+        indexing::{PhmmIndex, PhmmIndexRange, PhmmIndexable},
         modules::{DomainModule, LocalModule, SemiLocalModule},
     },
     data::mappings::ByteIndexMap,
 };
-use std::ops::{Index, IndexMut};
+use std::{
+    ops::{Index, IndexMut},
+    slice::GetDisjointMutError,
+};
 
 /// The transition probabilities for a layer of the pHMM.
 ///
@@ -308,37 +311,16 @@ impl<T, const S: usize> CorePhmm<T, S> {
     }
 
     /// Creates a new [`CorePhmm`] from a `Vec` of the parameters, without
-    /// checking that the number of layers is valid (the corresponding reference
-    /// length should be at least 1).
+    /// checking that the number of layers is valid.
+    ///
+    /// ## Validity
+    ///
+    /// The length of `layers` must be at least 2, corresponding to a reference
+    /// length of at least 1.
     #[inline]
     #[must_use]
     pub(crate) fn new_unchecked(layers: Vec<LayerParams<T, S>>) -> Self {
         CorePhmm(layers)
-    }
-
-    /// Returns a reference to the layer parameters stored in the core pHMM.
-    #[inline]
-    #[must_use]
-    pub fn layers(&self) -> &[LayerParams<T, S>] {
-        self.0.as_slice()
-    }
-
-    /// Returns a mutable reference to the layer parameters stored in the core
-    /// pHMM.
-    #[inline]
-    #[must_use]
-    #[allow(dead_code)]
-    pub fn layers_mut(&mut self) -> &mut [LayerParams<T, S>] {
-        self.0.as_mut_slice()
-    }
-
-    /// Returns a mutable reference to the vector of layer parameters stored in
-    /// the core pHMM.
-    #[inline]
-    #[must_use]
-    #[allow(dead_code)]
-    pub fn layers_mut_vec(&mut self) -> &mut Vec<LayerParams<T, S>> {
-        &mut self.0
     }
 }
 
@@ -757,6 +739,236 @@ pub(crate) trait GetModuleMut: GetModule {
     fn end_mut(&mut self) -> &mut Self::End;
 }
 
+// This is a separate trait from GetLayer in order to prevent core from being
+// called on a CorePhmm, which is an easy way to have infinite recursion in an
+// implementation.
+
+/// A trait providing read-only access to the [`CorePhmm`] within a larger pHMM.
+pub(crate) trait GetCore<T, const S: usize> {
+    /// Returns a reference to the [`CorePhmm`] holding the core parameters.
+    #[must_use]
+    fn core(&self) -> &CorePhmm<T, S>;
+}
+
+// This is a separate trait from GetLayerMut in order to prevent core_mut from
+// being called on a CorePhmm, which is an easy way to have infinite recursion
+// in an implementation.
+
+/// A trait providing read-only access to the [`CorePhmm`] within a larger pHMM.
+pub(crate) trait GetCoreMut<T, const S: usize> {
+    /// Returns a mutable reference to the [`CorePhmm`] holding the core
+    /// parameters.
+    #[must_use]
+    #[allow(dead_code)]
+    fn core_mut(&mut self) -> &mut CorePhmm<T, S>;
+}
+
+/// A trait providing read-only accessors to the layers of a pHMM.
+///
+/// <div class="warning note">
+///
+/// **Note**
+///
+/// You must enable the *alignment-diagnostics* feature in your `Cargo.toml`
+/// to use this trait.
+///
+/// </div>
+#[cfg_attr(feature = "alignment-diagnostics", visibility::make(pub))]
+pub(crate) trait GetLayer<T, const S: usize>: PhmmIndexable {
+    /// Retrieves a slice of the layers contained within the core pHMM.
+    ///
+    /// This slice will be at least 2 in length.
+    #[must_use]
+    fn layers(&self) -> &[LayerParams<T, S>];
+
+    /// Returns the last layer, as well as all previous layers.
+    ///
+    /// This is an infallible version of `model.layers().split_last()`.
+    #[must_use]
+    fn split_last_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]);
+
+    /// Returns a reference to the parameters for the layer containing the BEGIN
+    /// state.
+    ///
+    /// This is an infallible version of `model.get_layer(Begin)`.
+    #[inline]
+    #[must_use]
+    fn begin_layer(&self) -> &LayerParams<T, S> {
+        &self.layers()[0]
+    }
+
+    /// Returns a reference to the parameters for the layer containing the first
+    /// match state.
+    ///
+    /// This is an infallible version of `model.get_layer(FirstMatch)`.
+    #[inline]
+    #[must_use]
+    fn first_match(&self) -> &LayerParams<T, S> {
+        &self.layers()[1]
+    }
+
+    /// Returns a reference to the parameters for the layer containing the last
+    /// match state.
+    ///
+    /// This is an infallible version of `model.get_layer(LastMatch)`.
+    #[inline]
+    #[must_use]
+    fn last_match(&self) -> &LayerParams<T, S> {
+        &self.layers()[self.layers().len() - 1]
+    }
+
+    /// Gets a layer from within the core pHMM.
+    ///
+    /// This returns `None` if the index is out of bounds or [`End`] (since
+    /// there is no layer corresponding to the END state).
+    ///
+    /// [`End`]: crate::alignment::phmm::indexing::End
+    #[inline]
+    #[must_use]
+    fn get_layer(&self, j: impl PhmmIndex) -> Option<&LayerParams<T, S>> {
+        self.layers().get(self.get_dp_index(j))
+    }
+
+    /// Gets a range of layers from within the core pHMM.
+    ///
+    /// If any of the indices are out of bounds, this will return `None`.
+    /// Particularly, if the range is end-inclusive and ends with `End` (e.g.,
+    /// `..=End`), this will return `None`.
+    #[inline]
+    #[must_use]
+    #[allow(dead_code)]
+    fn get_layers(&self, range: impl PhmmIndexRange) -> Option<&[LayerParams<T, S>]> {
+        self.layers().get(self.get_dp_range(range))
+    }
+}
+
+/// A trait providing mutable accessors to the layers of a pHMM.
+///
+/// <div class="warning note">
+///
+/// **Note**
+///
+/// You must enable the *alignment-diagnostics* feature in your `Cargo.toml` to
+/// use this trait.
+///
+/// </div>
+#[cfg_attr(feature = "alignment-diagnostics", visibility::make(pub))]
+pub(crate) trait GetLayerMut<T, const S: usize>: GetLayer<T, S> {
+    /// Retrieves a mutable slice of the layers contained within the core pHMM.
+    #[must_use]
+    #[allow(dead_code)]
+    fn layers_mut(&mut self) -> &mut [LayerParams<T, S>];
+
+    /// Returns a mutable reference to the vector of layer parameters stored in
+    /// the core pHMM.
+    #[must_use]
+    #[allow(dead_code)]
+    fn layers_mut_vec(&mut self) -> &mut Vec<LayerParams<T, S>>;
+
+    /// Returns a reference to the parameters for the layer containing the BEGIN
+    /// state.
+    ///
+    /// This is an infallible version of `model.get_layer_mut(Begin)`.
+    #[inline]
+    #[must_use]
+    fn begin_layer_mut(&mut self) -> &mut LayerParams<T, S> {
+        &mut self.layers_mut()[0]
+    }
+
+    /// Returns a reference to the parameters for the layer containing the first
+    /// match state.
+    ///
+    /// This is an infallible version of `model.get_layer_mut(FirstMatch)`.
+    #[inline]
+    #[must_use]
+    fn first_match_mut(&mut self) -> &mut LayerParams<T, S> {
+        &mut self.layers_mut()[1]
+    }
+
+    /// Returns a reference to the parameters for the layer containing the last
+    /// match state.
+    ///
+    /// This is an infallible version of `model.get_layer_mut(LastMatch)`.
+    #[inline]
+    #[must_use]
+    fn last_match_mut(&mut self) -> &mut LayerParams<T, S> {
+        let idx = self.layers().len() - 1;
+        &mut self.layers_mut()[idx]
+    }
+
+    /// Gets a mutable reference to a layer from within the core pHMM.
+    ///
+    /// This returns `None` if the index is out of bounds or [`End`] (since
+    /// there is no layer corresponding to the END state).
+    ///
+    /// [`End`]: crate::alignment::phmm::indexing::End
+    #[inline]
+    #[must_use]
+    #[allow(dead_code)]
+    fn get_layer_mut(&mut self, j: impl PhmmIndex) -> Option<&mut LayerParams<T, S>> {
+        let idx = self.get_dp_index(j);
+        self.layers_mut().get_mut(idx)
+    }
+
+    /// Get a range of mutable layers from within the core pHMM.
+    ///
+    /// If any of the indices are out of bounds, this will return `None`.
+    /// Particularly, if the range is end-inclusive and ends with `End` (e.g.,
+    /// `..=End`), this will return `None`.
+    #[inline]
+    #[must_use]
+    #[allow(dead_code)]
+    fn get_layers_mut(&mut self, range: impl PhmmIndexRange) -> Option<&mut [LayerParams<T, S>]> {
+        let range = self.get_dp_range(range);
+        self.layers_mut().get_mut(range)
+    }
+
+    /// Gets mutable references to two distinct layers within the core pHMM.
+    ///
+    /// ## Errors
+    ///
+    /// - [`IndexOutOfBounds`] if either index is out of bounds or [`End`]
+    ///   (since there is no layer corresponding to the END state)
+    /// - [`OverlappingIndices`] if `j1` and `j2` are the same index
+    ///
+    /// [`IndexOutOfBounds`]: GetDisjointMutError::IndexOutOfBounds
+    /// [`End`]: crate::alignment::phmm::indexing::End
+    /// [`OverlappingIndices`]: GetDisjointMutError::OverlappingIndices
+    #[inline]
+    #[allow(dead_code)]
+    fn get_two_layers_mut(
+        &mut self, j1: impl PhmmIndex, j2: impl PhmmIndex,
+    ) -> Result<(&mut LayerParams<T, S>, &mut LayerParams<T, S>), GetDisjointMutError> {
+        let j1 = self.get_dp_index(j1);
+        let j2 = self.get_dp_index(j2);
+
+        let [l1, l2] = self.layers_mut().get_disjoint_mut([j1, j2])?;
+
+        Ok((l1, l2))
+    }
+}
+
+/// A trait providing simultaneous mutable accessors to the parts of a pHMM.
+///
+/// <div class="warning note">
+///
+/// **Note**
+///
+/// You must enable the *alignment-diagnostics* feature in your `Cargo.toml` to
+/// use this trait.
+///
+/// </div>
+#[cfg_attr(feature = "alignment-diagnostics", visibility::make(pub))]
+pub(crate) trait GetPartsMut<T, const S: usize>: GetModule + GetLayer<T, S> {
+    /// Returns simultaneous mutable references to the core pHMM, the begin
+    /// module, and the end module.
+    ///
+    /// Calling the individual mutable accessors and simultaneously using them
+    /// is not allowed by the borrow checker, hence this function.
+    #[must_use]
+    fn parts_mut(&mut self) -> (&mut CorePhmm<T, S>, &mut Self::Begin, &mut Self::End);
+}
+
 impl<T, const S: usize> GetModule for LocalPhmm<T, S> {
     type Begin = LocalModule<T, S>;
     type End = LocalModule<T, S>;
@@ -838,255 +1050,180 @@ impl<T, const S: usize> GetModuleMut for SemiLocalPhmm<T, S> {
     }
 }
 
-/// A trait providing read-only accessors to the layers of a pHMM.
-///
-/// <div class="warning note">
-///
-/// **Note**
-///
-/// You must enable the *alignment-diagnostics* feature in your `Cargo.toml`
-/// to use this trait.
-///
-/// </div>
-#[cfg_attr(feature = "alignment-diagnostics", visibility::make(pub))]
-pub(crate) trait GetLayer<T, const S: usize>: PhmmIndexable {
-    /// Returns a reference to the [`CorePhmm`] holding the core parameters.
-    #[must_use]
-    fn core(&self) -> &CorePhmm<T, S>;
-
-    /// Retrieves a slice of the layers contained within the core pHMM.
-    #[inline]
-    #[must_use]
-    fn layers(&self) -> &[LayerParams<T, S>] {
-        self.core().layers()
-    }
-
-    /// Get a layer from within the core pHMM.
-    ///
-    /// Although there is no actual layer for the `End` state, for readability
-    /// we let `End` be synonymous with `LastMatch` since `End` emphasizes it is
-    /// the last layer.
-    #[inline]
-    #[must_use]
-    #[allow(dead_code)]
-    fn get_layer(&self, j: impl PhmmIndex) -> &LayerParams<T, S> {
-        if j.is_end() {
-            self.get_layer(LastMatch)
-        } else {
-            &self.layers()[self.get_dp_index(j)]
-        }
-    }
-
-    /// Get a range of layers from within the core pHMM.
-    ///
-    /// ## Panics
-    ///
-    /// If any of the indices are out of bounds, this will panic. Particularly,
-    /// if the range is end-inclusive and ends with `End` (e.g., `..=End`), this
-    /// will panic. This is different behavior than [`get_layer`].
-    ///
-    /// [`get_layer`]: GetLayer::get_layer
-    #[inline]
-    #[must_use]
-    #[allow(dead_code)]
-    fn get_layers(&self, range: impl PhmmIndexRange) -> &[LayerParams<T, S>] {
-        &self.layers()[self.get_dp_range(range)]
-    }
-}
-
-/// A trait providing mutable accessors to the layers of a pHMM.
-///
-/// <div class="warning note">
-///
-/// **Note**
-///
-/// You must enable the *alignment-diagnostics* feature in your `Cargo.toml` to
-/// use this trait.
-///
-/// </div>
-#[cfg_attr(feature = "alignment-diagnostics", visibility::make(pub))]
-pub(crate) trait GetLayerMut<T, const S: usize>: GetLayer<T, S> {
-    /// Returns a mutable reference to the [`CorePhmm`] holding the core
-    /// parameters.
-    #[must_use]
-    #[allow(dead_code)]
-    fn core_mut(&mut self) -> &mut CorePhmm<T, S>;
-
-    /// Retrieves a mutable slice of the layers contained within the core pHMM.
-    #[inline]
-    #[must_use]
-    #[allow(dead_code)]
-    fn layers_mut(&mut self) -> &mut [LayerParams<T, S>] {
-        self.core_mut().layers_mut()
-    }
-
-    /// Returns a mutable reference to the vector of layer parameters stored in
-    /// the core pHMM.
-    #[inline]
-    #[must_use]
-    #[allow(dead_code)]
-    fn layers_mut_vec(&mut self) -> &mut Vec<LayerParams<T, S>> {
-        self.core_mut().layers_mut_vec()
-    }
-
-    /// Get a mutable reference to a layer from within the core pHMM.
-    ///
-    /// Although there is no actual layer for the `End` state, for readability
-    /// we let `End` be synonymous with `LastMatch` since `End` emphasizes it is
-    /// the last layer.
-    #[inline]
-    #[must_use]
-    #[allow(dead_code)]
-    fn get_layer_mut(&mut self, j: impl PhmmIndex) -> &mut LayerParams<T, S> {
-        if j.is_end() {
-            self.get_layer_mut(LastMatch)
-        } else {
-            let idx = self.get_dp_index(j);
-            &mut self.layers_mut()[idx]
-        }
-    }
-
-    /// Get a range of mutable layers from within the core pHMM.
-    ///
-    /// ## Panics
-    ///
-    /// If any of the indices are out of bounds, this will panic. Particularly,
-    /// if the range is end-inclusive and ends with `End` (e.g., `..=End`), this
-    /// will panic. This is different behavior than [`get_layer_mut`].
-    ///
-    /// [`get_layer_mut`]: GetLayerMut::get_layer_mut
-    #[inline]
-    #[must_use]
-    #[allow(dead_code)]
-    fn get_layers_mut(&mut self, range: impl PhmmIndexRange) -> &mut [LayerParams<T, S>] {
-        let range = self.get_dp_range(range);
-        &mut self.layers_mut()[range]
-    }
-
-    /// Gets mutable references to two distinct layers within the core pHMM.
-    ///
-    /// Although there is no actual layer for the `End` state, for readability
-    /// we let `End` be synonymous with `LastMatch` since `End` emphasizes it is
-    /// the last layer.
-    ///
-    /// ## Panics
-    ///
-    /// If the requested indices correspond to the same dynamic programming
-    /// index or are out of bounds, this will panic.
-    #[inline]
-    #[must_use]
-    #[allow(dead_code)]
-    fn get_two_layers_mut(
-        &mut self, j1: impl PhmmIndex, j2: impl PhmmIndex,
-    ) -> (&mut LayerParams<T, S>, &mut LayerParams<T, S>) {
-        let j1 = if j1.is_end() {
-            self.get_dp_index(LastMatch)
-        } else {
-            self.get_dp_index(j1)
-        };
-        let j2 = if j2.is_end() {
-            self.get_dp_index(LastMatch)
-        } else {
-            self.get_dp_index(j2)
-        };
-        let (j1, j2) = (std::cmp::min(j1, j2), std::cmp::max(j1, j2));
-        // Split into [0, j1] and (j1, len). This is the same as [0, j1+1) and
-        // [j1+1, len). This will fail if both j1 and j2 are out of bounds
-        let (s1, s2) = self.layers_mut().split_at_mut(j1 + 1);
-        // This will fail if j2 is out of bounds or equal to j1
-        (&mut s1[j1], &mut s2[j2 - (j1 + 1)])
-    }
-}
-
 impl<T, const S: usize> GetLayer<T, S> for CorePhmm<T, S> {
     #[inline]
-    fn core(&self) -> &CorePhmm<T, S> {
-        self
+    fn layers(&self) -> &[LayerParams<T, S>] {
+        self.0.as_slice()
+    }
+
+    #[inline]
+    fn split_last_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
+        self.0.as_slice().split_last().expect("A CorePhmm has at least two layers")
     }
 }
 
 impl<T, const S: usize> GetLayerMut<T, S> for CorePhmm<T, S> {
     #[inline]
-    fn core_mut(&mut self) -> &mut CorePhmm<T, S> {
-        self
+    fn layers_mut(&mut self) -> &mut [LayerParams<T, S>] {
+        self.0.as_mut_slice()
+    }
+
+    #[inline]
+    fn layers_mut_vec(&mut self) -> &mut Vec<LayerParams<T, S>> {
+        &mut self.0
+    }
+}
+
+impl<T, const S: usize> GetCore<T, S> for GlobalPhmm<T, S> {
+    #[inline]
+    fn core(&self) -> &CorePhmm<T, S> {
+        &self.core
     }
 }
 
 impl<T, const S: usize> GetLayer<T, S> for GlobalPhmm<T, S> {
     #[inline]
-    fn core(&self) -> &CorePhmm<T, S> {
-        &self.core
+    fn layers(&self) -> &[LayerParams<T, S>] {
+        self.core().layers()
+    }
+
+    #[inline]
+    fn split_last_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
+        self.core().split_last_layer()
+    }
+}
+
+impl<T, const S: usize> GetCoreMut<T, S> for GlobalPhmm<T, S> {
+    #[inline]
+    fn core_mut(&mut self) -> &mut CorePhmm<T, S> {
+        &mut self.core
     }
 }
 
 impl<T, const S: usize> GetLayerMut<T, S> for GlobalPhmm<T, S> {
     #[inline]
-    fn core_mut(&mut self) -> &mut CorePhmm<T, S> {
-        &mut self.core
+    fn layers_mut(&mut self) -> &mut [LayerParams<T, S>] {
+        self.core.layers_mut()
+    }
+
+    #[inline]
+    fn layers_mut_vec(&mut self) -> &mut Vec<LayerParams<T, S>> {
+        self.core.layers_mut_vec()
+    }
+}
+
+impl<T, const S: usize> GetCore<T, S> for DomainPhmm<T, S> {
+    #[inline]
+    fn core(&self) -> &CorePhmm<T, S> {
+        &self.core
     }
 }
 
 impl<T, const S: usize> GetLayer<T, S> for DomainPhmm<T, S> {
     #[inline]
-    fn core(&self) -> &CorePhmm<T, S> {
-        &self.core
+    fn layers(&self) -> &[LayerParams<T, S>] {
+        self.core().layers()
+    }
+
+    #[inline]
+    fn split_last_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
+        self.core().split_last_layer()
+    }
+}
+
+impl<T, const S: usize> GetCoreMut<T, S> for DomainPhmm<T, S> {
+    #[inline]
+    fn core_mut(&mut self) -> &mut CorePhmm<T, S> {
+        &mut self.core
     }
 }
 
 impl<T, const S: usize> GetLayerMut<T, S> for DomainPhmm<T, S> {
     #[inline]
-    fn core_mut(&mut self) -> &mut CorePhmm<T, S> {
-        &mut self.core
+    fn layers_mut(&mut self) -> &mut [LayerParams<T, S>] {
+        self.core.layers_mut()
+    }
+
+    #[inline]
+    fn layers_mut_vec(&mut self) -> &mut Vec<LayerParams<T, S>> {
+        self.core.layers_mut_vec()
+    }
+}
+
+impl<T, const S: usize> GetCore<T, S> for SemiLocalPhmm<T, S> {
+    #[inline]
+    fn core(&self) -> &CorePhmm<T, S> {
+        &self.core
     }
 }
 
 impl<T, const S: usize> GetLayer<T, S> for SemiLocalPhmm<T, S> {
     #[inline]
-    fn core(&self) -> &CorePhmm<T, S> {
-        &self.core
+    fn layers(&self) -> &[LayerParams<T, S>] {
+        self.core().layers()
+    }
+
+    #[inline]
+    fn split_last_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
+        self.core().split_last_layer()
+    }
+}
+
+impl<T, const S: usize> GetCoreMut<T, S> for SemiLocalPhmm<T, S> {
+    #[inline]
+    fn core_mut(&mut self) -> &mut CorePhmm<T, S> {
+        &mut self.core
     }
 }
 
 impl<T, const S: usize> GetLayerMut<T, S> for SemiLocalPhmm<T, S> {
     #[inline]
-    fn core_mut(&mut self) -> &mut CorePhmm<T, S> {
-        &mut self.core
+    fn layers_mut(&mut self) -> &mut [LayerParams<T, S>] {
+        self.core.layers_mut()
+    }
+
+    #[inline]
+    fn layers_mut_vec(&mut self) -> &mut Vec<LayerParams<T, S>> {
+        self.core.layers_mut_vec()
     }
 }
 
-impl<T, const S: usize> GetLayer<T, S> for LocalPhmm<T, S> {
+impl<T, const S: usize> GetCore<T, S> for LocalPhmm<T, S> {
     #[inline]
     fn core(&self) -> &CorePhmm<T, S> {
         &self.core
     }
 }
 
-impl<T, const S: usize> GetLayerMut<T, S> for LocalPhmm<T, S> {
+impl<T, const S: usize> GetLayer<T, S> for LocalPhmm<T, S> {
+    #[inline]
+    fn layers(&self) -> &[LayerParams<T, S>] {
+        self.core().layers()
+    }
+
+    #[inline]
+    fn split_last_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
+        self.core().split_last_layer()
+    }
+}
+
+impl<T, const S: usize> GetCoreMut<T, S> for LocalPhmm<T, S> {
     #[inline]
     fn core_mut(&mut self) -> &mut CorePhmm<T, S> {
         &mut self.core
     }
 }
 
-/// A trait providing simultaneous mutable accessors to the parts of a pHMM.
-///
-/// <div class="warning note">
-///
-/// **Note**
-///
-/// You must enable the *alignment-diagnostics* feature in your `Cargo.toml` to
-/// use this trait.
-///
-/// </div>
-#[cfg_attr(feature = "alignment-diagnostics", visibility::make(pub))]
-pub(crate) trait GetPartsMut<T, const S: usize>: GetModule + GetLayer<T, S> {
-    /// Returns simultaneous mutable references to the core pHMM, the begin
-    /// module, and the end module.
-    ///
-    /// Calling the individual mutable accessors and simultaneously using them
-    /// is not allowed by the borrow checker, hence this function.
-    #[must_use]
-    fn parts_mut(&mut self) -> (&mut CorePhmm<T, S>, &mut Self::Begin, &mut Self::End);
+impl<T, const S: usize> GetLayerMut<T, S> for LocalPhmm<T, S> {
+    #[inline]
+    fn layers_mut(&mut self) -> &mut [LayerParams<T, S>] {
+        self.core.layers_mut()
+    }
+
+    #[inline]
+    fn layers_mut_vec(&mut self) -> &mut Vec<LayerParams<T, S>> {
+        self.core.layers_mut_vec()
+    }
 }
 
 impl<T, const S: usize> GetPartsMut<T, S> for DomainPhmm<T, S> {

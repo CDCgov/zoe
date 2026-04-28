@@ -5,7 +5,7 @@ use crate::{
     alignment::phmm::{
         CorePhmm, DomainPhmm, EmissionParams, GetLayerMut, GlobalPhmm, LayerParams, LocalPhmm, PhmmNumber, PhmmState,
         SemiLocalPhmm, TransitionParams,
-        indexing::{Begin, End, PhmmIndexable},
+        indexing::PhmmIndexable,
         modules::{DomainModule, LocalModule, SemiLocalModule},
     },
     data::{
@@ -95,7 +95,7 @@ where
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
         Ok(Self {
             semilocal_params: SemiLocalModule::arbitrary(u)?,
-            domain_params: DomainModule::arbitrary(u)?,
+            domain_params:    DomainModule::arbitrary(u)?,
         })
     }
 }
@@ -213,12 +213,12 @@ where
         let mut core = CorePhmm::new_unchecked(specs.make_arbitrary(u)?);
 
         if self.disallow_invalid {
-            let first_layer = core.get_layer_mut(Begin);
+            let first_layer = core.begin_layer_mut();
             first_layer.transition[(Delete, Delete)] = K::Output::INFINITY;
             first_layer.transition[(Delete, Match)] = K::Output::INFINITY;
             first_layer.transition[(Delete, Insert)] = K::Output::INFINITY;
 
-            let last_layer = core.get_layer_mut(End);
+            let last_layer = core.last_match_mut();
             last_layer.transition[(Delete, Delete)] = K::Output::INFINITY;
             last_layer.transition[(Insert, Delete)] = K::Output::INFINITY;
             last_layer.transition[(Match, Delete)] = K::Output::INFINITY;
@@ -317,7 +317,7 @@ where
 
         Ok(LocalModule {
             semilocal_params: semilocal_specs.make_arbitrary(u)?,
-            domain_params: domain_specs.make_arbitrary(u)?,
+            domain_params:    domain_specs.make_arbitrary(u)?,
         })
     }
 }

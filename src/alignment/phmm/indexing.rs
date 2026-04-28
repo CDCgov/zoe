@@ -12,7 +12,7 @@
 
 use crate::{
     alignment::phmm::{
-        CorePhmm, DomainPhmm, GetLayer, GlobalPhmm, LocalPhmm, SemiLocalPhmm,
+        CorePhmm, DomainPhmm, GetCore, GetLayer, GlobalPhmm, LocalPhmm, SemiLocalPhmm,
         modules::{PrecomputedDomainModule, PrecomputedLocalModule, SemiLocalModule},
     },
     data::views::IndexAdjustable,
@@ -118,6 +118,10 @@ impl<I: PhmmIndex> PhmmIndexRange for RangeToInclusive<I> {
 pub trait PhmmIndexable: Sized {
     /// Returns the number of pseudomatch states in the pHMM-related structure
     /// (either a match state for the reference, or BEGIN or END).
+    ///
+    /// ## Validity
+    ///
+    /// This must return at least 2.
     #[must_use]
     fn num_pseudomatch(&self) -> usize;
 
@@ -129,6 +133,7 @@ pub trait PhmmIndexable: Sized {
     #[inline]
     #[must_use]
     fn seq_len(&self) -> usize {
+        // Validity: num_pseudomatch returns at least 2
         self.num_pseudomatch() - 2
     }
 
@@ -349,14 +354,6 @@ pub trait PhmmIndex: Copy {
     #[must_use]
     fn eq_index(self, other: impl PhmmIndex, phmm: &impl PhmmIndexable) -> bool {
         phmm.to_dp_index(self) == phmm.to_dp_index(other)
-    }
-
-    /// Hook to allow the [`End`] index literal to be detected separately than
-    /// the rest (e.g., for [`GetLayer::get_layer`]).
-    #[inline]
-    #[must_use]
-    fn is_end(self) -> bool {
-        false
     }
 }
 
@@ -638,11 +635,6 @@ impl PhmmIndex for End {
     #[inline]
     fn get_phmm_dp_index(self, v: &impl PhmmIndexable) -> usize {
         v.num_pseudomatch() - 1
-    }
-
-    #[inline]
-    fn is_end(self) -> bool {
-        true
     }
 }
 

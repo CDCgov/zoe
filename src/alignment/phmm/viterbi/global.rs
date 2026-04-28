@@ -2,7 +2,7 @@ use super::ViterbiTraceback;
 use crate::alignment::{
     Alignment, AlignmentStates,
     phmm::{
-        GetLayer, GlobalPhmm, InvalidModelError, LayerParams, PhmmBacktrackFlags, PhmmError, PhmmNumber,
+        GetLayer, GlobalPhmm, LayerParams, PhmmBacktrackFlags, PhmmError, PhmmNumber,
         PhmmState::{self, Delete, Insert, Match},
         PhmmTracebackState, best_state,
         indexing::PhmmIndexable,
@@ -60,9 +60,7 @@ impl<T: PhmmNumber, const S: usize> GlobalPhmm<T, S> {
     pub fn viterbi<Q: AsRef<[u8]>>(&self, seq: Q) -> Result<Alignment<T>, PhmmError> {
         let seq = seq.as_ref();
 
-        let [layers @ .., end] = self.core().layers() else {
-            return Err(InvalidModelError::EmptyModel.into());
-        };
+        let (end, layers) = self.split_last_layer();
 
         let query_dim = seq.len() + 1;
         // This is equivalent to self.seq_len()+1, but may help with bounds

@@ -1,7 +1,10 @@
 //! Functions for editing a pHMM after it has been created/loaded.
 
+use std::slice::GetDisjointMutError;
+
 use crate::alignment::phmm::{
-    CorePhmm, DomainPhmm, GetLayerMut, GetModuleMut, GlobalPhmm, LocalPhmm, PhmmNumber, PhmmState, SemiLocalPhmm,
+    CorePhmm, DomainPhmm, GetCoreMut, GetLayerMut, GetModuleMut, GlobalPhmm, LocalPhmm, PhmmNumber, PhmmState,
+    SemiLocalPhmm,
     indexing::{PhmmIndex, PhmmIndexRange, PhmmIndexable},
 };
 
@@ -104,7 +107,13 @@ impl<T: PhmmNumber, const S: usize> RemoveLayer for CorePhmm<T, S> {
         // Zoe stores the transitions from the current layer into the next, so
         // we must shift these transitions back before deleting so that the
         let prev_layer = layer.prev_index(self);
-        let (layer1, layer2) = self.get_two_layers_mut(prev_layer, layer);
+
+        let (layer1, layer2) = match self.get_two_layers_mut(prev_layer, layer) {
+            Ok(out) => out,
+            Err(GetDisjointMutError::IndexOutOfBounds) => panic!("layer out of bounds!"),
+            Err(GetDisjointMutError::OverlappingIndices) => unreachable!(),
+        };
+
         std::mem::swap(
             &mut layer1.transition[PhmmState::Match],
             &mut layer2.transition[PhmmState::Match],
@@ -125,7 +134,11 @@ impl<T: PhmmNumber, const S: usize> RemoveLayer for CorePhmm<T, S> {
             // this layer holds the match emission for the next layer which must
             // be saved
             let prev_layer = layer.prev_index(self);
-            let (layer1, layer2) = self.get_two_layers_mut(prev_layer, layer);
+            let (layer1, layer2) = match self.get_two_layers_mut(prev_layer, layer) {
+                Ok(out) => out,
+                Err(GetDisjointMutError::IndexOutOfBounds) => panic!("layer out of bounds!"),
+                Err(GetDisjointMutError::OverlappingIndices) => unreachable!(),
+            };
             std::mem::swap(&mut layer1.emission_match, &mut layer2.emission_match);
         }
 
@@ -135,13 +148,19 @@ impl<T: PhmmNumber, const S: usize> RemoveLayer for CorePhmm<T, S> {
 
     fn remove_layers_and_pre_transitions<R: PhmmIndexRange>(&mut self, range: R) {
         let range = self.to_dp_range(range);
-        if range.is_empty() {
-            return;
-        }
 
         let swap1_idx = range.start.prev_index(self);
         let swap2_idx = range.end.prev_index(self);
-        let (layer1, layer2) = self.get_two_layers_mut(swap1_idx, swap2_idx);
+
+        let (layer1, layer2) = match self.get_two_layers_mut(swap1_idx, swap2_idx) {
+            Ok(layers) => layers,
+            Err(GetDisjointMutError::IndexOutOfBounds) => panic!("range out of bounds"),
+            Err(GetDisjointMutError::OverlappingIndices) => {
+                debug_assert!(range.is_empty());
+                return;
+            }
+        };
+
         std::mem::swap(
             &mut layer1.transition[PhmmState::Match],
             &mut layer2.transition[PhmmState::Match],
@@ -158,9 +177,6 @@ impl<T: PhmmNumber, const S: usize> RemoveLayer for CorePhmm<T, S> {
     fn remove_layers_and_post_transitions<R: PhmmIndexRange>(&mut self, range: R) {
         // Ensure BEGIN is not modified by converting to sequence range
         let range = self.to_seq_range(range);
-        if range.is_empty() {
-            return;
-        }
 
         if self.get_dp_index(range.start) > 0 {
             // We are not deleting the begin state, so the layer before
@@ -170,7 +186,14 @@ impl<T: PhmmNumber, const S: usize> RemoveLayer for CorePhmm<T, S> {
             // saved
             let swap1_idx = range.start.prev_index(self);
             let swap2_idx = range.end.prev_index(self);
-            let (layer1, layer2) = self.get_two_layers_mut(swap1_idx, swap2_idx);
+            let (layer1, layer2) = match self.get_two_layers_mut(swap1_idx, swap2_idx) {
+                Ok(layers) => layers,
+                Err(GetDisjointMutError::IndexOutOfBounds) => panic!("range out of bounds"),
+                Err(GetDisjointMutError::OverlappingIndices) => {
+                    debug_assert!(range.is_empty());
+                    return;
+                }
+            };
             std::mem::swap(&mut layer1.emission_match, &mut layer2.emission_match);
         }
 
