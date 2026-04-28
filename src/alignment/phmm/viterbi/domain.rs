@@ -1,7 +1,7 @@
 use crate::alignment::{
     Alignment, AlignmentStates,
     phmm::{
-        DomainPhmm, GetLayer, GetModule, LayerParams, PhmmBacktrackFlags, PhmmError, PhmmNumber,
+        DomainPhmm, GetLayer, GetModule, InvalidModelError, LayerParams, PhmmBacktrackFlags, PhmmError, PhmmNumber,
         PhmmState::{self, Delete, Insert, Match},
         PhmmTracebackState, best_state,
         indexing::{DpIndex, LastBase, LastMatch, PhmmIndexable, QueryIndex, QueryIndexable},
@@ -75,11 +75,11 @@ impl<T: PhmmNumber, const S: usize> DomainPhmm<T, S> {
 
         // Check for compatibility between the pHMM and the start/end modules
         if begin_mod.seq_len() != seq.len() || end_mod.seq_len() != seq.len() {
-            return Err(PhmmError::IncompatibleModule);
+            return Err(InvalidModelError::IncompatibleModule.into());
         }
 
         let [layers @ .., end] = self.core().layers() else {
-            return Err(PhmmError::EmptyModel);
+            return Err(InvalidModelError::EmptyModel.into());
         };
 
         let query_dim = seq.len() + 1;

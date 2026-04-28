@@ -1,6 +1,6 @@
 use crate::{
     alignment::phmm::{
-        PhmmError, PhmmNumber, PhmmState,
+        InvalidModelError, PhmmError, PhmmNumber, PhmmState,
         indexing::{LastMatch, PhmmIndex, PhmmIndexRange, PhmmIndexable},
         modules::{DomainModule, LocalModule, SemiLocalModule},
     },
@@ -291,15 +291,18 @@ impl<T, const S: usize> CorePhmm<T, S> {
     ///
     /// ## Errors
     ///
-    /// At least two layers are required, otherwise [`PhmmError::TooFewLayers`]
-    /// is returned.
+    /// At least two layers are required, otherwise [`PhmmError::InvalidModel`]
+    /// with cause [`TooFewLayers`] is returned.
+    ///
+    /// [`TooFewLayers`]:
+    ///     crate::alignment::phmm::errors::InvalidModelError::TooFewLayers
     #[inline]
     #[allow(dead_code)]
     pub fn new(layers: Vec<LayerParams<T, S>>) -> Result<Self, PhmmError> {
         if layers.len() >= 2 {
             Ok(CorePhmm(layers))
         } else {
-            Err(PhmmError::TooFewLayers(2))
+            Err(InvalidModelError::TooFewLayers(2).into())
         }
     }
 

@@ -1,7 +1,7 @@
 use crate::alignment::{
     Alignment, AlignmentStates,
     phmm::{
-        GetLayer, GetModule, LayerParams, PhmmBacktrackFlags, PhmmError, PhmmNumber,
+        GetLayer, GetModule, InvalidModelError, LayerParams, PhmmBacktrackFlags, PhmmError, PhmmNumber,
         PhmmState::{self, Delete, Insert, Match},
         PhmmStateOrEnter, PhmmTracebackState, SemiLocalPhmm, best_state, best_state_or_enter,
         indexing::{Begin, DpIndex, End, LastMatch, NoBases, PhmmIndex, PhmmIndexable, QueryIndexable},
@@ -90,11 +90,11 @@ impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
         // Check for compatibility between the pHMM and the start/end modules
         if self.begin().num_pseudomatch() != self.num_pseudomatch() || self.end().num_pseudomatch() != self.num_pseudomatch()
         {
-            return Err(PhmmError::IncompatibleModule);
+            return Err(InvalidModelError::IncompatibleModule.into());
         }
 
         let [layers @ .., end] = self.core().layers() else {
-            return Err(PhmmError::EmptyModel);
+            return Err(InvalidModelError::EmptyModel.into());
         };
 
         let query_dim = seq.len() + 1;

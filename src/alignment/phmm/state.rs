@@ -121,7 +121,7 @@ impl PhmmState {
             b'M' | b'=' | b'X' => Ok(PhmmState::Match),
             b'D' => Ok(PhmmState::Delete),
             b'I' => Ok(PhmmState::Insert),
-            _ => Err(PhmmError::InvalidCigarOp),
+            op => Err(PhmmError::InvalidCigarOp(op)),
         }
     }
 }

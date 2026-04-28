@@ -2,7 +2,7 @@ use super::ViterbiTraceback;
 use crate::alignment::{
     Alignment, AlignmentStates,
     phmm::{
-        GetLayer, GlobalPhmm, LayerParams, PhmmBacktrackFlags, PhmmError, PhmmNumber,
+        GetLayer, GlobalPhmm, InvalidModelError, LayerParams, PhmmBacktrackFlags, PhmmError, PhmmNumber,
         PhmmState::{self, Delete, Insert, Match},
         PhmmTracebackState, best_state,
         indexing::PhmmIndexable,
@@ -61,7 +61,7 @@ impl<T: PhmmNumber, const S: usize> GlobalPhmm<T, S> {
         let seq = seq.as_ref();
 
         let [layers @ .., end] = self.core().layers() else {
-            return Err(PhmmError::EmptyModel);
+            return Err(InvalidModelError::EmptyModel.into());
         };
 
         let query_dim = seq.len() + 1;
