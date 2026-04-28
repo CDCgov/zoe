@@ -10,12 +10,12 @@ use std::{borrow::Cow, cell::OnceCell, sync::OnceLock};
 /// convenience methods for automatically increasing the integer width and
 /// rerunning the alignment when overflow occurs.
 ///
-/// ## Type Parameters
+/// ## Parameters
 ///
-/// - `M` - The number of SIMD lanes for `i8` profiles.
-/// - `N` - The number of SIMD lanes for `i16` profiles.
-/// - `O` - The number of SIMD lanes for `i32` profiles.
-/// - `S` - The size of the alphabet (usually 5 for DNA including `N`).
+/// - `M`: The number of SIMD lanes for `i8` profiles.
+/// - `N`: The number of SIMD lanes for `i16` profiles.
+/// - `O`: The number of SIMD lanes for `i32` profiles.
+/// - `S`: The size of the alphabet (usually 5 for DNA including `N`).
 pub trait ProfileSets<'a, const M: usize, const N: usize, const O: usize, const S: usize>: Sized {
     /// Gets or initializes [`StripedProfile`] with elements of `i8` and `M`
     /// SIMD lanes and returns a reference to the field.
@@ -368,12 +368,16 @@ pub trait ProfileSets<'a, const M: usize, const N: usize, const O: usize, const 
 /// If it is necessary to share between multiple threads, consider using
 /// [`SharedProfiles`].
 ///
-/// ## Type Parameters
+/// ## Parameters
 ///
-/// - `M` - The number of SIMD lanes for `i8` profiles.
-/// - `N` - The number of SIMD lanes for `i16` profiles.
-/// - `O` - The number of SIMD lanes for `i32` profiles.
-/// - `S` - The size of the alphabet (usually 5 for DNA including `N`).
+/// - `'a`: The lifetime of the stored sequence, the [`WeightMatrix`], and the
+///   alphabet ([`ByteIndexMap`]). An owned sequence can also be stored.
+/// - `M`: The number of SIMD lanes for `i8` profiles.
+/// - `N`: The number of SIMD lanes for `i16` profiles.
+/// - `O`: The number of SIMD lanes for `i32` profiles.
+/// - `S`: The size of the alphabet (usually 5 for DNA including `N`).
+///
+/// [`ByteIndexMap`]: crate::data::ByteIndexMap
 #[derive(Debug, Clone)]
 pub struct LocalProfiles<'a, const M: usize, const N: usize, const O: usize, const S: usize> {
     pub(crate) seq:         Cow<'a, [u8]>,
@@ -534,12 +538,16 @@ impl<'a, const M: usize, const N: usize, const O: usize, const S: usize> Profile
 /// When sharing between threads is not needed, consider using [`LocalProfiles`]
 /// instead.
 ///
-/// ## Type Parameters
+/// ## Parameters
 ///
-/// - `M` - The number of SIMD lanes for `i8` profiles
-/// - `N` - The number of SIMD lanes for `i16` profiles
-/// - `O` - The number of SIMD lanes for `i32` profiles
-/// - `S` - The size of the alphabet (usually 5 for DNA including *N*)
+/// - `'a`: The lifetime of the stored sequence, the [`WeightMatrix`], and the
+///   alphabet ([`ByteIndexMap`]). An owned sequence can also be stored.
+/// - `M`: The number of SIMD lanes for `i8` profiles
+/// - `N`: The number of SIMD lanes for `i16` profiles
+/// - `O`: The number of SIMD lanes for `i32` profiles
+/// - `S`: The size of the alphabet (usually 5 for DNA including *N*)
+///
+/// [`ByteIndexMap`]: crate::data::ByteIndexMap
 #[derive(Debug, Clone)]
 pub struct SharedProfiles<'a, const M: usize, const N: usize, const O: usize, const S: usize> {
     pub(crate) seq:         Cow<'a, [u8]>,

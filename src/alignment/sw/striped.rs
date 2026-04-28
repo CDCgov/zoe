@@ -637,10 +637,10 @@ where
 ///
 /// ## Parameters
 ///
-/// - `T` - The integer type whose max score is being computed.
-/// - `U` - The integer type used in the [`WeightMatrix`], which must be of the
+/// - `T`: The integer type whose max score is being computed.
+/// - `U`: The integer type used in the [`WeightMatrix`], which must be of the
 ///   same sign as `T`.
-/// - `S` - The alphabet size.
+/// - `S`: The alphabet size.
 ///
 /// <div class="warning note">
 ///

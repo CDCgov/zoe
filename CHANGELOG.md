@@ -4,27 +4,30 @@ All notable changes to this project will be documented in this file. The format
 is roughly based on [Keep a Changelog], and this project tries to adheres to
 [Semantic Versioning].
 
-## [0.0.28] - TBD
+## [0.0.28] - 2026-04-29
 
 ### Added
 
-- `Nucleotides` and `AminoAcids` (and view types) can now be converted into `Vec`, slices, and `Cow` using `From` 
-- `NucleotidesView`, `AminoAcidsView`, and `QualityScoresView` now have inherent `slice` methods offering a longer lifetime of the returned view
-- Added `as_map` accessor to convert `ByteIndexMap` to `ByteMap`
 - Similar to the `OrFail` trait for `Result`, a `Fail` trait has been introduced to handle errors directly
 - Added `*_mapped` versions for many string/byte search functions, which search a lazily-mapped haystack
+- Added `as_map` accessor to convert `ByteIndexMap` to `ByteMap`
+- `Nucleotides` and `AminoAcids` (and view types) can now be converted into `Vec`, slices, and `Cow` using `From` 
+- `NucleotidesView`, `AminoAcidsView`, and `QualityScoresView` now have inherent `slice` methods offering a longer lifetime of the returned view
 
 ### Changed
 
 - `LocalProfiles` and `SharedProfiles` now can hold either a borrowed or an owned sequence, enabling sequences and profiles to be stored in the same struct without becoming self-referential
 - `CigletIterator` now yields empty ciglets when a CIGAR string contains an explicit increment that is 0. A missing increment field ends the iterator early
-- `find_mapped_match_simd` now only supports lane counts greater than 2
+- `find_mapped_match_simd` better handles needles with a single repeating byte, but now only supports lane counts greater than 2
 
 ### Fixed
 
-- Subsequent calls to `next_back` in `CigletIterator` now properly return `None` after invalid state is reached
+- Fixed incorrect ranges returned by `Alignment::to_reverse` and `Alignment::make_reverse`
 - Methods in `StatesSequence` and `StatesSequenceMut` now properly skip empty `Ciglet`s (with an increment of 0)
 - Pre-alignment filter `sneaky_snake` now properly handles inputs with length differences greater than provided threshold.
+- Subsequent calls to `next_back` in `CigletIterator` now properly return `None` after invalid state is reached
+- Equality comparisons between `Cigar` and `AlignmentStates` now properly return false for an overflowing increment
+- Fixes the potential of overflow in `hamming`
 
 ## [0.0.27] - 2026-04-15
 

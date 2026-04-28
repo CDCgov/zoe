@@ -229,7 +229,7 @@ pub fn substring_match(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 ///
 /// ## Parameters
 ///
-/// `N` - The number of SIMD lanes to use for the search. This must be greater
+/// `N`: The number of SIMD lanes to use for the search. This must be greater
 /// than 2.
 ///
 /// ## Limitations
@@ -304,11 +304,11 @@ pub fn substring_match_simd<const N: usize>(haystack: &[u8], needle: &[u8]) -> O
 ///
 /// ## Parameters
 ///
-/// - `N` - The number of SIMD lanes to use for the search. This must be greater
+/// - `N`: The number of SIMD lanes to use for the search. This must be greater
 ///   than 2.
-/// - `S` - The type of the `simd_transform` closure (this can often be inferred
+/// - `S`: The type of the `simd_transform` closure (this can often be inferred
 ///   by the compiler).
-/// - `B` - The type of the `byte_transform` closure (this can often be inferred
+/// - `B`: The type of the `byte_transform` closure (this can often be inferred
 ///   by the compiler).
 ///
 /// ## Limitations

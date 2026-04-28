@@ -26,9 +26,9 @@ pub(crate) use tabulation::{hamming_dist_from_sub_matrix, total_and_frequencies}
 ///
 /// `None` is returned if no valid positions are found to compare.
 ///
-/// ## Type Parameters
+/// ## Parameters
 ///
-/// `N` - SIMD lane count, must be a supported lane count
+/// `N`: SIMD lane count, must be a supported lane count
 ///
 /// ## Example
 ///

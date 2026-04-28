@@ -212,7 +212,7 @@ impl ByteMap {
 /// For example, this could be a map from DNA bases to profile indices, such as
 /// [`DNA_PROFILE_MAP`].
 ///
-/// ## Type Parameters
+/// ## Parameters
 ///
 /// `S`: The number of unique indices in the output of the mapping (such as 5
 /// for DNA including *N*)

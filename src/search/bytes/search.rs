@@ -84,7 +84,7 @@ impl<'a, const N: usize> Iterator for SplitByByte2<'a, N> {
 ///
 /// ## Parameters
 ///
-/// `N` - The number of SIMD lanes to use.
+/// `N`: The number of SIMD lanes to use.
 #[inline]
 #[must_use]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
@@ -99,7 +99,9 @@ pub fn position_by_byte<const N: usize>(haystack: &[u8], b: u8) -> Option<usize>
 ///
 /// ## Parameters
 ///
-/// `N` - The number of SIMD lanes to use.
+/// - `N`: The number of SIMD lanes to use.
+/// - `S`: The SIMD-vectorized mapping to lazily apply to the `haystack`.
+/// - `B`: The non-vectorized mapping to lazily apply to the `haystack`.
 #[inline]
 #[must_use]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
@@ -151,7 +153,7 @@ where
 ///
 /// ## Parameters
 ///
-/// `N` - The number of SIMD lanes to use.
+/// `N`: The number of SIMD lanes to use.
 #[inline]
 #[must_use]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
@@ -166,7 +168,9 @@ pub fn position_by_byte2<const N: usize>(haystack: &[u8], b1: u8, b2: u8) -> Opt
 ///
 /// ## Parameters
 ///
-/// `N` - The number of SIMD lanes to use.
+/// - `N`: The number of SIMD lanes to use.
+/// - `S`: The SIMD-vectorized mapping to lazily apply to the `haystack`.
+/// - `B`: The non-vectorized mapping to lazily apply to the `haystack`.
 #[inline]
 #[must_use]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
@@ -221,7 +225,7 @@ where
 ///
 /// ## Parameters
 ///
-/// `N` - The number of SIMD lanes to use.
+/// `N`: The number of SIMD lanes to use.
 #[inline]
 #[must_use]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
@@ -253,8 +257,9 @@ pub fn position_by_byte3<const N: usize>(haystack: &[u8], b1: u8, b2: u8, b3: u8
 ///
 /// The following parameters can be used to adjust performance characteristics:
 ///
-/// - `N` - The number of SIMD lanes to use.
-/// - `UF` - The unroll factor, which must be non-zero.
+/// - `N`: The number of SIMD lanes to use.
+/// - `UF`: The unroll factor, which must be non-zero.
+/// - `P`: The SIMD-vectorized predicate for identifying matching bytes.
 #[inline]
 #[must_use]
 #[allow(clippy::needless_range_loop)]

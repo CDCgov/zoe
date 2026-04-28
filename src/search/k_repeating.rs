@@ -128,8 +128,10 @@ pub fn find_k_repeating<const N: usize>(haystack: &[u8], needle: u8, size: usize
 ///
 /// ## Parameters
 ///
-/// `N` - The number of SIMD lanes to use for the search. This must be greater
+/// - `N`: The number of SIMD lanes to use for the search. This must be greater
 /// than 2.
+/// - `S`: The SIMD-vectorized mapping to lazily apply to the `haystack`.
+/// - `B`: The non-vectorized mapping to lazily apply to the `haystack`.
 #[inline]
 #[must_use]
 #[allow(clippy::cast_possible_truncation)]
