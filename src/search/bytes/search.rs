@@ -95,7 +95,7 @@ pub fn position_by_byte<const N: usize>(haystack: &[u8], b: u8) -> Option<usize>
 /// Finds the index of the byte `b` in the `haystack`. The `haystack` is lazily
 /// mapped using `simd_transform` and `byte_transform`.
 ///
-/// See [`position_simd_mapped`] for the SIMD byte search leveraged internally.
+/// See [`position_simd`] for the SIMD byte search leveraged internally.
 ///
 /// ## Parameters
 ///
@@ -134,8 +134,7 @@ where
 
     if let Some(p) = pre.iter().copied().map(&byte_transform).position(|x| x == b) {
         Some(p)
-    } else if let Some(p) = position_simd_mapped::<N, 4, _, _>(mid, |v| v.simd_eq(Simd::from_array([b; N])), simd_transform)
-    {
+    } else if let Some(p) = position_simd::<N, 4, _>(mid, |v| simd_transform(v).simd_eq(Simd::from_array([b; N]))) {
         Some(p + pre.len())
     } else {
         post.iter()
@@ -163,7 +162,7 @@ pub fn position_by_byte2<const N: usize>(haystack: &[u8], b1: u8, b2: u8) -> Opt
 /// Finds the index of the bytes `b1` or `b2` in the `haystack`. The `haystack`
 /// is lazily mapped using `simd_transform` and `byte_transform`.
 ///
-/// See [`position_simd_mapped`] for the SIMD byte search leveraged internally.
+/// See [`position_simd`] for the SIMD byte search leveraged internally.
 ///
 /// ## Parameters
 ///
@@ -202,11 +201,10 @@ where
 
     if let Some(p) = pre.iter().copied().map(&byte_transform).position(|x| x == b1 || x == b2) {
         Some(p)
-    } else if let Some(p) = position_simd_mapped::<N, 3, _, _>(
-        mid,
-        |v| v.simd_eq(Simd::from_array([b1; N])) | v.simd_eq(Simd::from_array([b2; N])),
-        simd_transform,
-    ) {
+    } else if let Some(p) = position_simd::<N, 3, _>(mid, |v| {
+        let mapped = simd_transform(v);
+        mapped.simd_eq(Simd::from_array([b1; N])) | mapped.simd_eq(Simd::from_array([b2; N]))
+    }) {
         Some(p + pre.len())
     } else {
         post.iter()
@@ -263,33 +261,6 @@ pub fn position_by_byte3<const N: usize>(haystack: &[u8], b1: u8, b2: u8, b3: u8
 pub fn position_simd<const N: usize, const UF: usize, P>(haystack: &[Simd<u8, N>], predicate: P) -> Option<usize>
 where
     P: Fn(Simd<u8, N>) -> Mask<i8, N>, {
-    position_simd_mapped::<N, UF, _, _>(haystack, predicate, |v| v)
-}
-
-/// Searches the `haystack` using the provide SIMD byte `predicate` returning
-/// the index found, or [`None`] otherwise. The `haystack` is lazily mapped
-/// using `map`.
-///
-/// ## Acknowledgements
-///
-/// The unrolling algorithm inspired from previous work in the excellent [memchr
-/// crate](https://crates.io/crates/memchr).
-///
-/// ## Parameters
-///
-/// The following parameters can be used to adjust performance characteristics:
-///
-/// - `N` - The number of SIMD lanes to use.
-/// - `UF` - The unroll factor, which must be non-zero.
-#[inline]
-#[must_use]
-#[allow(clippy::needless_range_loop)]
-pub fn position_simd_mapped<const N: usize, const UF: usize, P, S>(
-    haystack: &[Simd<u8, N>], predicate: P, map: S,
-) -> Option<usize>
-where
-    P: Fn(Simd<u8, N>) -> Mask<i8, N>,
-    S: Fn(Simd<u8, N>) -> Simd<u8, N>, {
     const { assert!(UF > 0, "`UF` must be non-zero") }
 
     // unroll factor
@@ -301,10 +272,10 @@ where
     let mut mask_buffer = [Mask::from_array([false; N]); UF];
 
     for (i, c) in chunks.enumerate() {
-        mask_buffer[0] = predicate(map(c[0]));
+        mask_buffer[0] = predicate(c[0]);
         let mut mask = mask_buffer[0];
         for j in 1..UF {
-            mask_buffer[j] = predicate(map(c[j]));
+            mask_buffer[j] = predicate(c[j]);
             mask |= mask_buffer[j];
         }
 
@@ -321,7 +292,7 @@ where
     }
 
     for (i, &v) in rem.iter().enumerate() {
-        let mask = predicate(map(v));
+        let mask = predicate(v);
         if mask.any() {
             return Some(N * (haystack.len() - rem.len()) + (i * N) + mask.bitmask_offset());
         }
