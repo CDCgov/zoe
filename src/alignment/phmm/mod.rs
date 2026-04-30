@@ -51,6 +51,11 @@ pub mod indexing;
 #[cfg(feature = "alignment-diagnostics")]
 pub mod score_from_path;
 
+#[cfg(not(feature = "alignment-diagnostics"))]
+pub(crate) mod views;
+#[cfg(feature = "alignment-diagnostics")]
+pub mod views;
+
 #[cfg(feature = "alignment-diagnostics")]
 pub mod visit_params;
 

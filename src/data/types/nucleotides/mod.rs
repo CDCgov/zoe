@@ -40,8 +40,9 @@ pub struct Nucleotides(pub(crate) Vec<u8>);
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Default)]
 pub struct NucleotidesView<'a>(pub(crate) &'a [u8]);
 
-/// The corresponding mutable view type for [`Nucleotides`]. See
-/// [Views](crate::data#views) for more details.
+/// The corresponding mutable view type for [`Nucleotides`].
+///
+/// See [Views](crate::data#views) for more details.
 #[derive(Eq, PartialEq, Ord, PartialOrd, Hash, Default)]
 #[repr(transparent)]
 pub struct NucleotidesViewMut<'a>(pub(crate) &'a mut [u8]);

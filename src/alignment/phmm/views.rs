@@ -1,0 +1,1425 @@
+use crate::{
+    alignment::phmm::{
+        CorePhmm, DomainPhmm, GetLayer, GetLayerMut, GetModule, GetModuleMut, GetPartsMut, GlobalPhmm, LayerParams,
+        LocalPhmm, SemiLocalPhmm,
+        indexing::{LastMatch, PhmmIndex, PhmmIndexRange, PhmmIndexable},
+        modules::{DomainModule, LocalModule, SemiLocalModule},
+    },
+    data::{ByteIndexMap, views::ViewAssocTypes},
+    prelude::{DataOwned, DataView, DataViewMut},
+};
+
+/// The corresponding immutable view type for [`GlobalPhmm`].
+///
+/// See [Views](crate::data#views) for more details.
+#[derive(Eq, PartialEq, Debug)]
+pub struct GlobalPhmmView<'a, T, const S: usize> {
+    mapping: &'static ByteIndexMap<S>,
+    core:    &'a CorePhmm<T, S>,
+}
+
+/// The corresponding immutable view type for [`LocalPhmm`].
+///
+/// See [Views](crate::data#views) for more details.
+#[derive(Eq, PartialEq, Debug)]
+pub struct LocalPhmmView<'a, T, const S: usize> {
+    mapping: &'static ByteIndexMap<S>,
+    core:    &'a CorePhmm<T, S>,
+    begin:   &'a LocalModule<T, S>,
+    end:     &'a LocalModule<T, S>,
+}
+
+/// The corresponding immutable view type for [`DomainPhmm`].
+///
+/// See [Views](crate::data#views) for more details.
+#[derive(Eq, PartialEq, Debug)]
+pub struct DomainPhmmView<'a, T, const S: usize> {
+    mapping: &'static ByteIndexMap<S>,
+    core:    &'a CorePhmm<T, S>,
+    begin:   &'a DomainModule<T, S>,
+    end:     &'a DomainModule<T, S>,
+}
+
+/// The corresponding immutable view type for [`SemiLocalPhmm`].
+///
+/// See [Views](crate::data#views) for more details.
+#[derive(Eq, PartialEq, Debug)]
+pub struct SemiLocalPhmmView<'a, T, const S: usize> {
+    mapping: &'static ByteIndexMap<S>,
+    core:    &'a CorePhmm<T, S>,
+    begin:   &'a SemiLocalModule<T>,
+    end:     &'a SemiLocalModule<T>,
+}
+
+/// The corresponding mutable view type for [`GlobalPhmm`].
+///
+/// See [Views](crate::data#views) for more details.
+pub struct GlobalPhmmViewMut<'a, T, const S: usize> {
+    mapping: &'static ByteIndexMap<S>,
+    core:    &'a mut CorePhmm<T, S>,
+}
+
+/// The corresponding mutable view type for [`LocalPhmm`].
+///
+/// See [Views](crate::data#views) for more details.
+pub struct LocalPhmmViewMut<'a, T, const S: usize> {
+    mapping: &'static ByteIndexMap<S>,
+    core:    &'a mut CorePhmm<T, S>,
+    begin:   &'a mut LocalModule<T, S>,
+    end:     &'a mut LocalModule<T, S>,
+}
+
+/// The corresponding mutable view type for [`DomainPhmm`].
+///
+/// See [Views](crate::data#views) for more details.
+pub struct DomainPhmmViewMut<'a, T, const S: usize> {
+    mapping: &'static ByteIndexMap<S>,
+    core:    &'a mut CorePhmm<T, S>,
+    begin:   &'a mut DomainModule<T, S>,
+    end:     &'a mut DomainModule<T, S>,
+}
+
+/// The corresponding mutable view type for [`SemiLocalPhmm`].
+///
+/// See [Views](crate::data#views) for more details.
+pub struct SemiLocalPhmmViewMut<'a, T, const S: usize> {
+    mapping: &'static ByteIndexMap<S>,
+    core:    &'a mut CorePhmm<T, S>,
+    begin:   &'a mut SemiLocalModule<T>,
+    end:     &'a mut SemiLocalModule<T>,
+}
+
+// Explicit impls for Copy and Clone are needed, since the derived versions only
+// implement it when `T` implements Copy and Clone
+
+impl<T, const S: usize> Clone for GlobalPhmmView<'_, T, S> {
+    #[inline]
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<T, const S: usize> Copy for GlobalPhmmView<'_, T, S> {}
+
+impl<T, const S: usize> Clone for LocalPhmmView<'_, T, S> {
+    #[inline]
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<T, const S: usize> Copy for LocalPhmmView<'_, T, S> {}
+
+impl<T, const S: usize> Clone for DomainPhmmView<'_, T, S> {
+    #[inline]
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<T, const S: usize> Copy for DomainPhmmView<'_, T, S> {}
+
+impl<T, const S: usize> Clone for SemiLocalPhmmView<'_, T, S> {
+    #[inline]
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<T, const S: usize> Copy for SemiLocalPhmmView<'_, T, S> {}
+
+impl<T, const S: usize> ViewAssocTypes for GlobalPhmm<T, S>
+where
+    T: Clone + 'static,
+{
+    type Owned = GlobalPhmm<T, S>;
+    type View<'a> = GlobalPhmmView<'a, T, S>;
+    type ViewMut<'a> = GlobalPhmmViewMut<'a, T, S>;
+}
+
+impl<T, const S: usize> ViewAssocTypes for GlobalPhmmView<'_, T, S>
+where
+    T: Clone + 'static,
+{
+    type Owned = GlobalPhmm<T, S>;
+    type View<'a> = GlobalPhmmView<'a, T, S>;
+    type ViewMut<'a> = GlobalPhmmViewMut<'a, T, S>;
+}
+
+impl<T, const S: usize> ViewAssocTypes for GlobalPhmmViewMut<'_, T, S>
+where
+    T: Clone + 'static,
+{
+    type Owned = GlobalPhmm<T, S>;
+    type View<'a> = GlobalPhmmView<'a, T, S>;
+    type ViewMut<'a> = GlobalPhmmViewMut<'a, T, S>;
+}
+
+impl<T, const S: usize> DataOwned for GlobalPhmm<T, S>
+where
+    T: Clone + 'static,
+{
+    #[inline]
+    fn as_view(&self) -> Self::View<'_> {
+        GlobalPhmmView {
+            mapping: self.mapping(),
+            core:    self.core(),
+        }
+    }
+
+    #[inline]
+    fn as_view_mut(&mut self) -> Self::ViewMut<'_> {
+        GlobalPhmmViewMut {
+            mapping: self.mapping(),
+            core:    self.core_mut(),
+        }
+    }
+}
+
+impl<'a, T, const S: usize> DataView<'a> for GlobalPhmmView<'a, T, S>
+where
+    T: Clone + 'static,
+{
+    #[inline]
+    fn to_owned_data(&self) -> Self::Owned {
+        GlobalPhmm::new(self.mapping, self.core.clone())
+    }
+
+    #[inline]
+    fn reborrow_view<'b>(&'b self) -> Self::View<'b>
+    where
+        'a: 'b, {
+        GlobalPhmmView {
+            mapping: self.mapping,
+            core:    self.core,
+        }
+    }
+}
+
+impl<'a, T, const S: usize> DataViewMut<'a> for GlobalPhmmViewMut<'a, T, S>
+where
+    T: Clone + 'static,
+{
+    #[inline]
+    fn as_view(&self) -> Self::View<'_> {
+        GlobalPhmmView {
+            mapping: self.mapping,
+            core:    self.core,
+        }
+    }
+
+    #[inline]
+    fn to_view(self) -> Self::View<'a> {
+        GlobalPhmmView {
+            mapping: self.mapping,
+            core:    self.core,
+        }
+    }
+
+    #[inline]
+    fn to_owned_data(&self) -> Self::Owned {
+        GlobalPhmm::new(self.mapping, self.core.clone())
+    }
+
+    #[inline]
+    fn reborrow_view_mut<'b>(&'b mut self) -> Self::ViewMut<'b>
+    where
+        'a: 'b, {
+        GlobalPhmmViewMut {
+            mapping: self.mapping,
+            core:    self.core,
+        }
+    }
+}
+
+impl<T, const S: usize> ViewAssocTypes for LocalPhmm<T, S>
+where
+    T: Clone + 'static,
+{
+    type Owned = LocalPhmm<T, S>;
+    type View<'a> = LocalPhmmView<'a, T, S>;
+    type ViewMut<'a> = LocalPhmmViewMut<'a, T, S>;
+}
+
+impl<T, const S: usize> ViewAssocTypes for LocalPhmmView<'_, T, S>
+where
+    T: Clone + 'static,
+{
+    type Owned = LocalPhmm<T, S>;
+    type View<'a> = LocalPhmmView<'a, T, S>;
+    type ViewMut<'a> = LocalPhmmViewMut<'a, T, S>;
+}
+
+impl<T, const S: usize> ViewAssocTypes for LocalPhmmViewMut<'_, T, S>
+where
+    T: Clone + 'static,
+{
+    type Owned = LocalPhmm<T, S>;
+    type View<'a> = LocalPhmmView<'a, T, S>;
+    type ViewMut<'a> = LocalPhmmViewMut<'a, T, S>;
+}
+
+impl<T, const S: usize> DataOwned for LocalPhmm<T, S>
+where
+    T: Clone + 'static,
+{
+    #[inline]
+    fn as_view(&self) -> Self::View<'_> {
+        LocalPhmmView {
+            mapping: self.mapping(),
+            core:    self.core(),
+            begin:   self.begin(),
+            end:     self.end(),
+        }
+    }
+
+    #[inline]
+    fn as_view_mut(&mut self) -> Self::ViewMut<'_> {
+        let mapping = self.mapping();
+        let (core, begin, end) = self.parts_mut();
+
+        LocalPhmmViewMut {
+            mapping,
+            core,
+            begin,
+            end,
+        }
+    }
+}
+
+impl<'a, T, const S: usize> DataView<'a> for LocalPhmmView<'a, T, S>
+where
+    T: Clone + 'static,
+{
+    #[inline]
+    fn to_owned_data(&self) -> Self::Owned {
+        LocalPhmm::new(self.mapping, self.core.clone(), self.begin.clone(), self.end.clone())
+    }
+
+    #[inline]
+    fn reborrow_view<'b>(&'b self) -> Self::View<'b>
+    where
+        'a: 'b, {
+        LocalPhmmView {
+            mapping: self.mapping,
+            core:    self.core,
+            begin:   self.begin,
+            end:     self.end,
+        }
+    }
+}
+
+impl<'a, T, const S: usize> DataViewMut<'a> for LocalPhmmViewMut<'a, T, S>
+where
+    T: Clone + 'static,
+{
+    #[inline]
+    fn as_view(&self) -> Self::View<'_> {
+        LocalPhmmView {
+            mapping: self.mapping,
+            core:    self.core,
+            begin:   self.begin,
+            end:     self.end,
+        }
+    }
+
+    #[inline]
+    fn to_view(self) -> Self::View<'a> {
+        LocalPhmmView {
+            mapping: self.mapping,
+            core:    self.core,
+            begin:   self.begin,
+            end:     self.end,
+        }
+    }
+
+    #[inline]
+    fn to_owned_data(&self) -> Self::Owned {
+        LocalPhmm::new(self.mapping, self.core.clone(), self.begin.clone(), self.end.clone())
+    }
+
+    #[inline]
+    fn reborrow_view_mut<'b>(&'b mut self) -> Self::ViewMut<'b>
+    where
+        'a: 'b, {
+        LocalPhmmViewMut {
+            mapping: self.mapping,
+            core:    self.core,
+            begin:   self.begin,
+            end:     self.end,
+        }
+    }
+}
+
+impl<T, const S: usize> ViewAssocTypes for SemiLocalPhmm<T, S>
+where
+    T: Clone + 'static,
+{
+    type Owned = SemiLocalPhmm<T, S>;
+    type View<'a> = SemiLocalPhmmView<'a, T, S>;
+    type ViewMut<'a> = SemiLocalPhmmViewMut<'a, T, S>;
+}
+
+impl<T, const S: usize> ViewAssocTypes for SemiLocalPhmmView<'_, T, S>
+where
+    T: Clone + 'static,
+{
+    type Owned = SemiLocalPhmm<T, S>;
+    type View<'a> = SemiLocalPhmmView<'a, T, S>;
+    type ViewMut<'a> = SemiLocalPhmmViewMut<'a, T, S>;
+}
+
+impl<T, const S: usize> ViewAssocTypes for SemiLocalPhmmViewMut<'_, T, S>
+where
+    T: Clone + 'static,
+{
+    type Owned = SemiLocalPhmm<T, S>;
+    type View<'a> = SemiLocalPhmmView<'a, T, S>;
+    type ViewMut<'a> = SemiLocalPhmmViewMut<'a, T, S>;
+}
+
+impl<T, const S: usize> DataOwned for SemiLocalPhmm<T, S>
+where
+    T: Clone + 'static,
+{
+    #[inline]
+    fn as_view(&self) -> Self::View<'_> {
+        SemiLocalPhmmView {
+            mapping: self.mapping(),
+            core:    self.core(),
+            begin:   self.begin(),
+            end:     self.end(),
+        }
+    }
+
+    #[inline]
+    fn as_view_mut(&mut self) -> Self::ViewMut<'_> {
+        let mapping = self.mapping();
+        let (core, begin, end) = self.parts_mut();
+
+        SemiLocalPhmmViewMut {
+            mapping,
+            core,
+            begin,
+            end,
+        }
+    }
+}
+
+impl<'a, T, const S: usize> DataView<'a> for SemiLocalPhmmView<'a, T, S>
+where
+    T: Clone + 'static,
+{
+    #[inline]
+    fn to_owned_data(&self) -> Self::Owned {
+        SemiLocalPhmm::new(self.mapping, self.core.clone(), self.begin.clone(), self.end.clone())
+    }
+
+    #[inline]
+    fn reborrow_view<'b>(&'b self) -> Self::View<'b>
+    where
+        'a: 'b, {
+        SemiLocalPhmmView {
+            mapping: self.mapping,
+            core:    self.core,
+            begin:   self.begin,
+            end:     self.end,
+        }
+    }
+}
+
+impl<'a, T, const S: usize> DataViewMut<'a> for SemiLocalPhmmViewMut<'a, T, S>
+where
+    T: Clone + 'static,
+{
+    #[inline]
+    fn as_view(&self) -> Self::View<'_> {
+        SemiLocalPhmmView {
+            mapping: self.mapping,
+            core:    self.core,
+            begin:   self.begin,
+            end:     self.end,
+        }
+    }
+
+    #[inline]
+    fn to_view(self) -> Self::View<'a> {
+        SemiLocalPhmmView {
+            mapping: self.mapping,
+            core:    self.core,
+            begin:   self.begin,
+            end:     self.end,
+        }
+    }
+
+    #[inline]
+    fn to_owned_data(&self) -> Self::Owned {
+        SemiLocalPhmm::new(self.mapping, self.core.clone(), self.begin.clone(), self.end.clone())
+    }
+
+    #[inline]
+    fn reborrow_view_mut<'b>(&'b mut self) -> Self::ViewMut<'b>
+    where
+        'a: 'b, {
+        SemiLocalPhmmViewMut {
+            mapping: self.mapping,
+            core:    self.core,
+            begin:   self.begin,
+            end:     self.end,
+        }
+    }
+}
+
+impl<T, const S: usize> ViewAssocTypes for DomainPhmm<T, S>
+where
+    T: Clone + 'static,
+{
+    type Owned = DomainPhmm<T, S>;
+    type View<'a> = DomainPhmmView<'a, T, S>;
+    type ViewMut<'a> = DomainPhmmViewMut<'a, T, S>;
+}
+
+impl<T, const S: usize> ViewAssocTypes for DomainPhmmView<'_, T, S>
+where
+    T: Clone + 'static,
+{
+    type Owned = DomainPhmm<T, S>;
+    type View<'a> = DomainPhmmView<'a, T, S>;
+    type ViewMut<'a> = DomainPhmmViewMut<'a, T, S>;
+}
+
+impl<T, const S: usize> ViewAssocTypes for DomainPhmmViewMut<'_, T, S>
+where
+    T: Clone + 'static,
+{
+    type Owned = DomainPhmm<T, S>;
+    type View<'a> = DomainPhmmView<'a, T, S>;
+    type ViewMut<'a> = DomainPhmmViewMut<'a, T, S>;
+}
+
+impl<T, const S: usize> DataOwned for DomainPhmm<T, S>
+where
+    T: Clone + 'static,
+{
+    #[inline]
+    fn as_view(&self) -> Self::View<'_> {
+        DomainPhmmView {
+            mapping: self.mapping(),
+            core:    self.core(),
+            begin:   self.begin(),
+            end:     self.end(),
+        }
+    }
+
+    #[inline]
+    fn as_view_mut(&mut self) -> Self::ViewMut<'_> {
+        let mapping = self.mapping();
+        let (core, begin, end) = self.parts_mut();
+
+        DomainPhmmViewMut {
+            mapping,
+            core,
+            begin,
+            end,
+        }
+    }
+}
+
+impl<'a, T, const S: usize> DataView<'a> for DomainPhmmView<'a, T, S>
+where
+    T: Clone + 'static,
+{
+    #[inline]
+    fn to_owned_data(&self) -> Self::Owned {
+        DomainPhmm::new(self.mapping, self.core.clone(), self.begin.clone(), self.end.clone())
+    }
+
+    #[inline]
+    fn reborrow_view<'b>(&'b self) -> Self::View<'b>
+    where
+        'a: 'b, {
+        DomainPhmmView {
+            mapping: self.mapping,
+            core:    self.core,
+            begin:   self.begin,
+            end:     self.end,
+        }
+    }
+}
+
+impl<'a, T, const S: usize> DataViewMut<'a> for DomainPhmmViewMut<'a, T, S>
+where
+    T: Clone + 'static,
+{
+    #[inline]
+    fn as_view(&self) -> Self::View<'_> {
+        DomainPhmmView {
+            mapping: self.mapping,
+            core:    self.core,
+            begin:   self.begin,
+            end:     self.end,
+        }
+    }
+
+    #[inline]
+    fn to_view(self) -> Self::View<'a> {
+        DomainPhmmView {
+            mapping: self.mapping,
+            core:    self.core,
+            begin:   self.begin,
+            end:     self.end,
+        }
+    }
+
+    #[inline]
+    fn to_owned_data(&self) -> Self::Owned {
+        DomainPhmm::new(self.mapping, self.core.clone(), self.begin.clone(), self.end.clone())
+    }
+
+    #[inline]
+    fn reborrow_view_mut<'b>(&'b mut self) -> Self::ViewMut<'b>
+    where
+        'a: 'b, {
+        DomainPhmmViewMut {
+            mapping: self.mapping,
+            core:    self.core,
+            begin:   self.begin,
+            end:     self.end,
+        }
+    }
+}
+
+/// A trait allowing a view of a global pHMM to be constructed from various
+/// other pHMMs.
+pub trait AsGlobalView<T, const S: usize> {
+    /// Interprets the pHMM as a global pHMM via [`GlobalPhmmView`].
+    #[must_use]
+    fn as_global_view(&self) -> GlobalPhmmView<'_, T, S>;
+}
+
+impl<T, const S: usize> AsGlobalView<T, S> for GlobalPhmm<T, S> {
+    #[inline]
+    fn as_global_view(&self) -> GlobalPhmmView<'_, T, S> {
+        GlobalPhmmView {
+            mapping: self.mapping(),
+            core:    self.core(),
+        }
+    }
+}
+
+impl<T, const S: usize> AsGlobalView<T, S> for DomainPhmm<T, S> {
+    #[inline]
+    fn as_global_view(&self) -> GlobalPhmmView<'_, T, S> {
+        GlobalPhmmView {
+            mapping: self.mapping(),
+            core:    self.core(),
+        }
+    }
+}
+
+impl<T, const S: usize> AsGlobalView<T, S> for SemiLocalPhmm<T, S> {
+    #[inline]
+    fn as_global_view(&self) -> GlobalPhmmView<'_, T, S> {
+        GlobalPhmmView {
+            mapping: self.mapping(),
+            core:    self.core(),
+        }
+    }
+}
+
+impl<T, const S: usize> AsGlobalView<T, S> for LocalPhmm<T, S> {
+    #[inline]
+    fn as_global_view(&self) -> GlobalPhmmView<'_, T, S> {
+        GlobalPhmmView {
+            mapping: self.mapping(),
+            core:    self.core(),
+        }
+    }
+}
+
+impl<T, const S: usize> AsGlobalView<T, S> for GlobalPhmmView<'_, T, S> {
+    #[inline]
+    fn as_global_view(&self) -> GlobalPhmmView<'_, T, S> {
+        GlobalPhmmView {
+            mapping: self.mapping(),
+            core:    self.core(),
+        }
+    }
+}
+
+impl<T, const S: usize> AsGlobalView<T, S> for DomainPhmmView<'_, T, S> {
+    #[inline]
+    fn as_global_view(&self) -> GlobalPhmmView<'_, T, S> {
+        GlobalPhmmView {
+            mapping: self.mapping(),
+            core:    self.core(),
+        }
+    }
+}
+
+impl<T, const S: usize> AsGlobalView<T, S> for SemiLocalPhmmView<'_, T, S> {
+    #[inline]
+    fn as_global_view(&self) -> GlobalPhmmView<'_, T, S> {
+        GlobalPhmmView {
+            mapping: self.mapping(),
+            core:    self.core(),
+        }
+    }
+}
+
+impl<T, const S: usize> AsGlobalView<T, S> for LocalPhmmView<'_, T, S> {
+    #[inline]
+    fn as_global_view(&self) -> GlobalPhmmView<'_, T, S> {
+        GlobalPhmmView {
+            mapping: self.mapping(),
+            core:    self.core(),
+        }
+    }
+}
+
+/// A trait allowing a view of a semilocal pHMM to be constructed from various
+/// other pHMMs.
+pub trait AsSemiLocalView<T, const S: usize> {
+    /// Interprets the pHMM as a semilocal pHMM via [`SemiLocalPhmmView`].
+    fn as_semilocal_view(&self) -> SemiLocalPhmmView<'_, T, S>;
+}
+
+impl<T, const S: usize> AsSemiLocalView<T, S> for SemiLocalPhmm<T, S> {
+    #[inline]
+    fn as_semilocal_view(&self) -> SemiLocalPhmmView<'_, T, S> {
+        SemiLocalPhmmView {
+            mapping: self.mapping(),
+            core:    self.core(),
+            begin:   self.begin(),
+            end:     self.end(),
+        }
+    }
+}
+
+impl<T, const S: usize> AsSemiLocalView<T, S> for LocalPhmm<T, S> {
+    #[inline]
+    fn as_semilocal_view(&self) -> SemiLocalPhmmView<'_, T, S> {
+        SemiLocalPhmmView {
+            mapping: self.mapping(),
+            core:    self.core(),
+            begin:   &self.begin().external_params,
+            end:     &self.end().external_params,
+        }
+    }
+}
+
+impl<T, const S: usize> AsSemiLocalView<T, S> for SemiLocalPhmmView<'_, T, S> {
+    #[inline]
+    fn as_semilocal_view(&self) -> SemiLocalPhmmView<'_, T, S> {
+        SemiLocalPhmmView {
+            mapping: self.mapping(),
+            core:    self.core(),
+            begin:   self.begin(),
+            end:     self.end(),
+        }
+    }
+}
+
+impl<T, const S: usize> AsSemiLocalView<T, S> for LocalPhmmView<'_, T, S> {
+    #[inline]
+    fn as_semilocal_view(&self) -> SemiLocalPhmmView<'_, T, S> {
+        SemiLocalPhmmView {
+            mapping: self.mapping(),
+            core:    self.core(),
+            begin:   &self.begin().external_params,
+            end:     &self.end().external_params,
+        }
+    }
+}
+
+/// A trait allowing a view of a domain pHMM to be constructed from various
+/// other pHMMs.
+pub trait AsDomainView<T, const S: usize> {
+    /// Interprets the pHMM as a domain pHMM via [`DomainPhmmView`].
+    fn as_domain_view(&self) -> DomainPhmmView<'_, T, S>;
+}
+
+impl<T, const S: usize> AsDomainView<T, S> for DomainPhmm<T, S> {
+    #[inline]
+    fn as_domain_view(&self) -> DomainPhmmView<'_, T, S> {
+        DomainPhmmView {
+            mapping: self.mapping(),
+            core:    self.core(),
+            begin:   self.begin(),
+            end:     self.end(),
+        }
+    }
+}
+
+impl<T, const S: usize> AsDomainView<T, S> for LocalPhmm<T, S> {
+    #[inline]
+    fn as_domain_view(&self) -> DomainPhmmView<'_, T, S> {
+        DomainPhmmView {
+            mapping: self.mapping(),
+            core:    self.core(),
+            begin:   &self.begin().internal_params,
+            end:     &self.end().internal_params,
+        }
+    }
+}
+
+impl<T, const S: usize> AsDomainView<T, S> for DomainPhmmView<'_, T, S> {
+    #[inline]
+    fn as_domain_view(&self) -> DomainPhmmView<'_, T, S> {
+        DomainPhmmView {
+            mapping: self.mapping(),
+            core:    self.core(),
+            begin:   self.begin(),
+            end:     self.end(),
+        }
+    }
+}
+
+impl<T, const S: usize> AsDomainView<T, S> for LocalPhmmView<'_, T, S> {
+    #[inline]
+    fn as_domain_view(&self) -> DomainPhmmView<'_, T, S> {
+        DomainPhmmView {
+            mapping: self.mapping(),
+            core:    self.core(),
+            begin:   &self.begin().internal_params,
+            end:     &self.end().internal_params,
+        }
+    }
+}
+
+/// A trait allowing a view of a local pHMM to be constructed from various other
+/// pHMMs.
+pub trait AsLocalView<T, const S: usize> {
+    /// Interprets the pHMM as a local pHMM via [`LocalPhmmView`].
+    fn as_local_view(&self) -> LocalPhmmView<'_, T, S>;
+}
+
+impl<T, const S: usize> AsLocalView<T, S> for LocalPhmm<T, S> {
+    #[inline]
+    fn as_local_view(&self) -> LocalPhmmView<'_, T, S> {
+        LocalPhmmView {
+            mapping: self.mapping(),
+            core:    self.core(),
+            begin:   self.begin(),
+            end:     self.end(),
+        }
+    }
+}
+
+impl<T, const S: usize> AsLocalView<T, S> for LocalPhmmView<'_, T, S> {
+    #[inline]
+    fn as_local_view(&self) -> LocalPhmmView<'_, T, S> {
+        LocalPhmmView {
+            mapping: self.mapping(),
+            core:    self.core(),
+            begin:   self.begin(),
+            end:     self.end(),
+        }
+    }
+}
+
+impl<T, const S: usize> PhmmIndexable for GlobalPhmmView<'_, T, S> {
+    #[inline]
+    fn num_pseudomatch(&self) -> usize {
+        self.core.num_pseudomatch()
+    }
+}
+
+impl<T, const S: usize> PhmmIndexable for GlobalPhmmViewMut<'_, T, S> {
+    #[inline]
+    fn num_pseudomatch(&self) -> usize {
+        self.core.num_pseudomatch()
+    }
+}
+
+impl<T, const S: usize> PhmmIndexable for DomainPhmmView<'_, T, S> {
+    #[inline]
+    fn num_pseudomatch(&self) -> usize {
+        self.core.num_pseudomatch()
+    }
+}
+
+impl<T, const S: usize> PhmmIndexable for DomainPhmmViewMut<'_, T, S> {
+    #[inline]
+    fn num_pseudomatch(&self) -> usize {
+        self.core.num_pseudomatch()
+    }
+}
+
+impl<T, const S: usize> PhmmIndexable for SemiLocalPhmmView<'_, T, S> {
+    #[inline]
+    fn num_pseudomatch(&self) -> usize {
+        self.core.num_pseudomatch()
+    }
+}
+
+impl<T, const S: usize> PhmmIndexable for SemiLocalPhmmViewMut<'_, T, S> {
+    #[inline]
+    fn num_pseudomatch(&self) -> usize {
+        self.core.num_pseudomatch()
+    }
+}
+
+impl<T, const S: usize> PhmmIndexable for LocalPhmmView<'_, T, S> {
+    #[inline]
+    fn num_pseudomatch(&self) -> usize {
+        self.core.num_pseudomatch()
+    }
+}
+
+impl<T, const S: usize> PhmmIndexable for LocalPhmmViewMut<'_, T, S> {
+    #[inline]
+    fn num_pseudomatch(&self) -> usize {
+        self.core.num_pseudomatch()
+    }
+}
+
+impl<T, const S: usize> GetLayer<T, S> for GlobalPhmmView<'_, T, S> {
+    #[inline]
+    fn core(&self) -> &CorePhmm<T, S> {
+        self.core
+    }
+}
+
+impl<T, const S: usize> GetLayer<T, S> for GlobalPhmmViewMut<'_, T, S> {
+    #[inline]
+    fn core(&self) -> &CorePhmm<T, S> {
+        self.core
+    }
+}
+
+impl<T, const S: usize> GetLayer<T, S> for DomainPhmmView<'_, T, S> {
+    #[inline]
+    fn core(&self) -> &CorePhmm<T, S> {
+        self.core
+    }
+}
+
+impl<T, const S: usize> GetLayer<T, S> for DomainPhmmViewMut<'_, T, S> {
+    #[inline]
+    fn core(&self) -> &CorePhmm<T, S> {
+        self.core
+    }
+}
+
+impl<T, const S: usize> GetLayer<T, S> for SemiLocalPhmmView<'_, T, S> {
+    #[inline]
+    fn core(&self) -> &CorePhmm<T, S> {
+        self.core
+    }
+}
+
+impl<T, const S: usize> GetLayer<T, S> for SemiLocalPhmmViewMut<'_, T, S> {
+    #[inline]
+    fn core(&self) -> &CorePhmm<T, S> {
+        self.core
+    }
+}
+
+impl<T, const S: usize> GetLayer<T, S> for LocalPhmmView<'_, T, S> {
+    #[inline]
+    fn core(&self) -> &CorePhmm<T, S> {
+        self.core
+    }
+}
+
+impl<T, const S: usize> GetLayer<T, S> for LocalPhmmViewMut<'_, T, S> {
+    #[inline]
+    fn core(&self) -> &CorePhmm<T, S> {
+        self.core
+    }
+}
+
+impl<T, const S: usize> GetLayerMut<T, S> for GlobalPhmmViewMut<'_, T, S> {
+    #[inline]
+    fn core_mut(&mut self) -> &mut CorePhmm<T, S> {
+        self.core
+    }
+}
+
+impl<T, const S: usize> GetLayerMut<T, S> for DomainPhmmViewMut<'_, T, S> {
+    #[inline]
+    fn core_mut(&mut self) -> &mut CorePhmm<T, S> {
+        self.core
+    }
+}
+
+impl<T, const S: usize> GetLayerMut<T, S> for SemiLocalPhmmViewMut<'_, T, S> {
+    #[inline]
+    fn core_mut(&mut self) -> &mut CorePhmm<T, S> {
+        self.core
+    }
+}
+
+impl<T, const S: usize> GetLayerMut<T, S> for LocalPhmmViewMut<'_, T, S> {
+    #[inline]
+    fn core_mut(&mut self) -> &mut CorePhmm<T, S> {
+        self.core
+    }
+}
+
+impl<T, const S: usize> GetModule for DomainPhmmView<'_, T, S> {
+    type Begin = DomainModule<T, S>;
+    type End = DomainModule<T, S>;
+
+    #[inline]
+    fn begin(&self) -> &Self::Begin {
+        self.begin
+    }
+
+    #[inline]
+    fn end(&self) -> &Self::End {
+        self.end
+    }
+}
+
+impl<T, const S: usize> GetModule for DomainPhmmViewMut<'_, T, S> {
+    type Begin = DomainModule<T, S>;
+    type End = DomainModule<T, S>;
+
+    #[inline]
+    fn begin(&self) -> &Self::Begin {
+        self.begin
+    }
+
+    #[inline]
+    fn end(&self) -> &Self::End {
+        self.end
+    }
+}
+
+impl<T, const S: usize> GetModule for SemiLocalPhmmView<'_, T, S> {
+    type Begin = SemiLocalModule<T>;
+    type End = SemiLocalModule<T>;
+
+    #[inline]
+    fn begin(&self) -> &Self::Begin {
+        self.begin
+    }
+
+    #[inline]
+    fn end(&self) -> &Self::End {
+        self.end
+    }
+}
+
+impl<T, const S: usize> GetModule for SemiLocalPhmmViewMut<'_, T, S> {
+    type Begin = SemiLocalModule<T>;
+    type End = SemiLocalModule<T>;
+
+    #[inline]
+    fn begin(&self) -> &Self::Begin {
+        self.begin
+    }
+
+    #[inline]
+    fn end(&self) -> &Self::End {
+        self.end
+    }
+}
+
+impl<T, const S: usize> GetModule for LocalPhmmView<'_, T, S> {
+    type Begin = LocalModule<T, S>;
+    type End = LocalModule<T, S>;
+
+    #[inline]
+    fn begin(&self) -> &Self::Begin {
+        self.begin
+    }
+
+    #[inline]
+    fn end(&self) -> &Self::End {
+        self.end
+    }
+}
+
+impl<T, const S: usize> GetModule for LocalPhmmViewMut<'_, T, S> {
+    type Begin = LocalModule<T, S>;
+    type End = LocalModule<T, S>;
+
+    #[inline]
+    fn begin(&self) -> &Self::Begin {
+        self.begin
+    }
+
+    #[inline]
+    fn end(&self) -> &Self::End {
+        self.end
+    }
+}
+
+impl<T, const S: usize> GetModuleMut for DomainPhmmViewMut<'_, T, S> {
+    #[inline]
+    fn begin_mut(&mut self) -> &mut Self::Begin {
+        self.begin
+    }
+
+    #[inline]
+    fn end_mut(&mut self) -> &mut Self::End {
+        self.end
+    }
+}
+
+impl<T, const S: usize> GetModuleMut for SemiLocalPhmmViewMut<'_, T, S> {
+    #[inline]
+    fn begin_mut(&mut self) -> &mut Self::Begin {
+        self.begin
+    }
+
+    #[inline]
+    fn end_mut(&mut self) -> &mut Self::End {
+        self.end
+    }
+}
+
+impl<T, const S: usize> GetModuleMut for LocalPhmmViewMut<'_, T, S> {
+    #[inline]
+    fn begin_mut(&mut self) -> &mut Self::Begin {
+        self.begin
+    }
+
+    #[inline]
+    fn end_mut(&mut self) -> &mut Self::End {
+        self.end
+    }
+}
+
+impl<'a, T, const S: usize> GlobalPhmmView<'a, T, S> {
+    /// Returns a reference to the [`ByteIndexMap`] used by the global pHMM.
+    #[inline]
+    #[must_use]
+    pub fn mapping(&self) -> &'static ByteIndexMap<S> {
+        self.mapping
+    }
+
+    /// Returns the view's [`CorePhmm`].
+    ///
+    /// This is similar to [`GetLayer::core`], but returns a longer lifetime.
+    #[inline]
+    #[must_use]
+    pub fn core(&self) -> &'a CorePhmm<T, S> {
+        self.core
+    }
+}
+
+impl<T, const S: usize> GlobalPhmmViewMut<'_, T, S> {
+    /// Returns a reference to the [`ByteIndexMap`] used by the global pHMM.
+    #[inline]
+    #[must_use]
+    pub fn mapping(&self) -> &'static ByteIndexMap<S> {
+        self.mapping
+    }
+}
+
+impl<'a, T, const S: usize> LocalPhmmView<'a, T, S> {
+    /// Returns a reference to the [`ByteIndexMap`] used by the local pHMM.
+    #[inline]
+    #[must_use]
+    pub fn mapping(&self) -> &'static ByteIndexMap<S> {
+        self.mapping
+    }
+
+    /// Returns the view's [`CorePhmm`].
+    ///
+    /// This is similar to [`GetLayer::core`], but returns a longer lifetime.
+    #[inline]
+    #[must_use]
+    pub fn core(&self) -> &'a CorePhmm<T, S> {
+        self.core
+    }
+
+    /// Returns the view's begin module.
+    ///
+    /// This is similar to [`GetModule::begin`], but returns a longer lifetime.
+    #[inline]
+    #[must_use]
+    pub fn begin(&self) -> &'a LocalModule<T, S> {
+        self.begin
+    }
+
+    /// Returns the view's end module.
+    ///
+    /// This is similar to [`GetModule::begin`], but returns a longer lifetime.
+    #[inline]
+    #[must_use]
+    pub fn end(&self) -> &'a LocalModule<T, S> {
+        self.end
+    }
+}
+
+impl<T, const S: usize> LocalPhmmViewMut<'_, T, S> {
+    /// Returns a reference to the [`ByteIndexMap`] used by the local pHMM.
+    #[inline]
+    #[must_use]
+    pub fn mapping(&self) -> &'static ByteIndexMap<S> {
+        self.mapping
+    }
+}
+
+impl<'a, T, const S: usize> DomainPhmmView<'a, T, S> {
+    /// Returns a reference to the [`ByteIndexMap`] used by the domain pHMM.
+    #[inline]
+    #[must_use]
+    pub fn mapping(&self) -> &'static ByteIndexMap<S> {
+        self.mapping
+    }
+
+    /// Returns the view's [`CorePhmm`].
+    ///
+    /// This is similar to [`GetLayer::core`], but returns a longer lifetime.
+    #[inline]
+    #[must_use]
+    pub fn core(&self) -> &'a CorePhmm<T, S> {
+        self.core
+    }
+
+    /// Returns the view's begin module.
+    ///
+    /// This is similar to [`GetModule::begin`], but returns a longer lifetime.
+    #[inline]
+    #[must_use]
+    pub fn begin(&self) -> &'a DomainModule<T, S> {
+        self.begin
+    }
+
+    /// Returns the view's end module.
+    ///
+    /// This is similar to [`GetModule::begin`], but returns a longer lifetime.
+    #[inline]
+    #[must_use]
+    pub fn end(&self) -> &'a DomainModule<T, S> {
+        self.end
+    }
+}
+
+impl<T, const S: usize> DomainPhmmViewMut<'_, T, S> {
+    /// Returns a reference to the [`ByteIndexMap`] used by the domain pHMM.
+    #[inline]
+    #[must_use]
+    pub fn mapping(&self) -> &'static ByteIndexMap<S> {
+        self.mapping
+    }
+}
+
+impl<'a, T, const S: usize> SemiLocalPhmmView<'a, T, S> {
+    /// Returns a reference to the [`ByteIndexMap`] used by the semilocal pHMM.
+    #[inline]
+    #[must_use]
+    pub fn mapping(&self) -> &'static ByteIndexMap<S> {
+        self.mapping
+    }
+
+    /// Returns the view's [`CorePhmm`].
+    ///
+    /// This is similar to [`GetLayer::core`], but returns a longer lifetime.
+    #[inline]
+    #[must_use]
+    pub fn core(&self) -> &'a CorePhmm<T, S> {
+        self.core
+    }
+
+    /// Returns the view's begin module.
+    ///
+    /// This is similar to [`GetModule::begin`], but returns a longer lifetime.
+    #[inline]
+    #[must_use]
+    pub fn begin(&self) -> &'a SemiLocalModule<T> {
+        self.begin
+    }
+
+    /// Returns the view's end module.
+    ///
+    /// This is similar to [`GetModule::begin`], but returns a longer lifetime.
+    #[inline]
+    #[must_use]
+    pub fn end(&self) -> &'a SemiLocalModule<T> {
+        self.end
+    }
+}
+
+impl<T, const S: usize> SemiLocalPhmmViewMut<'_, T, S> {
+    /// Returns a reference to the [`ByteIndexMap`] used by the semilocal pHMM.
+    #[inline]
+    #[must_use]
+    pub fn mapping(&self) -> &'static ByteIndexMap<S> {
+        self.mapping
+    }
+}
+
+/// A trait providing read-only accessors to the modules at the beginning and
+/// end of a pHMM view.
+///
+/// This is similar to [`GetModule`] but returns references with a longer
+/// lifetime.
+///
+/// <div class="warning note">
+///
+/// **Note**
+///
+/// You must enable the *alignment-diagnostics* feature in your `Cargo.toml` to
+/// use this trait.
+///
+/// </div>
+#[cfg_attr(feature = "alignment-diagnostics", visibility::make(pub))]
+pub(crate) trait GetModuleView<'a> {
+    type Begin;
+    type End;
+
+    /// Returns a reference to the module at the start of the pHMM.
+    ///
+    /// <div class="warning note">
+    ///
+    /// **Note**
+    ///
+    /// You must enable the *alignment-diagnostics* feature in your `Cargo.toml`
+    /// to use this method.
+    ///
+    /// </div>
+    #[must_use]
+    fn begin(&self) -> &'a Self::Begin;
+
+    /// Returns a reference to the module at the end of the pHMM.
+    ///
+    /// <div class="warning note">
+    ///
+    /// **Note**
+    ///
+    /// You must enable the *alignment-diagnostics* feature in your `Cargo.toml`
+    /// to use this method.
+    ///
+    /// </div>
+    #[must_use]
+    fn end(&self) -> &'a Self::End;
+}
+
+impl<'a, T, const S: usize> GetModuleView<'a> for LocalPhmmView<'a, T, S> {
+    type Begin = LocalModule<T, S>;
+    type End = LocalModule<T, S>;
+
+    #[inline]
+    fn begin(&self) -> &'a Self::Begin {
+        self.begin
+    }
+
+    #[inline]
+    fn end(&self) -> &'a Self::End {
+        self.end
+    }
+}
+
+impl<'a, T, const S: usize> GetModuleView<'a> for DomainPhmmView<'a, T, S> {
+    type Begin = DomainModule<T, S>;
+    type End = DomainModule<T, S>;
+
+    #[inline]
+    fn begin(&self) -> &'a Self::Begin {
+        self.begin
+    }
+
+    #[inline]
+    fn end(&self) -> &'a Self::End {
+        self.end
+    }
+}
+
+impl<'a, T, const S: usize> GetModuleView<'a> for SemiLocalPhmmView<'a, T, S> {
+    type Begin = SemiLocalModule<T>;
+    type End = SemiLocalModule<T>;
+
+    #[inline]
+    fn begin(&self) -> &'a Self::Begin {
+        self.begin
+    }
+
+    #[inline]
+    fn end(&self) -> &'a Self::End {
+        self.end
+    }
+}
+
+/// A trait providing read-only accessors to the layers of a pHMM view.
+///
+/// This is similar to [`GetLayer`] but returns references with a longer
+/// lifetime.
+///
+/// <div class="warning note">
+///
+/// **Note**
+///
+/// You must enable the *alignment-diagnostics* feature in your `Cargo.toml` to
+/// use this trait.
+///
+/// </div>
+#[cfg_attr(feature = "alignment-diagnostics", visibility::make(pub))]
+pub(crate) trait GetLayerView<'a, T, const S: usize>: PhmmIndexable {
+    /// Returns a reference to the [`CorePhmm`] holding the core parameters.
+    #[must_use]
+    fn core(&self) -> &'a CorePhmm<T, S>;
+
+    /// Retrieves a slice of the layers contained within the core pHMM.
+    #[inline]
+    #[must_use]
+    fn layers(&self) -> &'a [LayerParams<T, S>] {
+        self.core().layers()
+    }
+
+    /// Get a layer from within the core pHMM.
+    ///
+    /// Although there is no actual layer for the `End` state, for readability
+    /// we let `End` be synonymous with `LastMatch` since `End` emphasizes it is
+    /// the last layer.
+    #[inline]
+    #[must_use]
+    #[allow(dead_code)]
+    fn get_layer(&self, j: impl PhmmIndex) -> &'a LayerParams<T, S> {
+        if j.is_end() {
+            self.get_layer(LastMatch)
+        } else {
+            &self.layers()[self.get_dp_index(j)]
+        }
+    }
+
+    /// Get a range of layers from within the core pHMM.
+    ///
+    /// ## Panics
+    ///
+    /// If any of the indices are out of bounds, this will panic. Particularly,
+    /// if the range is end-inclusive and ends with `End` (e.g., `..=End`), this
+    /// will panic. This is different behavior than [`get_layer`].
+    ///
+    /// [`get_layer`]: GetLayer::get_layer
+    #[inline]
+    #[must_use]
+    #[allow(dead_code)]
+    fn get_layers(&self, range: impl PhmmIndexRange) -> &'a [LayerParams<T, S>] {
+        &self.layers()[self.get_dp_range(range)]
+    }
+}
+
+impl<'a, T, const S: usize> GetLayerView<'a, T, S> for GlobalPhmmView<'a, T, S> {
+    #[inline]
+    fn core(&self) -> &'a CorePhmm<T, S> {
+        self.core
+    }
+}
+
+impl<'a, T, const S: usize> GetLayerView<'a, T, S> for DomainPhmmView<'a, T, S> {
+    #[inline]
+    fn core(&self) -> &'a CorePhmm<T, S> {
+        self.core
+    }
+}
+
+impl<'a, T, const S: usize> GetLayerView<'a, T, S> for SemiLocalPhmmView<'a, T, S> {
+    #[inline]
+    fn core(&self) -> &'a CorePhmm<T, S> {
+        self.core
+    }
+}
+
+impl<'a, T, const S: usize> GetLayerView<'a, T, S> for LocalPhmmView<'a, T, S> {
+    #[inline]
+    fn core(&self) -> &'a CorePhmm<T, S> {
+        self.core
+    }
+}
