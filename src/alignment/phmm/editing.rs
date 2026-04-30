@@ -1,7 +1,7 @@
 //! Functions for editing a pHMM after it has been created/loaded.
 
 use crate::alignment::phmm::{
-    CorePhmm, DomainPhmm, GetLayer, GetModule, GlobalPhmm, LocalPhmm, PhmmNumber, PhmmState, SemiLocalPhmm,
+    CorePhmm, DomainPhmm, GetLayerMut, GetModuleMut, GlobalPhmm, LocalPhmm, PhmmNumber, PhmmState, SemiLocalPhmm,
     indexing::{PhmmIndex, PhmmIndexRange, PhmmIndexable},
 };
 

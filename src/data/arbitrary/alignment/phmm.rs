@@ -3,7 +3,7 @@
 
 use crate::{
     alignment::phmm::{
-        CorePhmm, DomainPhmm, EmissionParams, GetLayer, GlobalPhmm, LayerParams, LocalPhmm, PhmmNumber, PhmmState,
+        CorePhmm, DomainPhmm, EmissionParams, GetLayerMut, GlobalPhmm, LayerParams, LocalPhmm, PhmmNumber, PhmmState,
         SemiLocalPhmm, TransitionParams,
         indexing::{Begin, End, PhmmIndexable},
         modules::{DomainModule, LocalModule, SemiLocalModule},
