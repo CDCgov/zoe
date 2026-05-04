@@ -695,14 +695,14 @@ impl<T: PhmmNumber, const S: usize> GlobalPhmm<T, S> {
     /// monomorphization.
     ///
     /// [`visit_params`]: GlobalPhmm::visit_params
-    fn visit_params_helper<F>(&self, seq: &[u8], ciglets: &[Ciglet], mut f: F) -> Result<T, PhmmError>
+    fn visit_params_helper<F>(&self, seq: &[u8], mut ciglets: &[Ciglet], mut f: F) -> Result<T, PhmmError>
     where
         F: FnMut(PhmmParam<T>), {
         use PhmmState::*;
 
         let mut score = T::ZERO;
 
-        let first_op = ciglets.iter().next().ok_or(PhmmError::FullModelNotUsed)?.op;
+        let first_op = ciglets.peek_op().ok_or(PhmmError::FullModelNotUsed)?;
         let first_state = PhmmState::from_op(first_op)?;
 
         // Get transition from BEGIN state the actual first state
