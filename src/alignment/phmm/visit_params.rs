@@ -137,8 +137,8 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
     ///
     /// [`PrecomputedLocalModule`]:
     ///     crate::alignment::phmm::modules::PrecomputedLocalModule
-    fn get_begin_internal_score(&self, inserted: &[u8], mapping: &'static ByteIndexMap<S>) -> T {
-        self.begin().internal_params.get_begin_score(inserted, mapping)
+    fn get_begin_domain_score(&self, inserted: &[u8], mapping: &'static ByteIndexMap<S>) -> T {
+        self.begin().domain_params.get_begin_score(inserted, mapping)
     }
 
     /// Lazily compute the score for skipping to `index` while entering the
@@ -151,8 +151,8 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
     ///
     /// [`PrecomputedLocalModule`]:
     ///     crate::alignment::phmm::modules::PrecomputedLocalModule
-    fn get_begin_external_score(&self, index: impl PhmmIndex) -> T {
-        self.begin().external_params.get_score(index)
+    fn get_begin_semilocal_score(&self, index: impl PhmmIndex) -> T {
+        self.begin().semilocal_params.get_score(index)
     }
 
     /// Lazily compute the score for exiting the [`CorePhmm`] from `index`. This
@@ -165,8 +165,8 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
     ///
     /// [`PrecomputedLocalModule`]:
     ///     crate::alignment::phmm::modules::PrecomputedLocalModule
-    fn get_end_external_score(&self, index: impl PhmmIndex) -> T {
-        self.end().external_params.get_score(index)
+    fn get_end_semilocal_score(&self, index: impl PhmmIndex) -> T {
+        self.end().semilocal_params.get_score(index)
     }
 
     /// Lazily compute the score for skipping `inserted` residues at the end of
@@ -179,8 +179,8 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
     ///
     /// [`PrecomputedLocalModule`]:
     ///     crate::alignment::phmm::modules::PrecomputedLocalModule
-    fn get_end_internal_score(&self, inserted: &[u8], mapping: &'static ByteIndexMap<S>) -> T {
-        self.end().internal_params.get_end_score(inserted, mapping)
+    fn get_end_domain_score(&self, inserted: &[u8], mapping: &'static ByteIndexMap<S>) -> T {
+        self.end().domain_params.get_end_score(inserted, mapping)
     }
 }
 
@@ -234,16 +234,16 @@ pub enum PhmmParamKind<T> {
     LocalModule {
         /// The (composite) parameter within the module, associated with
         /// skipping residues at the beginning of the query.
-        internal_param: T,
+        domain_param:    T,
         /// The skipped residues at the beginning of the query.
-        skipped:        Vec<u8>,
+        skipped:         Vec<u8>,
         /// The parameter connecting the module to the [`CorePhmm`], associated
         /// with skipping to a layer in the pHMM.
-        external_param: T,
+        semilocal_param: T,
         /// The layer in the [`CorePhmm`] which is entered.
-        to_layer:       DpIndex,
+        to_layer:        DpIndex,
         /// The location of the module.
-        loc:            ModuleLocation,
+        loc:             ModuleLocation,
     },
     /// The (composite) parameter emitted by a [`DomainModule`] at the beginning
     /// or end of a [`DomainPhmm`].
@@ -320,15 +320,15 @@ impl<T: PhmmNumber> PhmmParam<T> {
     ///
     /// [`LocalModule`]: PhmmParamKind::LocalModule
     fn new_local_module(
-        loc: ModuleLocation, internal_param: T, skipped: Vec<u8>, external_param: T, to_layer: impl PhmmIndex,
+        loc: ModuleLocation, domain_param: T, skipped: Vec<u8>, semilocal_param: T, to_layer: impl PhmmIndex,
         phmm: &impl PhmmIndexable,
     ) -> Self {
         Self {
-            param: internal_param + external_param,
+            param: domain_param + semilocal_param,
             kind:  PhmmParamKind::LocalModule {
-                internal_param,
+                domain_param,
                 skipped,
-                external_param,
+                semilocal_param,
                 to_layer: phmm.to_dp_index(to_layer),
                 loc,
             },
@@ -537,9 +537,9 @@ where
 /// It may pass through the Begin state, or it may skip directly to the first
 /// match state. This function determines which has the minimal score.
 ///
-/// The function accepts the current score so far (which may be 0 or the
-/// internal parameter for [`LocalPhmm`]). Due to floating point error, this is
-/// required to determine the optimal path.
+/// The function accepts the current score so far (which may be 0 or the domain
+/// parameter for [`LocalPhmm`]). Due to floating point error, this is required
+/// to determine the optimal path.
 ///
 /// The return values are the parameter for transitioning from the module to the
 /// pHMM, the index of the layer that is entered, the parameter for
@@ -553,35 +553,35 @@ fn resolve_ambiguous_start<T: PhmmNumber, const S: usize>(
 
     let first_op = ciglets.peek_op().ok_or(PhmmError::FullModelNotUsed)?;
     let first_state = PhmmState::from_op(first_op)?;
-    let external_begin_param_through_begin = begin_module.get_score(Begin);
+    let semilocal_begin_param_through_begin = begin_module.get_score(Begin);
     let transition_from_begin = core.get_layer(Begin).transition[(Match, first_state)];
-    let score_through_begin = score + external_begin_param_through_begin + transition_from_begin;
+    let score_through_begin = score + semilocal_begin_param_through_begin + transition_from_begin;
 
-    let (external_begin_param, to_layer, transition_from_begin) = match first_state {
+    let (semilocal_begin_param, to_layer, transition_from_begin) = match first_state {
         Delete | Insert => (
-            external_begin_param_through_begin,
+            semilocal_begin_param_through_begin,
             core.to_dp_index(Begin),
             Some(transition_from_begin),
         ),
         Match => {
             // Handle ambiguity: it is unclear whether we pass through the BEGIN
             // state of the core pHMM or not
-            let external_begin_param_skip_begin = begin_module.get_score(FirstMatch);
-            let score_skipping_begin = score + external_begin_param_skip_begin;
+            let semilocal_begin_param_skip_begin = begin_module.get_score(FirstMatch);
+            let score_skipping_begin = score + semilocal_begin_param_skip_begin;
 
             if score_through_begin <= score_skipping_begin {
                 (
-                    external_begin_param_through_begin,
+                    semilocal_begin_param_through_begin,
                     core.to_dp_index(Begin),
                     Some(transition_from_begin),
                 )
             } else {
-                (external_begin_param_skip_begin, core.to_dp_index(FirstMatch), None)
+                (semilocal_begin_param_skip_begin, core.to_dp_index(FirstMatch), None)
             }
         }
     };
 
-    Ok((external_begin_param, to_layer, transition_from_begin, first_state))
+    Ok((semilocal_begin_param, to_layer, transition_from_begin, first_state))
 }
 
 /// Finds information about the optimal path at the end of a [`LocalPhmm`] or
@@ -592,7 +592,7 @@ fn resolve_ambiguous_start<T: PhmmNumber, const S: usize>(
 /// may pass through the End state, or it may exit directly from the last match
 /// state. This function determines which has the minimal score.
 ///
-/// The function accepts the current score so far, and the `internal_end_param`
+/// The function accepts the current score so far, and the `domain_end_param`
 /// for [`LocalPhmm`]. Due to floating point error, this is required to
 /// determine the optimal path.
 ///
@@ -600,8 +600,8 @@ fn resolve_ambiguous_start<T: PhmmNumber, const S: usize>(
 ///
 /// **Important**
 ///
-/// `internal_end_param` must be passed for a [`LocalPhmm`], and should be
-/// `None` for [`SemiLocalPhmm`].
+/// `domain_end_param` must be passed for a [`LocalPhmm`], and should be `None`
+/// for [`SemiLocalPhmm`].
 ///
 /// </div>
 ///
@@ -609,41 +609,49 @@ fn resolve_ambiguous_start<T: PhmmNumber, const S: usize>(
 /// module, the index of the layer that is exited, and the parameter for
 /// transitioning into the End state (if the End state is passed through).
 fn resolve_ambiguous_end<T: PhmmNumber, const S: usize>(
-    end_module: &SemiLocalModule<T>, core: &CorePhmm<T, S>, score: T, final_state: PhmmState, internal_end_param: Option<T>,
+    end_module: &SemiLocalModule<T>, core: &CorePhmm<T, S>, score: T, final_state: PhmmState, domain_end_param: Option<T>,
 ) -> (T, DpIndex, Option<T>) {
     use PhmmState::*;
 
     let transition_to_end = core.get_layer(LastMatch).transition[(final_state, Match)];
-    let external_end_param_through_end = end_module.get_score(End);
-    let end_param_through_end = if let Some(internal_end_param) = internal_end_param {
-        internal_end_param + external_end_param_through_end
+    let semilocal_end_param_through_end = end_module.get_score(End);
+    let end_param_through_end = if let Some(domain_end_param) = domain_end_param {
+        domain_end_param + semilocal_end_param_through_end
     } else {
-        external_end_param_through_end
+        semilocal_end_param_through_end
     };
     let score_through_end = score + transition_to_end + end_param_through_end;
 
-    let (transition_to_end, external_end_param, from_layer) = match final_state {
-        Delete | Insert => (Some(transition_to_end), external_end_param_through_end, core.to_dp_index(End)),
+    let (transition_to_end, semilocal_end_param, from_layer) = match final_state {
+        Delete | Insert => (
+            Some(transition_to_end),
+            semilocal_end_param_through_end,
+            core.to_dp_index(End),
+        ),
         Match => {
             // Handle ambiguity: it is unclear whether we pass through
             // the END state of the core pHMM or not
-            let external_end_param_skip_end = end_module.get_score(LastMatch);
-            let end_param_skip_end = if let Some(internal_end_param) = internal_end_param {
-                internal_end_param + external_end_param_skip_end
+            let semilocal_end_param_skip_end = end_module.get_score(LastMatch);
+            let end_param_skip_end = if let Some(domain_end_param) = domain_end_param {
+                domain_end_param + semilocal_end_param_skip_end
             } else {
-                external_end_param_skip_end
+                semilocal_end_param_skip_end
             };
             let score_skipping_end = score + end_param_skip_end;
 
             if score_through_end <= score_skipping_end {
-                (Some(transition_to_end), external_end_param_through_end, core.to_dp_index(End))
+                (
+                    Some(transition_to_end),
+                    semilocal_end_param_through_end,
+                    core.to_dp_index(End),
+                )
             } else {
-                (None, external_end_param_skip_end, core.to_dp_index(LastMatch))
+                (None, semilocal_end_param_skip_end, core.to_dp_index(LastMatch))
             }
         }
     };
 
-    (external_end_param, from_layer, transition_to_end)
+    (semilocal_end_param, from_layer, transition_to_end)
 }
 
 impl<T: PhmmNumber, const S: usize> GlobalPhmm<T, S> {
@@ -809,23 +817,23 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
             (begin_seq, seq, end_seq)
         };
 
-        // Add contribution from internal parameters of begin module
-        let internal_begin_param = self.get_begin_internal_score(begin_seq, self.mapping());
+        // Add contribution from domain parameters of begin module
+        let domain_begin_param = self.get_begin_domain_score(begin_seq, self.mapping());
 
-        // Add the contribution of the external parameters into the core pHMM
+        // Add the contribution of the semilocal parameters into the core pHMM
         // and the transitions out of the BEGIN state
         if ref_range.start == 0 {
-            let (external_begin_param, to_layer, transition_from_begin, first_state) =
-                resolve_ambiguous_start(&self.begin().external_params, self.core(), score, ciglets)?;
+            let (semilocal_begin_param, to_layer, transition_from_begin, first_state) =
+                resolve_ambiguous_start(&self.begin().semilocal_params, self.core(), score, ciglets)?;
 
             call_f(
                 &mut f,
                 &mut score,
                 PhmmParam::new_local_module(
                     ModuleLocation::Begin,
-                    internal_begin_param,
+                    domain_begin_param,
                     begin_seq.to_vec(),
-                    external_begin_param,
+                    semilocal_begin_param,
                     to_layer,
                     self,
                 ),
@@ -849,9 +857,9 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
                 &mut score,
                 PhmmParam::new_local_module(
                     ModuleLocation::Begin,
-                    internal_begin_param,
+                    domain_begin_param,
                     begin_seq.to_vec(),
-                    self.get_begin_external_score(SeqIndex(ref_range.start)),
+                    self.get_begin_semilocal_score(SeqIndex(ref_range.start)),
                     SeqIndex(ref_range.start),
                     self,
                 ),
@@ -870,18 +878,18 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
             &mut f,
         )?;
 
-        // Compute the contribution from the internal parameters of the end
+        // Compute the contribution from the domain parameters of the end
         // module, which involves processing any soft clipping at the end of the
         // alignment
-        let internal_end_param = self.get_end_internal_score(end_seq, self.mapping());
+        let domain_end_param = self.get_end_domain_score(end_seq, self.mapping());
 
         if ref_range.end == self.seq_len() {
-            let (external_end_param, from_layer, transition_to_end) = resolve_ambiguous_end(
-                &self.end().external_params,
+            let (semilocal_end_param, from_layer, transition_to_end) = resolve_ambiguous_end(
+                &self.end().semilocal_params,
                 self.core(),
                 score,
                 final_state,
-                Some(internal_end_param),
+                Some(domain_end_param),
             );
 
             if let Some(transition_to_end) = transition_to_end {
@@ -897,9 +905,9 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
                 &mut score,
                 PhmmParam::new_local_module(
                     ModuleLocation::End,
-                    internal_end_param,
+                    domain_end_param,
                     end_seq.to_vec(),
-                    external_end_param,
+                    semilocal_end_param,
                     from_layer,
                     self,
                 ),
@@ -916,9 +924,9 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
                 &mut score,
                 PhmmParam::new_local_module(
                     ModuleLocation::End,
-                    internal_end_param,
+                    domain_end_param,
                     end_seq.to_vec(),
-                    self.get_end_external_score(SeqIndex(ref_range.end - 1)),
+                    self.get_end_semilocal_score(SeqIndex(ref_range.end - 1)),
                     SeqIndex(ref_range.end - 1),
                     self,
                 ),
@@ -957,10 +965,10 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
         for i in 0..=seq.len() {
             let (inserted_begin, inserted_end) = seq.split_at(i);
             for through_state in [self.to_dp_index(Begin), self.to_dp_index(End)] {
-                let begin_score = self.begin().internal_params.get_begin_score(inserted_begin, self.mapping())
-                    + self.get_begin_external_score(through_state);
+                let begin_score = self.begin().domain_params.get_begin_score(inserted_begin, self.mapping())
+                    + self.get_begin_semilocal_score(through_state);
                 let end_score =
-                    self.get_end_internal_score(inserted_end, self.mapping()) + self.get_end_external_score(through_state);
+                    self.get_end_domain_score(inserted_end, self.mapping()) + self.get_end_semilocal_score(through_state);
                 let score = begin_score + end_score;
 
                 if score < best_score {
@@ -974,17 +982,17 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
         let (inserted_begin, inserted_end) = seq.split_at(best_i);
         f(PhmmParam::new_local_module(
             ModuleLocation::Begin,
-            self.begin().internal_params.get_begin_score(inserted_begin, self.mapping()),
+            self.begin().domain_params.get_begin_score(inserted_begin, self.mapping()),
             inserted_begin.to_vec(),
-            self.get_begin_external_score(best_state),
+            self.get_begin_semilocal_score(best_state),
             best_state,
             self,
         ));
         f(PhmmParam::new_local_module(
             ModuleLocation::End,
-            self.get_end_internal_score(inserted_end, self.mapping()),
+            self.get_end_domain_score(inserted_end, self.mapping()),
             inserted_end.to_vec(),
-            self.get_end_external_score(best_state),
+            self.get_end_semilocal_score(best_state),
             best_state,
             self,
         ));
@@ -1177,7 +1185,7 @@ impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
             return Ok(self.visit_params_empty_alignment(f));
         }
 
-        // Add the contribution of the external parameters into the core pHMM
+        // Add the contribution of the semilocal parameters into the core pHMM
         // and the transitions out of the BEGIN state
         if ref_range.start == 0 {
             let (begin_param, to_layer, transition_from_begin, first_state) =

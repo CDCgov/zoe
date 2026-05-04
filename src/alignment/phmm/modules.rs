@@ -32,7 +32,7 @@ use crate::{
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct SemiLocalModule<T>(pub(crate) Vec<T>);
 
-impl<T: PhmmNumber> SemiLocalModule<T> {
+impl<T> SemiLocalModule<T> {
     /// Returns the parameters as a slice.
     ///
     /// <div class="warning note">
@@ -48,6 +48,13 @@ impl<T: PhmmNumber> SemiLocalModule<T> {
     #[cfg(feature = "alignment-diagnostics")]
     pub fn as_slice(&self) -> &[T] {
         &self.0
+    }
+}
+
+impl<T: PhmmNumber> SemiLocalModule<T> {
+    #[cfg(feature = "alignment-diagnostics")]
+    pub fn from_slice(params: &[T]) -> Self {
+        Self(params.to_vec())
     }
 
     /// Constructs a [`SemiLocalModule`] where all transitions are free.
@@ -103,8 +110,8 @@ impl<T: PhmmNumber, const S: usize> DomainModule<T, S> {
         &self, seq: Q, mapping: &ByteIndexMap<S>,
     ) -> PrecomputedDomainModule<T, S> {
         let seq = seq.as_ref();
-        let mut internal_params = vec![self.start_to_insert + self.insert_to_end; seq.len() + 1];
-        internal_params[0] = self.start_to_end;
+        let mut domain_params = vec![self.start_to_insert + self.insert_to_end; seq.len() + 1];
+        domain_params[0] = self.start_to_end;
 
         let mut emissions_sum = T::ZERO;
         for (i, x_idx) in seq.iter().map(|x| mapping.to_index(*x)).enumerate() {
@@ -116,10 +123,10 @@ impl<T: PhmmNumber, const S: usize> DomainModule<T, S> {
             } else {
                 T::ZERO
             };
-            internal_params[i + 1] += emissions_sum + insert_to_insert;
+            domain_params[i + 1] += emissions_sum + insert_to_insert;
         }
 
-        PrecomputedDomainModule(internal_params)
+        PrecomputedDomainModule(domain_params)
     }
 
     /// Precomputes the transition probabilities for skipping any number of
@@ -131,8 +138,8 @@ impl<T: PhmmNumber, const S: usize> DomainModule<T, S> {
         &self, seq: Q, mapping: &ByteIndexMap<S>,
     ) -> PrecomputedDomainModule<T, S> {
         let seq = seq.as_ref();
-        let mut internal_params = vec![self.start_to_insert + self.insert_to_end; seq.len() + 1];
-        internal_params[seq.len()] = self.start_to_end;
+        let mut domain_params = vec![self.start_to_insert + self.insert_to_end; seq.len() + 1];
+        domain_params[seq.len()] = self.start_to_end;
 
         let mut emissions_sum = T::ZERO;
         for (i, x_idx) in seq.iter().rev().map(|x| mapping.to_index(*x)).enumerate() {
@@ -144,10 +151,10 @@ impl<T: PhmmNumber, const S: usize> DomainModule<T, S> {
             } else {
                 T::ZERO
             };
-            internal_params[seq.len() - i - 1] += emissions_sum + insert_to_insert;
+            domain_params[seq.len() - i - 1] += emissions_sum + insert_to_insert;
         }
 
-        PrecomputedDomainModule(internal_params)
+        PrecomputedDomainModule(domain_params)
     }
 }
 
@@ -189,11 +196,11 @@ pub struct LocalModule<T, const S: usize> {
     /// These are either the transition parameters into the match states of the
     /// pHMM (if the module is at the beginning) or the transition parameters
     /// out of the match states of the pHMM (if the module is at the end).
-    pub external_params: SemiLocalModule<T>,
+    pub semilocal_params: SemiLocalModule<T>,
     /// The parameters within this module.
     ///
     /// These control how skipped residues in the query are scored.
-    pub internal_params: DomainModule<T, S>,
+    pub domain_params:    DomainModule<T, S>,
 }
 
 impl<T: PhmmNumber, const S: usize> LocalModule<T, S> {
@@ -208,8 +215,8 @@ impl<T: PhmmNumber, const S: usize> LocalModule<T, S> {
     #[must_use]
     pub(crate) fn no_penalty(core: &CorePhmm<T, S>, background_emission: EmissionParams<T, S>) -> Self {
         Self {
-            external_params: SemiLocalModule::no_penalty(core),
-            internal_params: DomainModule::no_penalty(background_emission),
+            semilocal_params: SemiLocalModule::no_penalty(core),
+            domain_params:    DomainModule::no_penalty(background_emission),
         }
     }
 }
@@ -226,9 +233,9 @@ impl<T: PhmmNumber, const S: usize> LocalModule<T, S> {
 pub(crate) struct PrecomputedLocalModule<'a, T, const S: usize> {
     /// The transition parameters from the last state of the module to match
     /// state j in the core pHMM.
-    pub(crate) external_params: &'a SemiLocalModule<T>,
+    pub(crate) semilocal_params: &'a SemiLocalModule<T>,
     /// The transition parameters for consuming i bases within the module.
-    pub(crate) internal_params: PrecomputedDomainModule<T, S>,
+    pub(crate) domain_params:    PrecomputedDomainModule<T, S>,
 }
 
 impl<T: PhmmNumber, const S: usize> LocalModule<T, S> {
@@ -241,8 +248,8 @@ impl<T: PhmmNumber, const S: usize> LocalModule<T, S> {
         &self, seq: Q, mapping: &ByteIndexMap<S>,
     ) -> PrecomputedLocalModule<'_, T, S> {
         PrecomputedLocalModule {
-            internal_params: self.internal_params.precompute_begin_mod(seq, mapping),
-            external_params: &self.external_params,
+            domain_params:    self.domain_params.precompute_begin_mod(seq, mapping),
+            semilocal_params: &self.semilocal_params,
         }
     }
 
@@ -255,8 +262,8 @@ impl<T: PhmmNumber, const S: usize> LocalModule<T, S> {
         &self, seq: Q, mapping: &ByteIndexMap<S>,
     ) -> PrecomputedLocalModule<'_, T, S> {
         PrecomputedLocalModule {
-            internal_params: self.internal_params.precompute_end_mod(seq, mapping),
-            external_params: &self.external_params,
+            domain_params:    self.domain_params.precompute_end_mod(seq, mapping),
+            semilocal_params: &self.semilocal_params,
         }
     }
 }
@@ -273,7 +280,7 @@ impl<T: PhmmNumber, const S: usize> PrecomputedLocalModule<'_, T, S> {
     /// - Exiting early from layer `j` then skipping the last `i` residues in
     ///   the query (when this module is placed at the end of the [`CorePhmm`])
     pub(crate) fn get_score(&self, i: impl QueryIndex, j: impl PhmmIndex) -> T {
-        self.internal_params.get_score(i) + self.external_params.get_score(j)
+        self.domain_params.get_score(i) + self.semilocal_params.get_score(j)
     }
 }
 
@@ -295,5 +302,45 @@ impl<T: PhmmNumber, const S: usize> DomainModule<T, S> {
             start_to_end: T::ZERO,
             background_emission,
         }
+    }
+}
+
+/// A trait unifying the different modules providing semilocal-style parameters.
+#[allow(dead_code)]
+pub(crate) trait SemiLocalParams<T> {
+    /// Returns a reference to the semilocal parameters of the module.
+    #[must_use]
+    fn semilocal_params(&self) -> &SemiLocalModule<T>;
+}
+
+impl<T> SemiLocalParams<T> for SemiLocalModule<T> {
+    fn semilocal_params(&self) -> &SemiLocalModule<T> {
+        self
+    }
+}
+
+impl<T, const S: usize> SemiLocalParams<T> for LocalModule<T, S> {
+    fn semilocal_params(&self) -> &SemiLocalModule<T> {
+        &self.semilocal_params
+    }
+}
+
+/// A trait unifying the different modules providing domain-style parameters.
+#[allow(dead_code)]
+pub(crate) trait DomainParams<T, const S: usize> {
+    /// Returns a reference to the domain parameters of the module.
+    #[must_use]
+    fn domain_params(&self) -> &DomainModule<T, S>;
+}
+
+impl<T, const S: usize> DomainParams<T, S> for DomainModule<T, S> {
+    fn domain_params(&self) -> &DomainModule<T, S> {
+        self
+    }
+}
+
+impl<T, const S: usize> DomainParams<T, S> for LocalModule<T, S> {
+    fn domain_params(&self) -> &DomainModule<T, S> {
+        &self.domain_params
     }
 }

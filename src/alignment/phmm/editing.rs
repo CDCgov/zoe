@@ -205,32 +205,32 @@ impl<T: PhmmNumber, const S: usize> RemoveLayer for LocalPhmm<T, S> {
     #[inline]
     fn remove_layer_and_pre_transition(&mut self, layer: impl PhmmIndex) {
         let layer_idx = self.get_dp_index(layer);
-        self.begin_mut().external_params.0.remove(layer_idx);
-        self.end_mut().external_params.0.remove(layer_idx);
+        self.begin_mut().semilocal_params.0.remove(layer_idx);
+        self.end_mut().semilocal_params.0.remove(layer_idx);
         self.core_mut().remove_layer_and_pre_transition(layer);
     }
 
     #[inline]
     fn remove_layer_and_post_transition(&mut self, layer: impl PhmmIndex) {
         let layer_idx = self.get_dp_index(layer);
-        self.begin_mut().external_params.0.remove(layer_idx);
-        self.end_mut().external_params.0.remove(layer_idx);
+        self.begin_mut().semilocal_params.0.remove(layer_idx);
+        self.end_mut().semilocal_params.0.remove(layer_idx);
         self.core_mut().remove_layer_and_post_transition(layer);
     }
 
     #[inline]
     fn remove_layers_and_pre_transitions<R: PhmmIndexRange>(&mut self, range: R) {
         let range_idxs = self.get_dp_range(range.clone());
-        self.begin_mut().external_params.0.drain(range_idxs.clone());
-        self.end_mut().external_params.0.drain(range_idxs);
+        self.begin_mut().semilocal_params.0.drain(range_idxs.clone());
+        self.end_mut().semilocal_params.0.drain(range_idxs);
         self.core_mut().remove_layers_and_pre_transitions(range);
     }
 
     #[inline]
     fn remove_layers_and_post_transitions<R: PhmmIndexRange>(&mut self, range: R) {
         let range_idxs = self.get_dp_range(range.clone());
-        self.begin_mut().external_params.0.drain(range_idxs.clone());
-        self.end_mut().external_params.0.drain(range_idxs);
+        self.begin_mut().semilocal_params.0.drain(range_idxs.clone());
+        self.end_mut().semilocal_params.0.drain(range_idxs);
         self.core_mut().remove_layers_and_post_transitions(range);
     }
 }

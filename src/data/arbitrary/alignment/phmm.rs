@@ -94,8 +94,8 @@ where
     #[inline]
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
         Ok(Self {
-            external_params: SemiLocalModule::arbitrary(u)?,
-            internal_params: DomainModule::arbitrary(u)?,
+            semilocal_params: SemiLocalModule::arbitrary(u)?,
+            domain_params: DomainModule::arbitrary(u)?,
         })
     }
 }
@@ -316,8 +316,8 @@ where
         };
 
         Ok(LocalModule {
-            external_params: semilocal_specs.make_arbitrary(u)?,
-            internal_params: domain_specs.make_arbitrary(u)?,
+            semilocal_params: semilocal_specs.make_arbitrary(u)?,
+            domain_params: domain_specs.make_arbitrary(u)?,
         })
     }
 }

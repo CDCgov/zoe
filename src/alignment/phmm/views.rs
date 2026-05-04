@@ -702,8 +702,8 @@ impl<T, const S: usize> AsSemiLocalView<T, S> for LocalPhmm<T, S> {
         SemiLocalPhmmView {
             mapping: self.mapping(),
             core:    self.core(),
-            begin:   &self.begin().external_params,
-            end:     &self.end().external_params,
+            begin:   &self.begin().semilocal_params,
+            end:     &self.end().semilocal_params,
         }
     }
 }
@@ -726,8 +726,8 @@ impl<T, const S: usize> AsSemiLocalView<T, S> for LocalPhmmView<'_, T, S> {
         SemiLocalPhmmView {
             mapping: self.mapping(),
             core:    self.core(),
-            begin:   &self.begin().external_params,
-            end:     &self.end().external_params,
+            begin:   &self.begin().semilocal_params,
+            end:     &self.end().semilocal_params,
         }
     }
 }
@@ -757,8 +757,8 @@ impl<T, const S: usize> AsDomainView<T, S> for LocalPhmm<T, S> {
         DomainPhmmView {
             mapping: self.mapping(),
             core:    self.core(),
-            begin:   &self.begin().internal_params,
-            end:     &self.end().internal_params,
+            begin:   &self.begin().domain_params,
+            end:     &self.end().domain_params,
         }
     }
 }
@@ -781,8 +781,8 @@ impl<T, const S: usize> AsDomainView<T, S> for LocalPhmmView<'_, T, S> {
         DomainPhmmView {
             mapping: self.mapping(),
             core:    self.core(),
-            begin:   &self.begin().internal_params,
-            end:     &self.end().internal_params,
+            begin:   &self.begin().domain_params,
+            end:     &self.end().domain_params,
         }
     }
 }

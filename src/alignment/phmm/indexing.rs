@@ -568,21 +568,21 @@ impl<T> PhmmIndexable for &mut SemiLocalModule<T> {
 impl<T, const S: usize> PhmmIndexable for PrecomputedLocalModule<'_, T, S> {
     #[inline]
     fn num_pseudomatch(&self) -> usize {
-        self.external_params.num_pseudomatch()
+        self.semilocal_params.num_pseudomatch()
     }
 }
 
 impl<T, const S: usize> PhmmIndexable for &PrecomputedLocalModule<'_, T, S> {
     #[inline]
     fn num_pseudomatch(&self) -> usize {
-        self.external_params.num_pseudomatch()
+        self.semilocal_params.num_pseudomatch()
     }
 }
 
 impl<T, const S: usize> PhmmIndexable for &mut PrecomputedLocalModule<'_, T, S> {
     #[inline]
     fn num_pseudomatch(&self) -> usize {
-        self.external_params.num_pseudomatch()
+        self.semilocal_params.num_pseudomatch()
     }
 }
 

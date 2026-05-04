@@ -98,8 +98,8 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
         // Check for compatibility between the pHMM and the start/end modules
         if begin_mod.num_pseudomatch() != self.num_pseudomatch()
             || end_mod.num_pseudomatch() != self.num_pseudomatch()
-            || begin_mod.internal_params.seq_len() != seq.len()
-            || end_mod.internal_params.seq_len() != seq.len()
+            || begin_mod.domain_params.seq_len() != seq.len()
+            || end_mod.domain_params.seq_len() != seq.len()
         {
             return Err(InvalidModelError::IncompatibleModule.into());
         }
