@@ -1653,7 +1653,7 @@ pub(crate) trait GetCoreView<'a, T, const S: usize> {
 pub trait GetLayerView<'a, T, const S: usize>: PhmmIndexable {
     /// Retrieves a slice of the layers contained within the core pHMM.
     #[must_use]
-    fn layers(&self) -> &'a [LayerParams<T, S>];
+    fn layers_view(&self) -> &'a [LayerParams<T, S>];
 
     /// Gets a layer from within the core pHMM.
     ///
@@ -1664,8 +1664,8 @@ pub trait GetLayerView<'a, T, const S: usize>: PhmmIndexable {
     #[inline]
     #[must_use]
     #[allow(dead_code)]
-    fn get_layer(&self, j: impl PhmmIndex) -> Option<&'a LayerParams<T, S>> {
-        self.layers().get(self.get_dp_index(j))
+    fn get_layer_view(&self, j: impl PhmmIndex) -> Option<&'a LayerParams<T, S>> {
+        self.layers_view().get(self.get_dp_index(j))
     }
 
     /// Gets a range of layers from within the core pHMM.
@@ -1676,8 +1676,8 @@ pub trait GetLayerView<'a, T, const S: usize>: PhmmIndexable {
     #[inline]
     #[must_use]
     #[allow(dead_code)]
-    fn get_layers(&self, range: impl PhmmIndexRange) -> Option<&'a [LayerParams<T, S>]> {
-        self.layers().get(self.get_dp_range(range))
+    fn get_layers_view(&self, range: impl PhmmIndexRange) -> Option<&'a [LayerParams<T, S>]> {
+        self.layers_view().get(self.get_dp_range(range))
     }
 }
 
@@ -1711,28 +1711,28 @@ impl<'a, T, const S: usize> GetCoreView<'a, T, S> for LocalPhmmView<'a, T, S> {
 
 impl<'a, T, const S: usize> GetLayerView<'a, T, S> for GlobalPhmmView<'a, T, S> {
     #[inline]
-    fn layers(&self) -> &'a [LayerParams<T, S>] {
+    fn layers_view(&self) -> &'a [LayerParams<T, S>] {
         self.core.layers()
     }
 }
 
 impl<'a, T, const S: usize> GetLayerView<'a, T, S> for DomainPhmmView<'a, T, S> {
     #[inline]
-    fn layers(&self) -> &'a [LayerParams<T, S>] {
+    fn layers_view(&self) -> &'a [LayerParams<T, S>] {
         self.core.layers()
     }
 }
 
 impl<'a, T, const S: usize> GetLayerView<'a, T, S> for SemiLocalPhmmView<'a, T, S> {
     #[inline]
-    fn layers(&self) -> &'a [LayerParams<T, S>] {
+    fn layers_view(&self) -> &'a [LayerParams<T, S>] {
         self.core.layers()
     }
 }
 
 impl<'a, T, const S: usize> GetLayerView<'a, T, S> for LocalPhmmView<'a, T, S> {
     #[inline]
-    fn layers(&self) -> &'a [LayerParams<T, S>] {
+    fn layers_view(&self) -> &'a [LayerParams<T, S>] {
         self.core.layers()
     }
 }
