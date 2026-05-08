@@ -17,7 +17,7 @@ use crate::{
     },
     data::{cigar::Ciglet, mappings::ByteIndexMap},
 };
-use std::ops::Range;
+use std::{cmp::Ordering, ops::Range};
 
 impl<T: PhmmNumber, const S: usize> DomainModule<T, S> {
     /// Lazily compute the score for skipping `inserted` residues at the
@@ -410,7 +410,7 @@ where
             // exited. In either case, a match state was passed through.
             return Ok(Match);
         }
-        return Err(PhmmError::FullModelNotUsed);
+        return Err(PhmmError::InvalidPath);
     };
 
     // Index into the query
@@ -519,10 +519,10 @@ where
 
     // i and j were incremented 1 past their last value
     if i != seq_in_alignment.len() {
-        return Err(PhmmError::FullSeqNotUsed);
+        return Err(PhmmError::InvalidPath);
     }
     if j != ref_range.end {
-        return Err(PhmmError::FullModelNotUsed);
+        return Err(PhmmError::InvalidPath);
     }
 
     Ok(state)
@@ -549,7 +549,7 @@ fn resolve_ambiguous_start<T: PhmmNumber, const S: usize>(
 ) -> Result<(T, DpIndex, Option<T>, PhmmState), PhmmError> {
     use PhmmState::*;
 
-    let first_op = ciglets.peek_op().ok_or(PhmmError::FullModelNotUsed)?;
+    let first_op = ciglets.peek_op().ok_or(PhmmError::InvalidPath)?;
     let first_state = PhmmState::from_op(first_op)?;
     let semilocal_begin_param_through_begin = begin_module.get_score(Begin);
     let transition_from_begin = core.begin_layer().transition[(Match, first_state)];
@@ -691,7 +691,7 @@ impl<T: PhmmNumber, const S: usize> GlobalPhmm<T, S> {
 
         let mut score = T::ZERO;
 
-        let first_op = ciglets.peek_op().ok_or(PhmmError::FullModelNotUsed)?;
+        let first_op = ciglets.peek_op().ok_or(PhmmError::InvalidPath)?;
         let first_state = PhmmState::from_op(first_op)?;
 
         // Get transition from BEGIN state the actual first state
@@ -756,8 +756,8 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
     /// ## Errors
     ///
     /// The CIGAR string must consume the entire model and sequence, and the
-    /// only supported operations are `M`, `=`, `X`, `I`, and `D`. If `path`
-    /// does not correspond to a valid path through a [`LocalPhmm`], then
+    /// only supported operations are `M`, `=`, `X`, `I`, `D`, and `S`. If
+    /// `path` does not correspond to a valid path through a [`LocalPhmm`], then
     /// [`PhmmError::InvalidPath`] is returned.
     ///
     /// [`viterbi`]: LocalPhmm::viterbi
@@ -789,7 +789,14 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
             let begin_inserted = ciglets.next_if_op(|op| op == b'S').map_or(0, |ciglet| ciglet.inc);
             let end_inserted = ciglets.next_back_if_op(|op| op == b'S').map_or(0, |ciglet| ciglet.inc);
             if ciglets.is_empty() {
-                return Ok(self.visit_params_empty_alignment(seq, f));
+                if !ref_range.is_empty() {
+                    return Err(PhmmError::InvalidPath);
+                }
+
+                return match seq.len().cmp(&(begin_inserted + end_inserted)) {
+                    Ordering::Equal => self.visit_params_empty_alignment(seq, f),
+                    Ordering::Less | Ordering::Greater => Err(PhmmError::InvalidPath),
+                };
             }
 
             let (seq, end_seq) = seq.split_at(seq.len() - end_inserted);
@@ -828,7 +835,7 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
             }
         } else {
             // We must enter into a match state if not going through BEGIN
-            if PhmmState::from_op(ciglets.peek_op().ok_or(PhmmError::FullModelNotUsed)?)? != Match {
+            if PhmmState::from_op(ciglets.peek_op().ok_or(PhmmError::InvalidPath)?)? != Match {
                 return Err(PhmmError::InvalidPath);
             }
 
@@ -935,7 +942,7 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
     /// residues are included in the module at the beginning.
     ///
     /// [`viterbi`]: LocalPhmm::viterbi
-    fn visit_params_empty_alignment<F>(&self, seq: &[u8], mut f: F) -> T
+    fn visit_params_empty_alignment<F>(&self, seq: &[u8], mut f: F) -> Result<T, PhmmError>
     where
         F: FnMut(PhmmParam<T>), {
         let mut best_i = 0;
@@ -959,6 +966,10 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
             }
         }
 
+        if best_score == T::INFINITY {
+            return Err(PhmmError::NoAlignmentFound);
+        }
+
         let (inserted_begin, inserted_end) = seq.split_at(best_i);
         f(PhmmParam::new_local_module(
             ModuleLocation::Begin,
@@ -976,7 +987,8 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
             best_state,
             self,
         ));
-        best_score
+
+        Ok(best_score)
     }
 }
 
@@ -1043,7 +1055,7 @@ impl<T: PhmmNumber, const S: usize> DomainPhmm<T, S> {
         );
 
         // Add the transitions out of the BEGIN state
-        let first_op = ciglets.peek_op().ok_or(PhmmError::FullModelNotUsed)?;
+        let first_op = ciglets.peek_op().ok_or(PhmmError::InvalidPath)?;
         let first_state = PhmmState::from_op(first_op)?;
         call_f(
             &mut f,
@@ -1144,7 +1156,11 @@ impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
         let mut score = T::ZERO;
 
         if ciglets.peek_op().is_none() {
-            return Ok(self.visit_params_empty_alignment(f));
+            if seq.is_empty() {
+                return Ok(self.visit_params_empty_alignment(f));
+            } else {
+                return Err(PhmmError::InvalidPath);
+            }
         }
 
         // Add the contribution of the semilocal parameters into the core pHMM
@@ -1168,7 +1184,7 @@ impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
             }
         } else {
             // We must enter into a match state if not going through BEGIN
-            if PhmmState::from_op(ciglets.peek_op().ok_or(PhmmError::FullModelNotUsed)?)? != Match {
+            if PhmmState::from_op(ciglets.peek_op().ok_or(PhmmError::InvalidPath)?)? != Match {
                 return Err(PhmmError::InvalidPath);
             }
 
