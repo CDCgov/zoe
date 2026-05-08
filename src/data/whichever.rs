@@ -57,8 +57,10 @@
 /// Any trait being implemented must be imported (no qualified paths are
 /// possible with this macro).
 ///
-/// When implementing [`Iterator`], the generics `F`, `B`, `R`, `P`, `S`, and
-/// `K` are reserved. Also, the `try_trait_v2` feature must be enabled.
+/// When implementing [`Iterator`], the generics `Ff`, `Bb`, `Rr`, `Pp`, `Ss`,
+/// and `Kk` are reserved. These were chosen because they are unlikely to
+/// conflict with generics on the type. Also, the `try_trait_v2` feature must be
+/// enabled.
 ///
 /// For [`Iterator`], it may also be desirable to have enum variants whose
 /// `Item` associated types differ, but use some map operation to unify them.
@@ -170,8 +172,10 @@ macro_rules! define_whichever {
 /// Any trait being implemented must be imported (no qualified paths are
 /// possible with this macro).
 ///
-/// When implementing [`Iterator`], the generics `F`, `B`, `R`, `P`, `S`, and
-/// `K` are reserved. Also, the `try_trait_v2` feature must be enabled.
+/// When implementing [`Iterator`], the generics `Ff`, `Bb`, `Rr`, `Pp`, `Ss`,
+/// and `Kk` are reserved. These were chosen because they are unlikely to
+/// conflict with generics on the type. Also, the `try_trait_v2` feature must be
+/// enabled.
 ///
 /// ## Acknowledgements
 ///
@@ -319,187 +323,187 @@ macro_rules! impl_traits {
         }
 
         #[inline]
-        fn for_each<F>(self, f: F)
+        fn for_each<Ff>(self, f: Ff)
         where
             Self: Sized,
-            F: FnMut(Self::Item),
+            Ff: FnMut(Self::Item),
         {
             $crate::impl_traits!(@delegate $dispatch self, [], inner => inner$(.map($map))?.for_each(f))
         }
 
         #[inline]
-        fn collect<B>(self) -> B
+        fn collect<Bb>(self) -> Bb
         where
-            B: FromIterator<Self::Item>,
+            Bb: FromIterator<Self::Item>,
             Self: Sized,
         {
             $crate::impl_traits!(@delegate $dispatch self, [], inner => inner$(.map($map))?.collect())
         }
 
         #[inline]
-        fn partition<B, F>(self, f: F) -> (B, B)
+        fn partition<Bb, Ff>(self, f: Ff) -> (Bb, Bb)
         where
             Self: Sized,
-            B: Default + Extend<Self::Item>,
-            F: FnMut(&Self::Item) -> bool,
+            Bb: Default + Extend<Self::Item>,
+            Ff: FnMut(&Self::Item) -> bool,
         {
             $crate::impl_traits!(@delegate $dispatch self, [], inner => inner$(.map($map))?.partition(f))
         }
 
         #[inline]
-        fn try_fold<B, F, R>(&mut self, init: B, f: F) -> R
+        fn try_fold<Bb, Ff, Rr>(&mut self, init: Bb, f: Ff) -> Rr
         where
             Self: Sized,
-            F: FnMut(B, Self::Item) -> R,
-            R: ::std::ops::Try<Output = B>,
+            Ff: FnMut(Bb, Self::Item) -> Rr,
+            Rr: ::std::ops::Try<Output = Bb>,
         {
             $crate::impl_traits!(@delegate $dispatch self, [&mut], inner => inner$(.map($map))?.try_fold(init, f))
         }
 
         #[inline]
-        fn try_for_each<F, R>(&mut self, f: F) -> R
+        fn try_for_each<Ff, Rr>(&mut self, f: Ff) -> Rr
         where
             Self: Sized,
-            F: FnMut(Self::Item) -> R,
-            R: ::std::ops::Try<Output = ()>,
+            Ff: FnMut(Self::Item) -> Rr,
+            Rr: ::std::ops::Try<Output = ()>,
         {
             $crate::impl_traits!(@delegate $dispatch self, [&mut], inner => inner$(.map($map))?.try_for_each(f))
         }
 
         #[inline]
-        fn fold<B, F>(self, init: B, f: F) -> B
+        fn fold<Bb, Ff>(self, init: Bb, f: Ff) -> Bb
         where
             Self: Sized,
-            F: FnMut(B, Self::Item) -> B,
+            Ff: FnMut(Bb, Self::Item) -> Bb,
         {
             $crate::impl_traits!(@delegate $dispatch self, [], inner => inner$(.map($map))?.fold(init, f))
         }
 
         #[inline]
-        fn reduce<F>(self, f: F) -> Option<Self::Item>
+        fn reduce<Ff>(self, f: Ff) -> Option<Self::Item>
         where
             Self: Sized,
-            F: FnMut(Self::Item, Self::Item) -> Self::Item,
+            Ff: FnMut(Self::Item, Self::Item) -> Self::Item,
         {
             $crate::impl_traits!(@delegate $dispatch self, [], inner => inner$(.map($map))?.reduce(f))
         }
 
         #[inline]
-        fn all<F>(&mut self, f: F) -> bool
+        fn all<Ff>(&mut self, f: Ff) -> bool
         where
             Self: Sized,
-            F: FnMut(Self::Item) -> bool,
+            Ff: FnMut(Self::Item) -> bool,
         {
             $crate::impl_traits!(@delegate $dispatch self, [&mut], inner => inner$(.map($map))?.all(f))
         }
 
         #[inline]
-        fn any<F>(&mut self, f: F) -> bool
+        fn any<Ff>(&mut self, f: Ff) -> bool
         where
             Self: Sized,
-            F: FnMut(Self::Item) -> bool,
+            Ff: FnMut(Self::Item) -> bool,
         {
             $crate::impl_traits!(@delegate $dispatch self, [&mut], inner => inner$(.map($map))?.any(f))
         }
 
         #[inline]
-        fn find<P>(&mut self, predicate: P) -> Option<Self::Item>
+        fn find<Pp>(&mut self, predicate: Pp) -> Option<Self::Item>
         where
             Self: Sized,
-            P: FnMut(&Self::Item) -> bool,
+            Pp: FnMut(&Self::Item) -> bool,
         {
             $crate::impl_traits!(@delegate $dispatch self, [&mut], inner => inner$(.map($map))?.find(predicate))
         }
 
         #[inline]
-        fn find_map<B, F>(&mut self, f: F) -> Option<B>
+        fn find_map<Bb, Ff>(&mut self, f: Ff) -> Option<Bb>
         where
             Self: Sized,
-            F: FnMut(Self::Item) -> Option<B>,
+            Ff: FnMut(Self::Item) -> Option<Bb>,
         {
             $crate::impl_traits!(@delegate $dispatch self, [&mut], inner => inner$(.map($map))?.find_map(f))
         }
 
         #[inline]
-        fn position<P>(&mut self, predicate: P) -> Option<usize>
+        fn position<Pp>(&mut self, predicate: Pp) -> Option<usize>
         where
             Self: Sized,
-            P: FnMut(Self::Item) -> bool,
+            Pp: FnMut(Self::Item) -> bool,
         {
             $crate::impl_traits!(@delegate $dispatch self, [&mut], inner => inner$(.map($map))?.position(predicate))
         }
 
         #[inline]
-        fn max_by_key<B, F>(self, f: F) -> Option<Self::Item>
+        fn max_by_key<Bb, Ff>(self, f: Ff) -> Option<Self::Item>
         where
-            B: Ord,
+            Bb: Ord,
             Self: Sized,
-            F: FnMut(&Self::Item) -> B,
+            Ff: FnMut(&Self::Item) -> Bb,
         {
             $crate::impl_traits!(@delegate $dispatch self, [], inner => inner$(.map($map))?.max_by_key(f))
         }
 
         #[inline]
-        fn max_by<F>(self, compare: F) -> Option<Self::Item>
+        fn max_by<Ff>(self, compare: Ff) -> Option<Self::Item>
         where
             Self: Sized,
-            F: FnMut(&Self::Item, &Self::Item) -> ::std::cmp::Ordering,
+            Ff: FnMut(&Self::Item, &Self::Item) -> ::std::cmp::Ordering,
         {
             $crate::impl_traits!(@delegate $dispatch self, [], inner => inner$(.map($map))?.max_by(compare))
         }
 
         #[inline]
-        fn min_by_key<B, F>(self, f: F) -> Option<Self::Item>
+        fn min_by_key<Bb, Ff>(self, f: Ff) -> Option<Self::Item>
         where
-            B: Ord,
+            Bb: Ord,
             Self: Sized,
-            F: FnMut(&Self::Item) -> B,
+            Ff: FnMut(&Self::Item) -> Bb,
         {
             $crate::impl_traits!(@delegate $dispatch self, [], inner => inner$(.map($map))?.min_by_key(f))
         }
 
         #[inline]
-        fn min_by<F>(self, compare: F) -> Option<Self::Item>
+        fn min_by<Ff>(self, compare: Ff) -> Option<Self::Item>
         where
             Self: Sized,
-            F: FnMut(&Self::Item, &Self::Item) -> ::std::cmp::Ordering,
+            Ff: FnMut(&Self::Item, &Self::Item) -> ::std::cmp::Ordering,
         {
             $crate::impl_traits!(@delegate $dispatch self, [], inner => inner$(.map($map))?.min_by(compare))
         }
 
         #[inline]
-        fn sum<S>(self) -> S
+        fn sum<Ss>(self) -> Ss
         where
             Self: Sized,
-            S: ::std::iter::Sum<Self::Item>,
+            Ss: ::std::iter::Sum<Self::Item>,
         {
             $crate::impl_traits!(@delegate $dispatch self, [], inner => inner$(.map($map))?.sum())
         }
 
         #[inline]
-        fn product<S>(self) -> S
+        fn product<Ss>(self) -> Ss
         where
             Self: Sized,
-            S: ::std::iter::Product<Self::Item>,
+            Ss: ::std::iter::Product<Self::Item>,
         {
             $crate::impl_traits!(@delegate $dispatch self, [], inner => inner$(.map($map))?.product())
         }
 
         #[inline]
-        fn is_sorted_by<F>(self, compare: F) -> bool
+        fn is_sorted_by<Ff>(self, compare: Ff) -> bool
         where
             Self: Sized,
-            F: FnMut(&Self::Item, &Self::Item) -> bool,
+            Ff: FnMut(&Self::Item, &Self::Item) -> bool,
         {
             $crate::impl_traits!(@delegate $dispatch self, [], inner => inner$(.map($map))?.is_sorted_by(compare))
         }
 
         #[inline]
-        fn is_sorted_by_key<F, K>(self, f: F) -> bool
+        fn is_sorted_by_key<Ff, Kk>(self, f: Ff) -> bool
         where
             Self: Sized,
-            F: FnMut(Self::Item) -> K,
-            K: PartialOrd,
+            Ff: FnMut(Self::Item) -> Kk,
+            Kk: PartialOrd,
         {
             $crate::impl_traits!(@delegate $dispatch self, [], inner => inner$(.map($map))?.is_sorted_by_key(f))
         }
