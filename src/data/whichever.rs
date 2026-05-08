@@ -22,7 +22,7 @@
 /// use zoe::define_whichever;
 ///
 /// define_whichever!{
-///     #[doc = "An enum representing the allowable input types"]
+///     /// An enum representing the allowable input types
 ///     pub enum AnyInput {
 ///         File(std::fs::File),
 ///         Stdin(std::io::Stdin),
@@ -39,7 +39,7 @@
 /// use zoe::define_whichever;
 ///
 /// define_whichever!{
-///     #[doc = "An enum representing iterators yielding the same value several times"]
+///     /// An enum representing iterators yielding the same value several times
 ///     pub enum AnyIterator<T> {
 ///         Once(std::iter::Once<T>),
 ///         RepeatN(std::iter::RepeatN<T>),
