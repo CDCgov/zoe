@@ -203,7 +203,7 @@ impl PhmmBacktrackFlags {
         let prev_state = prev_state.into();
 
         debug_assert!(prev_state.0 < 4);
-        debug_assert!(self.0 & 0b00_00_00_11 == 0);
+        debug_assert_eq!(self.0 & 0b00_00_00_11, 0);
 
         self.0 |= prev_state.0;
     }
@@ -217,7 +217,7 @@ impl PhmmBacktrackFlags {
         let prev_state = prev_state.into();
 
         debug_assert!(prev_state.0 < 4);
-        debug_assert!(self.0 & 0b00_00_11_00 == 0);
+        debug_assert_eq!(self.0 & 0b00_00_11_00, 0);
 
         self.0 |= prev_state.0.wrapping_shl(2);
     }
@@ -231,7 +231,7 @@ impl PhmmBacktrackFlags {
         let prev_state = prev_state.into();
 
         debug_assert!(prev_state.0 < 4);
-        debug_assert!(self.0 & 0b00_11_00_00 == 0);
+        debug_assert_eq!(self.0 & 0b00_11_00_00, 0);
 
         self.0 |= prev_state.0.wrapping_shl(4);
     }

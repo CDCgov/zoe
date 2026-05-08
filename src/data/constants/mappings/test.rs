@@ -53,11 +53,11 @@ fn gc_self_test() {
 fn test_dna_map() {
     for i in 0..=255 {
         match i {
-            b'A' | b'a' => assert!(DNA_PROFILE_MAP.to_index(i) == 0),
-            b'C' | b'c' => assert!(DNA_PROFILE_MAP.to_index(i) == 1),
-            b'G' | b'g' => assert!(DNA_PROFILE_MAP.to_index(i) == 2),
-            b'T' | b't' | b'U' | b'u' => assert!(DNA_PROFILE_MAP.to_index(i) == 3),
-            _ => assert!(DNA_PROFILE_MAP.to_index(i) == 4),
+            b'A' | b'a' => assert_eq!(DNA_PROFILE_MAP.to_index(i), 0),
+            b'C' | b'c' => assert_eq!(DNA_PROFILE_MAP.to_index(i), 1),
+            b'G' | b'g' => assert_eq!(DNA_PROFILE_MAP.to_index(i), 2),
+            b'T' | b't' | b'U' | b'u' => assert_eq!(DNA_PROFILE_MAP.to_index(i), 3),
+            _ => assert_eq!(DNA_PROFILE_MAP.to_index(i), 4),
         }
     }
 }
@@ -76,10 +76,10 @@ fn test_def_a_map() {
     const DEF_A_MAP: ByteIndexMap<4> = ByteIndexMap::new_ignoring_case(*b"ACGT", b'A').add_synonym_ignore_case(b'U', b'T');
     for i in 0..=255 {
         match i {
-            b'C' | b'c' => assert!(DEF_A_MAP.to_index(i) == 1),
-            b'G' | b'g' => assert!(DEF_A_MAP.to_index(i) == 2),
-            b'T' | b't' | b'U' | b'u' => assert!(DEF_A_MAP.to_index(i) == 3),
-            _ => assert!(DEF_A_MAP.to_index(i) == 0),
+            b'C' | b'c' => assert_eq!(DEF_A_MAP.to_index(i), 1),
+            b'G' | b'g' => assert_eq!(DEF_A_MAP.to_index(i), 2),
+            b'T' | b't' | b'U' | b'u' => assert_eq!(DEF_A_MAP.to_index(i), 3),
+            _ => assert_eq!(DEF_A_MAP.to_index(i), 0),
         }
     }
 }
@@ -92,16 +92,16 @@ fn test_case_sensitive() {
 
     for i in 0..=255 {
         match i {
-            b'A' => assert!(DNA_MAP.to_index(i) == 0),
-            b'C' => assert!(DNA_MAP.to_index(i) == 1),
-            b'G' => assert!(DNA_MAP.to_index(i) == 2),
-            b'T' | b'U' => assert!(DNA_MAP.to_index(i) == 3),
-            b'a' => assert!(DNA_MAP.to_index(i) == 5),
-            b'c' => assert!(DNA_MAP.to_index(i) == 6),
-            b'g' => assert!(DNA_MAP.to_index(i) == 7),
-            b't' | b'u' => assert!(DNA_MAP.to_index(i) == 8),
-            b'n' => assert!(DNA_MAP.to_index(i) == 9),
-            _ => assert!(DNA_MAP.to_index(i) == 4),
+            b'A' => assert_eq!(DNA_MAP.to_index(i), 0),
+            b'C' => assert_eq!(DNA_MAP.to_index(i), 1),
+            b'G' => assert_eq!(DNA_MAP.to_index(i), 2),
+            b'T' | b'U' => assert_eq!(DNA_MAP.to_index(i), 3),
+            b'a' => assert_eq!(DNA_MAP.to_index(i), 5),
+            b'c' => assert_eq!(DNA_MAP.to_index(i), 6),
+            b'g' => assert_eq!(DNA_MAP.to_index(i), 7),
+            b't' | b'u' => assert_eq!(DNA_MAP.to_index(i), 8),
+            b'n' => assert_eq!(DNA_MAP.to_index(i), 9),
+            _ => assert_eq!(DNA_MAP.to_index(i), 4),
         }
     }
 }
