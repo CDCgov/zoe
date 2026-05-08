@@ -109,17 +109,6 @@ macro_rules! define_whichever {
 
         $($impl_stuff:tt)*
     ) => {
-        #[doc(hidden)]
-        macro_rules! match_macro {
-            ($value:expr, $pattern:pat => $result:expr) => {
-                match $value {
-                    $(
-                        $struct_name::$variant($pattern) => $result,
-                    )+
-                }
-            };
-        }
-
         $(#[$meta])*
         $vis enum $struct_name $(<
             $( $lifetime $(: $lifetime_bound)? ),*
@@ -135,8 +124,10 @@ macro_rules! define_whichever {
             )+
         }
 
-        $crate::impl_traits!{@match_stmt $($impl_stuff)*}
-
+        $crate::impl_traits! {
+            @[match_enum $struct_name { $($variant),+ }]
+            $($impl_stuff)*
+        }
     };
 }
 
@@ -192,7 +183,10 @@ macro_rules! define_whichever {
 #[macro_export]
 macro_rules! impl_traits {
     (impl $($tt:tt)*) => {
-        $crate::impl_traits!{@wrapper_type impl $($tt)*}
+        $crate::impl_traits! {
+            @[wrapper_type]
+            impl $($tt)*
+        }
     };
 
     (@$dispatch:tt
@@ -236,89 +230,92 @@ macro_rules! impl_traits {
             )?
             {
                 $($tt)*
-                $crate::impl_traits!{@[$dispatch $($map)?] $trait}
+
+                $crate::impl_traits! {
+                    @methods [$dispatch $($map)?] $trait
+                }
             }
         )*
     };
 
-    (@[$($dispatch:tt)*] Read) => {
+    (@methods [$dispatch:tt] Read) => {
         #[inline]
         fn read(&mut self, buf: &mut [u8]) -> ::std::io::Result<usize> {
-            $crate::impl_traits!(@[$($dispatch)*] self, [&mut], inner => inner.read(buf))
+            $crate::impl_traits!(@delegate $dispatch self, [&mut], inner => inner.read(buf))
         }
 
         #[inline]
         fn read_vectored(&mut self, bufs: &mut [::std::io::IoSliceMut<'_>]) -> ::std::io::Result<usize> {
-            $crate::impl_traits!(@[$($dispatch)*] self, [&mut], inner => inner.read_vectored(bufs))
+            $crate::impl_traits!(@delegate $dispatch self, [&mut], inner => inner.read_vectored(bufs))
         }
 
         #[inline]
         fn read_to_end(&mut self, buf: &mut ::std::vec::Vec<u8>) -> ::std::io::Result<usize> {
-            $crate::impl_traits!(@[$($dispatch)*] self, [&mut], inner => inner.read_to_end(buf))
+            $crate::impl_traits!(@delegate $dispatch self, [&mut], inner => inner.read_to_end(buf))
         }
 
         #[inline]
         fn read_to_string(&mut self, buf: &mut ::std::string::String) -> ::std::io::Result<usize> {
-            $crate::impl_traits!(@[$($dispatch)*] self, [&mut], inner => inner.read_to_string(buf))
+            $crate::impl_traits!(@delegate $dispatch self, [&mut], inner => inner.read_to_string(buf))
         }
 
         #[inline]
         fn read_exact(&mut self, buf: &mut [u8]) -> ::std::io::Result<()> {
-            $crate::impl_traits!(@[$($dispatch)*] self, [&mut], inner => inner.read_exact(buf))
+            $crate::impl_traits!(@delegate $dispatch self, [&mut], inner => inner.read_exact(buf))
         }
     };
 
-    (@[$($dispatch:tt)*] Write) => {
+    (@methods [$dispatch:tt] Write) => {
         #[inline]
         fn write(&mut self, buf: &[u8]) -> ::std::io::Result<usize> {
-            $crate::impl_traits!(@[$($dispatch)*] self, [&mut], inner => inner.write(buf))
+            $crate::impl_traits!(@delegate $dispatch self, [&mut], inner => inner.write(buf))
         }
 
         #[inline]
         fn flush(&mut self) -> ::std::io::Result<()> {
-            $crate::impl_traits!(@[$($dispatch)*] self, [&mut], inner => inner.flush())
+            $crate::impl_traits!(@delegate $dispatch self, [&mut], inner => inner.flush())
         }
 
         #[inline]
         fn write_vectored(&mut self, bufs: &[::std::io::IoSlice<'_>]) -> ::std::io::Result<usize> {
-            $crate::impl_traits!(@[$($dispatch)*] self, [&mut], inner => inner.write_vectored(bufs))
+            $crate::impl_traits!(@delegate $dispatch self, [&mut], inner => inner.write_vectored(bufs))
         }
 
         #[inline]
         fn write_all(&mut self, buf: &[u8]) -> ::std::io::Result<()> {
-            $crate::impl_traits!(@[$($dispatch)*] self, [&mut], inner => inner.write_all(buf))
+            $crate::impl_traits!(@delegate $dispatch self, [&mut], inner => inner.write_all(buf))
         }
 
         #[inline]
         fn write_fmt(&mut self, fmt: ::std::fmt::Arguments<'_>) -> ::std::io::Result<()> {
-            $crate::impl_traits!(@[$($dispatch)*] self, [&mut], inner => inner.write_fmt(fmt))
+            $crate::impl_traits!(@delegate $dispatch self, [&mut], inner => inner.write_fmt(fmt))
         }
     };
 
-    (@[$dispatch:tt $($map:expr)?] Iterator) => {
+    (@methods [$dispatch:tt $($map:expr)?] Iterator) => {
         #[inline]
         fn next(&mut self) -> Option<Self::Item> {
-            $crate::impl_traits!(@[$dispatch] self, [&mut], inner => inner.next()$(.map($map))?)
+            $crate::impl_traits!(@delegate $dispatch self, [&mut], inner => inner.next()$(.map($map))?)
         }
 
         #[inline]
         fn size_hint(&self) -> (usize, Option<usize>) {
-            $crate::impl_traits!(@[$dispatch] self, [&], inner => inner.size_hint())
+            $crate::impl_traits!(@delegate $dispatch self, [&], inner => inner.size_hint())
         }
 
         #[inline]
         fn count(self) -> usize {
-            $crate::impl_traits!(@[$dispatch] self, [], inner => inner.count())
+            $crate::impl_traits!(@delegate $dispatch self, [], inner => inner.count())
         }
 
         #[inline]
         fn last(self) -> Option<Self::Item> {
-            $crate::impl_traits!(@[$dispatch] self, [], inner => inner.last()$(.map($map))?)
+            $crate::impl_traits!(@delegate $dispatch self, [], inner => inner.last()$(.map($map))?)
         }
 
         #[inline]
         fn nth(&mut self, n: usize) -> Option<Self::Item> {
-            $crate::impl_traits!(@[$dispatch] self, [&mut], inner => inner.nth(n)$(.map($map))?)
+            $crate::impl_traits!(@delegate $dispatch self, [&mut], inner => inner.nth(n)$(.map($map))?)
         }
 
         #[inline]
@@ -327,7 +324,7 @@ macro_rules! impl_traits {
             Self: Sized,
             F: FnMut(Self::Item),
         {
-            $crate::impl_traits!(@[$dispatch] self, [], inner => inner$(.map($map))?.for_each(f))
+            $crate::impl_traits!(@delegate $dispatch self, [], inner => inner$(.map($map))?.for_each(f))
         }
 
         #[inline]
@@ -336,7 +333,7 @@ macro_rules! impl_traits {
             B: FromIterator<Self::Item>,
             Self: Sized,
         {
-            $crate::impl_traits!(@[$dispatch] self, [], inner => inner$(.map($map))?.collect())
+            $crate::impl_traits!(@delegate $dispatch self, [], inner => inner$(.map($map))?.collect())
         }
 
         #[inline]
@@ -346,7 +343,7 @@ macro_rules! impl_traits {
             B: Default + Extend<Self::Item>,
             F: FnMut(&Self::Item) -> bool,
         {
-            $crate::impl_traits!(@[$dispatch] self, [], inner => inner$(.map($map))?.partition(f))
+            $crate::impl_traits!(@delegate $dispatch self, [], inner => inner$(.map($map))?.partition(f))
         }
 
         #[inline]
@@ -356,7 +353,7 @@ macro_rules! impl_traits {
             F: FnMut(B, Self::Item) -> R,
             R: ::std::ops::Try<Output = B>,
         {
-            $crate::impl_traits!(@[$dispatch] self, [&mut], inner => inner$(.map($map))?.try_fold(init, f))
+            $crate::impl_traits!(@delegate $dispatch self, [&mut], inner => inner$(.map($map))?.try_fold(init, f))
         }
 
         #[inline]
@@ -366,7 +363,7 @@ macro_rules! impl_traits {
             F: FnMut(Self::Item) -> R,
             R: ::std::ops::Try<Output = ()>,
         {
-            $crate::impl_traits!(@[$dispatch] self, [&mut], inner => inner$(.map($map))?.try_for_each(f))
+            $crate::impl_traits!(@delegate $dispatch self, [&mut], inner => inner$(.map($map))?.try_for_each(f))
         }
 
         #[inline]
@@ -375,7 +372,7 @@ macro_rules! impl_traits {
             Self: Sized,
             F: FnMut(B, Self::Item) -> B,
         {
-            $crate::impl_traits!(@[$dispatch] self, [], inner => inner$(.map($map))?.fold(init, f))
+            $crate::impl_traits!(@delegate $dispatch self, [], inner => inner$(.map($map))?.fold(init, f))
         }
 
         #[inline]
@@ -384,7 +381,7 @@ macro_rules! impl_traits {
             Self: Sized,
             F: FnMut(Self::Item, Self::Item) -> Self::Item,
         {
-            $crate::impl_traits!(@[$dispatch] self, [], inner => inner$(.map($map))?.reduce(f))
+            $crate::impl_traits!(@delegate $dispatch self, [], inner => inner$(.map($map))?.reduce(f))
         }
 
         #[inline]
@@ -393,7 +390,7 @@ macro_rules! impl_traits {
             Self: Sized,
             F: FnMut(Self::Item) -> bool,
         {
-            $crate::impl_traits!(@[$dispatch] self, [&mut], inner => inner$(.map($map))?.all(f))
+            $crate::impl_traits!(@delegate $dispatch self, [&mut], inner => inner$(.map($map))?.all(f))
         }
 
         #[inline]
@@ -402,7 +399,7 @@ macro_rules! impl_traits {
             Self: Sized,
             F: FnMut(Self::Item) -> bool,
         {
-            $crate::impl_traits!(@[$dispatch] self, [&mut], inner => inner$(.map($map))?.any(f))
+            $crate::impl_traits!(@delegate $dispatch self, [&mut], inner => inner$(.map($map))?.any(f))
         }
 
         #[inline]
@@ -411,7 +408,7 @@ macro_rules! impl_traits {
             Self: Sized,
             P: FnMut(&Self::Item) -> bool,
         {
-            $crate::impl_traits!(@[$dispatch] self, [&mut], inner => inner$(.map($map))?.find(predicate))
+            $crate::impl_traits!(@delegate $dispatch self, [&mut], inner => inner$(.map($map))?.find(predicate))
         }
 
         #[inline]
@@ -420,7 +417,7 @@ macro_rules! impl_traits {
             Self: Sized,
             F: FnMut(Self::Item) -> Option<B>,
         {
-            $crate::impl_traits!(@[$dispatch] self, [&mut], inner => inner$(.map($map))?.find_map(f))
+            $crate::impl_traits!(@delegate $dispatch self, [&mut], inner => inner$(.map($map))?.find_map(f))
         }
 
         #[inline]
@@ -429,7 +426,7 @@ macro_rules! impl_traits {
             Self: Sized,
             P: FnMut(Self::Item) -> bool,
         {
-            $crate::impl_traits!(@[$dispatch] self, [&mut], inner => inner$(.map($map))?.position(predicate))
+            $crate::impl_traits!(@delegate $dispatch self, [&mut], inner => inner$(.map($map))?.position(predicate))
         }
 
         #[inline]
@@ -439,7 +436,7 @@ macro_rules! impl_traits {
             Self: Sized,
             F: FnMut(&Self::Item) -> B,
         {
-            $crate::impl_traits!(@[$dispatch] self, [], inner => inner$(.map($map))?.max_by_key(f))
+            $crate::impl_traits!(@delegate $dispatch self, [], inner => inner$(.map($map))?.max_by_key(f))
         }
 
         #[inline]
@@ -448,7 +445,7 @@ macro_rules! impl_traits {
             Self: Sized,
             F: FnMut(&Self::Item, &Self::Item) -> ::std::cmp::Ordering,
         {
-            $crate::impl_traits!(@[$dispatch] self, [], inner => inner$(.map($map))?.max_by(compare))
+            $crate::impl_traits!(@delegate $dispatch self, [], inner => inner$(.map($map))?.max_by(compare))
         }
 
         #[inline]
@@ -458,7 +455,7 @@ macro_rules! impl_traits {
             Self: Sized,
             F: FnMut(&Self::Item) -> B,
         {
-            $crate::impl_traits!(@[$dispatch] self, [], inner => inner$(.map($map))?.min_by_key(f))
+            $crate::impl_traits!(@delegate $dispatch self, [], inner => inner$(.map($map))?.min_by_key(f))
         }
 
         #[inline]
@@ -467,7 +464,7 @@ macro_rules! impl_traits {
             Self: Sized,
             F: FnMut(&Self::Item, &Self::Item) -> ::std::cmp::Ordering,
         {
-            $crate::impl_traits!(@[$dispatch] self, [], inner => inner$(.map($map))?.min_by(compare))
+            $crate::impl_traits!(@delegate $dispatch self, [], inner => inner$(.map($map))?.min_by(compare))
         }
 
         #[inline]
@@ -476,7 +473,7 @@ macro_rules! impl_traits {
             Self: Sized,
             S: ::std::iter::Sum<Self::Item>,
         {
-            $crate::impl_traits!(@[$dispatch] self, [], inner => inner$(.map($map))?.sum())
+            $crate::impl_traits!(@delegate $dispatch self, [], inner => inner$(.map($map))?.sum())
         }
 
         #[inline]
@@ -485,7 +482,7 @@ macro_rules! impl_traits {
             Self: Sized,
             S: ::std::iter::Product<Self::Item>,
         {
-            $crate::impl_traits!(@[$dispatch] self, [], inner => inner$(.map($map))?.product())
+            $crate::impl_traits!(@delegate $dispatch self, [], inner => inner$(.map($map))?.product())
         }
 
         #[inline]
@@ -494,7 +491,7 @@ macro_rules! impl_traits {
             Self: Sized,
             F: FnMut(&Self::Item, &Self::Item) -> bool,
         {
-            $crate::impl_traits!(@[$dispatch] self, [], inner => inner$(.map($map))?.is_sorted_by(compare))
+            $crate::impl_traits!(@delegate $dispatch self, [], inner => inner$(.map($map))?.is_sorted_by(compare))
         }
 
         #[inline]
@@ -504,15 +501,19 @@ macro_rules! impl_traits {
             F: FnMut(Self::Item) -> K,
             K: PartialOrd,
         {
-            $crate::impl_traits!(@[$dispatch] self, [], inner => inner$(.map($map))?.is_sorted_by_key(f))
+            $crate::impl_traits!(@delegate $dispatch self, [], inner => inner$(.map($map))?.is_sorted_by_key(f))
         }
     };
 
-    (@[match_stmt] $value:expr, [$($reference:tt)*], $pattern:pat => $result:expr) => {
-        match_macro!($value, $pattern => $result)
+    (@delegate [match_enum $enum_name:ident { $($variant:ident),+ }] $value:expr, [$($reference:tt)*], $pattern:pat => $result:expr) => {
+        match $value {
+            $(
+                $enum_name::$variant($pattern) => $result,
+            )+
+        }
     };
 
-    (@[wrapper_type] $value:expr, [$($reference:tt)*], $pattern:pat => $result:expr) => {
+    (@delegate [wrapper_type] $value:expr, [$($reference:tt)*], $pattern:pat => $result:expr) => {
         {
             let $pattern = $($reference)* $value.0;
             $result
