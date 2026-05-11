@@ -182,31 +182,126 @@ impl Error for ErrorWithContext {
     }
 }
 
+/// A trait for types which can be used to provide error context. This is
+/// primarily designed to unify owned types, displayable types, and lazy types
+/// (e.g., closures).
+pub trait ErrorContext {
+    /// The display representation of the error context.
+    type Display: Display;
+
+    /// Converts the error context to an owned [`String`].
+    ///
+    /// When implemented on owned types like [`String`], this becomes zero-cost.
+    /// This is used in [`WithErrorContext::with_context`].
+    #[must_use]
+    fn to_owned(self) -> String;
+
+    /// Returns a display representation of the error.
+    ///
+    /// This avoids requiring it to be converted to a [`String`]. This is used
+    /// in [`WithErrorContext::with_path_context`].
+    #[must_use]
+    fn to_display(self) -> Self::Display;
+}
+
+impl ErrorContext for String {
+    type Display = String;
+
+    #[inline]
+    fn to_owned(self) -> String {
+        self
+    }
+
+    #[inline]
+    fn to_display(self) -> Self::Display {
+        self
+    }
+}
+
+impl<'a> ErrorContext for &'a String {
+    type Display = &'a String;
+
+    #[inline]
+    fn to_owned(self) -> String {
+        self.clone()
+    }
+
+    #[inline]
+    fn to_display(self) -> Self::Display {
+        self
+    }
+}
+
+impl<'a> ErrorContext for &'a mut String {
+    type Display = &'a mut String;
+
+    #[inline]
+    fn to_owned(self) -> String {
+        self.clone()
+    }
+
+    #[inline]
+    fn to_display(self) -> Self::Display {
+        self
+    }
+}
+
+impl<'a> ErrorContext for &'a str {
+    type Display = &'a str;
+
+    #[inline]
+    fn to_owned(self) -> String {
+        self.to_string()
+    }
+
+    #[inline]
+    fn to_display(self) -> Self::Display {
+        self
+    }
+}
+
+impl<F> ErrorContext for F
+where
+    F: FnOnce() -> String,
+{
+    type Display = String;
+
+    #[inline]
+    fn to_owned(self) -> String {
+        self()
+    }
+
+    #[inline]
+    fn to_display(self) -> Self::Display {
+        self()
+    }
+}
+
 /// An extension trait for [`Error`] allowing additional context to be added via
 /// a [`ErrorWithContext`].
 pub trait WithErrorContext {
     /// Wraps the error in an [`ErrorWithContext`] with the given description.
     ///
-    /// The `description` may be anything implementing `Into<String>`. Passing
-    /// an owned `String` avoids an extra allocation.
-    fn with_context(self, description: impl Into<String>) -> ErrorWithContext;
+    /// The `description` may be anything implementing [`ErrorContext`], which
+    /// includes `String`, `&str`, and closures returning a `String`. Passing an
+    /// owned `String` avoids an extra allocation.
+    fn with_context(self, description: impl ErrorContext) -> ErrorWithContext;
 
     /// Wraps the error in an [`ErrorWithContext`] by adding type context.
     fn with_type_context<T>(self) -> ErrorWithContext;
 
     /// Wraps the error in an [`ErrorWithContext`] by adding path context.
     ///
-    /// The context will be formatted as `msg: 'path'`. The `msg` may be
-    /// anything implementing [`Display`].
-    fn with_path_context(self, msg: impl Display, file: impl AsRef<Path>) -> ErrorWithContext;
+    /// The context will be formatted as `msg: 'path'`.
+    fn with_path_context(self, msg: impl ErrorContext, file: impl AsRef<Path>) -> ErrorWithContext;
 }
 
 impl<E: Error + Send + Sync + 'static> WithErrorContext for E {
     // Do not inline, since this is cold code
-    fn with_context(self, description: impl Into<String>) -> ErrorWithContext {
+    fn with_context(self, description: impl ErrorContext) -> ErrorWithContext {
         ErrorWithContext {
             repr: Box::new(ErrorRepr::WithContext {
-                description: description.into(),
+                description: description.to_owned(),
                 subitem:     None,
                 source:      Some(Box::new(self)),
             }),
@@ -225,8 +320,11 @@ impl<E: Error + Send + Sync + 'static> WithErrorContext for E {
     }
 
     // Do not inline, since this is cold code
-    fn with_path_context(self, msg: impl Display, file: impl AsRef<Path>) -> ErrorWithContext {
-        Self::with_context(self, format!("{msg}: '{path}'", path = file.as_ref().display()))
+    fn with_path_context(self, msg: impl ErrorContext, file: impl AsRef<Path>) -> ErrorWithContext {
+        Self::with_context(
+            self,
+            format!("{msg}: '{path}'", msg = msg.to_display(), path = file.as_ref().display()),
+        )
     }
 }
 
@@ -248,15 +346,15 @@ pub trait WithSubitem {
     ///     | Header 2: SIM:1:FCX:1:15:2345:1001 2:N:0:2
     ///   → x_pos fields did not agree!
     /// ```
-    fn with_subitem(self, message: impl Into<String>) -> ErrorWithContext;
+    fn with_subitem(self, message: impl ErrorContext) -> ErrorWithContext;
 }
 
 impl WithSubitem for ErrorWithContext {
-    fn with_subitem(mut self, message: impl Into<String>) -> ErrorWithContext {
+    fn with_subitem(mut self, message: impl ErrorContext) -> ErrorWithContext {
         let subitem = match self.repr.as_mut() {
             ErrorRepr::WithContext { subitem, .. } | ErrorRepr::NoContext { subitem, .. } => subitem,
         };
-        let message = message.into();
+        let message = message.to_owned();
         if let Some(subitem) = subitem {
             subitem.push('\n');
             subitem.push_str(&message);
@@ -279,13 +377,15 @@ pub trait ResultWithErrorContext {
     /// Wraps the [`Err`] variant in an [`ErrorWithContext`] with the given
     /// description.
     ///
-    /// The `description` may be anything implementing `Into<String>`. Passing
-    /// an owned `String` avoids an extra allocation.
+    /// The `description` may be anything implementing [`ErrorContext`], which
+    /// includes `String`, `&str`, and closures returning a `String`. Passing an
+    /// owned `String` avoids an extra allocation, while passing a closure
+    /// avoids allocating unless an error occurs.
     ///
     /// ## Errors
     ///
     /// Propagates errors in `self`, with the added context.
-    fn with_context(self, description: impl Into<String>) -> Result<Self::Ok, ErrorWithContext>;
+    fn with_context(self, description: impl ErrorContext) -> Result<Self::Ok, ErrorWithContext>;
 
     /// Wraps the [`Err`] variant in an [`ErrorWithContext`] by adding type
     /// context.
@@ -304,14 +404,14 @@ pub trait ResultWithErrorContext {
     /// ## Errors
     ///
     /// Propagates errors in `self`, with the added context.
-    fn with_path_context(self, msg: impl Display, file: impl AsRef<Path>) -> Result<Self::Ok, ErrorWithContext>;
+    fn with_path_context(self, msg: impl ErrorContext, file: impl AsRef<Path>) -> Result<Self::Ok, ErrorWithContext>;
 }
 
 impl<Ok, E: WithErrorContext> ResultWithErrorContext for Result<Ok, E> {
     type Ok = Ok;
 
     #[inline]
-    fn with_context(self, description: impl Into<String>) -> Result<Ok, ErrorWithContext> {
+    fn with_context(self, description: impl ErrorContext) -> Result<Ok, ErrorWithContext> {
         self.map_err(|e| {
             cold_path();
             e.with_context(description)
@@ -327,7 +427,7 @@ impl<Ok, E: WithErrorContext> ResultWithErrorContext for Result<Ok, E> {
     }
 
     #[inline]
-    fn with_path_context(self, msg: impl Display, file: impl AsRef<Path>) -> Result<Ok, ErrorWithContext> {
+    fn with_path_context(self, msg: impl ErrorContext, file: impl AsRef<Path>) -> Result<Ok, ErrorWithContext> {
         self.map_err(|e| {
             cold_path();
             e.with_path_context(msg, file)
@@ -356,12 +456,12 @@ pub trait ResultWithSubitem {
     ///   → x_pos fields did not agree!
     /// ```
     #[must_use]
-    fn with_subitem(self, message: impl Into<String>) -> Self;
+    fn with_subitem(self, message: impl ErrorContext) -> Self;
 }
 
 impl<T> ResultWithSubitem for Result<T, ErrorWithContext> {
     #[inline]
-    fn with_subitem(self, message: impl Into<String>) -> Self {
+    fn with_subitem(self, message: impl ErrorContext) -> Self {
         self.map_err(|e| {
             cold_path();
             e.with_subitem(message)

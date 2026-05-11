@@ -8,6 +8,10 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ### Changed
 
+- `with_context`, `with_subitem`, and `with_path_context` now accept a generic
+  `ErrorContext` instead of `Into<String>` or `Display`. Among the implementors,
+  closures are implemented so that lazy context can be used to reduce
+  allocations or extra formatting work
 - `SAMReader` no longer has a const generic boolean (which corresponded to
   deprecated and now removed functionality)
 
