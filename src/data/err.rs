@@ -2,9 +2,9 @@
 //!
 //! This module provides:
 //!
-//! - [`ErrorWithContext`], [`ResultWithErrorContext`], and [`WithErrorContext`]
-//!   for wrapping errors with additional context while preserving the error
-//!   source chain.
+//! - The error type [`ErrorWithContext`], along with the traits
+//!   [`ResultWithErrorContext`] and [`WithErrorContext`], for wrapping errors
+//!   with additional context while preserving the error source chain.
 //! - [`GetCode`], [`OrFail`], and [`Fail`] for graceful CLI error handling with
 //!   exit codes.
 //!
@@ -23,14 +23,18 @@
 //! and any runtime penalty is considered negligible compared to the algorithms
 //! being run.
 //!
-//! Internally, this context is added using the [`WithErrorContext`] and
-//! [`ResultWithErrorContext`] traits. These traits are made public so that
-//! applications can also rely on this machinery. They add context by creating a
+//! This context is added using the [`WithErrorContext`] and
+//! [`ResultWithErrorContext`] traits. They add context by creating a
 //! [`ErrorWithContext`] struct, containing the original error (boxed) as the
 //! [`Error::source`] and the context as the new top-level error, stored as a
 //! [`String`]. When used in conjuction with an error handling library such as
 //! `anyhow` or *Zoe*'s [`OrFail`] or [`Fail`] traits, the stack of errors can
 //! be displayed in an application.
+//!
+//! [`ErrorWithContext`] can also be constructed directly without a source
+//! error. In applications that are avoiding dependencies such as `anyhow` and
+//! do not want to use [`std::io::Error::other`], [`ErrorWithContext::new`] is a
+//! viable option.
 //!
 //! [`ErrorWithContext`]: crate::data::err::ErrorWithContext
 //! [`ResultWithErrorContext`]: crate::data::err::ResultWithErrorContext
@@ -198,43 +202,38 @@ where
     fn fail(self) -> ! {
         if let Ok(bin) = std::env::current_exe() {
             eprintln!("Error in {b}", b = bin.display());
-            eprintln!(
-                "  → {e}",
-                e = IndentWrapper {
-                    val:    &self,
-                    indent: "    ",
-                }
-            );
         } else {
-            eprintln!("Error: {e}", e = TopLevelErrorDisplay { err: &self });
+            eprintln!("Error in program");
         }
 
-        print_backtrace(&self);
+        print_stack(&self);
         std::process::exit(self.get_code());
     }
 
     fn die(self, msg: &str) -> ! {
         if let Ok(bin) = std::env::current_exe() {
-            eprintln!("Error in {b}: {msg}\n", b = bin.display());
+            eprintln!("Error in {b}: {msg}", b = bin.display());
         } else {
-            eprintln!("Error: {msg}\n");
+            eprintln!("Error: {msg}");
         }
 
-        eprintln!("{}", TopLevelErrorDisplay { err: &self });
-
-        print_backtrace(&self);
+        print_stack(&self);
         std::process::exit(self.get_code());
     }
 }
 
-/// A wrapper around an error with a new message, and the original error
-/// accessible via [`Error::source`].
+/// An error type supporting context and a backtrace.
 ///
-/// Additional lines of information can also be added to an [`ErrorWithContext`]
-/// using [`with_subitem`].
+/// Specifically, this error can hold up to three things:
 ///
-/// When [`unwrap_or_fail`] or [`unwrap_or_die`] is used, this will display the
-/// information for the original error as well as any subitems.
+/// 1. An optional source error message, which this error wraps. Using
+///    [`unwrap_or_fail`] or [`unwrap_or_die`] cause the source error to be
+///    shown in the backtrace. This source is accessible via [`Error::source`].
+/// 2. A line of context describing the error. This appears as one item in the
+///    [`OrFail`] backtrace.
+/// 3. Any subitems (additional indented lines with more information that appear
+///    below the line of context). This is useful for including the values of
+///    variables or other useful information.
 ///
 /// This can be converted to [`std::io::Error`] with [`Into`]. Hence, in
 /// functions returning [`std::io::Result`], the `?` operator can be used after
@@ -251,6 +250,23 @@ pub struct ErrorWithContext {
     /// the size of [`ErrorWithContext`] and hence the size of `Result<T,
     /// ErrorWithContext>`.
     repr: Box<ErrorWithContextRepr>,
+}
+
+impl ErrorWithContext {
+    /// Constructs a new [`ErrorWithContext`] with the given description,
+    /// without a source error or any subitems.
+    ///
+    /// The `description` may be anything implementing `Into<String>`. Passing
+    /// an owned `String` avoids an extra allocation.
+    pub fn new(description: impl Into<String>) -> Self {
+        ErrorWithContext {
+            repr: Box::new(ErrorWithContextRepr {
+                description: description.into(),
+                subitem:     None,
+                source:      None,
+            }),
+        }
+    }
 }
 
 /// The inner representation for an [`ErrorWithContext`]. This is wrapped in a
@@ -594,52 +610,7 @@ impl<T: Display> Display for IndentWrapper<T> {
     }
 }
 
-/// A wrapper type altering the implementation of [`Display`], designed for an
-/// unindented top-level error in the [`Fail`] backtrace.
-///
-/// If the top-level error is an [`ErrorWithContext`] (potentially wrapped in
-/// some number of [`std::io::Error`]), then the display of the subitems is
-/// indented if there are source errors.
-struct TopLevelErrorDisplay<'a> {
-    /// The error of unknown type.
-    err: &'a (dyn Error + 'static),
-}
-
-impl Display for TopLevelErrorDisplay<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // Peel away any wrapping std::io::Error
-        let mut inner = self.err;
-        while let Some(e) = inner.downcast_ref::<std::io::Error>()
-            && let Some(e) = e.get_ref()
-        {
-            inner = e;
-        }
-
-        if let Some(e) = inner.downcast_ref::<ErrorWithContext>()
-            && e.repr.source.is_some()
-        {
-            write!(f, "{}", e.repr.description)?;
-
-            if let Some(subitem) = &e.repr.subitem {
-                write!(
-                    f,
-                    "\n    | {}",
-                    IndentWrapper {
-                        val:    subitem,
-                        indent: "    | ",
-                    }
-                )?;
-            }
-
-            Ok(())
-        } else {
-            // Write the original error, not the one with std::io::Error removed
-            write!(f, "{}", self.err)
-        }
-    }
-}
-
-/// Prints the backtrace of an error using [`Error::source`].
+/// Prints an error and its backtrace using [`Error::source`].
 ///
 /// This encapsulates the shared logic between [`unwrap_or_die`] and
 /// [`unwrap_or_fail`]. Dynamic errors are used to prevent monomorphization on
@@ -648,17 +619,20 @@ impl Display for TopLevelErrorDisplay<'_> {
 /// [`unwrap_or_die`]: OrFail::unwrap_or_die
 /// [`unwrap_or_fail`]: OrFail::unwrap_or_fail
 #[cold]
-fn print_backtrace(e: &(dyn Error + 'static)) {
-    let mut source = e.source();
-    while let Some(e) = source {
+fn print_stack(err: &(dyn Error + 'static)) {
+    // Wrap the error in Some so that we don't have to write the same logic
+    // twice
+    let mut maybe_err = Some(err);
+
+    while let Some(err) = maybe_err {
         eprintln!(
-            "  → {e}",
-            e = IndentWrapper {
-                val:    e,
+            "  → {err}",
+            err = IndentWrapper {
+                val:    err,
                 indent: "    ",
             }
         );
 
-        source = e.source();
+        maybe_err = err.source();
     }
 }

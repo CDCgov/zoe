@@ -15,12 +15,14 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Adds `with_subitem` to add an indented message beneath an error
 - Adds `hamming_distance` to the `DistanceFromMatrix` trait for calculating
   Hamming distance from an existing substitution matrix
+- `ErrorWithContext` can now be constructed directly from a message with a `new` method
 
 ### Changed
 
 - Optional auxilary fields in SAM files `SamTags` is now `SamAuxRaw`.
 - `SamAuxRaw` can now be parsed into `SamAuxData` which supports all optional field types `A`, `i`, `f`, `Z`, `H`, and `B`.
 - `~` is no longer treated as a gap character when assessing partial codons. If `~` is being used to represent gaps, it should be converted to `-` or `.`.
+- The style of the backtrace has been improved for the `OrFail` and `Fail` traits
 
 ## [0.0.28] - 2026-04-29
 
