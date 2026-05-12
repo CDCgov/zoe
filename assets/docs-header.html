@@ -1,14 +1,17 @@
 <!-- Courtesy: https://github.com/victe/rust-latex-doc-minimal-example/blob/master/src/docs-header.html -->
 
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"
-    integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
+<link rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"
+    integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+"
+    crossorigin="anonymous">
 
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"
     integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg"
     crossorigin="anonymous"></script>
 
 
-<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+<script
+    src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
     integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk"
     crossorigin="anonymous"></script>
 
@@ -31,39 +34,79 @@
 -->
 
 <style>
-    /* NOTE styling - Blue */
+    :root {
+        --color-note: #008cff;
+        --color-tip: #28a745;
+        --color-important: #6f42c1;
+        --color-caution: #d73a49;
+
+        --color-note-background: #e6f4ff;
+        --color-tip-background: #e6f4ea;
+        --color-important-background: #f3e8ff;
+        --color-caution-background: #ffecec;
+    }
+
+    html[data-docs-rs-theme="dark"],
+    html[data-docs-rs-theme="ayu"] {
+        --color-note-background: #0b3d66;
+        --color-tip-background: #0f3d2e;
+        --color-important-background: #3b2a5a;
+        --color-caution-background: #5a1f24;
+    }
+
     .content .docblock .warning.note {
-        border-left: 2px solid #008cff;
+        border-left: 2px solid var(--color-note);
     }
 
     .content .docblock .warning.note::before {
-        color: #008cff;
+        color: var(--color-note);
     }
 
-    /* TIP styling - Green */
     .content .docblock .warning.tip {
-        border-left: 2px solid #28a745;
+        border-left: 2px solid var(--color-tip);
     }
 
     .content .docblock .warning.tip::before {
-        color: #28a745;
+        color: var(--color-tip);
     }
 
-    /* IMPORTANT styling - Purple */
     .content .docblock .warning.important {
-        border-left: 2px solid #6f42c1;
+        border-left: 2px solid var(--color-important);
     }
 
     .content .docblock .warning.important::before {
-        color: #6f42c1;
+        color: var(--color-important);
     }
 
-    /* CAUTION styling - Red */
     .content .docblock .warning.caution {
-        border-left: 2px solid #d73a49;
+        border-left: 2px solid var(--color-caution);
     }
 
     .content .docblock .warning.caution::before {
-        color: #d73a49;
+        color: var(--color-caution);
+    }
+
+    /* docs.rs only: override their warning palette */
+    body.rustdoc-page .content .docblock .warning.note,
+    body.rustdoc-page .content .docblock .warning.tip,
+    body.rustdoc-page .content .docblock .warning.important,
+    body.rustdoc-page .content .docblock .warning.caution {
+        color: var(--color-standard);
+    }
+
+    body.rustdoc-page .content .docblock .warning.note {
+        background-color: var(--color-note-background);
+    }
+
+    body.rustdoc-page .content .docblock .warning.tip {
+        background-color: var(--color-tip-background);
+    }
+
+    body.rustdoc-page .content .docblock .warning.important {
+        background-color: var(--color-important-background);
+    }
+
+    body.rustdoc-page .content .docblock .warning.caution {
+        background-color: var(--color-caution-background);
     }
 </style>
