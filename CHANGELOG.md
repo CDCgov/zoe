@@ -16,6 +16,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 - Optional auxilary fields in SAM files `SamTags` is now `SamAuxRaw`.
 - `SamAuxRaw` can now be parsed into `SamAuxData` which supports all optional field types `A`, `i`, `f`, `Z`, `H`, and `B`.
+- `~` is no longer treated as a gap character when assessing partial codons. If `~` is being used to represent gaps, it should be converted to `-` or `.`.
 
 ## [0.0.28] - 2026-04-29
 

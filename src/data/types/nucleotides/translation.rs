@@ -171,8 +171,7 @@ impl<T: NucleotidesReadable + Sealed> Translate for T {}
 ///
 /// - The codon does not contain three bases (which will occur if the input
 ///   sequence contains a number of bases not divisible by three).
-/// - The codon contains one or two of the characters `~`, `-`, or `.` among its
-///   three bases.
+/// - The codon contains one or two gaps (`-` or `.`).
 ///
 /// To avoid the first case of partial codons (and instead end iteration), use
 /// [`to_aa_iter_exact`] or [`to_aa_iter_exact_with`].
@@ -320,12 +319,12 @@ impl Iterator for OverlappingCodonsIter<'_> {
 impl ExactSizeIterator for OverlappingCodonsIter<'_> {}
 impl std::iter::FusedIterator for OverlappingCodonsIter<'_> {}
 
-/// Checks whether a codon is *partial* (if it has one or two bases that are
-/// `-`, `~`, or `.`).
+/// Returns `true` if the codon is *partial*, meaning that it contains one
+/// or two gaps (`-` or `.`).
 #[inline]
 #[must_use]
 fn is_partial_codon(codon: [u8; 3]) -> bool {
-    let count: u8 = codon.iter().map(|b| u8::from(*b == b'-' || *b == b'~' || *b == b'.')).sum();
+    let count: u8 = codon.iter().map(|b| u8::from(*b == b'-' || *b == b'.')).sum();
     count == 1 || count == 2
 }
 
@@ -559,8 +558,8 @@ pub trait CodonExtension {
     #[must_use]
     fn is_resolvable_codon(&self) -> bool;
 
-    /// Returns `true` if the codon is *partial* (contains one or two gap-like
-    /// characters: `-`, `~`, or `.`).
+    /// Returns `true` if the codon is *partial*, meaning that it contains one
+    /// or two gaps (`-` or `.`).
     #[must_use]
     fn is_partial_codon(&self) -> bool;
 }
