@@ -404,6 +404,17 @@ pub fn tamura_nei_93(seq1: &[u8], seq2: &[u8]) -> Option<f64> {
 /// Substitution matrices are built from two `&[u8]` slices using
 /// [`dna_substitution_matrix`]
 pub trait DistanceFromMatrix: Sealed {
+    /// Computes the Hamming distance from the given matrix.
+    ///
+    /// ## Notes
+    ///
+    /// For faster computation, consider using [`hamming_simd`] if possible.
+    /// However, it directly compares the bytes of both sequences, whereas using
+    /// this function via a substitution matrix maps the bases to `ACGTN` first,
+    /// which may lead to different results.
+    #[must_use]
+    fn hamming_distance(&self) -> u32;
+
     /// Computes the JC69 distance from the given matrix. See
     /// [`jukes_cantor_69`] for more details.
     #[must_use]
@@ -431,6 +442,11 @@ pub trait DistanceFromMatrix: Sealed {
 }
 
 impl DistanceFromMatrix for [[u32; 4]; 4] {
+    #[inline]
+    fn hamming_distance(&self) -> u32 {
+        hamming_dist_from_sub_matrix(self)
+    }
+
     #[inline]
     fn jc69_distance(&self) -> Option<f64> {
         let total_bases: u32 = self.iter().flatten().sum();

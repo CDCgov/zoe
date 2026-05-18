@@ -8,9 +8,13 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ### Added
 
-- Adds `DnaDisambiguation` for checking whether an ambiguous residue potentially codes for an A, C, G, or T
-- Adds `maybe_stop_codon` to check whether a codon with ambiguous residues potentially codes for a stop codon
+- Adds `DnaDisambiguation` for checking whether an ambiguous residue potentially
+  codes for an A, C, G, or T
+- Adds `maybe_stop_codon` to check whether a codon with ambiguous residues
+  potentially codes for a stop codon
 - Adds `with_subitem` to add an indented message beneath an error
+- Adds `hamming_distance` to the `DistanceFromMatrix` trait for calculating
+  Hamming distance from an existing substitution matrix
 
 ### Changed
 
