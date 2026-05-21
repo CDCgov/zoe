@@ -333,15 +333,6 @@ pub trait LenInAlignment {
     /// A checked version of [`ref_len_in_alignment`], returning `None` on
     /// overflow.
     ///
-    /// <div class="warning note">
-    ///
-    /// **Note**
-    ///
-    /// You must enable the *fuzzing* feature in your `Cargo.toml` to use this
-    /// method.
-    ///
-    /// </div>
-    ///
     /// [`ref_len_in_alignment`]: LenInAlignment::ref_len_in_alignment
     #[must_use]
     #[cfg(feature = "fuzzing")]
@@ -349,15 +340,6 @@ pub trait LenInAlignment {
 
     /// A checked version of [`query_len_in_alignment`], returning `None` on
     /// overflow.
-    ///
-    /// <div class="warning note">
-    ///
-    /// **Note**
-    ///
-    /// You must enable the *fuzzing* feature in your `Cargo.toml` to use this
-    /// method.
-    ///
-    /// </div>
     ///
     /// [`query_len_in_alignment`]: LenInAlignment::query_len_in_alignment
     #[must_use]

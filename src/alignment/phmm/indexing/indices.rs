@@ -1,18 +1,10 @@
 //! Structs and traits to enable more readable/correct indexing into
 //! pHMM-related data structures.
-//!
-//! <div class="warning note">
-//!
-//! **Note**
-//!
-//! You must enable the *alignment-diagnostics* feature in your `Cargo.toml` to
-//! use these functions.
-//!
-//! </div>
 
 use crate::{
     alignment::phmm::{
-        CorePhmm, DomainPhmm, GetCore, GetLayer, GlobalPhmm, LocalPhmm, SemiLocalPhmm,
+        CorePhmm, DomainPhmm, GlobalPhmm, LocalPhmm, SemiLocalPhmm,
+        indexing::{GetCore, GetLayer},
         modules::{PrecomputedDomainModule, PrecomputedLocalModule, SemiLocalModule},
     },
     data::views::IndexAdjustable,
@@ -313,6 +305,7 @@ pub trait PhmmIndex: Copy {
     /// `DpIndex(0)`), then this will panic.
     #[inline]
     #[must_use]
+    #[allow(dead_code)]
     fn prev_index(self, phmm: &impl PhmmIndexable) -> DpIndex {
         DpIndex(phmm.get_dp_index(self) - 1)
     }
@@ -333,6 +326,7 @@ pub trait PhmmIndex: Copy {
     /// No bounds checking is performed.
     #[inline]
     #[must_use]
+    #[allow(dead_code)]
     fn min_index(self, other: impl PhmmIndex, phmm: &impl PhmmIndexable) -> DpIndex {
         phmm.to_dp_index(self).min(phmm.to_dp_index(other))
     }
@@ -343,6 +337,7 @@ pub trait PhmmIndex: Copy {
     /// No bounds checking is performed.
     #[inline]
     #[must_use]
+    #[allow(dead_code)]
     fn max_index(self, other: impl PhmmIndex, phmm: &impl PhmmIndexable) -> DpIndex {
         phmm.to_dp_index(self).max(phmm.to_dp_index(other))
     }
@@ -352,6 +347,7 @@ pub trait PhmmIndex: Copy {
     /// No bounds checking is performed.
     #[inline]
     #[must_use]
+    #[allow(dead_code)]
     fn eq_index(self, other: impl PhmmIndex, phmm: &impl PhmmIndexable) -> bool {
         phmm.to_dp_index(self) == phmm.to_dp_index(other)
     }

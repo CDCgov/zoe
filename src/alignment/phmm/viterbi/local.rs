@@ -2,11 +2,17 @@ use super::ViterbiTraceback;
 use crate::alignment::{
     Alignment, AlignmentStates,
     phmm::{
-        GetLayer, GetModule, InvalidModelError, LayerParams, LocalPhmm, PhmmBacktrackFlags, PhmmError, PhmmNumber,
-        PhmmState::{self, Delete, Insert, Match},
-        PhmmStateOrEnter, PhmmTracebackState, best_state_or_enter,
-        indexing::{Begin, DpIndex, End, LastBase, LastMatch, PhmmIndex, PhmmIndexable, QueryIndex, QueryIndexable},
+        InvalidModelError, LayerParams, LocalPhmm, PhmmError, PhmmNumber,
+        indexing::{
+            Begin, DpIndex, End, GetLayer, GetModule, LastBase, LastMatch, PhmmIndex, PhmmIndexable, QueryIndex,
+            QueryIndexable,
+        },
         modules::PrecomputedLocalModule,
+        state::{
+            PhmmBacktrackFlags,
+            PhmmState::{self, Delete, Insert, Match},
+            PhmmStateOrEnter, PhmmTracebackState, best_state_or_enter,
+        },
         viterbi::{ExitLocation, update_delete, update_insert},
     },
 };
@@ -47,7 +53,7 @@ impl<T: PhmmNumber> LocalBestScore<T> {
         &mut self, layer: &LayerParams<T, S>, mut match_val: T, mut delete_val: T, mut insert_val: T, i: impl QueryIndex,
         seq: &[u8], begin: &PrecomputedLocalModule<T, S>, end: &PrecomputedLocalModule<T, S>,
     ) {
-        use crate::alignment::phmm::PhmmState::*;
+        use crate::alignment::phmm::state::PhmmState::*;
 
         // Option 1: Early exit from this layer
         self.update(match_val, i, LastMatch, seq, end);

@@ -396,15 +396,6 @@ use super::*;
 /// ## Panics
 ///
 /// - All increments must be nonzero.
-///
-/// <div class="warning note">
-///
-/// **Note**
-///
-/// You must enable the *alignment-diagnostics* feature in your `Cargo.toml` to
-/// access this function.
-///
-/// </div>
 #[cfg(feature = "alignment-diagnostics")]
 pub fn sw_score_from_path<const S: usize>(
     ciglets: impl IntoIterator<Item = crate::data::types::cigar::Ciglet>, ref_in_alignment: &[u8], query: &ScalarProfile<S>,

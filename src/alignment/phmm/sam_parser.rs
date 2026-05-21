@@ -4,15 +4,11 @@
 
 use crate::{
     alignment::phmm::{
-        CorePhmm, EmissionParams, GetLayer, GlobalPhmm, LayerParams, PhmmNumber,
-        PhmmState::{self, *},
-        TransitionParams,
-        indexing::PhmmIndexable,
+        CorePhmm, EmissionParams, GlobalPhmm, LayerParams, PhmmNumber, TransitionParams,
+        indexing::{GetLayer, PhmmIndexable},
+        state::PhmmState::{self, *},
     },
-    data::{
-        mappings::ByteIndexMap,
-        mappings::{AA_UNAMBIG_PROFILE_MAP, DNA_UNAMBIG_PROFILE_MAP},
-    },
+    data::mappings::{AA_UNAMBIG_PROFILE_MAP, ByteIndexMap, DNA_UNAMBIG_PROFILE_MAP},
     unwrap_or_return_some_err,
 };
 use std::{
@@ -86,19 +82,10 @@ impl SamHmmParser {
 /// A struct providing methods for parsing a [`GlobalPhmm`] from a SAM (sequence
 /// alignment and modeling system) model file, using type `T` to represent all
 /// model parameters.
-///
-/// <div class="warning note">
-///
-/// **Note**
-///
-/// You must enable the *alignment-diagnostics* feature in your `Cargo.toml` to
-/// access this struct.
-///
-/// </div>
-#[allow(dead_code)]
-#[cfg_attr(feature = "alignment-diagnostics", visibility::make(pub))]
-struct GenericSamHmmParser<T>(PhantomData<T>);
+#[cfg(feature = "alignment-diagnostics")]
+pub struct GenericSamHmmParser<T>(PhantomData<T>);
 
+#[cfg(feature = "alignment-diagnostics")]
 impl<T: PhmmNumber> GenericSamHmmParser<T> {
     /// Parses a DNA pHMM from SAM model specifications in a type implementing
     /// [`Read`].
@@ -109,7 +96,6 @@ impl<T: PhmmNumber> GenericSamHmmParser<T> {
     /// - The data must be a model (not a regularizer or null model)
     /// - The specified alphabet must be `dna`
     /// - No negative indices are allowed in layer names
-    #[allow(dead_code)]
     pub fn dna_hmm_from_readable<R: Read>(read: R) -> std::io::Result<GlobalPhmm<T, 4>> {
         SupportedConfig::parse_sam_model(read)
     }
@@ -123,7 +109,6 @@ impl<T: PhmmNumber> GenericSamHmmParser<T> {
     /// - The data must be a model (not a regularizer or null model)
     /// - The specified alphabet must be `dna`
     /// - No negative indices are allowed in layer names
-    #[allow(dead_code)]
     pub fn dna_hmm_from_path(path: impl AsRef<Path>) -> std::io::Result<GlobalPhmm<T, 4>> {
         SupportedConfig::parse_sam_model(File::open(path)?)
     }
@@ -138,7 +123,6 @@ impl<T: PhmmNumber> GenericSamHmmParser<T> {
     /// - The data must be a model (not a regularizer or null model)
     /// - The specified alphabet must be `protein`
     /// - No negative indices are allowed in layer names
-    #[allow(dead_code)]
     pub fn protein_hmm_from_readable<R: Read>(read: R) -> std::io::Result<GlobalPhmm<T, 20>> {
         SupportedConfig::parse_sam_model(read)
     }
@@ -152,7 +136,6 @@ impl<T: PhmmNumber> GenericSamHmmParser<T> {
     /// - The data must be a model (not a regularizer or null model)
     /// - The specified alphabet must be `protein`
     /// - No negative indices are allowed in layer names
-    #[allow(dead_code)]
     pub fn protein_hmm_from_path(path: impl AsRef<Path>) -> std::io::Result<GlobalPhmm<T, 20>> {
         SupportedConfig::parse_sam_model(File::open(path)?)
     }
@@ -278,7 +261,10 @@ trait SamHmmConfig<const S: usize, const L: usize> {
         last_layer.emission_match = EmissionParams::default();
 
         // Validity: We already verified `layers` has at least two entries
-        Ok(GlobalPhmm::new(mapping, CorePhmm::new_unchecked(layers)))
+        Ok(GlobalPhmm {
+            mapping,
+            core: CorePhmm::new_unchecked(layers),
+        })
     }
 
     /// Write a global pHMM to a file, following the SAM format.

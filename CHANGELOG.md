@@ -14,6 +14,10 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - The trait bounds for `get_variants` have been simplified
 - Constructors for nucleotides, amino acids, quality scores, and CIGAR strings are `const`
 
+### Removed
+
+- The `visibility` optional dependency has been removed, in favor of module reorganization and manually applying `cfg`
+
 ## [0.0.29] - 2026-06-02
 
 ### Added

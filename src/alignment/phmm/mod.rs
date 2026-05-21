@@ -13,15 +13,6 @@
 //! functionality, please raise an issue (supporting it will require more
 //! careful handling of NaNs and negative infinity values).
 //!
-//! <div class="warning note">
-//!
-//! **Note**
-//!
-//! You must enable the *dev-phmm* feature in your `Cargo.toml` to use these
-//! functions. They are in active development and are not complete.
-//!
-//! </div>
-//!
 //! [`SamHmmParser`]: sam_parser::SamHmmParser
 
 use crate::math::{CastAs, CastAsNumeric, CastFrom, CastFromNumeric, Float};
@@ -34,16 +25,15 @@ mod errors;
 mod models;
 pub mod modules;
 pub mod sam_parser;
-mod state;
+pub(crate) mod state;
 mod traits;
 mod viterbi;
 
-#[cfg(not(feature = "alignment-diagnostics"))]
-mod editing;
 #[cfg(feature = "alignment-diagnostics")]
 pub mod editing;
 
 #[cfg(not(feature = "alignment-diagnostics"))]
+#[doc(auto_cfg(hide(feature = "alignment-diagnostics")))]
 pub(crate) mod indexing;
 #[cfg(feature = "alignment-diagnostics")]
 pub mod indexing;
@@ -52,6 +42,7 @@ pub mod indexing;
 pub mod score_from_path;
 
 #[cfg(not(feature = "alignment-diagnostics"))]
+#[doc(auto_cfg(hide(feature = "alignment-diagnostics")))]
 pub(crate) mod views;
 #[cfg(feature = "alignment-diagnostics")]
 pub mod views;
@@ -62,8 +53,8 @@ pub mod visit_params;
 pub use errors::*;
 pub use models::*;
 
-#[cfg_attr(feature = "alignment-diagnostics", visibility::make(pub))]
-pub(crate) use state::*;
+#[cfg(feature = "alignment-diagnostics")]
+pub use state::*;
 
 /// A trait for numeric types compatible with pHMMs.
 ///

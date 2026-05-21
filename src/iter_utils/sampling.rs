@@ -72,15 +72,6 @@
 //! assert_eq!(downsampled.len(), target);
 //! ```
 //!
-//! <div class="warning note">
-//!
-//! **Note**
-//!
-//! You must enable the *rand* feature in your `Cargo.toml` to use these
-//! functions. This feature is enabled by default.
-//!
-//! </div>
-//!
 //! [`downsample_known_size`]: DownsampleKnownSize::downsample_known_size
 //! [`downsample_bernoulli`]: DownsampleBernoulli::downsample_bernoulli
 

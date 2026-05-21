@@ -1,13 +1,4 @@
 //! Functions for calculating the score of a given alignment in a pHMM.
-//!
-//! <div class="warning note">
-//!
-//! **Note**
-//!
-//! You must enable the *alignment-diagnostics* feature in your `Cargo.toml` to
-//! use these functions.
-//!
-//! </div>
 
 use crate::alignment::{
     AlignmentStates,

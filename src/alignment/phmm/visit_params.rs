@@ -3,23 +3,15 @@
 //!
 //! See [`GlobalPhmm::visit_params`], [`LocalPhmm::visit_params`],
 //! [`SemiLocalPhmm::visit_params`], and [`DomainPhmm::visit_params`].
-//!
-//! <div class="warning note">
-//!
-//! **Note**
-//!
-//! You must enable the *alignment-diagnostics* feature in your `Cargo.toml` to
-//! use these methods.
-//!
-//! </div>
 
 use crate::{
     alignment::{
         StatesSequence,
         phmm::{
-            CorePhmm, DomainPhmm, GetCore, GetLayer, GetModule, GlobalPhmm, LocalPhmm, PhmmError, PhmmNumber, PhmmState,
-            SemiLocalPhmm,
-            indexing::{Begin, DpIndex, End, FirstMatch, LastMatch, PhmmIndex, PhmmIndexable, SeqIndex},
+            CorePhmm, DomainPhmm, GlobalPhmm, LocalPhmm, PhmmError, PhmmNumber, PhmmState, SemiLocalPhmm,
+            indexing::{
+                Begin, DpIndex, End, FirstMatch, GetCore, GetLayer, GetModule, LastMatch, PhmmIndex, PhmmIndexable, SeqIndex,
+            },
             modules::{DomainModule, SemiLocalModule},
         },
     },
@@ -679,15 +671,6 @@ impl<T: PhmmNumber, const S: usize> GlobalPhmm<T, S> {
     /// The CIGAR string must consume the entire model and sequence, and the
     /// only supported operations are `M`, `=`, `X`, `I`, and `D`.
     ///
-    /// <div class="warning note">
-    ///
-    /// **Note**
-    ///
-    /// You must enable the *alignment-diagnostics* feature in your `Cargo.toml`
-    /// to use this method.
-    ///
-    /// </div>
-    ///
     /// [`viterbi`]: GlobalPhmm::viterbi
     pub fn visit_params<Q, A, F>(&self, seq: Q, alignment: A, f: F) -> Result<T, PhmmError>
     where
@@ -776,15 +759,6 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
     /// only supported operations are `M`, `=`, `X`, `I`, and `D`. If `path`
     /// does not correspond to a valid path through a [`LocalPhmm`], then
     /// [`PhmmError::InvalidPath`] is returned.
-    ///
-    /// <div class="warning note">
-    ///
-    /// **Note**
-    ///
-    /// You must enable the *alignment-diagnostics* feature in your `Cargo.toml`
-    /// to use this method.
-    ///
-    /// </div>
     ///
     /// [`viterbi`]: LocalPhmm::viterbi
     #[allow(clippy::too_many_lines)]
@@ -1027,15 +1001,6 @@ impl<T: PhmmNumber, const S: usize> DomainPhmm<T, S> {
     /// does not correspond to a valid path through a [`DomainPhmm`], then
     /// [`PhmmError::InvalidPath`] is returned.
     ///
-    /// <div class="warning note">
-    ///
-    /// **Note**
-    ///
-    /// You must enable the *alignment-diagnostics* feature in your `Cargo.toml`
-    /// to use this method.
-    ///
-    /// </div>
-    ///
     /// [`viterbi`]: DomainPhmm::viterbi
     pub fn visit_params<Q, A, F>(&self, seq: Q, alignment: A, f: F) -> Result<T, PhmmError>
     where
@@ -1155,15 +1120,6 @@ impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
     /// only supported operations are `M`, `=`, `X`, `I`, and `D`. If `path`
     /// does not correspond to a valid path through a [`SemiLocalPhmm`], then
     /// [`PhmmError::InvalidPath`] is returned.
-    ///
-    /// <div class="warning note">
-    ///
-    /// **Note**
-    ///
-    /// You must enable the *alignment-diagnostics* feature in your `Cargo.toml`
-    /// to use this method.
-    ///
-    /// </div>
     ///
     /// [`viterbi`]: SemiLocalPhmm::viterbi
     pub fn visit_params<Q, A, F>(&self, seq: Q, alignment: A, ref_range: Range<usize>, f: F) -> Result<T, PhmmError>

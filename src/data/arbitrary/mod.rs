@@ -29,14 +29,6 @@
 //! 5. Call [`ArbitrarySpecs::make_arbitrary`] on the specifications struct to
 //!    generate the arbitrary data.
 //!
-//! <div class="warning note">
-//!
-//! **Note**
-//!
-//! You must enable the *fuzzing* feature in your `Cargo.toml` to use this API.
-//!
-//! </div>
-//!
 //! [`QualityScores`]: crate::prelude::QualityScores
 //! [`ThreeBitKmerSet`]: crate::kmer::encoders::three_bit::ThreeBitKmerSet
 

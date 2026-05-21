@@ -1,12 +1,12 @@
+use rand_xoshiro::{
+    Xoshiro256PlusPlus,
+    rand_core::{Rng, SeedableRng},
+};
+
 /// Generate a random sequence from alphabet `alpha` with length `length` and a
-/// random seed `seed`. Requires `rand` feature to be enabled.
+/// random seed `seed`.
 #[must_use]
 pub fn rand_sequence(alpha: &[u8], length: usize, seed: u64) -> Vec<u8> {
-    use rand_xoshiro::{
-        Xoshiro256PlusPlus,
-        rand_core::{Rng, SeedableRng},
-    };
-
     let mut rng = Xoshiro256PlusPlus::seed_from_u64(seed);
 
     (1..=length).map(|_| alpha[rng.next_u32() as usize % alpha.len()]).collect()

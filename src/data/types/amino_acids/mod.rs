@@ -218,15 +218,6 @@ impl AminoAcids {
     ///
     /// The sequence is of the specified length, and a seed is passed for
     /// reproducibility.
-    ///
-    /// <div class="warning note">
-    ///
-    /// **Note**
-    ///
-    /// You must enable the *rand* feature in your `Cargo.toml` to use this
-    /// function.
-    ///
-    /// </div>
     #[must_use]
     #[cfg(feature = "rand")]
     pub fn generate_random_aa(length: usize, seed: u64) -> Self {

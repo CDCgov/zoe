@@ -642,15 +642,6 @@ where
 ///   same sign as `T`.
 /// - `S`: The alphabet size.
 ///
-/// <div class="warning note">
-///
-/// **Note**
-///
-/// You must enable the *dev-max-score-for-type* feature in your `Cargo.toml` to
-/// use this function. Its use case and API is still being explored.
-///
-/// </div>
-///
 /// [`WeightMatrix`]: crate::data::WeightMatrix
 #[cfg(feature = "dev-max-score-for-type")]
 pub fn max_score_for_int_type<T, U, const S: usize>(matrix: &crate::data::WeightMatrix<'_, U, S>) -> u32

@@ -1,11 +1,14 @@
 use crate::alignment::{
     Alignment, AlignmentStates,
     phmm::{
-        DomainPhmm, GetLayer, GetModule, LayerParams, PhmmBacktrackFlags, PhmmError, PhmmNumber,
-        PhmmState::{self, Delete, Insert, Match},
-        PhmmTracebackState, best_state,
-        indexing::{DpIndex, LastBase, LastMatch, PhmmIndexable, QueryIndex, QueryIndexable},
+        DomainPhmm, LayerParams, PhmmError, PhmmNumber,
+        indexing::{DpIndex, GetLayer, GetModule, LastBase, LastMatch, PhmmIndexable, QueryIndex, QueryIndexable},
         modules::PrecomputedDomainModule,
+        state::{
+            PhmmBacktrackFlags,
+            PhmmState::{self, Delete, Insert, Match},
+            PhmmTracebackState, best_state,
+        },
         viterbi::{ViterbiTraceback, update_delete, update_insert},
     },
 };
@@ -30,7 +33,7 @@ impl<T: PhmmNumber> DomainBestScore<T> {
         &mut self, layer: &LayerParams<T, S>, mut match_val: T, mut delete_val: T, mut insert_val: T, i: impl QueryIndex,
         seq: &[u8], end: &PrecomputedDomainModule<T, S>,
     ) {
-        use crate::alignment::phmm::PhmmState::*;
+        use crate::alignment::phmm::state::PhmmState::*;
 
         match_val += layer.transition[(Match, Match)];
         delete_val += layer.transition[(Delete, Match)];

@@ -1,8 +1,10 @@
 use crate::{
     alignment::phmm::{
-        CorePhmm, DomainPhmm, GetCore, GetCoreMut, GetLayer, GetLayerMut, GetModule, GetModuleMut, GetPartsMut, GlobalPhmm,
-        LayerParams, LocalPhmm, SemiLocalPhmm,
-        indexing::{PhmmIndex, PhmmIndexRange, PhmmIndexable},
+        CorePhmm, DomainPhmm, GlobalPhmm, LayerParams, LocalPhmm, SemiLocalPhmm,
+        indexing::{
+            GetCore, GetCoreMut, GetLayer, GetLayerMut, GetModule, GetModuleMut, GetPartsMut, PhmmIndex, PhmmIndexRange,
+            PhmmIndexable,
+        },
         modules::{DomainModule, LocalModule, SemiLocalModule},
     },
     data::{ByteIndexMap, views::ViewAssocTypes},
@@ -182,7 +184,10 @@ where
 {
     #[inline]
     fn to_owned_data(&self) -> Self::Owned {
-        GlobalPhmm::new(self.mapping, self.core.clone())
+        GlobalPhmm {
+            mapping: self.mapping,
+            core:    self.core.clone(),
+        }
     }
 
     #[inline]
@@ -218,7 +223,10 @@ where
 
     #[inline]
     fn to_owned_data(&self) -> Self::Owned {
-        GlobalPhmm::new(self.mapping, self.core.clone())
+        GlobalPhmm {
+            mapping: self.mapping,
+            core:    self.core.clone(),
+        }
     }
 
     #[inline]
@@ -293,7 +301,12 @@ where
 {
     #[inline]
     fn to_owned_data(&self) -> Self::Owned {
-        LocalPhmm::new(self.mapping, self.core.clone(), self.begin.clone(), self.end.clone())
+        LocalPhmm {
+            mapping: self.mapping,
+            core:    self.core.clone(),
+            begin:   self.begin.clone(),
+            end:     self.end.clone(),
+        }
     }
 
     #[inline]
@@ -335,7 +348,12 @@ where
 
     #[inline]
     fn to_owned_data(&self) -> Self::Owned {
-        LocalPhmm::new(self.mapping, self.core.clone(), self.begin.clone(), self.end.clone())
+        LocalPhmm {
+            mapping: self.mapping,
+            core:    self.core.clone(),
+            begin:   self.begin.clone(),
+            end:     self.end.clone(),
+        }
     }
 
     #[inline]
@@ -412,7 +430,12 @@ where
 {
     #[inline]
     fn to_owned_data(&self) -> Self::Owned {
-        SemiLocalPhmm::new(self.mapping, self.core.clone(), self.begin.clone(), self.end.clone())
+        SemiLocalPhmm {
+            mapping: self.mapping,
+            core:    self.core.clone(),
+            begin:   self.begin.clone(),
+            end:     self.end.clone(),
+        }
     }
 
     #[inline]
@@ -454,7 +477,12 @@ where
 
     #[inline]
     fn to_owned_data(&self) -> Self::Owned {
-        SemiLocalPhmm::new(self.mapping, self.core.clone(), self.begin.clone(), self.end.clone())
+        SemiLocalPhmm {
+            mapping: self.mapping,
+            core:    self.core.clone(),
+            begin:   self.begin.clone(),
+            end:     self.end.clone(),
+        }
     }
 
     #[inline]
@@ -531,7 +559,12 @@ where
 {
     #[inline]
     fn to_owned_data(&self) -> Self::Owned {
-        DomainPhmm::new(self.mapping, self.core.clone(), self.begin.clone(), self.end.clone())
+        DomainPhmm {
+            mapping: self.mapping,
+            core:    self.core.clone(),
+            begin:   self.begin.clone(),
+            end:     self.end.clone(),
+        }
     }
 
     #[inline]
@@ -573,7 +606,12 @@ where
 
     #[inline]
     fn to_owned_data(&self) -> Self::Owned {
-        DomainPhmm::new(self.mapping, self.core.clone(), self.begin.clone(), self.end.clone())
+        DomainPhmm {
+            mapping: self.mapping,
+            core:    self.core.clone(),
+            begin:   self.begin.clone(),
+            end:     self.end.clone(),
+        }
     }
 
     #[inline]
@@ -591,6 +629,7 @@ where
 
 /// A trait allowing a view of a global pHMM to be constructed from various
 /// other pHMMs.
+#[allow(dead_code)]
 pub trait AsGlobalView<T, const S: usize> {
     /// Interprets the pHMM as a global pHMM via [`GlobalPhmmView`].
     #[must_use]
@@ -679,6 +718,7 @@ impl<T, const S: usize> AsGlobalView<T, S> for LocalPhmmView<'_, T, S> {
 
 /// A trait allowing a view of a semilocal pHMM to be constructed from various
 /// other pHMMs.
+#[allow(dead_code)]
 pub trait AsSemiLocalView<T, const S: usize> {
     /// Interprets the pHMM as a semilocal pHMM via [`SemiLocalPhmmView`].
     fn as_semilocal_view(&self) -> SemiLocalPhmmView<'_, T, S>;
@@ -734,6 +774,7 @@ impl<T, const S: usize> AsSemiLocalView<T, S> for LocalPhmmView<'_, T, S> {
 
 /// A trait allowing a view of a domain pHMM to be constructed from various
 /// other pHMMs.
+#[allow(dead_code)]
 pub trait AsDomainView<T, const S: usize> {
     /// Interprets the pHMM as a domain pHMM via [`DomainPhmmView`].
     fn as_domain_view(&self) -> DomainPhmmView<'_, T, S>;
@@ -789,6 +830,7 @@ impl<T, const S: usize> AsDomainView<T, S> for LocalPhmmView<'_, T, S> {
 
 /// A trait allowing a view of a local pHMM to be constructed from various other
 /// pHMMs.
+#[allow(dead_code)]
 pub trait AsLocalView<T, const S: usize> {
     /// Interprets the pHMM as a local pHMM via [`LocalPhmmView`].
     fn as_local_view(&self) -> LocalPhmmView<'_, T, S>;
@@ -1305,45 +1347,18 @@ impl<T, const S: usize> SemiLocalPhmmViewMut<'_, T, S> {
 ///
 /// This is similar to [`GetModule`] but returns references with a longer
 /// lifetime.
-///
-/// <div class="warning note">
-///
-/// **Note**
-///
-/// You must enable the *alignment-diagnostics* feature in your `Cargo.toml` to
-/// use this trait.
-///
-/// </div>
-#[cfg_attr(feature = "alignment-diagnostics", visibility::make(pub))]
-pub(crate) trait GetModuleView<'a> {
+#[allow(dead_code)]
+pub trait GetModuleView<'a> {
     /// The type of the module at the beginning of the pHMM.
     type Begin;
     /// The type of the module at the end of the pHMM.
     type End;
 
     /// Returns a reference to the module at the start of the pHMM.
-    ///
-    /// <div class="warning note">
-    ///
-    /// **Note**
-    ///
-    /// You must enable the *alignment-diagnostics* feature in your `Cargo.toml`
-    /// to use this method.
-    ///
-    /// </div>
     #[must_use]
     fn begin_view(&self) -> &'a Self::Begin;
 
     /// Returns a reference to the module at the end of the pHMM.
-    ///
-    /// <div class="warning note">
-    ///
-    /// **Note**
-    ///
-    /// You must enable the *alignment-diagnostics* feature in your `Cargo.toml`
-    /// to use this method.
-    ///
-    /// </div>
     #[must_use]
     fn end_view(&self) -> &'a Self::End;
 }
@@ -1405,17 +1420,7 @@ pub(crate) trait GetCoreView<'a, T, const S: usize> {
 ///
 /// This is similar to [`GetLayer`] but returns references with a longer
 /// lifetime.
-///
-/// <div class="warning note">
-///
-/// **Note**
-///
-/// You must enable the *alignment-diagnostics* feature in your `Cargo.toml` to
-/// use this trait.
-///
-/// </div>
-#[cfg_attr(feature = "alignment-diagnostics", visibility::make(pub))]
-pub(crate) trait GetLayerView<'a, T, const S: usize>: PhmmIndexable {
+pub trait GetLayerView<'a, T, const S: usize>: PhmmIndexable {
     /// Retrieves a slice of the layers contained within the core pHMM.
     #[must_use]
     fn layers(&self) -> &'a [LayerParams<T, S>];

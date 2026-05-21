@@ -1,4 +1,8 @@
-use crate::alignment::phmm::{LayerParams, PhmmNumber, PhmmState, PhmmStateOrEnter, best_state, indexing::SeqIndex};
+use crate::alignment::phmm::{
+    LayerParams, PhmmNumber,
+    indexing::SeqIndex,
+    state::{PhmmState, PhmmStateOrEnter, best_state},
+};
 
 mod domain;
 mod global;
@@ -13,7 +17,7 @@ mod semilocal;
 fn update_insert<T: PhmmNumber, const S: usize>(
     layer: &LayerParams<T, S>, x_idx: usize, mut match_val: T, mut delete_val: T, mut insert_val: T,
 ) -> (PhmmState, T) {
-    use crate::alignment::phmm::PhmmState::*;
+    use crate::alignment::phmm::state::PhmmState::*;
 
     match_val += layer.transition[(Match, Insert)];
     delete_val += layer.transition[(Delete, Insert)];
@@ -31,7 +35,7 @@ fn update_insert<T: PhmmNumber, const S: usize>(
 fn update_delete<T: PhmmNumber, const S: usize>(
     layer: &LayerParams<T, S>, mut match_val: T, mut delete_val: T, mut insert_val: T,
 ) -> (PhmmState, T) {
-    use crate::alignment::phmm::PhmmState::*;
+    use crate::alignment::phmm::state::PhmmState::*;
 
     match_val += layer.transition[(Match, Delete)];
     delete_val += layer.transition[(Delete, Delete)];

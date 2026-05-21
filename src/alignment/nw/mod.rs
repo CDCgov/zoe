@@ -339,15 +339,6 @@ pub fn nw_scalar_align<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 /// ## Panics
 ///
 /// - All increments must be nonzero.
-///
-/// <div class="warning note">
-///
-/// **Note**
-///
-/// You must enable the *alignment-diagnostics* feature in your `Cargo.toml` to
-/// access this function.
-///
-/// </div>
 #[cfg(feature = "alignment-diagnostics")]
 #[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
 pub fn nw_score_from_path<const S: usize>(

@@ -2,10 +2,13 @@ use super::ViterbiTraceback;
 use crate::alignment::{
     Alignment, AlignmentStates,
     phmm::{
-        GetLayer, GlobalPhmm, LayerParams, PhmmBacktrackFlags, PhmmError, PhmmNumber,
-        PhmmState::{self, Delete, Insert, Match},
-        PhmmTracebackState, best_state,
-        indexing::PhmmIndexable,
+        GlobalPhmm, LayerParams, PhmmError, PhmmNumber,
+        indexing::{GetLayer, PhmmIndexable},
+        state::{
+            PhmmBacktrackFlags,
+            PhmmState::{self, Delete, Insert, Match},
+            PhmmTracebackState, best_state,
+        },
         viterbi::{update_delete, update_insert},
     },
 };
@@ -29,7 +32,7 @@ impl<T: PhmmNumber> GlobalBestScore<T> {
     fn update_seq_end_last_layer<const S: usize>(
         &mut self, layer: &LayerParams<T, S>, mut match_val: T, mut delete_val: T, mut insert_val: T,
     ) {
-        use crate::alignment::phmm::PhmmState::*;
+        use crate::alignment::phmm::state::PhmmState::*;
 
         match_val += layer.transition[(Match, Match)];
         delete_val += layer.transition[(Delete, Match)];

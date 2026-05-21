@@ -1,10 +1,13 @@
 use crate::alignment::{
     Alignment, AlignmentStates,
     phmm::{
-        GetLayer, GetModule, InvalidModelError, LayerParams, PhmmBacktrackFlags, PhmmError, PhmmNumber,
-        PhmmState::{self, Delete, Insert, Match},
-        PhmmStateOrEnter, PhmmTracebackState, SemiLocalPhmm, best_state, best_state_or_enter,
-        indexing::{Begin, DpIndex, End, LastMatch, NoBases, PhmmIndex, PhmmIndexable, QueryIndexable},
+        InvalidModelError, LayerParams, PhmmError, PhmmNumber, SemiLocalPhmm,
+        indexing::{Begin, DpIndex, End, GetLayer, GetModule, LastMatch, NoBases, PhmmIndex, PhmmIndexable, QueryIndexable},
+        state::{
+            PhmmBacktrackFlags,
+            PhmmState::{self, Delete, Insert, Match},
+            PhmmStateOrEnter, PhmmTracebackState, best_state, best_state_or_enter,
+        },
         viterbi::{ExitLocation, ViterbiTraceback, update_delete, update_insert},
     },
 };
@@ -38,7 +41,7 @@ impl<T: PhmmNumber> SemiLocalBestScore<T> {
         &mut self, layer: &LayerParams<T, S>, mut match_val: T, mut delete_val: T, mut insert_val: T,
         phmm: &SemiLocalPhmm<T, S>, seq: &[u8],
     ) {
-        use crate::alignment::phmm::PhmmState::*;
+        use crate::alignment::phmm::state::PhmmState::*;
 
         // Option 1: Early exit from this layer
         self.update_seq_end(match_val, LastMatch, phmm);

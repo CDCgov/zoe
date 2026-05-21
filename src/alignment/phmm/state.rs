@@ -3,15 +3,6 @@ use crate::alignment::phmm::{PhmmError, PhmmNumber};
 /// An enum representing the three states within each layer of a pHMM.
 ///
 /// This is used for readability when indexing.
-///
-/// <div class="warning note">
-///
-/// **Note**
-///
-/// You must enable the *alignment-diagnostics* feature in your `Cargo.toml` to
-/// access this enum.
-///
-/// </div>
 #[repr(u8)]
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum PhmmState {
@@ -30,15 +21,6 @@ impl PhmmState {
 /// addition to `Enter`.
 ///
 /// This is useful for local pHMMs.
-///
-/// <div class="warning note">
-///
-/// **Note**
-///
-/// You must enable the *alignment-diagnostics* feature in your `Cargo.toml` to
-/// access this enum.
-///
-/// </div>
 #[repr(u8)]
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum PhmmStateOrEnter {

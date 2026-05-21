@@ -34,15 +34,6 @@ pub struct SemiLocalModule<T>(pub(crate) Vec<T>);
 
 impl<T> SemiLocalModule<T> {
     /// Returns the parameters as a slice.
-    ///
-    /// <div class="warning note">
-    ///
-    /// **Note**
-    ///
-    /// You must enable the *alignment-diagnostics* feature in your `Cargo.toml`
-    /// to use this function.
-    ///
-    /// </div>
     #[inline]
     #[must_use]
     #[cfg(feature = "alignment-diagnostics")]
@@ -53,15 +44,6 @@ impl<T> SemiLocalModule<T> {
 
 impl<T: PhmmNumber> SemiLocalModule<T> {
     /// Constructs a [`SemiLocalModule`] from a slice of parameters.
-    ///
-    /// <div class="warning note">
-    ///
-    /// **Note**
-    ///
-    /// You must enable the *alignment-diagnostics* feature in your `Cargo.toml`
-    /// to use this function.
-    ///
-    /// </div>
     #[cfg(feature = "alignment-diagnostics")]
     pub fn from_slice(params: &[T]) -> Self {
         Self(params.to_vec())
