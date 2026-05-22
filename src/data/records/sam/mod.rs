@@ -203,11 +203,14 @@ impl SamData {
     ///
     /// The sequence and quality fields are set to `*`, `POS` is set to 0,
     /// `MAPQ` is set to 255, and the CIGAR string is empty.
-    fn unmapped(qname: &str, rname: &str) -> Self {
+    #[inline]
+    #[must_use]
+    pub fn unmapped(qname: &str, rname: &str) -> Self {
         // In the context of an unmapped `SamData` record, this should not be
         // misinterpreted
         let seq = Nucleotides::from(b"*");
-        let qual = QualityScores::try_from(b"*").unwrap();
+        // Safety: * is graphic ascii
+        let qual = unsafe { QualityScores::from_vec_unchecked(b"*".to_vec()) };
         Self::new(qname.to_string(), 4, rname.to_string(), 0, 255, Cigar::new(), seq, qual)
     }
 

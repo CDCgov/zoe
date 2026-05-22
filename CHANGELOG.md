@@ -16,6 +16,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Adds `hamming_distance` to the `DistanceFromMatrix` trait for calculating
   Hamming distance from an existing substitution matrix
 - `ErrorWithContext` can now be constructed directly from a message with a `new` method
+- Adds `SamData::unmapped` similarly to `SamDataView::unmapped`
 
 ### Changed
 
