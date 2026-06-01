@@ -4,9 +4,6 @@ use core::fmt::NumBuffer;
 #[cfg(test)]
 mod test;
 
-#[cfg(test)]
-mod benches;
-
 mod error;
 mod iter;
 mod views;
@@ -92,18 +89,6 @@ impl Cigar {
         Cigar(Vec::new())
     }
 
-    /// Expands a CIGAR to an opcode-only byte string, e.g. "3M" → "MMM".
-    #[must_use]
-    pub(crate) fn expand_cigar(&self) -> ExpandedCigar {
-        let mut expanded = Vec::new();
-
-        for Ciglet { inc, op } in self {
-            expanded.extend(std::iter::repeat_n(op, inc));
-        }
-
-        ExpandedCigar(expanded)
-    }
-
     /// Returns an iterator over the contained [`Ciglet`] values.
     #[inline]
     #[must_use]
@@ -176,13 +161,6 @@ impl std::fmt::Debug for Cigar {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Cigar({})", String::from_utf8_lossy(&self.0))
-    }
-}
-
-impl From<ExpandedCigar> for Cigar {
-    #[inline]
-    fn from(c: ExpandedCigar) -> Cigar {
-        c.condense_to_cigar()
     }
 }
 
@@ -325,97 +303,6 @@ impl FromIterator<Ciglet> for Result<Cigar, CigarError> {
         }
 
         Ok(Cigar(byte_string))
-    }
-}
-
-/// A CIGAR string as an "expanded" opcode-only byte string, e.g. `3M` → `MMM`.
-#[derive(Clone, PartialEq)]
-pub struct ExpandedCigar(Vec<u8>);
-
-impl ExpandedCigar {
-    /// Condenses the [`ExpandedCigar`] back to its standard form,  e.g. `MMM` →
-    /// `3M`.
-    #[inline]
-    #[must_use]
-    pub(crate) fn condense_to_cigar(self) -> Cigar {
-        let mut condensed: Vec<u8> = Vec::new();
-
-        let mut cigars = self.0.iter().copied().filter(|op| is_valid_op(*op));
-
-        let Some(mut previous) = cigars.next() else {
-            return Cigar(condensed);
-        };
-
-        let mut count: usize = 1;
-
-        for op in cigars {
-            if previous == op {
-                count += 1;
-            } else {
-                condensed.push_formatted_ciglet(Ciglet {
-                    inc: count,
-                    op:  previous,
-                });
-                previous = op;
-                count = 1;
-            }
-        }
-
-        condensed.push_formatted_ciglet(Ciglet {
-            inc: count,
-            op:  previous,
-        });
-
-        Cigar(condensed)
-    }
-}
-
-impl std::fmt::Display for ExpandedCigar {
-    #[inline]
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        f.write_str(&String::from_utf8_lossy(&self.0))
-    }
-}
-
-impl std::fmt::Debug for ExpandedCigar {
-    #[inline]
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&String::from_utf8_lossy(&self.0))
-    }
-}
-
-impl From<Cigar> for ExpandedCigar {
-    #[inline]
-    fn from(c: Cigar) -> ExpandedCigar {
-        c.expand_cigar()
-    }
-}
-
-impl From<Vec<u8>> for ExpandedCigar {
-    #[inline]
-    fn from(vec: Vec<u8>) -> Self {
-        ExpandedCigar(vec)
-    }
-}
-
-impl From<&str> for ExpandedCigar {
-    #[inline]
-    fn from(s: &str) -> Self {
-        ExpandedCigar(s.as_bytes().to_owned())
-    }
-}
-
-impl From<&[u8]> for ExpandedCigar {
-    #[inline]
-    fn from(v: &[u8]) -> Self {
-        ExpandedCigar(v.to_vec())
-    }
-}
-
-impl<const N: usize> From<&[u8; N]> for ExpandedCigar {
-    #[inline]
-    fn from(v: &[u8; N]) -> Self {
-        ExpandedCigar(v.to_vec())
     }
 }
 

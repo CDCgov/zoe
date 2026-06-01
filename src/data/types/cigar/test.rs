@@ -2,13 +2,6 @@ use super::*;
 use crate::alignment::AlignmentStates;
 
 #[test]
-fn test_expand() {
-    let cigar = Cigar::from_slice_unchecked("4S10M2I2D3M4H4P");
-    let expanded: ExpandedCigar = "SSSSMMMMMMMMMMIIDDMMMHHHHPPPP".into();
-    assert_eq!(cigar.expand_cigar(), expanded);
-}
-
-#[test]
 fn test_iter() {
     let cigar = Cigar::from_slice_unchecked("1M22I333D4444N55555S6666H777P88X9=");
     let mut cigar = cigar.into_iter();
@@ -113,16 +106,6 @@ fn test_query_len_in_alignment() {
     for (c, l) in cigars {
         let cigar = Cigar::from_slice_unchecked(c.as_bytes());
         assert_eq!(cigar.query_len_in_alignment(), l);
-    }
-}
-
-#[test]
-fn test_condense_cigar() {
-    let cigars: [&str; 5] = ["4S10M2I2D3M4H4P", "", "3M2D1M", "255M", "3M1D4I8X9=4M"];
-
-    for c in cigars {
-        let cigar = Cigar::from_slice_unchecked(c);
-        assert_eq!(cigar.expand_cigar().condense_to_cigar(), cigar);
     }
 }
 
