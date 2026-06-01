@@ -14,16 +14,11 @@ use std::{
     hash::Hash,
 };
 
-mod merge_pairs;
 mod reader;
 mod std_traits;
 mod view_traits;
 
-pub use merge_pairs::*;
 pub use reader::*;
-
-#[cfg(test)]
-mod test;
 
 // # NOTICE
 // We define `index` to be 1-based and `position` to be 0-based to avoid

@@ -18,12 +18,18 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - `ErrorWithContext` can now be constructed directly from a message with a `new` method
 - Adds `SamData::unmapped` similarly to `SamDataView::unmapped`
 
+
 ### Changed
 
 - Optional auxilary fields in SAM files `SamTags` is now `SamAuxRaw`.
 - `SamAuxRaw` can now be parsed into `SamAuxData` which supports all optional field types `A`, `i`, `f`, `Z`, `H`, and `B`.
 - `~` is no longer treated as a gap character when assessing partial codons. If `~` is being used to represent gaps, it should be converted to `-` or `.`.
 - The style of the backtrace has been improved for the `OrFail` and `Fail` traits
+
+### Removed
+
+- `PairedMergeStats` and method `SamData::merge_pair_using_reference` have been
+  removed and added to `irma-core` downstream.
 
 ## [0.0.28] - 2026-04-29
 
@@ -32,7 +38,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Similar to the `OrFail` trait for `Result`, a `Fail` trait has been introduced to handle errors directly
 - Added `*_mapped` versions for many string/byte search functions, which search a lazily-mapped haystack
 - Added `as_map` accessor to convert `ByteIndexMap` to `ByteMap`
-- `Nucleotides` and `AminoAcids` (and view types) can now be converted into `Vec`, slices, and `Cow` using `From` 
+- `Nucleotides` and `AminoAcids` (and view types) can now be converted into `Vec`, slices, and `Cow` using `From`
 - `NucleotidesView`, `AminoAcidsView`, and `QualityScoresView` now have inherent `slice` methods offering a longer lifetime of the returned view
 
 ### Changed

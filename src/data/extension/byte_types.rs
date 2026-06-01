@@ -19,27 +19,6 @@ impl ByteMappings for u8 {
     }
 }
 
-/// Extension trait to verify whether a byte is uppercase `ACGT` or not.
-pub(crate) trait IsBase: Copy {
-    /// Returns `true` if the base is uppercase `ACGT`.
-    fn is_base_acgt(self) -> bool;
-
-    /// Returns `true` if the base is not uppercase `ACGT`.
-    fn is_not_base_acgt(self) -> bool;
-}
-
-impl IsBase for u8 {
-    #[inline]
-    fn is_base_acgt(self) -> bool {
-        self == b'A' || self == b'G' || self == b'T' || self == b'C'
-    }
-
-    #[inline]
-    fn is_not_base_acgt(self) -> bool {
-        !self.is_base_acgt()
-    }
-}
-
 /// A trait allowing for validation, recoding, and refinement of a single DNA
 /// base.
 ///

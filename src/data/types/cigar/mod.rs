@@ -330,7 +330,7 @@ impl FromIterator<Ciglet> for Result<Cigar, CigarError> {
 
 /// A CIGAR string as an "expanded" opcode-only byte string, e.g. `3M` → `MMM`.
 #[derive(Clone, PartialEq)]
-pub(crate) struct ExpandedCigar(Vec<u8>);
+pub struct ExpandedCigar(Vec<u8>);
 
 impl ExpandedCigar {
     /// Condenses the [`ExpandedCigar`] back to its standard form,  e.g. `MMM` →
