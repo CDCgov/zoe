@@ -319,20 +319,6 @@ impl<R: std::io::Read> FastaReader<R> {
 }
 
 impl FastaReader<std::fs::File> {
-    /// Deprecated, use [`from_path`] instead.
-    ///
-    /// [`from_path`]: FastaReader::from_path
-    #[allow(clippy::missing_errors_doc)]
-    #[deprecated(
-        since = "0.0.27",
-        note = "please use `from_path` instead. This function will be removed in v0.0.29"
-    )]
-    pub fn from_filename<P>(path: P) -> std::io::Result<FastaReader<File>>
-    where
-        P: AsRef<Path>, {
-        Self::from_path(path)
-    }
-
     /// Creates an iterator over the FASTA data contained in a path, using a
     /// buffered reader.
     ///

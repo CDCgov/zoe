@@ -44,18 +44,18 @@ impl<'a> DataView<'a> for SamDataView<'a> {
     #[inline]
     fn to_owned_data(&self) -> Self::Owned {
         SamData {
-            qname: self.qname.to_string(),
-            flag:  self.flag,
-            rname: self.rname.to_string(),
-            pos:   self.pos,
-            mapq:  self.mapq,
-            cigar: self.cigar.to_owned_data(),
-            rnext: self.rnext,
-            pnext: self.pnext,
-            tlen:  self.tlen,
-            seq:   self.seq.to_owned_data(),
-            qual:  self.qual.to_owned_data(),
-            aux:   SamAuxRaw::new(),
+            qname:      self.qname.to_string(),
+            flag:       self.flag,
+            rname:      self.rname.to_string(),
+            pos:        self.pos,
+            mapq:       self.mapq,
+            cigar:      self.cigar.to_owned_data(),
+            rnext:      self.rnext,
+            pnext:      self.pnext,
+            tlen:       self.tlen,
+            seq:        self.seq.to_owned_data(),
+            qual:       self.qual.to_owned_data(),
+            opt_fields: SamOptRaw::new(),
         }
     }
 

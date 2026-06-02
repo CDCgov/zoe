@@ -1316,7 +1316,9 @@ impl<T, const S: usize> SemiLocalPhmmViewMut<'_, T, S> {
 /// </div>
 #[cfg_attr(feature = "alignment-diagnostics", visibility::make(pub))]
 pub(crate) trait GetModuleView<'a> {
+    /// The type of the module at the beginning of the pHMM.
     type Begin;
+    /// The type of the module at the end of the pHMM.
     type End;
 
     /// Returns a reference to the module at the start of the pHMM.

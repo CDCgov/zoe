@@ -52,6 +52,16 @@ impl<T> SemiLocalModule<T> {
 }
 
 impl<T: PhmmNumber> SemiLocalModule<T> {
+    /// Constructs a [`SemiLocalModule`] from a slice of parameters.
+    ///
+    /// <div class="warning note">
+    ///
+    /// **Note**
+    ///
+    /// You must enable the *alignment-diagnostics* feature in your `Cargo.toml`
+    /// to use this function.
+    ///
+    /// </div>
     #[cfg(feature = "alignment-diagnostics")]
     pub fn from_slice(params: &[T]) -> Self {
         Self(params.to_vec())
@@ -190,16 +200,15 @@ impl<T: Copy, const S: usize> PrecomputedDomainModule<T, S> {
 /// skipping residues in the query).
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct LocalModule<T, const S: usize> {
-    /// The parameters for connecting this module with the match states of the
-    /// pHMM.
+    /// The parameters enabling semilocal behavior (skipping layers from the
+    /// beginning or end of the model).
     ///
     /// These are either the transition parameters into the match states of the
     /// pHMM (if the module is at the beginning) or the transition parameters
     /// out of the match states of the pHMM (if the module is at the end).
     pub semilocal_params: SemiLocalModule<T>,
-    /// The parameters within this module.
-    ///
-    /// These control how skipped residues in the query are scored.
+    /// The parameters enabling domain behavior (skipping residues at the start
+    /// and end of the query).
     pub domain_params:    DomainModule<T, S>,
 }
 

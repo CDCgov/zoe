@@ -8,28 +8,40 @@
 //! - [`GetCode`], [`OrFail`], and [`Fail`] for graceful CLI error handling with
 //!   exit codes.
 //!
-//! ## Error Handling Philosophy
+//! ## Error Handling Philosophy in *Zoe*
 //!
-//! *Zoe* often wraps [`std::io::Error`] for I/O and parsing operations rather
-//! than defining new error types. Domain-specific errors (e.g., alignment,
-//! distance) use enums in their respective modules. [`std::fmt::Display`] is
-//! implemented only at the immediate error level—callers and loggers must
-//! iterate through the source chain via [`std::error::Error::source`], use
-//! *Zoe*'s [`OrFail`] or [`Fail`], or an external crates like `anyhow`.
+//! As a library, *Zoe* aims to avoid making assumptions on the style of error
+//! handling chosen by users, in particular by not adopting any error handling
+//! crate as a dependency.
 //!
-//! *Zoe* elects to add context by default when available, such as in
-//! [`FastQReader::from_path`] which will include the path of a missing/empty
-//! file. In bioinformatics, this context is very useful in complex pipelines,
-//! and any runtime penalty is considered negligible compared to the algorithms
-//! being run.
+//! For specific applications, *Zoe* has enum-style error types such as
+//! [`ProfileError`] or [`KmerError`], which the user can match on or display.
+//! For working with files and record types, however, *Zoe* elects to use
+//! [`std::io::Error`], allowing for system IO errors to be propagated and
+//! function-specific error messages to be represented with
+//! [`ErrorKind::InvalidData`] or [`ErrorKind::Other`].
+//!
+//! Similar to [`std::io::Error`], [`std::fmt::Display`] is implemented only at
+//! the immediate error level. To see the full error stack when handling errors,
+//! it is important to do one of the following:
+//!
+//! - Iterate through the source chain via [`Error::source`]
+//! - Use *Zoe*'s [`OrFail`] or [`Fail`] traits
+//! - Use an external crate like `anyhow`
+//!
+//! ## Error Context
+//!
+//! *Zoe* elects to add context to error messages by default when available,
+//! such as in [`FastQReader::from_path`] which will include the path of a
+//! missing/empty file. In bioinformatics, this context is very useful in
+//! complex pipelines, and any runtime penalty is considered negligible compared
+//! to the algorithms being run.
 //!
 //! This context is added using the [`WithErrorContext`] and
 //! [`ResultWithErrorContext`] traits. They add context by creating a
 //! [`ErrorWithContext`] struct, containing the original error (boxed) as the
 //! [`Error::source`] and the context as the new top-level error, stored as a
-//! [`String`]. When used in conjuction with an error handling library such as
-//! `anyhow` or *Zoe*'s [`OrFail`] or [`Fail`] traits, the stack of errors can
-//! be displayed in an application.
+//! [`String`].
 //!
 //! [`ErrorWithContext`] can also be constructed directly without a source
 //! error. In applications that are avoiding dependencies such as `anyhow` and
@@ -43,6 +55,10 @@
 //! [`OrFail`]: crate::data::err::OrFail
 //! [`FastQReader::from_path`]: crate::prelude::FastQReader::from_path
 //! [`Error::source`]: std::error::Error::source
+//! [`ProfileError`]: crate::alignment::ProfileError
+//! [`KmerError`]: crate::kmer::KmerError
+//! [`ErrorKind::InvalidData`]: std::io::ErrorKind::InvalidData
+//! [`ErrorKind::Other`]: std::io::ErrorKind::Other
 
 use std::{
     error::Error,
@@ -343,15 +359,6 @@ pub trait WithErrorContext {
     /// The context will be formatted as `msg: 'path'`. The `msg` may be
     /// anything implementing [`Display`].
     fn with_path_context(self, msg: impl Display, file: impl AsRef<Path>) -> ErrorWithContext;
-
-    /// Deprecated, use [`with_path_context`] instead.
-    ///
-    /// [`with_path_context`]: WithErrorContext::with_path_context
-    #[deprecated(
-        since = "0.0.27",
-        note = "please use `with_path_context` instead. This function will be removed in v0.0.29"
-    )]
-    fn with_file_context(self, msg: impl Display, file: impl AsRef<Path>) -> ErrorWithContext;
 }
 
 impl<E: Error + Send + Sync + 'static> WithErrorContext for E {
@@ -381,11 +388,6 @@ impl<E: Error + Send + Sync + 'static> WithErrorContext for E {
                 source: Some(Box::new(self)),
             }),
         }
-    }
-
-    // Do not inline, since this is cold code
-    fn with_file_context(self, msg: impl Display, file: impl AsRef<Path>) -> ErrorWithContext {
-        self.with_path_context(msg, file)
     }
 
     // Do not inline, since this is cold code
@@ -467,16 +469,6 @@ pub trait ResultWithErrorContext {
     ///
     /// Propagates errors in `self`, with the added context.
     fn with_path_context(self, msg: impl Display, file: impl AsRef<Path>) -> Result<Self::Ok, ErrorWithContext>;
-
-    /// Deprecated, use [`with_path_context`] instead.
-    ///
-    /// [`with_path_context`]: ResultWithErrorContext::with_path_context
-    #[allow(clippy::missing_errors_doc)]
-    #[deprecated(
-        since = "0.0.27",
-        note = "please use `with_path_context` instead. This function will be removed in v0.0.29"
-    )]
-    fn with_file_context(self, msg: impl Display, file: impl AsRef<Path>) -> Result<Self::Ok, ErrorWithContext>;
 }
 
 impl<Ok, E: WithErrorContext> ResultWithErrorContext for Result<Ok, E> {
@@ -496,11 +488,6 @@ impl<Ok, E: WithErrorContext> ResultWithErrorContext for Result<Ok, E> {
             cold_path();
             e.with_type_context::<T>()
         })
-    }
-
-    #[inline]
-    fn with_file_context(self, msg: impl Display, file: impl AsRef<Path>) -> Result<Ok, ErrorWithContext> {
-        self.with_path_context(msg, file)
     }
 
     #[inline]

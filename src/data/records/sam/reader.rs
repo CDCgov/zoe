@@ -2,7 +2,7 @@ use crate::{
     data::{
         cigar::Cigar,
         err::ResultWithErrorContext,
-        sam::{SamAuxRaw, SamData},
+        sam::{SamData, SamOptRaw},
     },
     unwrap_or_return_some_err,
 };
@@ -61,9 +61,14 @@ impl std::fmt::Display for SamRow {
 /// This iterator guarantees quality scores are valid (see [`QualityScores`] for
 /// more details). It does not check for the validity of the CIGAR strings.
 ///
+/// ## Parameters
+///
+/// - `R`: The type of the underlying reader
+/// - `OPT`: Whether optional fields should be parsed
+///
 /// [`QualityScores`]: crate::data::types::phred::QualityScores
 #[derive(Debug)]
-pub struct SAMReader<R: std::io::Read, const TAGS: bool> {
+pub struct SAMReader<R: std::io::Read, const OPT: bool> {
     sam_reader: std::io::Lines<std::io::BufReader<R>>,
 }
 
@@ -75,12 +80,12 @@ impl<R: std::io::Read> SAMReader<R, true> {
     /// initially. It also allows for empty input, in which case the resulting
     /// iterator is empty.
     ///
-    /// If the optional tags in the SAM records are not being used by the
-    /// downstream application, consider using [`new_ignore_tags`] for
+    /// If the optional data in the SAM records is not being used by the
+    /// downstream application, consider using [`new_ignore_opt`] for
     /// efficiency.
     ///
     /// [`from_readable`]: SAMReader::from_readable
-    /// [`new_ignore_tags`]: SAMReader::new_ignore_tags
+    /// [`new_ignore_opt`]: SAMReader::new_ignore_opt
     pub fn new(inner: R) -> Self {
         SAMReader {
             sam_reader: std::io::BufReader::new(inner).lines(),
@@ -90,8 +95,8 @@ impl<R: std::io::Read> SAMReader<R, true> {
     /// Creates an iterator over SAM data from a type implementing [`Read`],
     /// wrapping the input in a buffered reader.
     ///
-    /// If the optional tags in the SAM records are not being used by the
-    /// downstream application, consider using [`from_readable_ignore_tags`] for
+    /// If the optional data in the SAM records is not being used by the
+    /// downstream application, consider using [`from_readable_ignore_opt`] for
     /// efficiency.
     ///
     /// ## Errors
@@ -99,7 +104,7 @@ impl<R: std::io::Read> SAMReader<R, true> {
     /// Will return `Err` if the input data is empty or an IO error occurs.
     ///
     /// [`Read`]: std::io::Read
-    /// [`from_readable_ignore_tags`]: SAMReader::from_readable_ignore_tags
+    /// [`from_readable_ignore_opt`]: SAMReader::from_readable_ignore_opt
     pub fn from_readable(read: R) -> std::io::Result<Self> {
         let mut sam_reader = std::io::BufReader::new(read);
         if sam_reader.fill_buf()?.is_empty() {
@@ -113,31 +118,54 @@ impl<R: std::io::Read> SAMReader<R, true> {
 }
 
 impl<R: std::io::Read> SAMReader<R, false> {
+    /// Deprecated, use [`new_ignore_opt`] instead.
+    ///
+    /// [`new_ignore_opt`]: SAMReader::new_ignore_opt
+    #[deprecated(
+        since = "0.0.29",
+        note = "please use `new_ignore_opt` instead. This function will be removed in v0.0.31"
+    )]
+    pub fn new_ignore_tags(inner: R) -> Self {
+        SAMReader::new_ignore_opt(inner)
+    }
+
     /// Creates an iterator over SAM data, wrapping the input in a buffered
     /// reader.
     ///
-    /// This version ignores any optional tags present in the SAM records in
+    /// This version ignores any optional data present in the SAM records in
     /// order to reduce allocations and improve efficiency. Use [`new`] to
-    /// include the tags in the output.
+    /// include the optional data in the output.
     ///
-    /// Unlike [`from_readable_ignore_tags`], this does not allocate or read any
+    /// Unlike [`from_readable_ignore_opt`], this does not allocate or read any
     /// data initially. It also allows for empty input, in which case the
     /// resulting iterator is empty.
     ///
-    /// [`from_readable_ignore_tags`]: SAMReader::from_readable_ignore_tags
+    /// [`from_readable_ignore_opt`]: SAMReader::from_readable_ignore_opt
     /// [`new`]: SAMReader::new
-    pub fn new_ignore_tags(inner: R) -> Self {
+    pub fn new_ignore_opt(inner: R) -> Self {
         SAMReader {
             sam_reader: std::io::BufReader::new(inner).lines(),
         }
     }
 
+    /// Deprecated, use [`from_readable_ignore_opt`] instead.
+    ///
+    /// [`from_readable_ignore_opt`]: SAMReader::from_readable_ignore_opt
+    #[allow(clippy::missing_errors_doc)]
+    #[deprecated(
+        since = "0.0.29",
+        note = "please use `from_readable_ignore_opt` instead. This function will be removed in v0.0.31"
+    )]
+    pub fn from_readable_ignore_tags(read: R) -> std::io::Result<Self> {
+        SAMReader::from_readable_ignore_opt(read)
+    }
+
     /// Creates an iterator over SAM data from a type implementing [`Read`],
     /// wrapping the input in a buffered reader.
     ///
-    /// This version ignores any optional tags present in the SAM records in
+    /// This version ignores any optional data present in the SAM records in
     /// order to reduce allocations and improve efficiency. Use
-    /// [`from_readable`] to include the tags in the output.
+    /// [`from_readable`] to include the optional data in the output.
     ///
     /// ## Errors
     ///
@@ -145,7 +173,7 @@ impl<R: std::io::Read> SAMReader<R, false> {
     ///
     /// [`Read`]: std::io::Read
     /// [`from_readable`]: SAMReader::from_readable
-    pub fn from_readable_ignore_tags(read: R) -> std::io::Result<Self> {
+    pub fn from_readable_ignore_opt(read: R) -> std::io::Result<Self> {
         let mut sam_reader = std::io::BufReader::new(read);
         if sam_reader.fill_buf()?.is_empty() {
             return Err(IOError::new(ErrorKind::InvalidData, "No SAM data was found!"));
@@ -157,7 +185,7 @@ impl<R: std::io::Read> SAMReader<R, false> {
     }
 }
 
-impl<R: std::io::Read, const TAGS: bool> Iterator for SAMReader<R, TAGS> {
+impl<R: std::io::Read, const OPT: bool> Iterator for SAMReader<R, OPT> {
     type Item = std::io::Result<SamRow>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -229,10 +257,10 @@ impl<R: std::io::Read, const TAGS: bool> Iterator for SAMReader<R, TAGS> {
 
             let qual = unwrap_or_return_some_err!(parts[10].as_bytes().try_into());
 
-            let aux = if TAGS {
-                parts[11..].iter().map(ToString::to_string).collect::<SamAuxRaw>()
+            let opt_fields = if OPT {
+                parts[11..].iter().map(ToString::to_string).collect::<SamOptRaw>()
             } else {
-                SamAuxRaw::new()
+                SamOptRaw::new()
             };
 
             let row = SamData {
@@ -247,7 +275,7 @@ impl<R: std::io::Read, const TAGS: bool> Iterator for SAMReader<R, TAGS> {
                 tlen: 0,
                 seq,
                 qual,
-                aux,
+                opt_fields,
             };
             Some(Ok(SamRow::Data(row)))
         }
@@ -256,25 +284,11 @@ impl<R: std::io::Read, const TAGS: bool> Iterator for SAMReader<R, TAGS> {
 }
 
 impl SAMReader<File, true> {
-    /// Deprecated, use [`from_path`] instead.
-    ///
-    /// [`from_path`]: SAMReader::from_path
-    #[allow(clippy::missing_errors_doc)]
-    #[deprecated(
-        since = "0.0.27",
-        note = "please use `from_path` instead. This function will be removed in v0.0.29"
-    )]
-    pub fn from_filename<P>(path: P) -> Result<Self, std::io::Error>
-    where
-        P: AsRef<Path>, {
-        Self::from_path(path)
-    }
-
     /// Creates an iterator over the SAM data contained in a path, using a
     /// buffered reader.
     ///
-    /// If the optional tags in the SAM records are not being used by the
-    /// downstream application, consider using [`from_path_ignore_tags`] for
+    /// If the optional data in the SAM records is not being used by the
+    /// downstream application, consider using [`from_path_ignore_opt`] for
     /// efficiency.
     ///
     /// ## Errors
@@ -283,7 +297,7 @@ impl SAMReader<File, true> {
     /// permissions to read from it, or if it contains no data. The path is
     /// included in the error message.
     ///
-    /// [`from_path_ignore_tags`]: SAMReader::from_path_ignore_tags
+    /// [`from_path_ignore_opt`]: SAMReader::from_path_ignore_opt
     pub fn from_path<P>(path: P) -> Result<Self, std::io::Error>
     where
         P: AsRef<Path>, {
@@ -294,26 +308,26 @@ impl SAMReader<File, true> {
 }
 
 impl SAMReader<File, false> {
-    /// Deprecated, use [`from_path_ignore_tags`] instead.
+    /// Deprecated, use [`from_path_ignore_opt`] instead.
     ///
-    /// [`from_path_ignore_tags`]: SAMReader::from_path_ignore_tags
+    /// [`from_path_ignore_opt`]: SAMReader::from_path_ignore_opt
     #[allow(clippy::missing_errors_doc)]
     #[deprecated(
-        since = "0.0.27",
-        note = "please use `from_path_ignore_tags` instead. This function will be removed in v0.0.29"
+        since = "0.0.29",
+        note = "please use `from_path_ignore_opt` instead. This function will be removed in v0.0.31"
     )]
-    pub fn from_filename_ignore_tags<P>(path: P) -> Result<Self, std::io::Error>
+    pub fn from_path_ignore_tags<P>(path: P) -> Result<Self, std::io::Error>
     where
         P: AsRef<Path>, {
-        Self::from_path_ignore_tags(path)
+        Self::from_path_ignore_opt(path)
     }
 
     /// Creates an iterator over the SAM data contained in a path, using a
     /// buffered reader.
     ///
-    /// This version ignores any optional tags present in the SAM records in
+    /// This version ignores any optional data present in the SAM records in
     /// order to reduce allocations and improve efficiency. Use [`from_path`] to
-    /// include the tags in the output.
+    /// include the optional data in the output.
     ///
     /// ## Errors
     ///
@@ -322,11 +336,11 @@ impl SAMReader<File, false> {
     /// included in the error message.
     ///
     /// [`from_path`]: SAMReader::from_path
-    pub fn from_path_ignore_tags<P>(path: P) -> Result<Self, std::io::Error>
+    pub fn from_path_ignore_opt<P>(path: P) -> Result<Self, std::io::Error>
     where
         P: AsRef<Path>, {
         let path = path.as_ref();
         let file = File::open(path).with_path_context("Failed to open path", path)?;
-        Ok(Self::from_readable_ignore_tags(file).with_path_context("Failed to read data at path", path)?)
+        Ok(Self::from_readable_ignore_opt(file).with_path_context("Failed to read data at path", path)?)
     }
 }

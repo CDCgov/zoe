@@ -1,3 +1,5 @@
+//! Functionality for analyzing ambiguous IUPAC bases.
+
 /// A look-up table for disambiguating IUPAC nucleotides.
 ///
 /// See the [IUPAC definitions](https://www.bioinformatics.org/sms/iupac.html)

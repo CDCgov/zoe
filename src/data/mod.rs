@@ -41,6 +41,7 @@
 //! data again by using [`to_owned_data`].
 //!
 //! For example:
+//!
 //! ```
 //! # use zoe::prelude::*;
 //! let owned_sequence: Nucleotides = b"GGCCACCAAGGCCA".into();
@@ -67,6 +68,7 @@
 //!
 //! Views can also be re-sliced in-place using the [`restrict`] method. This is
 //! a useful way to avoid needing to have extra let bindings. For example:
+//!
 //! ```
 //! # use zoe::prelude::*;
 //! let mut owned_sequence: Nucleotides = b"GGCCACCAAGGCCA".into();
@@ -80,31 +82,6 @@
 //! [`CigarViewMut`] are available and can be created with [`as_view`] and
 //! [`as_view_mut`]. However, slicing and restricting are not possible for these
 //! types, since they are not sequence data.
-//!
-//! ## IO Errors in *Zoe*
-//!
-//! As a library, *Zoe* aims to avoid making assumptions on the style of error
-//! handling chosen by users, in particular by not adopting any error handling
-//! crate as a dependency.
-//!
-//! For specific applications, *Zoe* has enum-style error types such as
-//! [`ProfileError`] or [`KmerError`], which the user can match on or display.
-//! For working with files and record types, however, *Zoe* elects to use
-//! [`std::io::Error`], allowing for system IO errors to be propagated and
-//! function-specific error messages to be represented with
-//! [`ErrorKind::InvalidData`] or [`ErrorKind::Other`].
-//!
-//! IO failures are assumed to be rare by *Zoe*, and hence the crate will
-//! automatically add the path to the error messages (such as
-//! [`FastQReader::from_path`]). If in doubt, check the `Errors` section of a
-//! function's documentation to determine what information is automatically
-//! added.
-//!
-//! When *Zoe* adds context to an error message, it will store the original
-//! error message so that it is accessible using [`Error::source`]. Many error
-//! handling crates such as `anyhow` automatically will display this information
-//! in the backtrace. Or, *Zoe* offers [`unwrap_or_fail`] and [`unwrap_or_die`]
-//! which will include this information when unwrapping an error.
 //!
 //! [`Nucleotides`]: types::nucleotides::Nucleotides
 //! [`NucleotidesView`]: types::nucleotides::NucleotidesView
@@ -120,10 +97,6 @@
 //! [`slice_mut`]: crate::prelude::SliceMut::slice_mut
 //! [`to_owned_data`]: crate::prelude::DataView::to_owned_data
 //! [`restrict`]: crate::prelude::Restrict::restrict
-//! [`ProfileError`]: crate::alignment::ProfileError
-//! [`KmerError`]: crate::kmer::KmerError
-//! [`ErrorKind::InvalidData`]: std::io::ErrorKind::InvalidData
-//! [`ErrorKind::Other`]: std::io::ErrorKind::Other
 //! [`FastQReader::from_path`]:
 //!     crate::data::records::fastq::FastQReader::from_path
 //! [`Error::source`]: std::error::Error::source

@@ -1,12 +1,11 @@
 //! Functions for editing a pHMM after it has been created/loaded.
 
-use std::slice::GetDisjointMutError;
-
 use crate::alignment::phmm::{
     CorePhmm, DomainPhmm, GetCoreMut, GetLayerMut, GetModuleMut, GlobalPhmm, LocalPhmm, PhmmNumber, PhmmState,
     SemiLocalPhmm,
     indexing::{PhmmIndex, PhmmIndexRange, PhmmIndexable},
 };
+use std::slice::GetDisjointMutError;
 
 /// A trait facilitating editing of a pHMM by removing layers.
 #[allow(dead_code)]

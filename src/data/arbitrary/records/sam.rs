@@ -16,8 +16,8 @@ impl<'a> Arbitrary<'a> for SamData {
     /// Generates an arbitrary [`SamData`] record from the given unstructured
     /// data.
     ///
-    /// This ensures that `rnext` is `*`, `pnext` is 0, `tlen` is 0, and `tags`
-    /// is empty.
+    /// This ensures that `rnext` is `*`, `pnext` is 0, `tlen` is 0, and
+    /// `opt_fields` is empty.
     #[inline]
     fn arbitrary(u: &mut arbitrary::Unstructured<'a>) -> arbitrary::Result<Self> {
         Ok(SamData::new(
@@ -36,7 +36,7 @@ impl<'a> Arbitrary<'a> for SamData {
 /// Specifications for generating arbitrary [`SamData`] records.
 ///
 /// All generated records have `rnext` as `*`, `pnext` as 0, `tlen` as 0, and
-/// `tags` being empty.
+/// `opt_fields` being empty.
 #[derive(Clone, Eq, PartialEq, Hash, Debug, Default)]
 pub struct SamDataSpecs {
     /// The specifications for generating the `qname` field.

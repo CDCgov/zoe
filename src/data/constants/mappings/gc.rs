@@ -1,3 +1,5 @@
+//! The genetic code for translating nucleotides to amino acids.
+
 use crate::data::mappings::disambiguation::DnaDisambiguation;
 
 macro_rules! fill_std_gc {

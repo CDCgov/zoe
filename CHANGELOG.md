@@ -4,32 +4,32 @@ All notable changes to this project will be documented in this file. The format
 is roughly based on [Keep a Changelog], and this project tries to adheres to
 [Semantic Versioning].
 
-## [0.0.29] - TBD
+## [0.0.29] - 2026-06-02
 
 ### Added
 
-- Adds `DnaDisambiguation` for checking whether an ambiguous residue potentially
-  codes for an A, C, G, or T
-- Adds `maybe_stop_codon` to check whether a codon with ambiguous residues
-  potentially codes for a stop codon
-- Adds `with_subitem` to add an indented message beneath an error
-- Adds `hamming_distance` to the `DistanceFromMatrix` trait for calculating
-  Hamming distance from an existing substitution matrix
-- `ErrorWithContext` can now be constructed directly from a message with a `new` method
-- Adds `SamData::unmapped` similarly to `SamDataView::unmapped`
-
+- Adds `with_subitem` to add an indented message beneath an error.
+- `ErrorWithContext` can now be constructed directly from a message with a `new` method.
+- Adds `DnaDisambiguation` for checking whether an ambiguous residue potentially codes for an A, C, G, or T.
+- Adds `maybe_stop_codon` to check whether a codon with ambiguous residues potentially codes for a stop codon.
+- Adds `SamData::unmapped` similarly to `SamDataView::unmapped`.
+- Adds `hamming_distance` to the `DistanceFromMatrix` trait for calculating Hamming distance from an existing substitution matrix.
 
 ### Changed
 
-- Optional auxilary fields in SAM files `SamTags` is now `SamAuxRaw`.
-- `SamAuxRaw` can now be parsed into `SamAuxData` which supports all optional field types `A`, `i`, `f`, `Z`, `H`, and `B`.
+- `SamData::tags` is renamed to `opt_fields`, and `SamTags` is renamed to `SamOptRaw`.
+- `SAMReader` methods with ending in `ignore_tags` are deprecated and renamed to `ignore_opt`.
+- Each field in `SamOptRaw` can now be parsed into `SamOptField` which supports all optional field types `A`, `i`, `f`, `Z`, `H`, and `B`.
 - `~` is no longer treated as a gap character when assessing partial codons. If `~` is being used to represent gaps, it should be converted to `-` or `.`.
-- The style of the backtrace has been improved for the `OrFail` and `Fail` traits
+- The style of the backtrace has been improved for the `OrFail` and `Fail` traits.
+
+### Fixed
+
+- The `define_whichever` and `impl_traits` macros now allow the type to have more flexible names for the generics.
 
 ### Removed
 
-- `PairedMergeStats` and method `SamData::merge_pair_using_reference` have been
-  removed and added to `irma-core` downstream.
+- `PairedMergeStats` and method `SamData::merge_pair_using_reference` have been removed and added to `irma-core` downstream.
 
 ## [0.0.28] - 2026-04-29
 

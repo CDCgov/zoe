@@ -81,8 +81,12 @@ impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
     ///
     /// ## Errors
     ///
-    /// If no alignment with nonzero probability is found, an error is given. An
-    /// error is also returned if the model has no layers.
+    /// - [`IncompatibleModule`] if the length of the module at the beginning or
+    ///   end of the pHMM is not the same as the model length
+    /// - [`NoAlignmentFound`] if no alignment with nonzero probability is found
+    ///
+    /// [`IncompatibleModule`]: InvalidModelError::IncompatibleModule
+    /// [`NoAlignmentFound`]: PhmmError::NoAlignmentFound
     #[allow(clippy::too_many_lines)]
     pub fn viterbi<Q: AsRef<[u8]>>(&self, seq: Q) -> Result<Alignment<T>, PhmmError> {
         let seq = seq.as_ref();

@@ -1,3 +1,5 @@
+//! Byte mappings for nucleotides.
+
 use crate::data::{
     ByteValidator,
     alphas::*,

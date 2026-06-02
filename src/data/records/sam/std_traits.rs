@@ -15,15 +15,15 @@ impl std::fmt::Display for SamData {
             tlen,
             seq,
             qual,
-            aux,
+            opt_fields,
         } = self;
 
         write!(
             f,
             "{qname}\t{flag}\t{rname}\t{pos}\t{mapq}\t{cigar}\t{rnext}\t{pnext}\t{tlen}\t{seq}\t{qual}"
         )?;
-        for aux in &aux.0 {
-            write!(f, "\t{aux}")?;
+        for opt_field in &opt_fields.0 {
+            write!(f, "\t{opt_field}")?;
         }
         Ok(())
     }

@@ -1,3 +1,5 @@
+//! Byte mappings for amino acids.
+
 use super::ByteIndexMap;
 use crate::data::alphas::{AA_IUPAC_UC, AA_IUPAC_UC_X};
 

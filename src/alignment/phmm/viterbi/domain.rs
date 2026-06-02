@@ -1,7 +1,7 @@
 use crate::alignment::{
     Alignment, AlignmentStates,
     phmm::{
-        DomainPhmm, GetLayer, GetModule, InvalidModelError, LayerParams, PhmmBacktrackFlags, PhmmError, PhmmNumber,
+        DomainPhmm, GetLayer, GetModule, LayerParams, PhmmBacktrackFlags, PhmmError, PhmmNumber,
         PhmmState::{self, Delete, Insert, Match},
         PhmmTracebackState, best_state,
         indexing::{DpIndex, LastBase, LastMatch, PhmmIndexable, QueryIndex, QueryIndexable},
@@ -64,8 +64,10 @@ impl<T: PhmmNumber, const S: usize> DomainPhmm<T, S> {
     ///
     /// ## Errors
     ///
-    /// If no alignment with nonzero probability is found, an error is given. An
-    /// error is also returned if the model has no layers.
+    /// [`NoAlignmentFound`] is returned if no alignment with nonzero
+    /// probability is found.
+    ///
+    /// [`NoAlignmentFound`]: PhmmError::NoAlignmentFound
     #[allow(clippy::too_many_lines)]
     pub fn viterbi<Q: AsRef<[u8]>>(&self, seq: Q) -> Result<Alignment<T>, PhmmError> {
         let seq = seq.as_ref();
@@ -73,9 +75,10 @@ impl<T: PhmmNumber, const S: usize> DomainPhmm<T, S> {
         let begin_mod = self.begin().precompute_begin_mod(seq, self.mapping());
         let end_mod = self.end().precompute_end_mod(seq, self.mapping());
 
-        // Check for compatibility between the pHMM and the start/end modules
         if begin_mod.seq_len() != seq.len() || end_mod.seq_len() != seq.len() {
-            return Err(InvalidModelError::IncompatibleModule.into());
+            // Validity: the precomputed domain modules will have the same
+            // length as the sequence by definition
+            unreachable!("The domain module had an incompatible length");
         }
 
         let (end, layers) = self.split_last_layer();
