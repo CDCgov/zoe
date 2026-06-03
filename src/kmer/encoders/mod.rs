@@ -1,6 +1,6 @@
 //! The definition of the [`KmerEncoder`] trait, along with provided encoders.
 
-use crate::kmer::{Kmer, KmerEncode, SupportedMismatchNumber, errors::KmerError};
+use crate::kmer::{GetVariants, Kmer, KmerEncode, errors::KmerError};
 use std::hash::Hash;
 
 pub mod three_bit;
@@ -21,16 +21,14 @@ pub mod three_bit;
 ///
 /// </div>
 ///
-/// [`KmerSet`]: super::kmer_set::KmerSet
-/// [`KmerCounter`]: super::kmer_counter::KmerCounter
-/// [`SupportedKmerLen`]: super::SupportedKmerLen
+/// [`KmerSet`]: crate::kmer::KmerSet
+/// [`KmerCounter`]: crate::kmer::KmerCounter
+/// [`SupportedKmerLen`]: crate::kmer::SupportedKmerLen
 pub trait KmerEncoder<const MAX_LEN: usize>
 where
     Self: Sized, {
-    /// The type of an encoded base.
-    type EncodedBase;
     /// The type of an encoded k-mer.
-    type EncodedKmer: From<Self::EncodedBase> + Eq + Hash + Copy + KmerEncode<MAX_LEN, Self>;
+    type EncodedKmer: Eq + Hash + Copy + KmerEncode<MAX_LEN, Self>;
     /// An iterator over the encoded overlapping k-mers in a sequence, from left
     /// to right.
     type SeqIter<'a>: Iterator<Item = Self::EncodedKmer>;
@@ -43,15 +41,6 @@ where
     /// A consumuing iterator over the encoded overlapping k-mers in a sequence,
     /// from right to left.
     type SeqIntoIterRev: Iterator<Item = Self::EncodedKmer>;
-    /// An iterator over all encoded k-mers that are at most a Hamming distance
-    /// of one away from a provided k-mer. The original k-mer is included in the
-    /// iterator.
-    type OneMismatchIter: Iterator<Item = Self::EncodedKmer>;
-    /// A zero-size struct used to hold a number of mismatches. For valid values
-    /// of `N`, [`SupportedMismatchNumber`] will be implemented, and will
-    /// provide the appropriate iterator to use for generating variants. See
-    /// [`SupportedMismatchNumber`] for more details.
-    type MismatchNumber<const N: usize>;
 
     /// Creates a new [`KmerEncoder`] with the specified k-mer length.
     ///
@@ -64,15 +53,6 @@ where
     /// Retrieves the k-mer length associated with this [`KmerEncoder`].
     fn kmer_length(&self) -> usize;
 
-    /// Encodes a single base.
-    fn encode_base(base: u8) -> Self::EncodedBase;
-
-    /// Decodes a single base.
-    ///
-    /// The base must have been generated using this [`KmerEncoder`], otherwise
-    /// this function may panic or have unexpected behavior.
-    fn decode_base(encoded_base: Self::EncodedBase) -> u8;
-
     /// Encodes a k-mer.
     ///
     /// The k-mer length is assumed to be valid for the given [`KmerEncoder`].
@@ -80,7 +60,7 @@ where
     /// length will be valid.
     ///
     /// [`encode_kmer_checked`]: KmerEncoder::encode_kmer_checked
-    fn encode_kmer<S: AsRef<[u8]>>(&self, kmer: S) -> Self::EncodedKmer;
+    fn encode_kmer(&self, kmer: impl AsRef<[u8]>) -> Self::EncodedKmer;
 
     /// Decodes a k-mer.
     ///
@@ -92,12 +72,12 @@ where
     /// distance of `N` away from the provided k-mer.
     ///
     /// The original k-mer is included in the iterator. `N` must be a supported
-    /// number of mismatches. See [`SupportedMismatchNumber`] for more details.
-    fn get_variants<const N: usize>(
-        &self, encoded_kmer: Self::EncodedKmer,
-    ) -> <Self::MismatchNumber<N> as SupportedMismatchNumber<MAX_LEN, Self>>::MismatchIter
+    /// number of mismatches. See [`GetVariants`] for more details.
+    fn get_variants<const N: usize>(&self, encoded_kmer: Self::EncodedKmer) -> Self::Iter
     where
-        Self::MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, Self>;
+        Self: GetVariants<N, MAX_LEN>, {
+        <Self as GetVariants<N, MAX_LEN>>::variants(self, encoded_kmer)
+    }
 
     /// Returns an iterator over the encoded overlapping k-mers in a sequence,
     /// from left to right.
@@ -170,8 +150,8 @@ where
         }
     }
 
-    /// Given an iterator of encoded kmers, returns an iterator over the decoded
-    /// k-mers.
+    /// Given an iterator of encoded k-mers, returns an iterator over the
+    /// decoded k-mers.
     ///
     /// The k-mers must have been encoded with this [`KmerEncoder`].
     #[inline]

@@ -98,20 +98,21 @@
 //! [`find_kmers`]: FindKmers::find_kmers
 //! [`find_kmers_rev`]: FindKmers::find_kmers_rev
 
+pub mod collections;
 pub mod encoders;
 mod errors;
-pub mod kmer_counter;
-pub mod kmer_set;
 mod traits;
 mod type_mappings;
+mod variants;
 
 pub use errors::*;
 pub use traits::*;
 pub use type_mappings::*;
+pub use variants::*;
 
+pub use collections::KmerCounter;
+pub use collections::KmerSet;
 pub use encoders::KmerEncoder;
-pub use kmer_counter::KmerCounter;
-pub use kmer_set::KmerSet;
 
 use crate::{data::CheckSequence, prelude::Nucleotides};
 

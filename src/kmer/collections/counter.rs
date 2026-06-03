@@ -1,9 +1,7 @@
 //! Defines a collection storing encoded k-mers and their counts.
 
 use crate::{
-    kmer::{
-        EncodedKmerCollection, FindKmersInSeq, Kmer, KmerEncode, KmerError, SupportedMismatchNumber, encoders::KmerEncoder,
-    },
+    kmer::{EncodedKmerCollection, FindKmersInSeq, GetVariants, Kmer, KmerEncode, KmerError, encoders::KmerEncoder},
     prelude::Len,
 };
 use std::{
@@ -46,10 +44,10 @@ use std::{
 ///
 /// </div>
 ///
-/// [`KmerSet`]: super::KmerSet
+/// [`KmerSet`]: crate::kmer::KmerSet
 /// [`ThreeBitKmerCounter`]:
 ///     crate::kmer::encoders::three_bit::ThreeBitKmerCounter
-/// [`SupportedKmerLen`]: super::SupportedKmerLen
+/// [`SupportedKmerLen`]: crate::kmer::SupportedKmerLen
 /// [`tally_kmer`]: KmerCounter::tally_kmer
 /// [`tally_kmer_with_variants`]: KmerCounter::tally_kmer_with_variants
 /// [`tally_from_iter`]: KmerCounter::tally_from_iter
@@ -62,7 +60,7 @@ use std::{
 /// [`iter_decoded`]: KmerCounter::iter_decoded
 /// [`keys_encoded`]: KmerCounter::keys_encoded
 /// [`keys_decoded`]: KmerCounter::keys_decoded
-/// [`FindKmers`]: super::FindKmers
+/// [`FindKmers`]: crate::kmer::FindKmers
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct KmerCounter<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S = RandomState>
 where
@@ -142,7 +140,7 @@ impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> KmerCounter<
     #[inline]
     pub fn tally_kmer_with_variants<const N: usize>(&mut self, kmer: &impl KmerEncode<MAX_LEN, E>)
     where
-        E::MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, E>, {
+        E: GetVariants<N, MAX_LEN>, {
         self.encoder
             .get_variants::<N>(kmer.encode_kmer(&self.encoder))
             .for_each(|variant| self.tally_kmer(&variant));
@@ -188,7 +186,7 @@ impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> KmerCounter<
     #[inline]
     pub fn tally_from_sequence_with_variants<const N: usize>(&mut self, seq: impl AsRef<[u8]>)
     where
-        E::MismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, E>, {
+        E: GetVariants<N, MAX_LEN>, {
         for encoded_kmer in self.encoder.iter_from_sequence(&seq) {
             self.tally_kmer_with_variants::<N>(&encoded_kmer);
         }

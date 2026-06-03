@@ -5,7 +5,7 @@
 
 use crate::{
     data::mappings::THREE_BIT_MAPPING,
-    kmer::{Kmer, KmerEncoder, KmerError, KmerLen, KmerSet, MaxLenToType, SupportedKmerLen, SupportedMismatchNumber},
+    kmer::{Kmer, KmerEncoder, KmerError, KmerLen, KmerSet, MaxLenToType, SupportedKmerLen},
     math::{AnyInt, Uint},
     prelude::KmerCounter,
 };
@@ -134,6 +134,32 @@ where
     kmer_mask:   ThreeBitMaxLenToType<MAX_LEN>,
 }
 
+impl<T: Uint, const MAX_LEN: usize> ThreeBitKmerEncoder<MAX_LEN>
+where
+    ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen<T = T>,
+{
+    /// Encodes a single base.
+    ///
+    /// Five unique bases are represented by the encoder: `Aa`, `Cc`, `Gg`,
+    /// `TUtu`, or `N` as a catch-all for any other input.
+    #[inline]
+    #[must_use]
+    pub fn encode_base(base: u8) -> T {
+        T::from(THREE_BIT_MAPPING[base])
+    }
+
+    /// Decodes a single base.
+    ///
+    /// The base must have been generated using [`ThreeBitKmerEncoder`],
+    /// otherwise this function may panic or have unexpected behavior.
+    #[inline]
+    #[must_use]
+    pub fn decode_base(encoded_base: T) -> u8 {
+        // as_usize is valid since encoded_base will be in `3..=8`
+        b"000NACGT"[encoded_base.cast_as::<usize>()]
+    }
+}
+
 impl<const MAX_LEN: usize> PartialEq for ThreeBitKmerEncoder<MAX_LEN>
 where
     ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen,
@@ -156,22 +182,15 @@ where
     }
 }
 
-/// A zero-sized type for use with [`SupportedMismatchNumber`], holding the
-/// number of mismatches as parameter `N`.
-pub struct ThreeBitMismatchNumber<const N: usize>;
-
 impl<const MAX_LEN: usize, T: Uint> KmerEncoder<MAX_LEN> for ThreeBitKmerEncoder<MAX_LEN>
 where
     ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen<T = T>,
 {
-    type EncodedBase = T;
     type EncodedKmer = ThreeBitEncodedKmer<MAX_LEN>;
     type SeqIter<'a> = ThreeBitKmerIterator<'a, MAX_LEN>;
     type SeqIntoIter = ThreeBitKmerIntoIterator<MAX_LEN>;
     type SeqIterRev<'a> = ThreeBitKmerIteratorRev<'a, MAX_LEN>;
     type SeqIntoIterRev = ThreeBitKmerIntoIteratorRev<MAX_LEN>;
-    type OneMismatchIter = ThreeBitOneMismatchIter<MAX_LEN>;
-    type MismatchNumber<const N: usize> = ThreeBitMismatchNumber<N>;
 
     /// Creates a new [`ThreeBitKmerEncoder`] with the specified k-mer length.
     ///
@@ -196,23 +215,8 @@ where
         self.kmer_length
     }
 
-    /// Encodes a single base.
-    ///
-    /// Five unique bases are represented by the encoder: `Aa`, `Cc`, `Gg`,
-    /// `TUtu`, or `N` as a catch-all for any other input.
     #[inline]
-    fn encode_base(base: u8) -> Self::EncodedBase {
-        T::from(THREE_BIT_MAPPING[base])
-    }
-
-    #[inline]
-    fn decode_base(encoded_base: Self::EncodedBase) -> u8 {
-        // as_usize is valid since encoded_base will be in `3..=8`
-        b"000NACGT"[encoded_base.cast_as::<usize>()]
-    }
-
-    #[inline]
-    fn encode_kmer<S: AsRef<[u8]>>(&self, kmer: S) -> Self::EncodedKmer {
+    fn encode_kmer(&self, kmer: impl AsRef<[u8]>) -> Self::EncodedKmer {
         let mut encoded_kmer = T::ZERO;
 
         for &base in kmer.as_ref() {
@@ -233,21 +237,6 @@ where
         // initialized with 0 and ThreeBitKmerEncoder::decode_base always
         // returns a char in b"000NACGT"
         unsafe { Kmer::new_unchecked(self.kmer_length, buffer) }
-    }
-
-    /// Returns an iterator over all encoded k-mers that are at most a Hamming
-    /// distance of `N` away from the provided k-mer.
-    ///
-    /// This involves replacing each base with the other bases in `ACGTN`. The
-    /// original k-mer is included in the iterator. `N` must be a supported
-    /// number of mismatches. See [`SupportedMismatchNumber`] for more details.
-    #[inline]
-    fn get_variants<const N: usize>(
-        &self, encoded_kmer: Self::EncodedKmer,
-    ) -> <ThreeBitMismatchNumber<N> as SupportedMismatchNumber<MAX_LEN, Self>>::MismatchIter
-    where
-        ThreeBitMismatchNumber<N>: SupportedMismatchNumber<MAX_LEN, Self>, {
-        ThreeBitMismatchNumber::<N>::get_iterator(encoded_kmer, self)
     }
 
     #[inline]
@@ -840,6 +829,6 @@ mod tests {
     #[test]
     #[should_panic(expected = "index out of bounds: the len is 8 but the index is 8")]
     fn test_invalid_decoding() {
-        ThreeBitKmerEncoder::<21>::decode_base(8);
+        let _ = ThreeBitKmerEncoder::<21>::decode_base(8);
     }
 }

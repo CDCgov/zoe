@@ -9,6 +9,9 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 ### Changed
 
 - `SAMReader` no longer automatically uppercases the nucleotide sequence
+- `encode_base` and `decode_base` and now inherent methods on `ThreeBitKmerEncoder`
+- `encode_kmer` now uses an unnamed generic
+- The trait bounds for `get_variants` have been simplified 
 
 ## [0.0.29] - 2026-06-02
 
