@@ -76,9 +76,8 @@ impl<R: std::io::Read> SAMReader<R, true> {
     /// Creates an iterator over SAM data, wrapping the input in a buffered
     /// reader.
     ///
-    /// Unlike [`from_readable`], this does not allocate or read any data
-    /// initially. It also allows for empty input, in which case the resulting
-    /// iterator is empty.
+    /// Unlike [`from_readable`], this does not read any data initially. It also
+    /// allows for empty input, in which case the resulting iterator is empty.
     ///
     /// If the optional data in the SAM records is not being used by the
     /// downstream application, consider using [`new_ignore_opt`] for
@@ -136,9 +135,9 @@ impl<R: std::io::Read> SAMReader<R, false> {
     /// order to reduce allocations and improve efficiency. Use [`new`] to
     /// include the optional data in the output.
     ///
-    /// Unlike [`from_readable_ignore_opt`], this does not allocate or read any
-    /// data initially. It also allows for empty input, in which case the
-    /// resulting iterator is empty.
+    /// Unlike [`from_readable_ignore_opt`], this does not read any data
+    /// initially. It also allows for empty input, in which case the resulting
+    /// iterator is empty.
     ///
     /// [`from_readable_ignore_opt`]: SAMReader::from_readable_ignore_opt
     /// [`new`]: SAMReader::new

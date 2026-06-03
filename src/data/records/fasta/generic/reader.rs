@@ -34,9 +34,8 @@ impl<R: std::io::Read> FastaReader<R> {
     /// Creates an iterator over FASTA data, wrapping the input in a buffered
     /// reader.
     ///
-    /// Unlike [`from_readable`], this does not allocate or read any data
-    /// initially. It also allows for empty input, in which case the resulting
-    /// iterator is empty.
+    /// Unlike [`from_readable`], this does not read any data initially. It also
+    /// allows for empty input, in which case the resulting iterator is empty.
     ///
     /// [`from_readable`]: FastaReader::from_readable
     pub fn new(inner: R) -> Self {
