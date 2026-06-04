@@ -23,6 +23,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - `encode_kmer` now uses an unnamed generic
 - Constructors for nucleotides, amino acids, quality scores, and CIGAR strings are `const`
 - `AminoAcidsDistance` now has a blanket implementation
+- `StatesSequence` and `StatesSequenceMut` have been replaced with smaller traits `PeekOp`, `PeekCiglet`, `PeekCigletMut`, `NextCiglet`, `NextCigletMut`, and `TakeOp` 
 
 ### Removed
 

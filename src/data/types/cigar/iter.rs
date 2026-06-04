@@ -1,7 +1,7 @@
 //! Implementations and methods for iterating over CIGAR strings.
 
 use crate::{
-    alignment::{AlignmentStates, StatesSequence},
+    alignment::{AlignmentStates, NextCiglet, PeekOp},
     data::cigar::{Cigar, CigarError, CigarView, CigarViewMut, Ciglet, USIZE_WIDTH, is_valid_op},
     unwrap_or_return_some_err,
 };
@@ -173,7 +173,7 @@ impl DoubleEndedIterator for CigletIterator<'_> {
     }
 }
 
-impl StatesSequence for CigletIterator<'_> {
+impl PeekOp for CigletIterator<'_> {
     #[inline]
     fn peek_op(&mut self) -> Option<u8> {
         loop {
@@ -191,7 +191,7 @@ impl StatesSequence for CigletIterator<'_> {
     }
 
     #[inline]
-    fn peek_back_op(&mut self) -> Option<u8> {
+    fn peek_op_back(&mut self) -> Option<u8> {
         loop {
             let (op, rest) = self.buffer.split_last()?;
 
@@ -209,12 +209,9 @@ impl StatesSequence for CigletIterator<'_> {
             }
         }
     }
+}
 
-    #[inline]
-    fn is_empty(&self) -> bool {
-        self.buffer.is_empty()
-    }
-
+impl NextCiglet for CigletIterator<'_> {
     #[inline]
     fn next_ciglet(&mut self) -> Option<Ciglet> {
         loop {

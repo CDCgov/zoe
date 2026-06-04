@@ -2,7 +2,7 @@
 //! [`AlignmentStates`], and related structs.
 
 use crate::{
-    alignment::{AlignmentStates, StatesSequence},
+    alignment::{AlignmentStates, NextCiglet},
     data::{
         arbitrary::ArbitrarySpecs,
         cigar::{Cigar, Ciglet, FormatCigletForCigarVec, LenInAlignment},
@@ -266,8 +266,8 @@ impl ClampAlignment for AlignmentStates {
 
         // Remove clipping without risk of overflow when adding the amounts
         // clipped
-        ciglets.next_back_if_op(|op| op == b'H');
-        ciglets.next_back_if_op(|op| op == b'S');
+        ciglets.next_ciglet_back_if_op(|op| op == b'H');
+        ciglets.next_ciglet_back_if_op(|op| op == b'S');
 
         let needs_shrink = match ciglets.query_len_in_alignment_checked() {
             Some(query_len) => query_len > max_query_len,
@@ -300,7 +300,7 @@ impl ClampAlignment for AlignmentStates {
                     clipping_len = ciglet.inc;
                     // Push soft and hard clipping ciglets
                     new_vec.push(ciglet);
-                    new_vec.extend(ciglets.next_if_op(|op| op == b'H'));
+                    new_vec.extend(ciglets.next_ciglet_if_op(|op| op == b'H'));
                 } else {
                     // The number of residues in the query consumed by this ciglet
                     let ciglet_query_len = if matches!(ciglet.op, b'M' | b'I' | b'=' | b'X') {
@@ -452,7 +452,7 @@ impl ClampAlignment for Cigar {
                     clipping_len = ciglet.inc;
                     // Push soft and hard clipping ciglets
                     new_vec.push_formatted_ciglet(ciglet);
-                    if let Some(ciglet) = ciglets.next_if_op(|op| op == b'H') {
+                    if let Some(ciglet) = ciglets.next_ciglet_if_op(|op| op == b'H') {
                         new_vec.push_formatted_ciglet(ciglet);
                     }
                 } else {

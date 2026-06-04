@@ -6,7 +6,7 @@
 
 use crate::{
     alignment::{
-        StatesSequence,
+        NextCiglet, PeekOp,
         phmm::{
             CorePhmm, DomainPhmm, GlobalPhmm, LocalPhmm, PhmmError, PhmmNumber, PhmmState, SemiLocalPhmm,
             indexing::{
@@ -786,8 +786,8 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
 
         // Split query between begin module, core pHMM, and end module
         let (begin_seq, seq, end_seq) = {
-            let begin_inserted = ciglets.next_if_op(|op| op == b'S').map_or(0, |ciglet| ciglet.inc);
-            let end_inserted = ciglets.next_back_if_op(|op| op == b'S').map_or(0, |ciglet| ciglet.inc);
+            let begin_inserted = ciglets.next_ciglet_if_op(|op| op == b'S').map_or(0, |ciglet| ciglet.inc);
+            let end_inserted = ciglets.next_ciglet_back_if_op(|op| op == b'S').map_or(0, |ciglet| ciglet.inc);
             if ciglets.is_empty() {
                 if !ref_range.is_empty() {
                     return Err(PhmmError::InvalidPath);
@@ -1035,8 +1035,8 @@ impl<T: PhmmNumber, const S: usize> DomainPhmm<T, S> {
 
         // Split query between begin module, core pHMM, and end module
         let (begin_seq, seq, end_seq) = {
-            let begin_inserted = ciglets.next_if_op(|op| op == b'S').map_or(0, |ciglet| ciglet.inc);
-            let end_inserted = ciglets.next_back_if_op(|op| op == b'S').map_or(0, |ciglet| ciglet.inc);
+            let begin_inserted = ciglets.next_ciglet_if_op(|op| op == b'S').map_or(0, |ciglet| ciglet.inc);
+            let end_inserted = ciglets.next_ciglet_back_if_op(|op| op == b'S').map_or(0, |ciglet| ciglet.inc);
 
             let (seq, end_seq) = seq.split_at(seq.len() - end_inserted);
             let (begin_seq, seq) = seq.split_at(begin_inserted);

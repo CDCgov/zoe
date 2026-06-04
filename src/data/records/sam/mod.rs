@@ -1,5 +1,5 @@
 use crate::{
-    alignment::{Alignment, AlignmentStates, MaybeAligned, StatesSequence},
+    alignment::{Alignment, AlignmentStates, MaybeAligned, NextCiglet},
     data::{
         cigar::LenInAlignment,
         err::ResultWithErrorContext,
@@ -320,10 +320,10 @@ impl SamData {
         let ref_range = ref_range_start..ref_range_end;
 
         let mut ciglets = self.cigar.iter();
-        ciglets.next_if_op(|op| op == b'H');
-        let soft_clipping_front = ciglets.next_if_op(|op| op == b'S').map_or(0, |c| c.inc);
-        ciglets.next_back_if_op(|op| op == b'H');
-        let soft_clipping_back = ciglets.next_back_if_op(|op| op == b'S').map_or(0, |c| c.inc);
+        ciglets.next_ciglet_if_op(|op| op == b'H');
+        let soft_clipping_front = ciglets.next_ciglet_if_op(|op| op == b'S').map_or(0, |c| c.inc);
+        ciglets.next_ciglet_back_if_op(|op| op == b'H');
+        let soft_clipping_back = ciglets.next_ciglet_back_if_op(|op| op == b'S').map_or(0, |c| c.inc);
 
         let soft_clipping = soft_clipping_front + soft_clipping_back;
 

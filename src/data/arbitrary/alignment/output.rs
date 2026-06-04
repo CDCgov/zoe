@@ -5,7 +5,7 @@
 //! and [`AlignmentAndQuerySpecs`].
 
 use crate::{
-    alignment::{Alignment, AlignmentStates, StatesSequence, StatesSequenceMut},
+    alignment::{Alignment, AlignmentStates, NextCiglet, NextCigletMut},
     data::{
         arbitrary::{AlignmentStatesSpecs, ArbitrarySpecs, ByteSpecs, ClampAlignment, VecSpecs},
         cigar::LenInAlignment,
@@ -218,10 +218,10 @@ where
         // mutable to allow the inner references to be mutated without requiring
         // destructuring of the option
         let mut ciglets = states.as_mut_slice();
-        ciglets.next_if_op(|op| op == b'H');
-        let mut soft_clip_at_start_ciglet = ciglets.next_if_op_mut(|op| op == b'S');
-        ciglets.next_back_if_op(|op| op == b'H');
-        let mut soft_clip_at_end_ciglet = ciglets.next_back_if_op_mut(|op| op == b'S');
+        ciglets.next_ciglet_if_op(|op| op == b'H');
+        let mut soft_clip_at_start_ciglet = ciglets.next_ciglet_if_op_mut(|op| op == b'S');
+        ciglets.next_ciglet_back_if_op(|op| op == b'H');
+        let mut soft_clip_at_end_ciglet = ciglets.next_ciglet_back_if_op_mut(|op| op == b'S');
 
         // Generate the query range: generate the starting value, then
         // compute/generate the end

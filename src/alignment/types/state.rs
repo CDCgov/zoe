@@ -2,7 +2,7 @@ use crate::{
     alignment::AlignmentIndices,
     data::types::cigar::{Cigar, Ciglet},
 };
-use std::{hint::cold_path, ops::Range};
+use std::ops::Range;
 
 /// A struct for storing alignment states.
 ///
@@ -458,56 +458,110 @@ where
     }
 }
 
-/// A trait representing a sequence of alignment states, where each element is
-/// represented as a [`Ciglet`] which can be read.
+/// An extension trait for alignment-like data that enables the next operation
+/// to be peeked at (without consuming it, in the case of an iterator).
 ///
-/// This provides iterator-like functionality, allowing the [`Ciglet`] elements
-/// to be consumed (such as with [`next_ciglet`] and [`next_ciglet_back`]) or
-/// peeked at (such as with [`peek_op`] or [`peek_back_op`]).
-///
-/// [`next_ciglet`]: StatesSequence::next_ciglet
-/// [`next_ciglet_back`]: StatesSequence::next_ciglet_back
-/// [`peek_op`]: StatesSequence::peek_op
-/// [`peek_back_op`]: StatesSequence::peek_back_op
-pub trait StatesSequence {
+/// Mutable access to `self` is required solely for the purpose of fetching the
+/// relevent data or advancing past empty ciglets.
+pub trait PeekOp {
     /// Peeks at the operation for the next ciglet without consuming it. Empty
-    /// ciglets are skipped.
+    /// ciglets are skipped and may be removed.
     #[must_use]
     fn peek_op(&mut self) -> Option<u8>;
 
     /// Peeks at the operation for the last ciglet without consuming it. Empty
-    /// ciglets are skipped.
+    /// ciglets are skipped and may be removed.
     #[must_use]
-    fn peek_back_op(&mut self) -> Option<u8>;
+    fn peek_op_back(&mut self) -> Option<u8>;
+}
 
-    /// Checks whether the sequence of alignment states is empty.
-    ///
-    /// This assumes that the states are valid and have a non-zero increment.
+/// An extension trait for alignment-like data that enables a single increment
+/// of the the next operation to be removed and returned.
+///
+/// This will mutate the underlying slice or iterator to contain one fewer
+/// increment, and may result in an empty [`Ciglet`].
+pub trait TakeOp: PeekOp {
+    /// Removes and returns one increment of the next operation from the
+    /// alignment states.
     #[must_use]
-    fn is_empty(&self) -> bool;
+    fn take_op(&mut self) -> Option<u8>;
 
-    /// Retrieves the next [`Ciglet`] and removes it from the
-    /// [`StatesSequence`], similar to [`Iterator::next`]. Empty ciglets are
-    /// skipped.
+    /// Removes and returns one increment of the last operation from the
+    /// alignment states.
+    #[must_use]
+    fn take_op_back(&mut self) -> Option<u8>;
+
+    /// Removes and returns the next operation if it meets the specified
+    /// predicate, otherwise `self` is not modified (aside from possibly
+    /// removing empty ciglets).
+    #[inline]
+    fn take_op_if(&mut self, f: impl FnOnce(u8) -> bool) -> Option<u8> {
+        if f(self.peek_op()?) { self.take_op() } else { None }
+    }
+
+    /// Removes and returns the last operation if it meets the specified
+    /// predicate, otherwise `self` is not modified (aside from possibly
+    /// removing empty ciglets).
+    #[inline]
+    fn take_op_back_if(&mut self, f: impl FnOnce(u8) -> bool) -> Option<u8> {
+        if f(self.peek_op_back()?) { self.take_op_back() } else { None }
+    }
+}
+
+/// An extension trait for alignment-like data that enables the next [`Ciglet`]
+/// to be peeked at (without consuming it, in the case of an iterator).
+///
+/// Mutable access to `self` is required solely for the purpose of fetching the
+/// relevent data or advancing past empty ciglets.
+pub trait PeekCiglet {
+    /// Peeks at the next ciglet without consuming it. Empty ciglets are
+    /// skipped and may be removed.
+    fn peek_ciglet(&mut self) -> Option<Ciglet>;
+
+    /// Peeks at the last ciglet without consuming it. Empty ciglets are
+    /// skipped and may be removed.
+    fn peek_ciglet_back(&mut self) -> Option<Ciglet>;
+}
+
+/// Similar to [`PeekCiglet`] but providing mutable access to the peeked
+/// [`Ciglet`].
+pub trait PeekCigletMut {
+    /// Peeks at the next ciglet without consuming it, as well as giving mutable
+    /// access to it. Empty ciglets are skipped and may be removed.
+    fn peek_ciglet_mut(&mut self) -> Option<&mut Ciglet>;
+
+    /// Peeks at the last ciglet without consuming it, as well as giving mutable
+    /// access to it. Empty ciglets are skipped and may be removed.
+    fn peek_ciglet_back_mut(&mut self) -> Option<&mut Ciglet>;
+}
+
+/// An extension trait for alignment-like data that enables the next ciglet to
+/// be consumed and returned.
+///
+/// This provides similar functionality to an iterator. When implemented on
+/// slice-like types, consuming the ciglet involves shrinking the slice without
+/// mutating the data it is refering to.
+pub trait NextCiglet: PeekOp {
+    /// Retrieves the next [`Ciglet`] and removes it from `self`, similar to
+    /// [`Iterator::next`]. Empty ciglets are skipped.
     fn next_ciglet(&mut self) -> Option<Ciglet>;
 
-    /// Retrieves the next [`Ciglet`] from the end and removes it from the
-    /// [`StatesSequence`], similar to [`DoubleEndedIterator::next_back`]. Empty
-    /// ciglets are skipped.
+    /// Retrieves the last [`Ciglet`] and removes it from `self`, similar to
+    /// [`DoubleEndedIterator::next_back`]. Empty ciglets are skipped.
     fn next_ciglet_back(&mut self) -> Option<Ciglet>;
 
     /// Gets the next ciglet if the operation meets the specified predicate,
-    /// otherwise the [`StatesSequence`] is not modified.
+    /// otherwise `self` is not modified (aside from skipping empty ciglets).
     #[inline]
-    fn next_if_op(&mut self, f: impl FnOnce(u8) -> bool) -> Option<Ciglet> {
+    fn next_ciglet_if_op(&mut self, f: impl FnOnce(u8) -> bool) -> Option<Ciglet> {
         if f(self.peek_op()?) { self.next_ciglet() } else { None }
     }
 
     /// Gets the last ciglet if the operation meets the specified predicate,
-    /// otherwise the [`StatesSequence`] is not modified.
+    /// otherwise `self` is not modified (aside from skipping empty ciglets).
     #[inline]
-    fn next_back_if_op(&mut self, f: impl FnOnce(u8) -> bool) -> Option<Ciglet> {
-        if f(self.peek_back_op()?) {
+    fn next_ciglet_back_if_op(&mut self, f: impl FnOnce(u8) -> bool) -> Option<Ciglet> {
+        if f(self.peek_op_back()?) {
             self.next_ciglet_back()
         } else {
             None
@@ -521,8 +575,8 @@ pub trait StatesSequence {
     /// is returned.
     #[inline]
     fn remove_clipping_front(&mut self) -> usize {
-        let hard_clipping = self.next_if_op(|op| op == b'H').map_or(0, |ciglet| ciglet.inc);
-        let soft_clipping = self.next_if_op(|op| op == b'S').map_or(0, |ciglet| ciglet.inc);
+        let hard_clipping = self.next_ciglet_if_op(|op| op == b'H').map_or(0, |ciglet| ciglet.inc);
+        let soft_clipping = self.next_ciglet_if_op(|op| op == b'S').map_or(0, |ciglet| ciglet.inc);
         hard_clipping + soft_clipping
     }
 
@@ -533,45 +587,41 @@ pub trait StatesSequence {
     /// is returned.
     #[inline]
     fn remove_clipping_back(&mut self) -> usize {
-        let hard_clipping = self.next_back_if_op(|op| op == b'H').map_or(0, |ciglet| ciglet.inc);
-        let soft_clipping = self.next_back_if_op(|op| op == b'S').map_or(0, |ciglet| ciglet.inc);
+        let hard_clipping = self.next_ciglet_back_if_op(|op| op == b'H').map_or(0, |ciglet| ciglet.inc);
+        let soft_clipping = self.next_ciglet_back_if_op(|op| op == b'S').map_or(0, |ciglet| ciglet.inc);
         hard_clipping + soft_clipping
     }
 }
 
-/// A trait representing a sequence of alignment states, where each element is
-/// represented as a [`Ciglet`] which can be mutated.
+/// An extension trait for alignment-like data that enables the next ciglet to
+/// be consumed and a mutable reference to it returned.
 ///
-/// This provides iterator-like functionality, allowing the [`Ciglet`] elements
-/// to be consumed (such as with [`next_ciglet_mut`] and
-/// [`next_ciglet_back_mut`]).
-///
-/// [`next_ciglet_mut`]: StatesSequenceMut::next_ciglet_mut
-/// [`next_ciglet_back_mut`]: StatesSequenceMut::next_ciglet_back_mut
-pub trait StatesSequenceMut<'a>: StatesSequence {
-    /// Retrieves a mutable reference to next [`Ciglet`] and removes it from the
-    /// [`StatesSequence`], similar to [`Iterator::next`].
+/// Consuming the ciglet causes the slice to be shrunk. The underlying data it
+/// is refering to is not mutated, although any modifications performed to the
+/// returned mutable reference will mutate it.
+pub trait NextCigletMut<'a>: NextCiglet {
+    /// Retrieves a mutable reference to the next [`Ciglet`] and removes it from
+    /// `self`. Empty ciglets are skipped.
     fn next_ciglet_mut(&mut self) -> Option<&'a mut Ciglet>;
 
-    /// Retrieves a mutable reference to the next [`Ciglet`] from the end and
-    /// removes it from the [`StatesSequence`], similar to
-    /// [`DoubleEndedIterator::next_back`].
+    /// Retrieves a mutable reference to the last [`Ciglet`] and removes it from
+    /// `self`. Empty ciglets are skipped.
     fn next_ciglet_back_mut(&mut self) -> Option<&'a mut Ciglet>;
 
     /// Gets a mutable reference to the next ciglet if the operation meets the
-    /// specified predicate (and then remove it from the [`StatesSequence`]).
-    /// Otherwise the [`StatesSequence`] is not modified.
+    /// specified predicate, otherwise `self` is not mutated (aside from
+    /// possibly removing empty ciglets).
     #[inline]
-    fn next_if_op_mut(&mut self, f: impl FnOnce(u8) -> bool) -> Option<&'a mut Ciglet> {
+    fn next_ciglet_if_op_mut(&mut self, f: impl FnOnce(u8) -> bool) -> Option<&'a mut Ciglet> {
         if f(self.peek_op()?) { self.next_ciglet_mut() } else { None }
     }
 
     /// Gets a mutable reference to the last ciglet if the operation meets the
-    /// specified predicat (and then remove it from the [`StatesSequence`]).
-    /// Otherwise the [`StatesSequence`] is not modified.
+    /// specified predicate, otherwise `self` is not mutated (aside from
+    /// possibly removing empty ciglets).
     #[inline]
-    fn next_back_if_op_mut(&mut self, f: impl FnOnce(u8) -> bool) -> Option<&'a mut Ciglet> {
-        if f(self.peek_back_op()?) {
+    fn next_ciglet_back_if_op_mut(&mut self, f: impl FnOnce(u8) -> bool) -> Option<&'a mut Ciglet> {
+        if f(self.peek_op_back()?) {
             self.next_ciglet_back_mut()
         } else {
             None
@@ -579,48 +629,51 @@ pub trait StatesSequenceMut<'a>: StatesSequence {
     }
 }
 
-impl StatesSequence for &[Ciglet] {
+impl PeekOp for &[Ciglet] {
     #[inline]
     fn peek_op(&mut self) -> Option<u8> {
+        self.peek_ciglet().map(|ciglet| ciglet.op)
+    }
+
+    #[inline]
+    fn peek_op_back(&mut self) -> Option<u8> {
+        self.peek_ciglet_back().map(|ciglet| ciglet.op)
+    }
+}
+
+impl PeekCiglet for &[Ciglet] {
+    fn peek_ciglet(&mut self) -> Option<Ciglet> {
         loop {
             let ciglet = self.first()?;
 
             if ciglet.inc == 0 {
-                cold_path();
                 self.split_off_first();
             } else {
-                return Some(ciglet.op);
+                return Some(*ciglet);
             }
         }
     }
 
-    #[inline]
-    fn peek_back_op(&mut self) -> Option<u8> {
+    fn peek_ciglet_back(&mut self) -> Option<Ciglet> {
         loop {
             let ciglet = self.last()?;
 
             if ciglet.inc == 0 {
-                cold_path();
                 self.split_off_last();
             } else {
-                return Some(ciglet.op);
+                return Some(*ciglet);
             }
         }
     }
+}
 
-    #[inline]
-    fn is_empty(&self) -> bool {
-        (*self).is_empty()
-    }
-
+impl NextCiglet for &[Ciglet] {
     #[inline]
     fn next_ciglet(&mut self) -> Option<Ciglet> {
         loop {
             let ciglet = self.split_off_first()?;
 
-            if ciglet.inc == 0 {
-                cold_path();
-            } else {
+            if ciglet.inc > 0 {
                 return Some(*ciglet);
             }
         }
@@ -631,8 +684,72 @@ impl StatesSequence for &[Ciglet] {
         loop {
             let ciglet = self.split_off_last()?;
 
+            if ciglet.inc > 0 {
+                return Some(*ciglet);
+            }
+        }
+    }
+}
+
+impl PeekOp for &mut [Ciglet] {
+    #[inline]
+    fn peek_op(&mut self) -> Option<u8> {
+        self.peek_ciglet().map(|ciglet| ciglet.op)
+    }
+
+    #[inline]
+    fn peek_op_back(&mut self) -> Option<u8> {
+        self.peek_ciglet_back().map(|ciglet| ciglet.op)
+    }
+}
+
+impl TakeOp for &mut [Ciglet] {
+    fn take_op(&mut self) -> Option<u8> {
+        loop {
+            let ciglet = self.first_mut()?;
+
+            if let Some(new_inc) = ciglet.inc.checked_sub(1) {
+                ciglet.inc = new_inc;
+                return Some(ciglet.op);
+            }
+
+            self.split_off_first_mut();
+        }
+    }
+
+    fn take_op_back(&mut self) -> Option<u8> {
+        loop {
+            let ciglet = self.last_mut()?;
+
+            if let Some(new_inc) = ciglet.inc.checked_sub(1) {
+                ciglet.inc = new_inc;
+                return Some(ciglet.op);
+            }
+
+            self.split_off_last_mut();
+        }
+    }
+}
+
+impl PeekCiglet for &mut [Ciglet] {
+    fn peek_ciglet(&mut self) -> Option<Ciglet> {
+        loop {
+            let ciglet = self.first()?;
+
             if ciglet.inc == 0 {
-                cold_path();
+                self.split_off_first_mut();
+            } else {
+                return Some(*ciglet);
+            }
+        }
+    }
+
+    fn peek_ciglet_back(&mut self) -> Option<Ciglet> {
+        loop {
+            let ciglet = self.last()?;
+
+            if ciglet.inc == 0 {
+                self.split_off_last_mut();
             } else {
                 return Some(*ciglet);
             }
@@ -640,22 +757,7 @@ impl StatesSequence for &[Ciglet] {
     }
 }
 
-impl StatesSequence for &mut [Ciglet] {
-    #[inline]
-    fn peek_op(&mut self) -> Option<u8> {
-        self.as_ref().peek_op()
-    }
-
-    #[inline]
-    fn peek_back_op(&mut self) -> Option<u8> {
-        self.as_ref().peek_back_op()
-    }
-
-    #[inline]
-    fn is_empty(&self) -> bool {
-        self.as_ref().is_empty()
-    }
-
+impl NextCiglet for &mut [Ciglet] {
     #[inline]
     fn next_ciglet(&mut self) -> Option<Ciglet> {
         self.next_ciglet_mut().copied()
@@ -667,28 +769,90 @@ impl StatesSequence for &mut [Ciglet] {
     }
 }
 
-impl<'a> StatesSequenceMut<'a> for &'a mut [Ciglet] {
-    #[inline]
+impl PeekCigletMut for &mut [Ciglet] {
+    fn peek_ciglet_mut(&mut self) -> Option<&mut Ciglet> {
+        let idx = if self.first()?.inc > 0 {
+            0
+        } else {
+            self.iter().position(|ciglet| ciglet.inc > 0)?
+        };
+
+        // Range will be in bounds based on above
+        let _ = self.split_off_mut(..idx);
+
+        self.first_mut()
+    }
+
+    fn peek_ciglet_back_mut(&mut self) -> Option<&mut Ciglet> {
+        let idx = if self.last()?.inc > 0 {
+            self.len() - 1
+        } else {
+            self.iter().rposition(|ciglet| ciglet.inc > 0)?
+        };
+
+        // If range is out of bounds, then idx is already the last index
+        let _ = self.split_off_mut(idx + 1..);
+
+        self.last_mut()
+    }
+}
+
+impl<'a> NextCigletMut<'a> for &'a mut [Ciglet] {
     fn next_ciglet_mut(&mut self) -> Option<&'a mut Ciglet> {
         loop {
             let ciglet = self.split_off_first_mut()?;
 
-            if ciglet.inc == 0 {
-                cold_path();
-            } else {
+            if ciglet.inc > 0 {
                 return Some(ciglet);
             }
         }
     }
 
-    #[inline]
     fn next_ciglet_back_mut(&mut self) -> Option<&'a mut Ciglet> {
         loop {
             let ciglet = self.split_off_last_mut()?;
 
-            if ciglet.inc == 0 {
-                cold_path();
-            } else {
+            if ciglet.inc > 0 {
+                return Some(ciglet);
+            }
+        }
+    }
+}
+
+impl PeekOp for std::slice::Iter<'_, Ciglet> {
+    fn peek_op(&mut self) -> Option<u8> {
+        self.as_slice().peek_op()
+    }
+
+    fn peek_op_back(&mut self) -> Option<u8> {
+        self.as_slice().peek_op_back()
+    }
+}
+
+impl PeekCiglet for std::slice::Iter<'_, Ciglet> {
+    fn peek_ciglet(&mut self) -> Option<Ciglet> {
+        self.as_slice().peek_ciglet()
+    }
+
+    fn peek_ciglet_back(&mut self) -> Option<Ciglet> {
+        self.as_slice().peek_ciglet_back()
+    }
+}
+
+impl NextCiglet for std::slice::Iter<'_, Ciglet> {
+    fn next_ciglet(&mut self) -> Option<Ciglet> {
+        loop {
+            let ciglet = *self.next()?;
+            if ciglet.inc > 0 {
+                return Some(ciglet);
+            }
+        }
+    }
+
+    fn next_ciglet_back(&mut self) -> Option<Ciglet> {
+        loop {
+            let ciglet = *self.next_back()?;
+            if ciglet.inc > 0 {
                 return Some(ciglet);
             }
         }
