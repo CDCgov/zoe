@@ -67,6 +67,20 @@ macro_rules! impl_std_traits_for_sequence {
             }
         }
 
+        impl From<&Vec<u8>> for $owned {
+            #[inline]
+            fn from(vec: &Vec<u8>) -> Self {
+                Self::from(vec.clone())
+            }
+        }
+
+        impl From<&mut Vec<u8>> for $owned {
+            #[inline]
+            fn from(vec: &mut Vec<u8>) -> Self {
+                Self::from(vec.clone())
+            }
+        }
+
         impl From<&[u8]> for $owned {
             #[inline]
             fn from(bytes: &[u8]) -> Self {

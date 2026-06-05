@@ -173,12 +173,46 @@ impl TryFrom<String> for Cigar {
     }
 }
 
+impl TryFrom<&String> for Cigar {
+    type Error = CigarError;
+
+    #[inline]
+    fn try_from(s: &String) -> Result<Self, Self::Error> {
+        Cigar::try_from(s.as_bytes())
+    }
+}
+
+impl TryFrom<&mut String> for Cigar {
+    type Error = CigarError;
+
+    #[inline]
+    fn try_from(s: &mut String) -> Result<Self, Self::Error> {
+        Cigar::try_from(s.as_bytes())
+    }
+}
+
 impl TryFrom<Vec<u8>> for Cigar {
     type Error = CigarError;
 
     fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
         Self::check_for_err(&bytes)?;
         Ok(Cigar(bytes))
+    }
+}
+
+impl TryFrom<&Vec<u8>> for Cigar {
+    type Error = CigarError;
+
+    fn try_from(v: &Vec<u8>) -> Result<Self, Self::Error> {
+        Cigar::try_from(v.clone())
+    }
+}
+
+impl TryFrom<&mut Vec<u8>> for Cigar {
+    type Error = CigarError;
+
+    fn try_from(v: &mut Vec<u8>) -> Result<Self, Self::Error> {
+        Cigar::try_from(v.clone())
     }
 }
 
@@ -232,6 +266,15 @@ impl TryFrom<&str> for Cigar {
 
     #[inline]
     fn try_from(s: &str) -> Result<Self, Self::Error> {
+        Cigar::try_from(s.as_bytes())
+    }
+}
+
+impl TryFrom<&mut str> for Cigar {
+    type Error = CigarError;
+
+    #[inline]
+    fn try_from(s: &mut str) -> Result<Self, Self::Error> {
         Cigar::try_from(s.as_bytes())
     }
 }

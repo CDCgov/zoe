@@ -159,82 +159,205 @@ mod tests {
     };
 
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn test_from() {
         const SEQ: &[u8; 14] = b"10M3X5D10M3X5D";
-        let mut mut_arr1 = *SEQ;
-        let mut mut_arr2 = *SEQ;
 
         macro_rules! test_from_impls_view_mut {
             ($t:ty) => {
-                let mut_byte_slice = mut_arr1.as_mut_slice();
-                let arr_mut_ref = &mut mut_arr2;
-                let mut owned = *SEQ;
-                let expected = <$t>::from(&mut owned);
-                assert_eq!(<$t>::from(mut_byte_slice), expected);
-                assert_eq!(<$t>::from(arr_mut_ref), expected);
+                let mut temp = SEQ.to_vec();
+                let vec_ref_mut = &mut temp;
+                let mut temp = SEQ.clone();
+                let slice_ref_mut = temp.as_mut_slice();
+                let mut temp = SEQ.clone();
+                let arr_ref_mut = &mut temp;
+
+                let conversions = vec![
+                    <$t>::from(vec_ref_mut),
+                    <$t>::from(slice_ref_mut),
+                    <$t>::from(arr_ref_mut),
+                ];
+
+                for conversion in &conversions {
+                    assert_eq!(conversion, &conversions[0]);
+                }
             };
         }
 
         macro_rules! test_from_impls_view {
             ($t:ty) => {
-                let byte_slice = SEQ.as_slice();
+                let temp = SEQ.to_vec();
+                let vec_ref = &temp;
+                let mut temp = SEQ.to_vec();
+                let vec_ref_mut = &mut temp;
+                let slice_ref = SEQ.as_slice();
+                let mut temp = SEQ.to_vec();
+                let slice_ref_mut = temp.as_mut_slice();
                 let arr_ref = SEQ;
-                let mut owned = *SEQ;
-                let expected = <$t>::from(&mut owned);
-                assert_eq!(<$t>::from(byte_slice), expected);
-                assert_eq!(<$t>::from(arr_ref), expected);
-                test_from_impls_view_mut!($t);
+                let mut temp = *SEQ;
+                let arr_ref_mut = &mut temp;
+                let temp = String::from_utf8_lossy(SEQ).to_string();
+                let str_ref = temp.as_str();
+                let mut temp = String::from_utf8_lossy(SEQ).to_string();
+                let str_ref_mut = temp.as_mut_str();
+
+                let conversions = vec![
+                    <$t>::from(vec_ref),
+                    <$t>::from(vec_ref_mut),
+                    <$t>::from(slice_ref),
+                    <$t>::from(slice_ref_mut),
+                    <$t>::from(arr_ref),
+                    <$t>::from(arr_ref_mut),
+                    <$t>::from(str_ref),
+                    <$t>::from(str_ref_mut),
+                ];
+
+                for conversion in &conversions {
+                    assert_eq!(conversion, &conversions[0]);
+                }
             };
         }
 
         macro_rules! test_from_impls_owned {
             ($t:ty) => {
                 let string = String::from_utf8_lossy(SEQ.as_slice()).to_string();
+                let string_ref = &String::from_utf8_lossy(SEQ.as_slice()).to_string();
+                let string_ref_mut = &mut String::from_utf8_lossy(SEQ.as_slice()).to_string();
+                let temp = string.clone();
+                let str_ref = temp.as_str();
+                let mut temp = string.clone();
+                let str_ref_mut = temp.as_mut_str();
                 let vec = SEQ.to_vec();
+                let temp = vec.clone();
+                let vec_ref = &temp;
+                let mut temp = vec.clone();
+                let vec_ref_mut = &mut temp;
+                let slice_ref = SEQ.as_slice();
+                let mut temp = vec.clone();
+                let slice_ref_mut = temp.as_mut_slice();
                 let arr = *SEQ;
-                let mut owned = *SEQ;
-                let expected = <$t>::from(&mut owned);
-                assert_eq!(<$t>::from(string), expected);
-                assert_eq!(<$t>::from(vec), expected);
-                assert_eq!(<$t>::from(arr), expected);
-                test_from_impls_view!($t);
+                let arr_ref = SEQ;
+                let mut temp = *SEQ;
+                let arr_ref_mut = &mut temp;
+
+                let conversions = vec![
+                    <$t>::from(string),
+                    <$t>::from(string_ref),
+                    <$t>::from(string_ref_mut),
+                    <$t>::from(str_ref),
+                    <$t>::from(str_ref_mut),
+                    <$t>::from(vec),
+                    <$t>::from(vec_ref),
+                    <$t>::from(vec_ref_mut),
+                    <$t>::from(slice_ref),
+                    <$t>::from(slice_ref_mut),
+                    <$t>::from(arr),
+                    <$t>::from(arr_ref),
+                    <$t>::from(arr_ref_mut),
+                ];
+
+                for conversion in &conversions {
+                    assert_eq!(conversion, &conversions[0]);
+                }
             };
         }
 
         macro_rules! test_try_from_impls_view_mut {
             ($t:ty) => {
-                let mut_byte_slice = mut_arr1.as_mut_slice();
-                let arr_mut_ref = &mut mut_arr2;
-                let mut owned = *SEQ;
-                let expected = <$t>::try_from(&mut owned).unwrap();
-                assert_eq!(<$t>::try_from(mut_byte_slice).unwrap(), expected);
-                assert_eq!(<$t>::try_from(arr_mut_ref).unwrap(), expected);
+                let mut temp = SEQ.to_vec();
+                let vec_ref_mut = &mut temp;
+                let mut temp = SEQ.clone();
+                let slice_ref_mut = temp.as_mut_slice();
+                let mut temp = SEQ.clone();
+                let arr_ref_mut = &mut temp;
+
+                let conversions = vec![
+                    <$t>::try_from(vec_ref_mut).unwrap(),
+                    <$t>::try_from(slice_ref_mut).unwrap(),
+                    <$t>::try_from(arr_ref_mut).unwrap(),
+                ];
+
+                for conversion in &conversions {
+                    assert_eq!(conversion, &conversions[0]);
+                }
             };
         }
 
         macro_rules! test_try_from_impls_view {
             ($t:ty) => {
-                let byte_slice = SEQ.as_slice();
+                let temp = SEQ.to_vec();
+                let vec_ref = &temp;
+                let mut temp = SEQ.to_vec();
+                let vec_ref_mut = &mut temp;
+                let slice_ref = SEQ.as_slice();
+                let mut temp = SEQ.to_vec();
+                let slice_ref_mut = temp.as_mut_slice();
                 let arr_ref = SEQ;
-                let mut owned = *SEQ;
-                let expected = <$t>::try_from(&mut owned).unwrap();
-                assert_eq!(<$t>::try_from(byte_slice).unwrap(), expected);
-                assert_eq!(<$t>::try_from(arr_ref).unwrap(), expected);
-                test_try_from_impls_view_mut!($t);
+                let mut temp = *SEQ;
+                let arr_ref_mut = &mut temp;
+                let temp = String::from_utf8_lossy(SEQ).to_string();
+                let str_ref = temp.as_str();
+                let mut temp = String::from_utf8_lossy(SEQ).to_string();
+                let str_ref_mut = temp.as_mut_str();
+
+                let conversions = vec![
+                    <$t>::try_from(vec_ref).unwrap(),
+                    <$t>::try_from(vec_ref_mut).unwrap(),
+                    <$t>::try_from(slice_ref).unwrap(),
+                    <$t>::try_from(slice_ref_mut).unwrap(),
+                    <$t>::try_from(arr_ref).unwrap(),
+                    <$t>::try_from(arr_ref_mut).unwrap(),
+                    <$t>::try_from(str_ref).unwrap(),
+                    <$t>::try_from(str_ref_mut).unwrap(),
+                ];
+
+                for conversion in &conversions {
+                    assert_eq!(conversion, &conversions[0]);
+                }
             };
         }
 
         macro_rules! test_try_from_impls_owned {
             ($t:ty) => {
                 let string = String::from_utf8_lossy(SEQ.as_slice()).to_string();
+                let string_ref = &String::from_utf8_lossy(SEQ.as_slice()).to_string();
+                let string_ref_mut = &mut String::from_utf8_lossy(SEQ.as_slice()).to_string();
+                let temp = string.clone();
+                let str_ref = temp.as_str();
+                let mut temp = string.clone();
+                let str_ref_mut = temp.as_mut_str();
                 let vec = SEQ.to_vec();
+                let temp = vec.clone();
+                let vec_ref = &temp;
+                let mut temp = vec.clone();
+                let vec_ref_mut = &mut temp;
+                let slice_ref = SEQ.as_slice();
+                let mut temp = vec.clone();
+                let slice_ref_mut = temp.as_mut_slice();
                 let arr = *SEQ;
-                let mut owned = *SEQ;
-                let expected = <$t>::try_from(&mut owned).unwrap();
-                assert_eq!(<$t>::try_from(string).unwrap(), expected);
-                assert_eq!(<$t>::try_from(vec).unwrap(), expected);
-                assert_eq!(<$t>::try_from(arr).unwrap(), expected);
-                test_try_from_impls_view!($t);
+                let arr_ref = SEQ;
+                let mut temp = *SEQ;
+                let arr_ref_mut = &mut temp;
+
+                let conversions = vec![
+                    <$t>::try_from(string).unwrap(),
+                    <$t>::try_from(string_ref).unwrap(),
+                    <$t>::try_from(string_ref_mut).unwrap(),
+                    <$t>::try_from(str_ref).unwrap(),
+                    <$t>::try_from(str_ref_mut).unwrap(),
+                    <$t>::try_from(vec).unwrap(),
+                    <$t>::try_from(vec_ref).unwrap(),
+                    <$t>::try_from(vec_ref_mut).unwrap(),
+                    <$t>::try_from(slice_ref).unwrap(),
+                    <$t>::try_from(slice_ref_mut).unwrap(),
+                    <$t>::try_from(arr).unwrap(),
+                    <$t>::try_from(arr_ref).unwrap(),
+                    <$t>::try_from(arr_ref_mut).unwrap(),
+                ];
+
+                for conversion in &conversions {
+                    assert_eq!(conversion, &conversions[0]);
+                }
             };
         }
 

@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file. The format
 is roughly based on [Keep a Changelog], and this project tries to adheres to
 [Semantic Versioning].
 
+## [0.0.32] - TBD
+
+### Added
+
+- Added additional `From` and `TryFrom` impls for sequence types
+
 ## [0.0.31] - 2026-07-15
 
 ### Added
@@ -585,6 +591,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - **Added**: Initial internal release. Provides various readers and types for bioinformatics data manipulation.
 
 <!-- Versions -->
+[0.0.32]: https://github.com/CDCgov/zoe/compare/v0.0.31...v0.0.32
 [0.0.31]: https://github.com/CDCgov/zoe/compare/v0.0.30...v0.0.31
 [0.0.30]: https://github.com/CDCgov/zoe/compare/v0.0.29...v0.0.30
 [0.0.29]: https://github.com/CDCgov/zoe/compare/v0.0.28...v0.0.29
