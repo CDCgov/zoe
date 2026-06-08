@@ -25,6 +25,16 @@ pub struct AminoAcidsSpecs {
     pub case: Case,
 }
 
+impl From<ByteSpecs> for AminoAcidsSpecs {
+    #[inline]
+    fn from(value: ByteSpecs) -> Self {
+        Self {
+            set:  value.set,
+            case: value.case,
+        }
+    }
+}
+
 impl From<AminoAcidsSpecs> for ByteSpecs {
     #[inline]
     fn from(value: AminoAcidsSpecs) -> Self {

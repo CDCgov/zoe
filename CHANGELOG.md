@@ -6,6 +6,10 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ## [0.0.30] - TBD
 
+### Added
+
+- Added conversion from `ByteSpecs` into `AminoAcidSpecs` and `NucleotideSpecs` (behind `fuzzing` feature gate)
+
 ### Changed
 
 - `SAMReader` no longer automatically uppercases the nucleotide sequence
