@@ -8,6 +8,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ### Added
 
+- Added preliminary two-bit k-mer encoder. Future support for `get_variants` will be added later.
 - Added a by-operation iterator for alignment states (`CigletOpIter`)
 - Added `max_inc` field to `CigletSpecs` (behind `fuzzing` feature gate)
 - `DisplayErrStack` now works for `&dyn Error` (so it can be called on `Error::source`)

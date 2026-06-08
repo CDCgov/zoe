@@ -5,9 +5,8 @@
 
 use crate::{
     data::mappings::THREE_BIT_MAPPING,
-    kmer::{Kmer, KmerEncoder, KmerError, KmerLen, KmerSet, MaxLenToType, SupportedKmerLen},
+    kmer::{Kmer, KmerCounter, KmerEncoder, KmerError, KmerLen, KmerSet, MaxLenToType, SupportedKmerLen},
     math::{AnyInt, Uint},
-    prelude::KmerCounter,
 };
 use std::hash::{Hash, Hasher, RandomState};
 
@@ -43,11 +42,12 @@ pub type ThreeBitKmerSet<const MAX_LEN: usize, S = RandomState> = KmerSet<MAX_LE
 /// </div>
 pub type ThreeBitKmerCounter<const MAX_LEN: usize, S = RandomState> = KmerCounter<MAX_LEN, ThreeBitKmerEncoder<MAX_LEN>, S>;
 
-/// An encoded k-mer using the [`ThreeBitKmerEncoder`]. In most use cases,
-/// encoded k-mers need not be handled directly; [`ThreeBitKmerSet`] and
-/// [`ThreeBitKmerCounter`] provide many methods for accomplishing common tasks.
-/// If no suitable methods are present, then handling encoded k-mers directly
-/// and later decoding them may be appropriate.
+/// An encoded k-mer using the [`ThreeBitKmerEncoder`].
+///
+/// In most use cases, encoded k-mers need not be handled directly;
+/// [`ThreeBitKmerSet`] and [`ThreeBitKmerCounter`] provide many methods for
+/// accomplishing common tasks. If no suitable methods are present, then
+/// handling encoded k-mers directly and later decoding them may be appropriate.
 ///
 /// To decode a [`ThreeBitKmerEncoder`], call the `decode_kmer` method of the
 /// encoder. For the potential case where the encoder is not available,
@@ -130,7 +130,11 @@ where
 pub struct ThreeBitKmerEncoder<const MAX_LEN: usize>
 where
     ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen, {
+    /// The length of the k-mers that this encoder can handle, at most
+    /// `MAX_LEN`.
     kmer_length: usize,
+    /// A bitmask containing `1` only in bits used to store the k-mer, and `0`s
+    /// in unused bit positions
     kmer_mask:   ThreeBitMaxLenToType<MAX_LEN>,
 }
 
@@ -178,6 +182,8 @@ where
 {
     #[inline]
     fn hash<H: Hasher>(&self, state: &mut H) {
+        // Validity: kmer_mask is directly generated from kmer_length and hence
+        // does not need to be hashed
         self.kmer_length.hash(state);
     }
 }
@@ -233,6 +239,7 @@ where
             buffer[i] = Self::decode_base(encoded_base);
             encoded_kmer.0 >>= 3;
         }
+
         // Safety: The buffer only contains valid ASCII because it is
         // initialized with 0 and ThreeBitKmerEncoder::decode_base always
         // returns a char in b"000NACGT"
@@ -278,11 +285,7 @@ where
     #[inline]
     fn new(encoder: &ThreeBitKmerEncoder<MAX_LEN>, seq: &'a [u8]) -> Self {
         if seq.len() < encoder.kmer_length {
-            ThreeBitKmerIterator {
-                current_kmer: ThreeBitEncodedKmer(ThreeBitMaxLenToType::<MAX_LEN>::ZERO),
-                remaining:    [].iter(),
-                kmer_mask:    encoder.kmer_mask,
-            }
+            Self::empty()
         } else {
             let index = encoder.kmer_length - 1;
             // Validity: This code does not conform to the assumptions of the kmer
@@ -300,8 +303,27 @@ where
         }
     }
 
-    /// Helper function to shift a kmer to the left and add a new base. This
-    /// encapsulates shared behavior between [`ThreeBitKmerIterator`] and
+    /// Creates an empty [`ThreeBitKmerIterator`].
+    ///
+    /// The only field that matters is `remaining`, which is initialized to an
+    /// iterator over an empty slice. Any call to [`next`] will return `None` as
+    /// a result. The remaining fields are initialized here to 0, since they are
+    /// not needed.
+    ///
+    /// [`next`]: Iterator::next
+    #[inline]
+    #[must_use]
+    fn empty() -> Self {
+        ThreeBitKmerIterator {
+            current_kmer: ThreeBitEncodedKmer(ThreeBitMaxLenToType::<MAX_LEN>::ZERO),
+            remaining:    [].iter(),
+            kmer_mask:    ThreeBitMaxLenToType::<MAX_LEN>::ZERO,
+        }
+    }
+
+    /// Helper function to shift a kmer to the left and add a new base.
+    ///
+    /// This encapsulates shared behavior between [`ThreeBitKmerIterator`] and
     /// [`ThreeBitKmerIntoIterator`].
     #[inline]
     #[must_use]
@@ -342,8 +364,9 @@ impl<const MAX_LEN: usize> ExactSizeIterator for ThreeBitKmerIterator<'_, MAX_LE
 }
 
 /// An iterator over the three-bit encoded overlapping k-mers in a sequence,
-/// from left to right, which consumes/stores the sequence. For a non-consuming
-/// version, use [`ThreeBitKmerIterator`].
+/// from left to right, which consumes/stores the sequence.
+///
+/// For a non-consuming version, use [`ThreeBitKmerIterator`].
 pub struct ThreeBitKmerIntoIterator<const MAX_LEN: usize>
 where
     ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen, {
@@ -361,18 +384,13 @@ where
     #[inline]
     fn new(encoder: &ThreeBitKmerEncoder<MAX_LEN>, seq: Vec<u8>) -> Self {
         if seq.len() < encoder.kmer_length {
-            ThreeBitKmerIntoIterator {
-                index: seq.len(),
-                seq,
-                current_kmer: ThreeBitEncodedKmer(ThreeBitMaxLenToType::<MAX_LEN>::ZERO),
-                kmer_mask: encoder.kmer_mask,
-            }
+            Self::empty()
         } else {
             let index = encoder.kmer_length - 1;
-            // Validity: This code does not conform to the assumptions of the kmer
-            // API, since it uses `encode_kmer` on a kmer that is one base too
-            // short. However, each iteration of the loop adds another base as
-            // the first operation, so this is corrected when the iterator
+            // Validity: This code does not conform to the assumptions of the
+            // kmer API, since it uses `encode_kmer` on a kmer that is one base
+            // too short. However, each iteration of the loop adds another base
+            // as the first operation, so this is corrected when the iterator
             // starts.
             let pre_first_kmer = encoder.encode_kmer(&seq[..index]);
 
@@ -382,6 +400,25 @@ where
                 current_kmer: pre_first_kmer,
                 kmer_mask: encoder.kmer_mask,
             }
+        }
+    }
+
+    /// Creates an empty [`ThreeBitKmerIntoIterator`].
+    ///
+    /// The only field that matters is `seq`, which is initialized to an empty
+    /// vector. Any call to [`next`] will return `None` as a result. The
+    /// remaining fields are initialized here to 0, since they are not needed.
+    ///
+    /// [`next`]: Iterator::next
+    #[inline]
+    #[must_use]
+    fn empty() -> Self {
+        Self {
+            // This is okay, since it does not allocate
+            seq:          Vec::new(),
+            index:        0,
+            current_kmer: ThreeBitEncodedKmer(ThreeBitMaxLenToType::<MAX_LEN>::ZERO),
+            kmer_mask:    ThreeBitMaxLenToType::<MAX_LEN>::ZERO,
         }
     }
 }
@@ -429,11 +466,7 @@ where
 {
     fn new(encoder: &ThreeBitKmerEncoder<MAX_LEN>, seq: &'a [u8]) -> Self {
         if seq.len() < encoder.kmer_length {
-            ThreeBitKmerIteratorRev {
-                current_kmer: ThreeBitEncodedKmer(ThreeBitMaxLenToType::<MAX_LEN>::ZERO),
-                remaining:    [].iter(),
-                kmer_length:  encoder.kmer_length,
-            }
+            Self::empty()
         } else {
             let index = seq.len() + 1 - encoder.kmer_length;
             // Validity: This code does not conform to the assumptions of the kmer
@@ -448,6 +481,24 @@ where
                 remaining:    seq[..index].iter(),
                 kmer_length:  encoder.kmer_length,
             }
+        }
+    }
+
+    /// Creates an empty [`ThreeBitKmerIteratorRev`].
+    ///
+    /// The only field that matters is `remaining`, which is initialized to an
+    /// iterator over an empty slice. Any call to [`next`] will return `None` as
+    /// a result. The remaining fields are initialized here to 0, since they are
+    /// not needed.
+    ///
+    /// [`next`]: Iterator::next
+    #[inline]
+    #[must_use]
+    fn empty() -> Self {
+        Self {
+            current_kmer: ThreeBitEncodedKmer(ThreeBitMaxLenToType::<MAX_LEN>::ZERO),
+            remaining:    [].iter(),
+            kmer_length:  0,
         }
     }
 
@@ -494,13 +545,13 @@ impl<const MAX_LEN: usize> ExactSizeIterator for ThreeBitKmerIteratorRev<'_, MAX
 }
 
 /// An iterator over the three-bit encoded overlapping k-mers in a sequence,
-/// from right to left, which consumes/stores the sequence. For a non-consuming
-/// version, use [`ThreeBitKmerIteratorRev`].
+/// from right to left, which consumes/stores the sequence.
+///
+/// For a non-consuming version, use [`ThreeBitKmerIteratorRev`].
 pub struct ThreeBitKmerIntoIteratorRev<const MAX_LEN: usize>
 where
     ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen, {
     seq:          Vec<u8>,
-    index:        usize,
     current_kmer: ThreeBitEncodedKmer<MAX_LEN>,
     kmer_length:  usize,
 }
@@ -509,14 +560,9 @@ impl<const MAX_LEN: usize> ThreeBitKmerIntoIteratorRev<MAX_LEN>
 where
     ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen,
 {
-    fn new(encoder: &ThreeBitKmerEncoder<MAX_LEN>, seq: Vec<u8>) -> Self {
+    fn new(encoder: &ThreeBitKmerEncoder<MAX_LEN>, mut seq: Vec<u8>) -> Self {
         if seq.len() < encoder.kmer_length {
-            ThreeBitKmerIntoIteratorRev {
-                index: 0,
-                seq,
-                current_kmer: ThreeBitEncodedKmer(ThreeBitMaxLenToType::<MAX_LEN>::ZERO),
-                kmer_length: encoder.kmer_length,
-            }
+            Self::empty()
         } else {
             let index = seq.len() + 1 - encoder.kmer_length;
             // Validity: This code does not conform to the assumptions of the kmer
@@ -526,12 +572,32 @@ where
             // starts.
             let pre_last_kmer = encoder.encode_kmer(&seq[index..]).0 << 3;
 
+            seq.truncate(index);
+
             ThreeBitKmerIntoIteratorRev {
-                index,
                 seq,
                 current_kmer: pre_last_kmer.into(),
                 kmer_length: encoder.kmer_length,
             }
+        }
+    }
+
+    /// Creates an empty [`ThreeBitKmerIntoIteratorRev`].
+    ///
+    /// The only field that matters is `index`, which is initialized to 0. Any
+    /// call to [`next`] will return `None` as a result. The remaining fields
+    /// are initialized here to 0 (and an empty vector for `seq`), since they
+    /// are not needed.
+    ///
+    /// [`next`]: Iterator::next
+    #[inline]
+    #[must_use]
+    fn empty() -> Self {
+        Self {
+            // This is okay since it does not allocate
+            seq:          Vec::new(),
+            current_kmer: ThreeBitEncodedKmer(ThreeBitMaxLenToType::<MAX_LEN>::ZERO),
+            kmer_length:  0,
         }
     }
 }
@@ -544,16 +610,16 @@ where
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        self.index = self.index.checked_sub(1)?;
         // Extract the next base to add on the left end of the k-mer
-        let base = self.seq[self.index];
+        let base = self.seq.pop()?;
         self.current_kmer = ThreeBitKmerIteratorRev::shift_and_add_base_rev(base, self.current_kmer, self.kmer_length);
         Some(self.current_kmer)
     }
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        (self.index, Some(self.index))
+        let size = self.seq.len();
+        (size, Some(size))
     }
 }
 

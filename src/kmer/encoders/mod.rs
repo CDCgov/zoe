@@ -4,6 +4,7 @@ use crate::kmer::{GetVariants, Kmer, KmerEncode, errors::KmerError};
 use std::hash::Hash;
 
 pub mod three_bit;
+pub mod two_bit;
 
 /// A trait used to define encoders/decoders for representing bases and k-mers
 /// in a more efficienct form.

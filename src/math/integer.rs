@@ -84,6 +84,13 @@ pub trait AnyInt:
     /// Returns the number of ones in the binary representation of `self`.
     fn count_ones(self) -> u32;
 
+    /// Wrapping (modular) subtraction. Computes `self - rhs`, wrapping around
+    /// at the boundary of the type.
+    ///
+    /// See [`u64::wrapping_sub`] for more details.
+    #[must_use]
+    fn wrapping_sub(self, rhs: Self) -> Self;
+
     /// Panic-free bitwise shift-left; yields `self << mask(rhs)`, where `mask`
     /// removes any high-order bits of `rhs` that would cause the shift to
     /// exceed the bitwidth of the type.
@@ -92,17 +99,27 @@ pub trait AnyInt:
     #[must_use]
     fn wrapping_shl(self, rhs: u32) -> Self;
 
+    /// Unbounded shift left. Computes `self << rhs`, without bounding the value
+    /// of `rhs`.
+    ///
+    /// If rhs is larger or equal to the number of bits in self, the entire
+    /// value is shifted out, and 0 is returned.
+    ///
+    /// See [`u64::unbounded_shl`] for more details.
+    #[must_use]
+    fn unbounded_shl(self, rhs: u32) -> Self;
+
     /// Shifts the bits to the left by a specified amount, `n`, wrapping the
     /// truncated bits to the end of the resulting integer.
     ///
-    /// [`u64::rotate_left`] for more details.
+    /// See [`u64::rotate_left`] for more details.
     #[must_use]
     fn rotate_left(self, n: u32) -> Self;
 
     /// Shifts the bits to the right by a specified amount, n, wrapping the
     /// truncated bits to the beginning of the resulting integer.
     ///
-    /// [`u64::rotate_right`] for more details.
+    /// See [`u64::rotate_right`] for more details.
     #[must_use]
     fn rotate_right(self, n: u32) -> Self;
 }
@@ -142,8 +159,18 @@ macro_rules! impl_int {
             }
 
             #[inline]
+            fn wrapping_sub(self, rhs: Self) -> Self {
+                self.wrapping_sub(rhs)
+            }
+
+            #[inline]
             fn wrapping_shl(self, rhs: u32) -> Self {
                 self.wrapping_shl(rhs)
+            }
+
+            #[inline]
+            fn unbounded_shl(self, rhs: u32) -> Self {
+                self.unbounded_shl(rhs)
             }
 
             #[inline]

@@ -192,6 +192,12 @@ pub(crate) const THREE_BIT_MAPPING: ByteMap = ByteMap::all(3)
     .map(b"acg", &[4, 5, 6])
     .map_to_one(b"TUtu", 7);
 
+/// Used by [`TwoBitKmerEncoder`] to convert any byte to `u8` indices where {0:
+/// A, 1: C, 2: G, 3: T}. A is used as a catch-all. U is treated as T.
+///
+/// [`TwoBitKmerEncoder`]: crate::kmer::encoders::two_bit::TwoBitKmerEncoder
+pub(crate) const TWO_BIT_MAPPING: ByteMap = ByteMap::all(0).map(b"CG", &[1, 2]).map(b"cg", &[1, 2]).map_to_one(b"TUtu", 3);
+
 /// Used to convert any byte to `u8` indices where {0: A, 1: C, 2: G, 3: T, 4:
 /// N, 5: Gap, 6: Other IUPAC, 7: Invalid}. U is treated as T.
 pub(crate) const DNA_COUNT_PROFILE_MAP: ByteMap = ByteMap::all(7)

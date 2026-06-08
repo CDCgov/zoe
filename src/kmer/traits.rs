@@ -1,9 +1,12 @@
-//! Traits providing generic k-mer functionality to collections
+//! Traits providing generic k-mer functionality to collections.
 
 use crate::{
     kmer::{
         KmerEncoder, SupportedKmerLen,
-        encoders::three_bit::{ThreeBitEncodedKmer, ThreeBitKmerLen},
+        encoders::{
+            three_bit::{ThreeBitEncodedKmer, ThreeBitKmerLen},
+            two_bit::{TwoBitEncodedKmer, TwoBitKmerLen},
+        },
     },
     private::Sealed,
 };
@@ -45,6 +48,28 @@ impl<const MAX_LEN: usize, E> KmerEncode<MAX_LEN, E> for &ThreeBitEncodedKmer<MA
 where
     ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen,
     E: KmerEncoder<MAX_LEN, EncodedKmer = ThreeBitEncodedKmer<MAX_LEN>>,
+{
+    #[inline]
+    fn encode_kmer(&self, _encoder: &E) -> E::EncodedKmer {
+        **self
+    }
+}
+
+impl<const MAX_LEN: usize, E> KmerEncode<MAX_LEN, E> for TwoBitEncodedKmer<MAX_LEN>
+where
+    TwoBitKmerLen<MAX_LEN>: SupportedKmerLen,
+    E: KmerEncoder<MAX_LEN, EncodedKmer = Self>,
+{
+    #[inline]
+    fn encode_kmer(&self, _encoder: &E) -> E::EncodedKmer {
+        *self
+    }
+}
+
+impl<const MAX_LEN: usize, E> KmerEncode<MAX_LEN, E> for &TwoBitEncodedKmer<MAX_LEN>
+where
+    TwoBitKmerLen<MAX_LEN>: SupportedKmerLen,
+    E: KmerEncoder<MAX_LEN, EncodedKmer = TwoBitEncodedKmer<MAX_LEN>>,
 {
     #[inline]
     fn encode_kmer(&self, _encoder: &E) -> E::EncodedKmer {
