@@ -11,7 +11,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - `SAMReader` no longer automatically uppercases the nucleotide sequence
 - `encode_base` and `decode_base` and now inherent methods on `ThreeBitKmerEncoder`
 - `encode_kmer` now uses an unnamed generic
-- The trait bounds for `get_variants` have been simplified 
+- The trait bounds for `get_variants` have been simplified
+- Constructors for nucleotides, amino acids, quality scores, and CIGAR strings are `const`
 
 ## [0.0.29] - 2026-06-02
 

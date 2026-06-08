@@ -30,7 +30,7 @@ impl AminoAcids {
     /// Creates a new [`AminoAcids`] empty object.
     #[inline]
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         AminoAcids(Vec::new())
     }
 
@@ -38,7 +38,7 @@ impl AminoAcids {
     /// validity.
     #[inline]
     #[must_use]
-    pub fn from_vec_unchecked(v: Vec<u8>) -> Self {
+    pub const fn from_vec_unchecked(v: Vec<u8>) -> Self {
         AminoAcids(v)
     }
 
@@ -244,7 +244,7 @@ impl<'a> AminoAcidsView<'a> {
     /// Creates a new [`AminoAcidsView`] empty object.
     #[inline]
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         AminoAcidsView(&[])
     }
 
@@ -252,7 +252,7 @@ impl<'a> AminoAcidsView<'a> {
     /// validity.
     #[inline]
     #[must_use]
-    pub fn from_bytes_unchecked(v: &'a [u8]) -> Self {
+    pub const fn from_bytes_unchecked(v: &'a [u8]) -> Self {
         AminoAcidsView(v)
     }
 
@@ -310,7 +310,7 @@ impl<'a> AminoAcidsViewMut<'a> {
     /// Creates a new [`AminoAcidsViewMut`] empty object.
     #[inline]
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         AminoAcidsViewMut(&mut [])
     }
 
@@ -318,7 +318,7 @@ impl<'a> AminoAcidsViewMut<'a> {
     /// validity.
     #[inline]
     #[must_use]
-    pub fn from_bytes_unchecked(v: &'a mut [u8]) -> Self {
+    pub const fn from_bytes_unchecked(v: &'a mut [u8]) -> Self {
         AminoAcidsViewMut(v)
     }
 

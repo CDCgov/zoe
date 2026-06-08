@@ -53,7 +53,7 @@ impl Nucleotides {
     /// Creates a new [`Nucleotides`] empty object.
     #[inline]
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Nucleotides(Vec::new())
     }
 
@@ -61,7 +61,7 @@ impl Nucleotides {
     /// validity.
     #[inline]
     #[must_use]
-    pub fn from_vec_unchecked(v: Vec<u8>) -> Self {
+    pub const fn from_vec_unchecked(v: Vec<u8>) -> Self {
         Nucleotides(v)
     }
 
@@ -330,7 +330,7 @@ impl<'a> NucleotidesView<'a> {
     /// Creates a new [`NucleotidesView`] empty object.
     #[inline]
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         NucleotidesView(&[])
     }
 
@@ -338,7 +338,7 @@ impl<'a> NucleotidesView<'a> {
     /// validity.
     #[inline]
     #[must_use]
-    pub fn from_bytes_unchecked(v: &'a [u8]) -> Self {
+    pub const fn from_bytes_unchecked(v: &'a [u8]) -> Self {
         NucleotidesView(v)
     }
 
@@ -402,7 +402,7 @@ impl<'a> NucleotidesViewMut<'a> {
     /// Creates a new [`NucleotidesViewMut`] empty object.
     #[inline]
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         NucleotidesViewMut(&mut [])
     }
 
@@ -410,7 +410,7 @@ impl<'a> NucleotidesViewMut<'a> {
     /// validity.
     #[inline]
     #[must_use]
-    pub fn from_bytes_unchecked(v: &'a mut [u8]) -> Self {
+    pub const fn from_bytes_unchecked(v: &'a mut [u8]) -> Self {
         NucleotidesViewMut(v)
     }
 

@@ -56,7 +56,7 @@ impl Cigar {
     /// validity.
     #[inline]
     #[must_use]
-    pub fn from_vec_unchecked(v: Vec<u8>) -> Self {
+    pub const fn from_vec_unchecked(v: Vec<u8>) -> Self {
         Cigar(v)
     }
 
@@ -85,7 +85,7 @@ impl Cigar {
     /// Creates a new empty CIGAR string
     #[inline]
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Cigar(Vec::new())
     }
 

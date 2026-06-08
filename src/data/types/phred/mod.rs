@@ -38,7 +38,7 @@ impl QualityScores {
     /// Creates a new [`QualityScores`] empty object.
     #[inline]
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         QualityScores(Vec::new())
     }
 
@@ -53,7 +53,7 @@ impl QualityScores {
     ///     crate::data::validation::CheckSequence::is_graphic_simd
     #[inline]
     #[must_use]
-    pub unsafe fn from_vec_unchecked(v: Vec<EncodedQS>) -> Self {
+    pub const unsafe fn from_vec_unchecked(v: Vec<EncodedQS>) -> Self {
         QualityScores(v)
     }
 
@@ -156,7 +156,7 @@ impl<'a> QualityScoresView<'a> {
     /// Creates a new [`QualityScoresView`] empty object.
     #[inline]
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         QualityScoresView(&[])
     }
 
@@ -171,7 +171,7 @@ impl<'a> QualityScoresView<'a> {
     ///     crate::data::validation::CheckSequence::is_graphic_simd
     #[inline]
     #[must_use]
-    pub unsafe fn from_bytes_unchecked(v: &'a [u8]) -> Self {
+    pub const unsafe fn from_bytes_unchecked(v: &'a [u8]) -> Self {
         QualityScoresView(v)
     }
 
@@ -235,7 +235,7 @@ impl<'a> QualityScoresViewMut<'a> {
     /// Creates a new [`QualityScoresViewMut`] empty object.
     #[inline]
     #[must_use]
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         QualityScoresViewMut(&mut [])
     }
 
@@ -250,7 +250,7 @@ impl<'a> QualityScoresViewMut<'a> {
     ///     crate::data::validation::CheckSequence::is_graphic_simd
     #[inline]
     #[must_use]
-    pub unsafe fn from_bytes_unchecked(v: &'a mut [u8]) -> Self {
+    pub const unsafe fn from_bytes_unchecked(v: &'a mut [u8]) -> Self {
         QualityScoresViewMut(v)
     }
 
