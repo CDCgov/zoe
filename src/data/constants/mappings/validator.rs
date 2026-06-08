@@ -133,6 +133,43 @@ impl ByteValidator {
     pub(crate) const fn set_byte(&mut self, byte: u8, valid: bool) {
         self.0[byte as usize] = valid;
     }
+
+    /// Constructs the alphabet represented by the [`ByteValidator`] at
+    /// compile-time.
+    ///
+    /// ## Panics
+    ///
+    /// If `N` is not equal to the number of valid bytes in [`ByteValidator`],
+    /// this panics.
+    ///
+    /// ## Parameters
+    ///
+    /// `N`: The length of the alphabet. This must be equal to the number of
+    /// valid bytes in the [`ByteValidator`].
+    #[allow(dead_code)]
+    pub(crate) const fn generate_alphabet<const N: usize>(&self) -> [u8; N] {
+        let mut out = [0; N];
+
+        let mut byte: u8 = 0;
+        let mut out_index = 0;
+
+        loop {
+            if self.0[byte as usize] {
+                assert!(out_index < out.len(), "Too small of N passed");
+                out[out_index] = byte;
+                out_index += 1;
+            }
+
+            match byte.checked_add(1) {
+                Some(next_byte) => byte = next_byte,
+                None => break,
+            }
+        }
+
+        assert!(out_index == N, "Too large of N passed");
+
+        out
+    }
 }
 
 impl Index<u8> for ByteValidator {
