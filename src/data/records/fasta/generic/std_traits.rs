@@ -1,10 +1,28 @@
 use crate::data::{
-    fasta::generic::{Fasta, FastaAnnotView, FastaView},
+    fasta::generic::{Fasta, FastaAnnotView, FastaView, FastaViewMut},
     views::ViewAssocTypes,
 };
 use std::fmt::Display;
 
 impl<S: Display> Display for Fasta<S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, ">{}\n{}\n", self.header, self.sequence)
+    }
+}
+
+impl<'a, S> Display for FastaView<'a, S>
+where
+    S: ViewAssocTypes<View<'a>: Display>,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, ">{}\n{}\n", self.header, self.sequence)
+    }
+}
+
+impl<'a, S> Display for FastaViewMut<'a, S>
+where
+    S: ViewAssocTypes<ViewMut<'a>: Display>,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, ">{}\n{}\n", self.header, self.sequence)
     }
