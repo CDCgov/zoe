@@ -144,11 +144,10 @@ pub fn p_distance_acgt<const N: usize>(x: &[u8], y: &[u8]) -> Option<f64> {
     }
 }
 
-/// An extension trait to add DNA distance methods to data that looks like [`Nucleotides`].
-///
-/// [`Nucleotides`]: crate::data::types::nucleotides::Nucleotides
+/// An extension trait adding nucleotide distance methods to types containing
+/// nucleotide data.
 pub trait NucleotidesDistance: NucleotidesReadable + Sealed {
-    /// Calculates hamming distance between [`self`] and another sequence.
+    /// Calculates hamming distance between `self` and another sequence.
     ///
     /// ## Example
     ///

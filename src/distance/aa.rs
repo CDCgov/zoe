@@ -5,13 +5,12 @@ use crate::{
         DistanceError::{self, NoData, NotComparable},
         hamming_simd,
     },
-    prelude::{AminoAcids, AminoAcidsView, AminoAcidsViewMut},
     private::Sealed,
 };
 
+/// An extension trait adding amino acid distance methods to types containing
+/// amino acid data.
 pub trait AminoAcidsDistance: AminoAcidsReadable + Sealed {
-    /// ## Distance
-    ///
     /// Calculates hamming distance between `self` and another sequence.
     ///
     /// ## Example
@@ -75,9 +74,7 @@ pub trait AminoAcidsDistance: AminoAcidsReadable + Sealed {
     }
 }
 
-impl AminoAcidsDistance for AminoAcids {}
-impl AminoAcidsDistance for AminoAcidsView<'_> {}
-impl AminoAcidsDistance for AminoAcidsViewMut<'_> {}
+impl<T: AminoAcidsReadable + Sealed> AminoAcidsDistance for T {}
 
 /// Calculates a "physiochemical" distance measure using Euclidean distances
 /// over physiochemical factors, normalized by sequence length. Only valid amino

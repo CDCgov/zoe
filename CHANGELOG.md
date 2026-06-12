@@ -17,6 +17,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - `encode_kmer` now uses an unnamed generic
 - The trait bounds for `get_variants` have been simplified
 - Constructors for nucleotides, amino acids, quality scores, and CIGAR strings are `const`
+- `AminoAcidsDistance` now has a blanket implementation
 
 ### Removed
 
