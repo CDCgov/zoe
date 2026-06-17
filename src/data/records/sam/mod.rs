@@ -15,10 +15,12 @@ use std::{
 };
 
 mod reader;
+mod sort_traits;
 mod std_traits;
 mod view_traits;
 
 pub use reader::*;
+pub use sort_traits::SamDataSort;
 
 // # NOTICE
 // We define `index` to be 1-based and `position` to be 0-based to avoid

@@ -9,6 +9,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 ### Added
 
 - Added conversion from `ByteSpecs` into `AminoAcidSpecs` and `NucleotideSpecs` (behind `fuzzing` feature gate)
+- Added `SamDataSort::coordinate_sort` for coordinate sorting `[SamData]` records using `@SQ` header order, `POS`, and a deterministic `qname` tie-breaker. Unlisted non-`*` references sort after listed references and before `*`.
 
 ### Changed
 
