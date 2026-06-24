@@ -4,19 +4,22 @@ All notable changes to this project will be documented in this file. The format
 is roughly based on [Keep a Changelog], and this project tries to adheres to
 [Semantic Versioning].
 
-## [0.0.30] - TBD
+## [0.0.30] - 2026-06-24
 
 ### Added
 
+- Added `coordinate_sort` for performing coordinate sort on `SamData` records 
 - Added conversion from `ByteSpecs` into `AminoAcidSpecs` and `NucleotideSpecs` (behind `fuzzing` feature gate)
-- Added `SamDataSort::coordinate_sort` for coordinate sorting `[SamData]` records using `@SQ` header order, `POS`, and a deterministic `qname` tie-breaker. Unlisted non-`*` references sort after listed references and before `*`.
 
 ### Changed
 
 - `SAMReader` no longer automatically uppercases the nucleotide sequence
+- `ViewAssocTypes` has been split into `AssocOwnedType`, `AssocViewType`, and `AssocViewMutType` (enabling cases where mutable views aren't possible)
+- `DataOwned`, `DataView`, and `DataViewMut` have been split into `AsView`, `AsViewMut`, `ToView`, and `ToOwnedData`
+- The inherent `slice` methods on views have been replaced with `SliceCopy`
+- The trait bounds for `get_variants` have been simplified
 - `encode_base` and `decode_base` and now inherent methods on `ThreeBitKmerEncoder`
 - `encode_kmer` now uses an unnamed generic
-- The trait bounds for `get_variants` have been simplified
 - Constructors for nucleotides, amino acids, quality scores, and CIGAR strings are `const`
 - `AminoAcidsDistance` now has a blanket implementation
 

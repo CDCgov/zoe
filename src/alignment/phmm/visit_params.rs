@@ -1158,9 +1158,8 @@ impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
         if ciglets.peek_op().is_none() {
             if seq.is_empty() {
                 return Ok(self.visit_params_empty_alignment(f));
-            } else {
-                return Err(PhmmError::InvalidPath);
             }
+            return Err(PhmmError::InvalidPath);
         }
 
         // Add the contribution of the semilocal parameters into the core pHMM

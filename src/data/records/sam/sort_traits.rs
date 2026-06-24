@@ -6,7 +6,7 @@ use std::{cmp::Ordering, collections::HashMap};
 ///
 /// Coordinate sorting uses the [`SamData::rname`] field as the major sort key,
 /// with reference order defined by the order of `@SQ` lines in the supplied SAM
-/// headers. The [`SamData::pos`] field is used as the minor sort key. Zoe
+/// headers. The [`SamData::pos`] field is used as the minor sort key. *Zoe*
 /// additionally sorts records with equal `RNAME` and `POS` by
 /// [`SamData::qname`] so the output order is deterministic.
 ///
@@ -17,9 +17,8 @@ pub trait SamDataSort: Sealed {
     /// Sorts SAM records in place by coordinate.
     ///
     /// The `headers` argument may be any iterable of raw SAM header lines, such
-    /// as the strings stored in the [`Header`] variant. Headers are consumed
-    /// once, and only `@SQ` lines and their `SN` fields are used to determine
-    /// reference order.
+    /// as the strings stored in the [`Header`] variant. Only `@SQ` lines and
+    /// their `SN` fields are used to determine reference order.
     ///
     /// [`Header`]: crate::data::sam::SamRow::Header
     fn coordinate_sort<I, H>(&mut self, headers: I)

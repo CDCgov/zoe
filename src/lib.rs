@@ -185,5 +185,5 @@ mod private {
     sealed!(f32, f64, u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
 }
 
-/// The default SIMD lanes for Zoe.
+/// The default SIMD lanes for *Zoe*.
 const DEFAULT_SIMD_LANES: usize = 32;

@@ -54,9 +54,7 @@ where
     /// A constructor for [`FastaSpecs`] that ensures the generated [`Fasta`]
     /// can be parsed by [`FastaReader`].
     ///
-    /// This includes ensuring that the header only contains graphic ASCII or
-    /// spaces, that the sequence only contains graphic ASCII, and that the
-    /// sequence and quality scores are the same length.
+    /// This ensures that the header and sequence do not contain `\n` or `>`.
     ///
     /// [`FastaReader`]: crate::prelude::FastaReader
     #[inline]
