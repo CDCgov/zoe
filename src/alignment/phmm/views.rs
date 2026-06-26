@@ -1237,6 +1237,11 @@ impl<T, const S: usize> GetLayer<T, S> for GlobalPhmmView<'_, T, S> {
     }
 
     #[inline]
+    fn split_first_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
+        self.core().split_first_layer()
+    }
+
+    #[inline]
     fn split_last_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
         self.core().split_last_layer()
     }
@@ -1246,6 +1251,11 @@ impl<T, const S: usize> GetLayer<T, S> for GlobalPhmmViewMut<'_, T, S> {
     #[inline]
     fn layers(&self) -> &[LayerParams<T, S>] {
         self.core().layers()
+    }
+
+    #[inline]
+    fn split_first_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
+        self.core().split_first_layer()
     }
 
     #[inline]
@@ -1261,6 +1271,11 @@ impl<T, const S: usize> GetLayer<T, S> for DomainPhmmView<'_, T, S> {
     }
 
     #[inline]
+    fn split_first_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
+        self.core().split_first_layer()
+    }
+
+    #[inline]
     fn split_last_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
         self.core().split_last_layer()
     }
@@ -1270,6 +1285,11 @@ impl<T, const S: usize> GetLayer<T, S> for DomainPhmmViewMut<'_, T, S> {
     #[inline]
     fn layers(&self) -> &[LayerParams<T, S>] {
         self.core().layers()
+    }
+
+    #[inline]
+    fn split_first_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
+        self.core().split_first_layer()
     }
 
     #[inline]
@@ -1285,6 +1305,11 @@ impl<T, const S: usize> GetLayer<T, S> for SemiLocalPhmmView<'_, T, S> {
     }
 
     #[inline]
+    fn split_first_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
+        self.core().split_first_layer()
+    }
+
+    #[inline]
     fn split_last_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
         self.core().split_last_layer()
     }
@@ -1294,6 +1319,11 @@ impl<T, const S: usize> GetLayer<T, S> for SemiLocalPhmmViewMut<'_, T, S> {
     #[inline]
     fn layers(&self) -> &[LayerParams<T, S>] {
         self.core().layers()
+    }
+
+    #[inline]
+    fn split_first_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
+        self.core().split_first_layer()
     }
 
     #[inline]
@@ -1309,6 +1339,11 @@ impl<T, const S: usize> GetLayer<T, S> for LocalPhmmView<'_, T, S> {
     }
 
     #[inline]
+    fn split_first_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
+        self.core().split_first_layer()
+    }
+
+    #[inline]
     fn split_last_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
         self.core().split_last_layer()
     }
@@ -1318,6 +1353,11 @@ impl<T, const S: usize> GetLayer<T, S> for LocalPhmmViewMut<'_, T, S> {
     #[inline]
     fn layers(&self) -> &[LayerParams<T, S>] {
         self.core().layers()
+    }
+
+    #[inline]
+    fn split_first_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
+        self.core().split_first_layer()
     }
 
     #[inline]
@@ -1655,6 +1695,18 @@ pub trait GetLayerView<'a, T, const S: usize>: PhmmIndexable {
     #[must_use]
     fn layers_view(&self) -> &'a [LayerParams<T, S>];
 
+    /// Returns the first layer, as well as all subsequent layers.
+    ///
+    /// This is an infallible version of `model.layers_view().split_first()`.
+    #[must_use]
+    fn split_first_layer_view(&self) -> (&'a LayerParams<T, S>, &'a [LayerParams<T, S>]);
+
+    /// Returns the last layer, as well as all previous layers.
+    ///
+    /// This is an infallible version of `model.layers_view().split_last()`.
+    #[must_use]
+    fn split_last_layer_view(&self) -> (&'a LayerParams<T, S>, &'a [LayerParams<T, S>]);
+
     /// Gets a layer from within the core pHMM.
     ///
     /// This returns `None` if the index is out of bounds or [`End`] (since
@@ -1714,12 +1766,32 @@ impl<'a, T, const S: usize> GetLayerView<'a, T, S> for GlobalPhmmView<'a, T, S> 
     fn layers_view(&self) -> &'a [LayerParams<T, S>] {
         self.core.layers()
     }
+
+    #[inline]
+    fn split_first_layer_view(&self) -> (&'a LayerParams<T, S>, &'a [LayerParams<T, S>]) {
+        self.core.split_first_layer()
+    }
+
+    #[inline]
+    fn split_last_layer_view(&self) -> (&'a LayerParams<T, S>, &'a [LayerParams<T, S>]) {
+        self.core.split_last_layer()
+    }
 }
 
 impl<'a, T, const S: usize> GetLayerView<'a, T, S> for DomainPhmmView<'a, T, S> {
     #[inline]
     fn layers_view(&self) -> &'a [LayerParams<T, S>] {
         self.core.layers()
+    }
+
+    #[inline]
+    fn split_first_layer_view(&self) -> (&'a LayerParams<T, S>, &'a [LayerParams<T, S>]) {
+        self.core.split_first_layer()
+    }
+
+    #[inline]
+    fn split_last_layer_view(&self) -> (&'a LayerParams<T, S>, &'a [LayerParams<T, S>]) {
+        self.core.split_last_layer()
     }
 }
 
@@ -1728,11 +1800,31 @@ impl<'a, T, const S: usize> GetLayerView<'a, T, S> for SemiLocalPhmmView<'a, T, 
     fn layers_view(&self) -> &'a [LayerParams<T, S>] {
         self.core.layers()
     }
+
+    #[inline]
+    fn split_first_layer_view(&self) -> (&'a LayerParams<T, S>, &'a [LayerParams<T, S>]) {
+        self.core.split_first_layer()
+    }
+
+    #[inline]
+    fn split_last_layer_view(&self) -> (&'a LayerParams<T, S>, &'a [LayerParams<T, S>]) {
+        self.core.split_last_layer()
+    }
 }
 
 impl<'a, T, const S: usize> GetLayerView<'a, T, S> for LocalPhmmView<'a, T, S> {
     #[inline]
     fn layers_view(&self) -> &'a [LayerParams<T, S>] {
         self.core.layers()
+    }
+
+    #[inline]
+    fn split_first_layer_view(&self) -> (&'a LayerParams<T, S>, &'a [LayerParams<T, S>]) {
+        self.core.split_first_layer()
+    }
+
+    #[inline]
+    fn split_last_layer_view(&self) -> (&'a LayerParams<T, S>, &'a [LayerParams<T, S>]) {
+        self.core.split_last_layer()
     }
 }

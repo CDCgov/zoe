@@ -67,6 +67,12 @@ pub trait GetLayer<T, const S: usize>: PhmmIndexable {
     #[must_use]
     fn layers(&self) -> &[LayerParams<T, S>];
 
+    /// Returns the first layer, as well as all subsequent layers.
+    ///
+    /// This is an infallible version of `model.layers().split_first()`.
+    #[must_use]
+    fn split_first_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]);
+
     /// Returns the last layer, as well as all previous layers.
     ///
     /// This is an infallible version of `model.layers().split_last()`.

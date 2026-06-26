@@ -308,6 +308,11 @@ impl<T, const S: usize> GetLayer<T, S> for CorePhmm<T, S> {
     }
 
     #[inline]
+    fn split_first_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
+        self.0.as_slice().split_first().expect("A CorePhmm has at least two layers")
+    }
+
+    #[inline]
     fn split_last_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
         self.0.as_slice().split_last().expect("A CorePhmm has at least two layers")
     }

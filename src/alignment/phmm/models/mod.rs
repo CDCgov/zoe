@@ -406,6 +406,11 @@ impl<T, const S: usize> GetLayer<T, S> for GlobalPhmm<T, S> {
     }
 
     #[inline]
+    fn split_first_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
+        self.core().split_first_layer()
+    }
+
+    #[inline]
     fn split_last_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
         self.core().split_last_layer()
     }
@@ -441,6 +446,11 @@ impl<T, const S: usize> GetLayer<T, S> for DomainPhmm<T, S> {
     #[inline]
     fn layers(&self) -> &[LayerParams<T, S>] {
         self.core().layers()
+    }
+
+    #[inline]
+    fn split_first_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
+        self.core().split_first_layer()
     }
 
     #[inline]
@@ -482,6 +492,11 @@ impl<T, const S: usize> GetLayer<T, S> for SemiLocalPhmm<T, S> {
     }
 
     #[inline]
+    fn split_first_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
+        self.core().split_first_layer()
+    }
+
+    #[inline]
     fn split_last_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
         self.core().split_last_layer()
     }
@@ -517,6 +532,11 @@ impl<T, const S: usize> GetLayer<T, S> for LocalPhmm<T, S> {
     #[inline]
     fn layers(&self) -> &[LayerParams<T, S>] {
         self.core().layers()
+    }
+
+    #[inline]
+    fn split_first_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
+        self.core().split_first_layer()
     }
 
     #[inline]
