@@ -1707,6 +1707,46 @@ pub trait GetLayerView<'a, T, const S: usize>: PhmmIndexable {
     #[must_use]
     fn split_last_layer_view(&self) -> (&'a LayerParams<T, S>, &'a [LayerParams<T, S>]);
 
+    /// Returns a reference to the parameters for the layer containing the BEGIN
+    /// state.
+    ///
+    /// This is an infallible version of `model.get_layer_view(Begin)`.
+    #[inline]
+    #[must_use]
+    fn begin_layer_view(&self) -> &'a LayerParams<T, S> {
+        &self.layers_view()[0]
+    }
+
+    /// Returns a reference to the parameters for the layer containing the first
+    /// match state.
+    ///
+    /// This is an infallible version of `model.get_layer_view(FirstMatch)`.
+    #[inline]
+    #[must_use]
+    fn first_match_view(&self) -> &'a LayerParams<T, S> {
+        &self.layers_view()[1]
+    }
+
+    /// Returns a reference to the parameters for the layer containing the last
+    /// match state.
+    ///
+    /// This is an infallible version of `model.get_layer_view(LastMatch)`.
+    #[inline]
+    #[must_use]
+    fn last_match_view(&self) -> &'a LayerParams<T, S> {
+        &self.layers_view()[self.layers_view().len() - 1]
+    }
+
+    /// Returns the layers, split at a particular index.
+    ///
+    /// If the index is out of bounds, `None` is returned.
+    #[inline]
+    #[must_use]
+    #[allow(clippy::type_complexity)]
+    fn split_layers_at_view(&self, j: impl PhmmIndex) -> Option<(&'a [LayerParams<T, S>], &'a [LayerParams<T, S>])> {
+        self.layers_view().split_at_checked(self.get_dp_index(j))
+    }
+
     /// Gets a layer from within the core pHMM.
     ///
     /// This returns `None` if the index is out of bounds or [`End`] (since
