@@ -1,6 +1,9 @@
-use crate::alignment::phmm::{
-    CorePhmm, LayerParams,
-    indexing::{PhmmIndex, PhmmIndexRange, PhmmIndexable},
+use crate::{
+    alignment::phmm::{
+        CorePhmm, LayerParams,
+        indexing::{PhmmIndex, PhmmIndexRange, PhmmIndexable},
+    },
+    data::ByteIndexMap,
 };
 use std::slice::GetDisjointMutError;
 
@@ -234,4 +237,11 @@ pub trait GetPartsMut<T, const S: usize>: GetModule + GetLayer<T, S> {
     /// is not allowed by the borrow checker, hence this function.
     #[must_use]
     fn parts_mut(&mut self) -> (&mut CorePhmm<T, S>, &mut Self::Begin, &mut Self::End);
+}
+
+/// A trait providing access to the underlying alphabet of a pHMM.
+pub trait GetMapping<const S: usize> {
+    /// Returns a reference to the underlying alphabet of the pHMM.
+    #[must_use]
+    fn mapping(&self) -> &'static ByteIndexMap<S>;
 }

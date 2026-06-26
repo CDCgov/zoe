@@ -1,7 +1,9 @@
 use crate::{
     alignment::phmm::{
         PhmmNumber,
-        indexing::{GetCore, GetCoreMut, GetLayer, GetLayerMut, GetModule, GetModuleMut, GetPartsMut, PhmmIndex},
+        indexing::{
+            GetCore, GetCoreMut, GetLayer, GetLayerMut, GetMapping, GetModule, GetModuleMut, GetPartsMut, PhmmIndex,
+        },
         modules::{DomainModule, LocalModule, SemiLocalModule},
     },
     data::mappings::ByteIndexMap,
@@ -582,5 +584,33 @@ impl<T, const S: usize> GetPartsMut<T, S> for LocalPhmm<T, S> {
     #[inline]
     fn parts_mut(&mut self) -> (&mut CorePhmm<T, S>, &mut Self::Begin, &mut Self::End) {
         (&mut self.core, &mut self.begin, &mut self.end)
+    }
+}
+
+impl<T, const S: usize> GetMapping<S> for GlobalPhmm<T, S> {
+    #[inline]
+    fn mapping(&self) -> &'static ByteIndexMap<S> {
+        self.mapping
+    }
+}
+
+impl<T, const S: usize> GetMapping<S> for LocalPhmm<T, S> {
+    #[inline]
+    fn mapping(&self) -> &'static ByteIndexMap<S> {
+        self.mapping
+    }
+}
+
+impl<T, const S: usize> GetMapping<S> for SemiLocalPhmm<T, S> {
+    #[inline]
+    fn mapping(&self) -> &'static ByteIndexMap<S> {
+        self.mapping
+    }
+}
+
+impl<T, const S: usize> GetMapping<S> for DomainPhmm<T, S> {
+    #[inline]
+    fn mapping(&self) -> &'static ByteIndexMap<S> {
+        self.mapping
     }
 }

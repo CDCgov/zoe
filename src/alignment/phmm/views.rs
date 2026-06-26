@@ -2,8 +2,8 @@ use crate::{
     alignment::phmm::{
         CorePhmm, DomainPhmm, GlobalPhmm, LayerParams, LocalPhmm, SemiLocalPhmm,
         indexing::{
-            GetCore, GetCoreMut, GetLayer, GetLayerMut, GetModule, GetModuleMut, GetPartsMut, PhmmIndex, PhmmIndexRange,
-            PhmmIndexable,
+            GetCore, GetCoreMut, GetLayer, GetLayerMut, GetMapping, GetModule, GetModuleMut, GetPartsMut, PhmmIndex,
+            PhmmIndexRange, PhmmIndexable,
         },
         modules::{DomainModule, LocalModule, SemiLocalModule},
     },
@@ -1826,5 +1826,61 @@ impl<'a, T, const S: usize> GetLayerView<'a, T, S> for LocalPhmmView<'a, T, S> {
     #[inline]
     fn split_last_layer_view(&self) -> (&'a LayerParams<T, S>, &'a [LayerParams<T, S>]) {
         self.core.split_last_layer()
+    }
+}
+
+impl<T, const S: usize> GetMapping<S> for GlobalPhmmView<'_, T, S> {
+    #[inline]
+    fn mapping(&self) -> &'static ByteIndexMap<S> {
+        self.mapping
+    }
+}
+
+impl<T, const S: usize> GetMapping<S> for GlobalPhmmViewMut<'_, T, S> {
+    #[inline]
+    fn mapping(&self) -> &'static ByteIndexMap<S> {
+        self.mapping
+    }
+}
+
+impl<T, const S: usize> GetMapping<S> for LocalPhmmView<'_, T, S> {
+    #[inline]
+    fn mapping(&self) -> &'static ByteIndexMap<S> {
+        self.mapping
+    }
+}
+
+impl<T, const S: usize> GetMapping<S> for LocalPhmmViewMut<'_, T, S> {
+    #[inline]
+    fn mapping(&self) -> &'static ByteIndexMap<S> {
+        self.mapping
+    }
+}
+
+impl<T, const S: usize> GetMapping<S> for SemiLocalPhmmView<'_, T, S> {
+    #[inline]
+    fn mapping(&self) -> &'static ByteIndexMap<S> {
+        self.mapping
+    }
+}
+
+impl<T, const S: usize> GetMapping<S> for SemiLocalPhmmViewMut<'_, T, S> {
+    #[inline]
+    fn mapping(&self) -> &'static ByteIndexMap<S> {
+        self.mapping
+    }
+}
+
+impl<T, const S: usize> GetMapping<S> for DomainPhmmView<'_, T, S> {
+    #[inline]
+    fn mapping(&self) -> &'static ByteIndexMap<S> {
+        self.mapping
+    }
+}
+
+impl<T, const S: usize> GetMapping<S> for DomainPhmmViewMut<'_, T, S> {
+    #[inline]
+    fn mapping(&self) -> &'static ByteIndexMap<S> {
+        self.mapping
     }
 }
