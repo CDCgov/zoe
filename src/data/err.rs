@@ -215,6 +215,7 @@ impl<E> Fail for E
 where
     E: GetCode + Display + Error + 'static,
 {
+    #[cold]
     fn fail(self) -> ! {
         if let Ok(bin) = std::env::current_exe() {
             eprintln!("Error in {b}", b = bin.display());
@@ -222,10 +223,11 @@ where
             eprintln!("Error in program");
         }
 
-        print_stack(&self);
+        eprint!("{}", self.display_stack());
         std::process::exit(self.get_code());
     }
 
+    #[cold]
     fn die(self, msg: &str) -> ! {
         if let Ok(bin) = std::env::current_exe() {
             eprintln!("Error in {b}: {msg}", b = bin.display());
@@ -233,7 +235,7 @@ where
             eprintln!("Error: {msg}");
         }
 
-        print_stack(&self);
+        eprint!("{}", self.display_stack());
         std::process::exit(self.get_code());
     }
 }
@@ -597,29 +599,58 @@ impl<T: Display> Display for IndentWrapper<T> {
     }
 }
 
-/// Prints an error and its backtrace using [`Error::source`].
+/// An extension trait for an [`Error`] enabling it to be displayed alongside
+/// its error stack using [`Error::source`].
 ///
-/// This encapsulates the shared logic between [`unwrap_or_die`] and
-/// [`unwrap_or_fail`]. Dynamic errors are used to prevent monomorphization on
-/// the cold path.
+/// If aborting, consider using [`fail`] or [`die`]. Otherwise, this can be
+/// helpful in displaying warnings.
 ///
-/// [`unwrap_or_die`]: OrFail::unwrap_or_die
-/// [`unwrap_or_fail`]: OrFail::unwrap_or_fail
-#[cold]
-fn print_stack(err: &(dyn Error + 'static)) {
-    // Wrap the error in Some so that we don't have to write the same logic
-    // twice
-    let mut maybe_err = Some(err);
+/// [`fail`]: Fail::fail
+/// [`die`]: Fail::die
+pub trait DisplayErrStack {
+    /// Returns a displayable representation of the error alongside its error
+    /// stack using [`Error::source`].
+    ///
+    /// This using `→` and two spaces of indent before each item, and includes a
+    /// newline at the end.
+    fn display_stack(&self) -> ErrStackDisplay<'_>;
+}
 
-    while let Some(err) = maybe_err {
-        eprintln!(
-            "  → {err}",
-            err = IndentWrapper {
-                val:    err,
-                indent: "    ",
-            }
-        );
+impl<E> DisplayErrStack for E
+where
+    E: Error + 'static,
+{
+    fn display_stack(&self) -> ErrStackDisplay<'_> {
+        ErrStackDisplay(self)
+    }
+}
 
-        maybe_err = err.source();
+/// A display wrapper around an error that shows the error and its sources (with
+/// [`Error::source`]) in a list, using `→` and two spaces of indent before each
+/// item.
+///
+/// This includes a newline at the end.
+pub struct ErrStackDisplay<'a>(&'a (dyn Error + 'static));
+
+impl Display for ErrStackDisplay<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // Wrap the error in Some so that we don't have to write the same logic
+        // twice
+        let mut maybe_err = Some(self.0);
+
+        while let Some(err) = maybe_err {
+            writeln!(
+                f,
+                "  → {err}",
+                err = IndentWrapper {
+                    val:    err,
+                    indent: "    ",
+                }
+            )?;
+
+            maybe_err = err.source();
+        }
+
+        Ok(())
     }
 }
