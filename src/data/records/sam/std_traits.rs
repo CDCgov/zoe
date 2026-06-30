@@ -18,10 +18,24 @@ impl std::fmt::Display for SamData {
             opt_fields,
         } = self;
 
+        let seq = if is_missing_sam_field(seq) {
+            NucleotidesView::from(b"*")
+        } else {
+            seq.as_view()
+        };
+        let qual = if is_missing_sam_field(qual) {
+            // Safety: `b"*"` is graphic ASCII, which satisfies
+            // `QualityScoresView`'s byte invariant.
+            unsafe { QualityScoresView::from_bytes_unchecked(b"*") }
+        } else {
+            qual.as_view()
+        };
+
         write!(
             f,
             "{qname}\t{flag}\t{rname}\t{pos}\t{mapq}\t{cigar}\t{rnext}\t{pnext}\t{tlen}\t{seq}\t{qual}"
         )?;
+
         for opt_field in &opt_fields.0 {
             write!(f, "\t{opt_field}")?;
         }
@@ -46,6 +60,19 @@ impl std::fmt::Display for SamDataView<'_> {
             qual,
         } = self;
 
+        let seq = if is_missing_sam_field(seq) {
+            NucleotidesView::from(b"*")
+        } else {
+            *seq
+        };
+        let qual = if is_missing_sam_field(qual) {
+            // Safety: `b"*"` is graphic ASCII, which satisfies
+            // `QualityScoresView`'s byte invariant.
+            unsafe { QualityScoresView::from_bytes_unchecked(b"*") }
+        } else {
+            *qual
+        };
+
         write!(
             f,
             "{qname}\t{flag}\t{rname}\t{pos}\t{mapq}\t{cigar}\t{rnext}\t{pnext}\t{tlen}\t{seq}\t{qual}"
@@ -69,6 +96,19 @@ impl std::fmt::Display for SamDataViewMut<'_> {
             seq,
             qual,
         } = self;
+
+        let seq = if is_missing_sam_field(seq) {
+            NucleotidesView::from(b"*")
+        } else {
+            seq.as_view()
+        };
+        let qual = if is_missing_sam_field(qual) {
+            // Safety: `b"*"` is graphic ASCII, which satisfies
+            // `QualityScoresView`'s byte invariant.
+            unsafe { QualityScoresView::from_bytes_unchecked(b"*") }
+        } else {
+            qual.as_view()
+        };
 
         write!(
             f,

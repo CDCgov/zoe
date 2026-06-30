@@ -307,7 +307,7 @@ impl SamData {
             return Ok(MaybeAligned::Unmapped);
         }
 
-        if self.seq == Nucleotides::from(b"*") {
+        if is_missing_sam_field(&self.seq) {
             return Err(std::io::Error::other(
                 "The seq field in the SAM data record was not populated.",
             ));
@@ -416,6 +416,15 @@ impl<'a> SamDataViewMut<'a> {
             qual,
         }
     }
+}
+
+/// Returns whether a SAM `SEQ` or `QUAL` field should be treated as missing.
+///
+/// Zoe accepts both the SAM sentinel `*` and an empty byte sequence as missing
+/// for these fields.
+pub(crate) fn is_missing_sam_field(field: impl AsRef<[u8]>) -> bool {
+    let field = field.as_ref();
+    field.is_empty() || field == b"*"
 }
 
 /// Any optional fields stored in a SAM record, lazily parsed on an as-needed
