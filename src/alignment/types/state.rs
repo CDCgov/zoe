@@ -2,7 +2,10 @@ use crate::{
     alignment::AlignmentIndices,
     data::types::cigar::{Cigar, Ciglet},
 };
-use std::ops::Range;
+use std::{
+    iter::FusedIterator,
+    ops::{ControlFlow, Range},
+};
 
 /// A struct for storing alignment states.
 ///
@@ -858,3 +861,285 @@ impl NextCiglet for std::slice::Iter<'_, Ciglet> {
         }
     }
 }
+
+/// An iterator over the operations in a CIGAR string, repeated based on the
+/// increment field of each [`Ciglet`].
+pub struct CigletOpIter<'a> {
+    /// The iterator of ciglets remaining.
+    ciglets:     std::slice::Iter<'a, Ciglet>,
+    /// The current [`Ciglet`] being yielded from the front.
+    ciglet:      Ciglet,
+    /// The current [`Ciglet`] being yielded from the back.
+    ciglet_back: Ciglet,
+}
+
+impl<'a> CigletOpIter<'a> {
+    /// Creates an iterator over the operations in a CIGAR string, repeated
+    /// based on the increment field of each [`Ciglet`].
+    pub fn new<A>(ciglets: &'a A) -> Self
+    where
+        A: AsRef<[Ciglet]> + ?Sized, {
+        Self {
+            ciglets:     ciglets.as_ref().iter(),
+            ciglet:      Ciglet { inc: 0, op: b'M' },
+            ciglet_back: Ciglet { inc: 0, op: b'M' },
+        }
+    }
+
+    /// Loads a non-empty ciglet into the `ciglet` field and returns a mutable
+    /// reference to it.
+    fn load_ciglet(&mut self) -> Option<&mut Ciglet> {
+        if self.ciglet.inc > 0 {
+            Some(&mut self.ciglet)
+        } else if let Some(next_ciglet) = self.ciglets.next_ciglet() {
+            self.ciglet = next_ciglet;
+            Some(&mut self.ciglet)
+        } else if self.ciglet_back.inc > 0 {
+            Some(&mut self.ciglet_back)
+        } else {
+            None
+        }
+    }
+
+    /// Loads a non-empty ciglet into the `ciglet_back` field and returns a
+    /// mutable reference to it.
+    fn load_ciglet_back(&mut self) -> Option<&mut Ciglet> {
+        if self.ciglet_back.inc > 0 {
+            Some(&mut self.ciglet_back)
+        } else if let Some(next_ciglet) = self.ciglets.next_ciglet_back() {
+            self.ciglet_back = next_ciglet;
+            Some(&mut self.ciglet_back)
+        } else if self.ciglet.inc > 0 {
+            Some(&mut self.ciglet)
+        } else {
+            None
+        }
+    }
+}
+
+impl PeekOp for CigletOpIter<'_> {
+    fn peek_op(&mut self) -> Option<u8> {
+        self.peek_ciglet().map(|ciglet| ciglet.op)
+    }
+
+    fn peek_op_back(&mut self) -> Option<u8> {
+        self.peek_ciglet_back().map(|ciglet| ciglet.op)
+    }
+}
+
+impl TakeOp for CigletOpIter<'_> {
+    fn take_op(&mut self) -> Option<u8> {
+        let ciglet = self.load_ciglet()?;
+        ciglet.inc -= 1;
+        Some(ciglet.op)
+    }
+
+    fn take_op_back(&mut self) -> Option<u8> {
+        let ciglet = self.load_ciglet_back()?;
+        ciglet.inc -= 1;
+        Some(ciglet.op)
+    }
+}
+
+impl PeekCiglet for CigletOpIter<'_> {
+    fn peek_ciglet(&mut self) -> Option<Ciglet> {
+        self.load_ciglet().copied()
+    }
+
+    fn peek_ciglet_back(&mut self) -> Option<Ciglet> {
+        self.load_ciglet_back().copied()
+    }
+}
+
+impl NextCiglet for CigletOpIter<'_> {
+    fn next_ciglet(&mut self) -> Option<Ciglet> {
+        Some(std::mem::replace(self.load_ciglet()?, Ciglet { inc: 0, op: b'M' }))
+    }
+
+    fn next_ciglet_back(&mut self) -> Option<Ciglet> {
+        Some(std::mem::replace(self.load_ciglet_back()?, Ciglet { inc: 0, op: b'M' }))
+    }
+}
+
+impl Iterator for CigletOpIter<'_> {
+    type Item = u8;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.take_op()
+    }
+
+    fn nth(&mut self, mut n: usize) -> Option<Self::Item> {
+        loop {
+            let ciglet = self.load_ciglet()?;
+
+            if n < ciglet.inc {
+                ciglet.inc -= n + 1;
+                return Some(ciglet.op);
+            }
+
+            n -= ciglet.inc;
+            ciglet.inc = 0;
+        }
+    }
+
+    fn last(mut self) -> Option<Self::Item>
+    where
+        Self: Sized, {
+        // We do not need to decrement anything since we consume self
+        self.peek_op_back()
+    }
+
+    fn count(self) -> usize
+    where
+        Self: Sized, {
+        self.ciglet.inc + self.ciglet_back.inc + self.ciglets.map(|ciglet| ciglet.inc).sum::<usize>()
+    }
+
+    fn fold<B, F>(self, init: B, mut f: F) -> B
+    where
+        Self: Sized,
+        F: FnMut(B, Self::Item) -> B, {
+        let mut accum = init;
+
+        if self.ciglet.inc > 0 {
+            accum = std::iter::repeat_n(self.ciglet.op, self.ciglet.inc).fold(accum, &mut f);
+        }
+
+        accum = self.ciglets.fold(accum, |accum, ciglet| {
+            std::iter::repeat_n(ciglet.op, ciglet.inc).fold(accum, &mut f)
+        });
+
+        if self.ciglet_back.inc > 0 {
+            accum = std::iter::repeat_n(self.ciglet_back.op, self.ciglet_back.inc).fold(accum, &mut f);
+        }
+
+        accum
+    }
+
+    fn try_fold<B, F, R>(&mut self, init: B, mut f: F) -> R
+    where
+        Self: Sized,
+        F: FnMut(B, Self::Item) -> R,
+        R: std::ops::Try<Output = B>, {
+        let mut accum = init;
+
+        while let Some(new_inc) = self.ciglet.inc.checked_sub(1) {
+            self.ciglet.inc = new_inc;
+            accum = f(accum, self.ciglet.op)?;
+        }
+
+        // This will get overwritten by the first call to the try_fold closure
+        let mut current_ciglet = self.ciglet;
+
+        let res = self.ciglets.try_fold(accum, |mut accum, ciglet| {
+            current_ciglet = *ciglet;
+
+            while let Some(new_inc) = current_ciglet.inc.checked_sub(1) {
+                current_ciglet.inc = new_inc;
+                accum = f(accum, current_ciglet.op)?;
+            }
+
+            R::from_output(accum)
+        });
+
+        accum = match res.branch() {
+            ControlFlow::Continue(val) => val,
+            ControlFlow::Break(val) => {
+                self.ciglet = current_ciglet;
+                return R::from_residual(val);
+            }
+        };
+
+        while let Some(new_inc) = self.ciglet_back.inc.checked_sub(1) {
+            self.ciglet_back.inc = new_inc;
+            accum = f(accum, self.ciglet_back.op)?;
+        }
+
+        R::from_output(accum)
+    }
+}
+
+impl DoubleEndedIterator for CigletOpIter<'_> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.take_op_back()
+    }
+
+    fn nth_back(&mut self, mut n: usize) -> Option<Self::Item> {
+        loop {
+            let ciglet = self.load_ciglet_back()?;
+
+            if n < ciglet.inc {
+                ciglet.inc -= n + 1;
+                return Some(ciglet.op);
+            }
+
+            n -= ciglet.inc;
+            ciglet.inc = 0;
+        }
+    }
+
+    fn rfold<B, F>(self, init: B, mut f: F) -> B
+    where
+        Self: Sized,
+        F: FnMut(B, Self::Item) -> B, {
+        let mut accum = init;
+
+        if self.ciglet_back.inc > 0 {
+            accum = std::iter::repeat_n(self.ciglet_back.op, self.ciglet_back.inc).fold(accum, &mut f);
+        }
+
+        accum = self.ciglets.rfold(accum, |accum, ciglet| {
+            std::iter::repeat_n(ciglet.op, ciglet.inc).fold(accum, &mut f)
+        });
+
+        if self.ciglet.inc > 0 {
+            accum = std::iter::repeat_n(self.ciglet.op, self.ciglet.inc).fold(accum, &mut f);
+        }
+
+        accum
+    }
+
+    fn try_rfold<B, F, R>(&mut self, init: B, mut f: F) -> R
+    where
+        Self: Sized,
+        F: FnMut(B, Self::Item) -> R,
+        R: std::ops::Try<Output = B>, {
+        let mut accum = init;
+
+        while let Some(new_inc) = self.ciglet_back.inc.checked_sub(1) {
+            self.ciglet_back.inc = new_inc;
+            accum = f(accum, self.ciglet_back.op)?;
+        }
+
+        // This will get overwritten by the first call to the try_fold closure
+        let mut current_ciglet = self.ciglet_back;
+
+        let res = self.ciglets.try_rfold(accum, |mut accum, ciglet| {
+            current_ciglet = *ciglet;
+
+            while let Some(new_inc) = current_ciglet.inc.checked_sub(1) {
+                current_ciglet.inc = new_inc;
+                accum = f(accum, current_ciglet.op)?;
+            }
+
+            R::from_output(accum)
+        });
+
+        accum = match res.branch() {
+            ControlFlow::Continue(val) => val,
+            ControlFlow::Break(val) => {
+                self.ciglet_back = current_ciglet;
+                return R::from_residual(val);
+            }
+        };
+
+        while let Some(new_inc) = self.ciglet.inc.checked_sub(1) {
+            self.ciglet.inc = new_inc;
+            accum = f(accum, self.ciglet.op)?;
+        }
+
+        R::from_output(accum)
+    }
+}
+
+impl FusedIterator for CigletOpIter<'_> {}
