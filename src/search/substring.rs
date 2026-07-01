@@ -265,9 +265,12 @@ pub fn substring_match_simd<const N: usize>(haystack: &[u8], needle: &[u8]) -> O
     // In order to verify the needle, we need to subtract it off. However, the
     // last character in the vector counts.
     let chunks1 = haystack[..=(haystack.len() - needle.len())]
-        .chunks_exact(N)
-        .map(Simd::from_slice);
-    let chunks2 = haystack[n2_offset..].chunks_exact(N).map(Simd::from_slice);
+        .as_chunks::<N>()
+        .0
+        .iter()
+        .copied()
+        .map(Simd::from_array);
+    let chunks2 = haystack[n2_offset..].as_chunks::<N>().0.iter().copied().map(Simd::from_array);
     let z = std::iter::zip(chunks1, chunks2);
 
     let mut i = 0;
@@ -345,12 +348,18 @@ where
     };
 
     let chunks1 = haystack[..candidate_start_limit]
-        .chunks_exact(N)
-        .map(Simd::from_slice)
+        .as_chunks::<N>()
+        .0
+        .iter()
+        .copied()
+        .map(Simd::from_array)
         .map(&simd_transform);
     let chunks2 = haystack[n2_offset..]
-        .chunks_exact(N)
-        .map(Simd::from_slice)
+        .as_chunks::<N>()
+        .0
+        .iter()
+        .copied()
+        .map(Simd::from_array)
         .map(&simd_transform);
     let z = std::iter::zip(chunks1, chunks2);
 

@@ -1,7 +1,7 @@
 extern crate test;
 use crate::search::{
-    ByteSubstring, find_k_repeating, find_k_repeating_scalar, position_by_byte, position_by_byte2, replace_all_bytes,
-    replace_all_bytes_simd, substring_match, substring_match_simd,
+    ByteSubstring, find_k_repeating, find_k_repeating_scalar, position_by_byte, position_by_byte2, substring_match,
+    substring_match_simd,
 };
 use std::sync::LazyLock;
 use test::{Bencher, black_box};
@@ -167,7 +167,10 @@ mod k_repeating {
 #[cfg(feature = "rand")]
 mod replace {
     use super::*;
-    use crate::prelude::rand_sequence;
+    use crate::{
+        prelude::rand_sequence,
+        search::{replace_all_bytes, replace_all_bytes_simd},
+    };
 
     static LONG: LazyLock<Vec<u8>> = LazyLock::new(|| rand_sequence(b"AGCT", 15_000, 42));
     static SHORT: LazyLock<Vec<u8>> = LazyLock::new(|| rand_sequence(b"AGCT", 150, 42));

@@ -272,11 +272,10 @@ where
 
     let chunk_size = N * UF;
 
-    let chunks = haystack.chunks_exact(UF);
-    let rem = chunks.remainder();
+    let (chunks, rem) = haystack.as_chunks::<UF>();
     let mut mask_buffer = [Mask::from_array([false; N]); UF];
 
-    for (i, c) in chunks.enumerate() {
+    for (i, c) in chunks.iter().enumerate() {
         mask_buffer[0] = predicate(c[0]);
         let mut mask = mask_buffer[0];
         for j in 1..UF {

@@ -9,10 +9,10 @@ use std::{iter::FusedIterator, ops::ControlFlow};
 pub mod sampling;
 
 #[cfg(not(feature = "fuzzing"))]
-#[doc(auto_cfg(hide(feature = "fuzzing")))]
+#[doc(auto_cfg(hide(feature, values("fuzzing"))))]
 mod stepped_windows;
 #[cfg(not(feature = "fuzzing"))]
-#[doc(auto_cfg(hide(feature = "fuzzing")))]
+#[doc(auto_cfg(hide(feature, values("fuzzing"))))]
 pub(crate) use stepped_windows::*;
 
 #[cfg(feature = "fuzzing")]

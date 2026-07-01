@@ -10,13 +10,13 @@ use crate::{
 };
 
 #[cfg(not(feature = "alignment-diagnostics"))]
-#[doc(auto_cfg(hide(feature = "alignment-diagnostics")))]
+#[doc(auto_cfg(hide(feature, values("alignment-diagnostics"))))]
 mod components;
 #[cfg(not(feature = "alignment-diagnostics"))]
-#[doc(auto_cfg(hide(feature = "alignment-diagnostics")))]
+#[doc(auto_cfg(hide(feature, values("alignment-diagnostics"))))]
 pub use components::EmissionParams;
 #[cfg(not(feature = "alignment-diagnostics"))]
-#[doc(auto_cfg(hide(feature = "alignment-diagnostics")))]
+#[doc(auto_cfg(hide(feature, values("alignment-diagnostics"))))]
 pub(crate) use components::*;
 
 #[cfg(feature = "alignment-diagnostics")]

@@ -17,8 +17,10 @@ fn find_start_codon(sequence: NucleotidesView) -> Option<Range<usize>> {
 fn find_stop_codon(sequence: NucleotidesView) -> Option<Range<usize>> {
     sequence
         .as_bytes()
-        .chunks_exact(3)
-        .position(StdGeneticCode::is_stop_codon)
+        .as_chunks::<3>()
+        .0
+        .iter()
+        .position(|codon| StdGeneticCode::is_stop_codon(codon))
         .map(|num_codons_before_stop| {
             let stop_codon_start = num_codons_before_stop * 3;
             stop_codon_start..stop_codon_start + 3

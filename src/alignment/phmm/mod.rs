@@ -33,7 +33,7 @@ mod viterbi;
 pub mod editing;
 
 #[cfg(not(feature = "alignment-diagnostics"))]
-#[doc(auto_cfg(hide(feature = "alignment-diagnostics")))]
+#[doc(auto_cfg(hide(feature, values("alignment-diagnostics"))))]
 pub(crate) mod indexing;
 #[cfg(feature = "alignment-diagnostics")]
 pub mod indexing;
@@ -42,7 +42,7 @@ pub mod indexing;
 pub mod score_from_path;
 
 #[cfg(not(feature = "alignment-diagnostics"))]
-#[doc(auto_cfg(hide(feature = "alignment-diagnostics")))]
+#[doc(auto_cfg(hide(feature, values("alignment-diagnostics"))))]
 pub(crate) mod views;
 #[cfg(feature = "alignment-diagnostics")]
 pub mod views;
