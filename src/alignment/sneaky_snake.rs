@@ -87,7 +87,7 @@ pub fn sneaky_snake(reference: &[u8], query: &[u8], threshold: f32) -> Option<bo
         return None;
     }
     if edit_thresh == query.len() {
-        return Some(true)
+        return Some(true);
     }
 
     // choose shorter string

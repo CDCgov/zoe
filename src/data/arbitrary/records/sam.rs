@@ -3,7 +3,7 @@
 
 use crate::{
     data::{
-        arbitrary::{ArbitrarySpecs, CigarSpecs, ClampAlignment, NucleotidesSpecs, StringSpecs},
+        arbitrary::{ArbitrarySpecs, CigarSpecs, ClampAlignment, NucleotidesSpecs, QualityScoresSpecs, StringSpecs},
         cigar::{Cigar, LenInAlignment},
         sam::SamData,
     },
@@ -37,6 +37,7 @@ impl<'a> Arbitrary<'a> for SamData {
 ///
 /// All generated records have `rnext` as `*`, `pnext` as 0, `tlen` as 0, and
 /// `opt_fields` being empty.
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Clone, Eq, PartialEq, Hash, Debug, Default)]
 pub struct SamDataSpecs {
     /// The specifications for generating the `qname` field.
@@ -50,6 +51,9 @@ pub struct SamDataSpecs {
 
     /// The specifications for generating the `seq` field.
     pub seq: NucleotidesSpecs,
+
+    /// The specifications for generating the `qual` field.
+    pub qual: QualityScoresSpecs,
 
     /// Whether to ensure that the `pos` field is nonzero (since it represents a
     /// 1-based position).
@@ -75,6 +79,9 @@ pub struct SamDataSpecs {
     ///
     /// [`CigletIterator`]: crate::data::types::cigar::CigletIterator
     pub correct_seq_len: bool,
+
+    /// Ensures that the length of the `qual` field agrees with the `seq` field.
+    pub correct_qual_len: bool,
 }
 
 impl<'a> ArbitrarySpecs<'a> for SamDataSpecs {
@@ -89,6 +96,12 @@ impl<'a> ArbitrarySpecs<'a> for SamDataSpecs {
             cigar.clamp_query_len(seq.len());
             seq.shorten_to(cigar.query_len_in_alignment());
         }
+
+        let qual = if self.correct_qual_len {
+            self.qual.with_len(seq.len()).make_arbitrary(u)?
+        } else {
+            self.qual.make_arbitrary(u)?
+        };
 
         let pos = match (self.nonzero_pos, self.cap_end_pos) {
             (false, false) => usize::arbitrary(u)?,
@@ -119,7 +132,7 @@ impl<'a> ArbitrarySpecs<'a> for SamDataSpecs {
             u8::arbitrary(u)?,
             cigar,
             seq,
-            QualityScores::arbitrary(u)?,
+            qual,
         ))
     }
 }
