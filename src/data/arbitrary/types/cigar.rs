@@ -9,7 +9,7 @@ use crate::{
     },
 };
 use arbitrary::{Arbitrary, Result, Unstructured};
-use std::num::NonZeroUsize;
+use std::cmp::Ordering;
 
 impl<'a> Arbitrary<'a> for Ciglet {
     #[inline]
@@ -36,24 +36,50 @@ impl<'a> Arbitrary<'a> for AlignmentStates {
 }
 
 /// Specifications for generating an arbitrary [`Ciglet`].
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct CigletSpecs {
     /// Whether to restrict the increment to be non-zero.
     pub nonzero_inc: bool,
+
+    /// The maximum increment to allow.
+    pub max_inc: usize,
 
     /// Whether to restrict the operation to `MIDNSHP=X`.
     pub valid_op: bool,
 }
 
+impl Default for CigletSpecs {
+    fn default() -> Self {
+        Self {
+            nonzero_inc: false,
+            max_inc:     usize::MAX,
+            valid_op:    false,
+        }
+    }
+}
+
 impl<'a> ArbitrarySpecs<'a> for CigletSpecs {
     type Output = Ciglet;
 
+    /// Generates an arbitrary [`Ciglet`] conforming to the given
+    /// specifications.
+    ///
+    /// ## Errors
+    ///
+    /// Any errors from the underlying [`arbitrary`] calls are propagated.
+    ///
+    /// ## Panics
+    ///
+    /// If `nonzero_inc` is true and `max_inc` is 0, this panics.
+    ///
+    /// [`arbitrary`]: arbitrary::Arbitrary::arbitrary
     #[inline]
     fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {
-        let inc = if self.nonzero_inc {
-            NonZeroUsize::arbitrary(u)?.get()
-        } else {
-            usize::arbitrary(u)?
+        let min_inc = usize::from(self.nonzero_inc);
+
+        let inc = match min_inc.cmp(&self.max_inc) {
+            Ordering::Less | Ordering::Equal => u.int_in_range(min_inc..=self.max_inc)?,
+            Ordering::Greater => panic!("max_inc was 0 and nonzero_inc was true"),
         };
 
         let op = if self.valid_op {

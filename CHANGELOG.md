@@ -11,6 +11,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `coordinate_sort` for performing coordinate sort on `SamData` records 
 - Added conversion from `ByteSpecs` into `AminoAcidSpecs` and `NucleotideSpecs` (behind `fuzzing` feature gate)
 - Added `display_stack` for displaying an error and its stack (similar to `OrFail` without aborting)
+- Added `max_inc` field to `CigletSpecs` (behind `fuzzing` feature gate)
 
 ### Changed
 
