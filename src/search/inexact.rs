@@ -26,23 +26,26 @@ pub fn fuzzy_substring_match(haystack: &[u8], needle: &[u8], differences_allowed
 ///
 /// This is used as a helper function for [`fuzzy_substring_match`] and
 /// [`fuzzy_substring_match_simd`].
+///
+/// ## Panics
+///
+/// The `needle` must be non-empty.
 #[inline]
 #[must_use]
 pub(crate) fn fuzzy_substring_match_scalar(haystack: &[u8], needle: &[u8], differences_allowed: u8) -> Option<usize> {
-    for (i, w) in haystack.windows(needle.len()).enumerate() {
+    'windows: for (i, w) in haystack.windows(needle.len()).enumerate() {
         let mut differences = 0;
         for (&h, &n) in zip(w, needle) {
             if h != n {
-                differences += 1;
-                if differences > differences_allowed {
-                    break;
+                // If we are already at the maximum, restart with a new window
+                if differences >= differences_allowed {
+                    continue 'windows;
                 }
+                differences += 1;
             }
         }
 
-        if differences <= differences_allowed {
-            return Some(i);
-        }
+        return Some(i);
     }
 
     None

@@ -21,6 +21,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Fixed an edge case where length checking failed for `ByteMap::map_range` when passing a singleton and an empty range
 - Fixed panic where `find_next_aa_in_frame` when used with `RangeSearch` fails for short haystacks
 - Fixed a `QualityScores` soundness hole by removing the safe `AsMut` impls and mutable iteration that could violate its graphic ASCII invariant
+- Fixed an edge case where `fuzzy_substring_match` overflows when the allowable number of differences is `u8::MAX`
 
 ## [0.0.30] - 2026-06-24
 
