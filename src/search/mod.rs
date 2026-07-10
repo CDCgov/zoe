@@ -92,6 +92,17 @@ mod range_search;
 mod substring;
 
 #[cfg(test)]
+mod test {
+    #[test]
+    fn next_aa_range_search_short_tail() {
+        use crate::{prelude::Nucleotides, search::ToRangeSearch};
+
+        let seq: Nucleotides = b"AA".as_slice().into();
+        assert_eq!(seq.search_in(1..2).find_next_aa_in_frame(b'M'), None);
+    }
+}
+
+#[cfg(test)]
 mod bench;
 
 pub use bytes::*;

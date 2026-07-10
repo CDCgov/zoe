@@ -92,7 +92,10 @@ where
     pub fn find_next_aa_in_frame(mut self, aa: u8) -> Option<usize> {
         let starting_at_in_frame = self.starting_at.next_multiple_of(3);
         let offset = starting_at_in_frame - self.starting_at;
-        self.move_forward_by(offset);
+
+        self.starting_at += offset;
+        self.slice = self.slice.get(offset..)?;
+
         NucleotidesView::from(self.slice)
             .find_next_aa_in_frame(aa)
             .map(|index| self.adjust_to_context(&index))
@@ -100,13 +103,6 @@ where
 }
 
 impl<'a, Q: ?Sized> RangeSearch<'a, Q> {
-    /// Moves the starting position of the [`RangeSearch`] forward by `amt`.
-    #[inline]
-    pub(crate) fn move_forward_by(&mut self, amt: usize) {
-        self.starting_at += amt;
-        self.slice = &self.slice[amt..];
-    }
-
     /// Given an index/range in the frame of reference of `slice`, adjust it to
     /// be in the original frame of reference.
     #[inline]

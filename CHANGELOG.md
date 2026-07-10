@@ -15,6 +15,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 ### Fixed
 
 - Fixed an edge case where length checking failed for `ByteMap::map_range` when passing a singleton and an empty range
+- Fixed panic where `find_next_aa_in_frame` when used with `RangeSearch` fails for short haystacks
 
 ## [0.0.30] - 2026-06-24
 
