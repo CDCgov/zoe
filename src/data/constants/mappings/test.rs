@@ -634,3 +634,12 @@ fn maybe_stop_codon() {
         }
     }
 }
+
+#[test]
+#[allow(clippy::reversed_empty_ranges)]
+#[should_panic(expected = "Attempted to map to a range of a different length!")]
+fn test_singleton_with_empty() {
+    use crate::data::mappings::ByteMap;
+    let map = ByteMap::identity().map_range(5..=5, 9..=8);
+    assert_eq!(map[5], 5);
+}

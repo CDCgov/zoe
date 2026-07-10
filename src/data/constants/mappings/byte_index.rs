@@ -137,12 +137,21 @@ impl ByteMap {
     #[must_use]
     #[allow(clippy::cast_possible_truncation)]
     pub const fn map_range(mut self, from: RangeInclusive<u8>, to: RangeInclusive<u8>) -> Self {
+        // TODO: Improve this when len, partial_ord, and/or map_or become const
+        // compatible
+        let from_len = match from.end().checked_sub(*from.start()) {
+            Some(diff) => diff as usize + 1,
+            None => 0,
+        };
+
+        let to_len = match to.end().checked_sub(*to.start()) {
+            Some(diff) => diff as usize + 1,
+            None => 0,
+        };
+
         // Saturation implies an empty range. If both ranges are empty, the
         // while loop does nothing.
-        assert!(
-            from.end().saturating_sub(*from.start()) == to.end().saturating_sub(*to.start()),
-            "Attempted to map to a range of a different length!"
-        );
+        assert!(from_len == to_len, "Attempted to map to a range of a different length!");
 
         // Convert from inclusive range to exclusive range, bumping to usize in
         // case of overflow at end
