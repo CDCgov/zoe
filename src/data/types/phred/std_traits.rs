@@ -29,31 +29,10 @@ impl AsRef<[u8]> for QualityScoresViewMut<'_> {
     }
 }
 
-impl AsMut<[u8]> for QualityScores {
-    #[inline]
-    fn as_mut(&mut self) -> &mut [u8] {
-        &mut self.0
-    }
-}
-
-impl AsMut<[u8]> for QualityScoresViewMut<'_> {
-    #[inline]
-    fn as_mut(&mut self) -> &mut [u8] {
-        self.0
-    }
-}
-
 impl AsRef<Vec<u8>> for QualityScores {
     #[inline]
     fn as_ref(&self) -> &Vec<u8> {
         &self.0
-    }
-}
-
-impl AsMut<Vec<u8>> for QualityScores {
-    #[inline]
-    fn as_mut(&mut self) -> &mut Vec<u8> {
-        &mut self.0
     }
 }
 
@@ -206,12 +185,12 @@ impl<'a> IntoIterator for QualityScoresView<'a> {
 }
 
 impl<'a> IntoIterator for QualityScoresViewMut<'a> {
-    type Item = &'a mut u8;
-    type IntoIter = std::slice::IterMut<'a, u8>;
+    type Item = &'a u8;
+    type IntoIter = std::slice::Iter<'a, u8>;
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
-        self.0.iter_mut()
+        self.0.iter()
     }
 }
 

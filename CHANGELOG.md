@@ -16,12 +16,13 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 - Fixed an edge case where length checking failed for `ByteMap::map_range` when passing a singleton and an empty range
 - Fixed panic where `find_next_aa_in_frame` when used with `RangeSearch` fails for short haystacks
+- Fixed a `QualityScores` soundness hole by removing the safe `AsMut` impls and mutable iteration that could violate its graphic ASCII invariant
 
 ## [0.0.30] - 2026-06-24
 
 ### Added
 
-- Added `coordinate_sort` for performing coordinate sort on `SamData` records 
+- Added `coordinate_sort` for performing coordinate sort on `SamData` records
 - Added conversion from `ByteSpecs` into `AminoAcidSpecs` and `NucleotideSpecs` (behind `fuzzing` feature gate)
 - Added `display_stack` for displaying an error and its stack (similar to `OrFail` without aborting)
 
@@ -36,7 +37,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - `encode_kmer` now uses an unnamed generic
 - Constructors for nucleotides, amino acids, quality scores, and CIGAR strings are `const`
 - `AminoAcidsDistance` now has a blanket implementation
-- `StatesSequence` and `StatesSequenceMut` have been replaced with smaller traits `PeekOp`, `PeekCiglet`, `PeekCigletMut`, `NextCiglet`, `NextCigletMut`, and `TakeOp` 
+- `StatesSequence` and `StatesSequenceMut` have been replaced with smaller traits `PeekOp`, `PeekCiglet`, `PeekCigletMut`, `NextCiglet`, `NextCigletMut`, and `TakeOp`
 
 ### Removed
 
