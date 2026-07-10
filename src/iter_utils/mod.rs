@@ -31,7 +31,10 @@ pub use stepped_windows::*;
 /// [`iterr`](https://docs.rs/iterr/latest/iterr/).
 #[derive(Debug)]
 pub struct ProcessResults<'a, I, E: 'a> {
+    /// The first encountered error, if any.
     error: &'a mut Result<(), E>,
+    /// The fallible iterator, or `None` if an error has occurred and been
+    /// stored.
     iter:  Option<I>,
 }
 
@@ -42,15 +45,13 @@ where
     type Item = T;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.iter.as_mut()?.next() {
-            Some(Ok(val)) => Some(val),
-            Some(Err(e)) => {
+        // Return None if an error already occurred or the fallible iterator
+        // returns None
+        match self.iter.as_mut()?.next()? {
+            Ok(val) => Some(val),
+            Err(e) => {
                 self.iter = None;
                 *self.error = Err(e);
-                None
-            }
-            None => {
-                self.iter = None;
                 None
             }
         }
@@ -81,11 +82,7 @@ where
         });
 
         match res {
-            ControlFlow::Continue(acc) => acc,
-            ControlFlow::Break(acc) => {
-                self.iter = None;
-                acc
-            }
+            ControlFlow::Continue(acc) | ControlFlow::Break(acc) => acc,
         }
     }
 
@@ -133,15 +130,13 @@ where
     I: DoubleEndedIterator<Item = Result<T, E>>,
 {
     fn next_back(&mut self) -> Option<Self::Item> {
-        match self.iter.as_mut()?.next_back() {
-            Some(Ok(val)) => Some(val),
-            Some(Err(e)) => {
+        // Return None if an error already occurred or the fallible iterator
+        // returns None
+        match self.iter.as_mut()?.next_back()? {
+            Ok(val) => Some(val),
+            Err(e) => {
                 self.iter = None;
                 *self.error = Err(e);
-                None
-            }
-            None => {
-                self.iter = None;
                 None
             }
         }
@@ -163,11 +158,7 @@ where
         });
 
         match res {
-            ControlFlow::Continue(acc) => acc,
-            ControlFlow::Break(acc) => {
-                self.iter = None;
-                acc
-            }
+            ControlFlow::Continue(acc) | ControlFlow::Break(acc) => acc,
         }
     }
 
@@ -210,7 +201,7 @@ where
     }
 }
 
-impl<T, I, E> FusedIterator for ProcessResults<'_, I, E> where I: Iterator<Item = Result<T, E>> {}
+impl<T, I, E> FusedIterator for ProcessResults<'_, I, E> where I: FusedIterator<Item = Result<T, E>> {}
 
 /// An extension trait providing [`process_results`], a method for robustly
 /// handling iterators of results in a concise and ergonomic manner.
@@ -218,7 +209,7 @@ impl<T, I, E> FusedIterator for ProcessResults<'_, I, E> where I: Iterator<Item 
 /// [`process_results`]: ProcessResultsExt::process_results
 pub trait ProcessResultsExt<T, E>: Iterator<Item = Result<T, E>> + Sized {
     /// Processes the `Ok` values in an iterator of results using a closure,
-    /// aborting and propagating the first encountered error.
+    /// aborting upon and propagating the first encountered error.
     ///
     /// This allows for the iterator of results to be treated as an iterator of
     /// values within the passed closure, with the errors handled automatically.
@@ -228,10 +219,10 @@ pub trait ProcessResultsExt<T, E>: Iterator<Item = Result<T, E>> + Sized {
     ///
     /// ## Errors
     ///
-    /// Any errors encountered in `iterable` are propagated. Note that this
-    /// function does not guarantee that the entire iterator is checked. If this
-    /// is necessary, ensure that `f` fully consumes the iterator, such as using
-    /// a call to [`last`].
+    /// Any errors encountered in `self` are propagated. Note that this function
+    /// does not guarantee that the entire iterator is checked. If this is
+    /// necessary, ensure that `f` fully consumes the iterator, such as using a
+    /// call to [`last`] in the case that `self` is fused.
     ///
     /// ## Acknowledgements
     ///

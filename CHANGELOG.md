@@ -15,6 +15,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 ### Changed
 
 - `replace_all_bytes` no longer has a generic argument
+- `ProcessResults` no longer is a fused iterator unless the fallible iterator is fused. The first error still terminates `ProcessResults` though
 
 ### Fixed
 
@@ -22,6 +23,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Fixed panic where `find_next_aa_in_frame` when used with `RangeSearch` fails for short haystacks
 - Fixed a `QualityScores` soundness hole by removing the safe `AsMut` impls and mutable iteration that could violate its graphic ASCII invariant
 - Fixed an edge case where `fuzzy_substring_match` overflows when the allowable number of differences is `u8::MAX`
+- Fixed incorrect fusing behavior in the `try_fold` and `try_rfold` implementations for `ProcessResults` 
 
 ## [0.0.30] - 2026-06-24
 
