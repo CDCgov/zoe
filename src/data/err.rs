@@ -625,6 +625,12 @@ where
     }
 }
 
+impl DisplayErrStack for dyn Error + 'static {
+    fn display_stack(&self) -> ErrStackDisplay<'_> {
+        ErrStackDisplay(self)
+    }
+}
+
 /// A display wrapper around an error that shows the error and its sources (with
 /// [`Error::source`]) in a list, using `→` and two spaces of indent before each
 /// item.
