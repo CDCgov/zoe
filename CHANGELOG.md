@@ -11,6 +11,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added a by-operation iterator for alignment states (`CigletOpIter`)
 - Added `max_inc` field to `CigletSpecs` (behind `fuzzing` feature gate)
 - `DisplayErrStack` now works for `&dyn Error` (so it can be called on `Error::source`)
+- `CigarError` now has a new variant `MergeIncOverflow` to handle the case where an increment overflow occurs due to merging two consecutive ciglets with the same operation
 
 ### Changed
 
@@ -25,6 +26,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Fixed an edge case where `fuzzy_substring_match` overflows when the allowable number of differences is `u8::MAX`
 - Fixed incorrect fusing behavior in the `try_fold` and `try_rfold` implementations for `ProcessResults`
 - Fixed possible overflow in `get_nth_codon` and `get_nth_codon_mut`
+- Methods for prepending/appending to an `AlignmentStates` now use strict addition to ensure no wrapping occurs during overflow in release mode
+- `TryFrom` impls for `AlignmentStates` now return `MergeIncOverflow` instead of panicking or wrapping when this error occurs
 
 ## [0.0.30] - 2026-06-24
 

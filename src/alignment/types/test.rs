@@ -412,3 +412,123 @@ fn test_eq_states_cigar() {
     assert_eq!(states, cigar);
     assert_eq!(cigar, states);
 }
+
+#[test]
+#[should_panic(expected = "attempt to add with overflow")]
+fn overflow_merging_add_ciglet() {
+    let mut states = AlignmentStates::from_ciglets_unchecked([Ciglet {
+        inc: usize::MAX,
+        op:  b'M',
+    }]);
+
+    states.add_ciglet(Ciglet { inc: 1, op: b'M' });
+}
+
+#[test]
+#[should_panic(expected = "attempt to add with overflow")]
+fn overflow_merging_add_state() {
+    let mut states = AlignmentStates::from_ciglets_unchecked([Ciglet {
+        inc: usize::MAX,
+        op:  b'M',
+    }]);
+
+    states.add_state(b'M');
+}
+
+#[test]
+#[should_panic(expected = "attempt to add with overflow")]
+fn overflow_merging_add_inc_op() {
+    let mut states = AlignmentStates::from_ciglets_unchecked([Ciglet {
+        inc: usize::MAX,
+        op:  b'M',
+    }]);
+
+    states.add_inc_op(1, b'M');
+}
+
+#[test]
+#[should_panic(expected = "attempt to add with overflow")]
+fn overflow_merging_prepend_ciglet() {
+    let mut states = AlignmentStates::from_ciglets_unchecked([Ciglet {
+        inc: usize::MAX,
+        op:  b'M',
+    }]);
+
+    states.prepend_ciglet(Ciglet { inc: 1, op: b'M' });
+}
+
+#[test]
+#[should_panic(expected = "attempt to add with overflow")]
+fn overflow_merging_prepend_state() {
+    let mut states = AlignmentStates::from_ciglets_unchecked([Ciglet {
+        inc: usize::MAX,
+        op:  b'M',
+    }]);
+
+    states.prepend_state(b'M');
+}
+
+#[test]
+#[should_panic(expected = "attempt to add with overflow")]
+fn overflow_merging_prepend_inc_op() {
+    let mut states = AlignmentStates::from_ciglets_unchecked([Ciglet {
+        inc: usize::MAX,
+        op:  b'M',
+    }]);
+
+    states.prepend_inc_op(1, b'M');
+}
+
+#[test]
+#[should_panic(expected = "attempt to add with overflow")]
+fn overflow_merging_add_soft() {
+    let mut states = AlignmentStates::from_ciglets_unchecked([Ciglet {
+        inc: usize::MAX,
+        op:  b'S',
+    }]);
+
+    states.soft_clip(1);
+}
+
+#[test]
+#[should_panic(expected = "attempt to add with overflow")]
+fn overflow_merging_prepend_soft() {
+    let mut states = AlignmentStates::from_ciglets_unchecked([Ciglet {
+        inc: usize::MAX,
+        op:  b'S',
+    }]);
+
+    states.prepend_soft_clip(1);
+}
+
+#[test]
+fn overflow_collect() {
+    let states = AlignmentStates::from_ciglets_unchecked([
+        Ciglet {
+            inc: usize::MAX,
+            op:  b'M',
+        },
+        Ciglet { inc: 1, op: b'M' },
+    ]);
+
+    let result = states.into_iter().collect::<Result<AlignmentStates, _>>();
+
+    assert_eq!(result, Err(CigarError::MergeIncOverflow));
+}
+
+#[test]
+fn overflow_try_from() {
+    let states = AlignmentStates::from_ciglets_unchecked([
+        Ciglet {
+            inc: usize::MAX,
+            op:  b'M',
+        },
+        Ciglet { inc: 1, op: b'M' },
+    ]);
+
+    let cigar = states.to_cigar_unchecked();
+
+    let result = AlignmentStates::try_from(cigar);
+
+    assert_eq!(result, Err(CigarError::MergeIncOverflow));
+}

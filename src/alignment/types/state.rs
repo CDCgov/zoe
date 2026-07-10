@@ -25,10 +25,30 @@ use std::{
 /// documented validity sections. Any arbitrary implementations may ignore these
 /// assumptions as well.
 ///
+/// ## Panics
+///
+/// For all methods adding additional operations to the [`AlignmentStates`], a
+/// panic due to overflow will occur if more than [`usize::MAX`] of the same
+/// operation appear in a row.
+///
 /// ## Limitations
 ///
 /// Prepending methods do a simple [`Vec::insert`] on the first index, which
 /// copies elements.
+///
+/// ## Conversion from String-Like Types
+///
+/// When converting from a string-like type to [`AlignmentStates`], `*` is
+/// parsed as empty. Otherwise, the following assumptions must be met (otherwise
+/// an error is returned):
+///
+/// - The CIGAR operations must be among `M, I, D, N, S, H, P, X, =`.
+/// - Every operation in the CIGAR string must have a preceding increment.
+/// - Every increment must be followed by an operation.
+/// - The increment for each operation must be non-zero and less than or equal
+///   to [`usize::MAX`].
+/// - The CIGAR increment after merging consecutive ciglets with the same
+///   operation must be less than or equal to [`usize::MAX`].
 #[derive(Clone, Eq, PartialEq, Default)]
 pub struct AlignmentStates(pub(crate) Vec<Ciglet>);
 
@@ -121,10 +141,10 @@ impl AlignmentStates {
     /// where appropriate.
     pub fn add_ciglet(&mut self, ciglet: Ciglet) {
         if ciglet.inc > 0 {
-            if let Some(c) = self.0.last_mut()
-                && c.op == ciglet.op
+            if let Some(last) = self.0.last_mut()
+                && last.op == ciglet.op
             {
-                c.inc += ciglet.inc;
+                last.inc = last.inc.strict_add(ciglet.inc);
             } else {
                 self.0.push(ciglet);
             }
@@ -135,10 +155,10 @@ impl AlignmentStates {
     /// [`Ciglet`]s where appropriate.
     pub fn prepend_ciglet(&mut self, ciglet: Ciglet) {
         if ciglet.inc > 0 {
-            if let Some(c) = self.0.first_mut()
-                && c.op == ciglet.op
+            if let Some(first) = self.0.first_mut()
+                && first.op == ciglet.op
             {
-                c.inc += ciglet.inc;
+                first.inc = first.inc.strict_add(ciglet.inc);
             } else {
                 self.0.insert(0, ciglet);
             }
@@ -210,15 +230,7 @@ impl AlignmentStates {
     /// If the rightmost operation is `S`, `inc` is added to its `increment`. If
     /// `inc` is 0, no change occurs.
     pub fn soft_clip(&mut self, inc: usize) {
-        if inc > 0 {
-            if let Some(c) = self.0.last_mut()
-                && c.op == b'S'
-            {
-                c.inc += inc;
-            } else {
-                self.0.push(Ciglet { inc, op: b'S' });
-            }
-        }
+        self.add_ciglet(Ciglet { inc, op: b'S' });
     }
 
     /// Adds soft clipping `S` to the start of the alignment `inc` times.
