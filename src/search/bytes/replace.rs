@@ -2,9 +2,7 @@ use crate::simd::SimdByteFunctions;
 
 /// Finds and replaces all instances of `needle` with the replacement byte.
 #[inline]
-pub fn replace_all_bytes<T>(v: &mut [T], needle: T, replacement: T)
-where
-    T: Copy + PartialEq, {
+pub fn replace_all_bytes(v: &mut [u8], needle: u8, replacement: u8) {
     for b in v.iter_mut() {
         if *b == needle {
             *b = replacement;

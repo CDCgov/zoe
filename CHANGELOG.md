@@ -12,6 +12,10 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `max_inc` field to `CigletSpecs` (behind `fuzzing` feature gate)
 - `DisplayErrStack` now works for `&dyn Error` (so it can be called on `Error::source`)
 
+### Changed
+
+- `replace_all_bytes` no longer has a generic argument
+
 ### Fixed
 
 - Fixed an edge case where length checking failed for `ByteMap::map_range` when passing a singleton and an empty range
