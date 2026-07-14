@@ -23,7 +23,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Fixed panic where `find_next_aa_in_frame` when used with `RangeSearch` fails for short haystacks
 - Fixed a `QualityScores` soundness hole by removing the safe `AsMut` impls and mutable iteration that could violate its graphic ASCII invariant
 - Fixed an edge case where `fuzzy_substring_match` overflows when the allowable number of differences is `u8::MAX`
-- Fixed incorrect fusing behavior in the `try_fold` and `try_rfold` implementations for `ProcessResults` 
+- Fixed incorrect fusing behavior in the `try_fold` and `try_rfold` implementations for `ProcessResults`
+- Fixed possible overflow in `get_nth_codon` and `get_nth_codon_mut`
 
 ## [0.0.30] - 2026-06-24
 
@@ -289,7 +290,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ### Added
 
-- Added `sw_simd_score_ends` for getting the score _and end coordinates_ of the alignment
+- Added `sw_simd_score_ends` for getting the score *and end coordinates* of the alignment
 - Added byte index map for amino acids, BLOSUM scoring matrices, and PAM scoring matrices
 - Added display implementation for `WeightMatrix`
 - Added `get_subset` to `WeightMatrix` for subsetting a weight matrix with a different alphabet
@@ -404,7 +405,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 ### Added
 
 - Introduce `ByteIndexCounts`, a generalization of `NucleotideCounts`
-- Added an `Alignment` struct to improve the ergonomics of _Zoe_'s alignment algorithms
+- Added an `Alignment` struct to improve the ergonomics of *Zoe*'s alignment algorithms
 
 ### Changed
 
@@ -484,7 +485,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 - Updated README notices for open-sourcing Zoe on Github!
 - Added optional feature "arbitrary" to support fuzzing Zoe types
-- Added supported for the _signed_ striped SW scoring function (generally faster)
+- Added supported for the *signed* striped SW scoring function (generally faster)
 - Added set operations for k-mer sets and anew trait for finding k-mers in sequences
 - Added support for restricted range searching in `ByteSubstring` and `FindKmers`
 - Added `make_reverse_complement_simd` and `translate_to_stop` functions

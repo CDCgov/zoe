@@ -401,8 +401,8 @@ pub trait GetCodons: NucleotidesReadable + Sealed {
     #[inline]
     #[must_use]
     fn get_nth_codon(&self, index: usize) -> Option<[u8; 3]> {
-        // try_into will never fail
-        self.nucleotide_bytes().get(3 * index..3 * index + 3)?.try_into().ok()
+        let start = index.checked_mul(3)?;
+        self.nucleotide_bytes().get(start..)?.first_chunk().copied()
     }
 
     /// Gets the first 3 bases as a codon, returning `None` if no such codon
@@ -497,7 +497,8 @@ pub trait GetCodonsMut: NucleotidesMutable + Sealed {
     #[inline]
     #[must_use]
     fn get_nth_codon_mut(&mut self, index: usize) -> Option<&mut [u8; 3]> {
-        self.nucleotide_mut_bytes().get_mut(3 * index..3 * index + 3)?.try_into().ok()
+        let start = index.checked_mul(3)?;
+        self.nucleotide_mut_bytes().get_mut(start..)?.first_chunk_mut()
     }
 
     /// Gets a mutable reference to the first 3 bases as a codon, returning
