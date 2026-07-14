@@ -5,8 +5,9 @@
 //! subsequence of nucleotides, which are represented in *Zoe* by [`Kmer`].
 //!
 //! *Zoe* has two structs to store k-mers:
-//! * A [`KmerSet`], which is a [`HashSet`] for k-mers
-//! * A [`KmerCounter`] to store k-mers and their counts (using a [`HashMap`])
+//!
+//! - A [`KmerSet`], which is a [`HashSet`] for k-mers
+//! - A [`KmerCounter`] to store k-mers and their counts (using a [`HashMap`])
 //!
 //! These structs can be populated from individual k-mers, sequences, or k-mers
 //! with up to `N` mismatches. They can be then be queried, iterated over, or
@@ -23,14 +24,20 @@
 //! appropriate `MAX_LEN`, see [`SupportedKmerLen`].
 //!
 //! [`KmerSet`] and [`KmerCounter`] are also generic over the type of
-//! [`KmerEncoder`]. *Zoe* currently provides a single encoder,
-//! [`ThreeBitKmerEncoder`], which uses three bits to store each base. It allows
-//! for `A`, `C`, `G`, `T`, and `N` to all be represented. It does not preserve
-//! case or the distinction between `T` and `U`. `N` is used as a catch-all for
-//! bases that are not `ACGTUNacgtun`.
+//! [`KmerEncoder`]. *Zoe* currently provides two encoders:
 //!
-//! For convenience, the type aliases [`ThreeBitKmerSet`] and
-//! [`ThreeBitKmerCounter`] are provided.
+//! - [`ThreeBitKmerEncoder`], which uses three bits to store each base. It
+//!   allows for `A`, `C`, `G`, `T`, and `N` to all be represented. It does not
+//!   preserve case or the distinction between `T` and `U`. `N` is used as a
+//!   catch-all for bases that are not `ACGTUNacgtun`.
+//! - [`TwoBitKmerEncoder`], which uses two bits to store each base. It allows
+//!   for `A`, `C`, `G`, and `T` to be represented. It is important to use this
+//!   only on sanitized data, since anything outside of `ACGTacgt` is
+//!   interpretted as `A`. Currently, this does not support generating variants.
+//!
+//! For convenience, the type aliases [`ThreeBitKmerSet`],
+//! [`ThreeBitKmerCounter`], [`TwoBitKmerSet`], and [`TwoBitKmerCounter`] are
+//! provided.
 //!
 //! <div class="warning important">
 //!
@@ -87,9 +94,11 @@
 //! [`KmerSet`]: KmerSet
 //! [`KmerCounter`]: KmerCounter
 //! [`ThreeBitKmerEncoder`]: encoders::three_bit::ThreeBitKmerEncoder
-//! [`ThreeBitEncodedKmer`]: encoders::three_bit::ThreeBitEncodedKmer
 //! [`ThreeBitKmerSet`]: encoders::three_bit::ThreeBitKmerSet
 //! [`ThreeBitKmerCounter`]: encoders::three_bit::ThreeBitKmerCounter
+//! [`TwoBitKmerEncoder`]: encoders::two_bit::TwoBitKmerEncoder
+//! [`TwoBitKmerSet`]: encoders::two_bit::TwoBitKmerSet
+//! [`TwoBitKmerCounter`]: encoders::two_bit::TwoBitKmerCounter
 //! [`SupportedKmerLen`]: SupportedKmerLen
 //! [`insert_from_sequence`]: KmerSet::insert_from_sequence
 //! [`find_in_seq`]: FindKmersInSeq::find_in_seq
@@ -98,20 +107,19 @@
 //! [`find_kmers`]: FindKmers::find_kmers
 //! [`find_kmers_rev`]: FindKmers::find_kmers_rev
 
-pub mod collections;
+mod collections;
 pub mod encoders;
 mod errors;
 mod traits;
 mod type_mappings;
 mod variants;
 
+pub use collections::*;
 pub use errors::*;
 pub use traits::*;
 pub use type_mappings::*;
 pub use variants::*;
 
-pub use collections::KmerCounter;
-pub use collections::KmerSet;
 pub use encoders::KmerEncoder;
 
 use crate::{data::CheckSequence, prelude::Nucleotides};

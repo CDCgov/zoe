@@ -476,8 +476,8 @@ where
 /// An extension trait for alignment-like data that enables the next operation
 /// to be peeked at (without consuming it, in the case of an iterator).
 ///
-/// Mutable access to `self` is required solely for the purpose of fetching the
-/// relevent data or advancing past empty ciglets.
+/// Mutable access to `self` is required solely for advancing past empty
+/// ciglets.
 pub trait PeekOp {
     /// Peeks at the operation for the next ciglet without consuming it. Empty
     /// ciglets are skipped and may be removed.
@@ -526,8 +526,8 @@ pub trait TakeOp: PeekOp {
 /// An extension trait for alignment-like data that enables the next [`Ciglet`]
 /// to be peeked at (without consuming it, in the case of an iterator).
 ///
-/// Mutable access to `self` is required solely for the purpose of fetching the
-/// relevent data or advancing past empty ciglets.
+/// Mutable access to `self` is required solely for advancing past empty
+/// ciglets.
 pub trait PeekCiglet {
     /// Peeks at the next ciglet without consuming it. Empty ciglets are
     /// skipped and may be removed.
@@ -612,8 +612,8 @@ pub trait NextCiglet: PeekOp {
 /// be consumed and a mutable reference to it returned.
 ///
 /// Consuming the ciglet causes the slice to be shrunk. The underlying data it
-/// is refering to is not mutated, although any modifications performed to the
-/// returned mutable reference will mutate it.
+/// is refering to is not mutated directly, although any modifications performed
+/// to the returned mutable reference will mutate it.
 pub trait NextCigletMut<'a>: NextCiglet {
     /// Retrieves a mutable reference to the next [`Ciglet`] and removes it from
     /// `self`. Empty ciglets are skipped.

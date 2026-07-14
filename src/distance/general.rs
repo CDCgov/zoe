@@ -59,8 +59,7 @@ pub fn hamming<T: Uint>(x: &[u8], y: &[u8]) -> usize {
 /// assert!(3 == hamming_simd::<16>(s1, s2));
 /// ```
 #[must_use]
-// TODO: Remove this when https://github.com/rust-lang/rust-clippy/issues/17314
-// is resolved or const generic expressions are added
+// TODO: Remove this and fix the lint
 #[allow(clippy::chunks_exact_to_as_chunks)]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
 pub fn hamming_simd<const N: usize>(x: &[u8], y: &[u8]) -> usize {

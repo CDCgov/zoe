@@ -420,8 +420,8 @@ impl<'a> SamDataViewMut<'a> {
 
 /// Returns whether a SAM `SEQ` or `QUAL` field should be treated as missing.
 ///
-/// Zoe accepts both the SAM sentinel `*` and an empty byte sequence as missing
-/// for these fields.
+/// *Zoe* accepts both the SAM sentinel `*` and an empty byte sequence as
+/// missing for these fields.
 pub(crate) fn is_missing_sam_field(field: impl AsRef<[u8]>) -> bool {
     let field = field.as_ref();
     field.is_empty() || field == b"*"

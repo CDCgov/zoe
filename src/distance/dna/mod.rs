@@ -41,9 +41,6 @@ pub(crate) use tabulation::{hamming_dist_from_sub_matrix, total_and_frequencies}
 /// ```
 #[must_use]
 #[allow(clippy::cast_precision_loss)]
-// TODO: Remove this when https://github.com/rust-lang/rust-clippy/issues/17314
-// is resolved or const generic expressions are added
-#[allow(clippy::chunks_exact_to_as_chunks)]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
 pub fn p_distance_acgt<const N: usize>(x: &[u8], y: &[u8]) -> Option<f64> {
     let alpha_v = [Simd::splat(b'A'), Simd::splat(b'C'), Simd::splat(b'G'), Simd::splat(b'T')];
