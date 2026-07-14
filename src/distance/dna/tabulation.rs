@@ -19,6 +19,7 @@ use crate::data::byte_types::ByteMappings;
 /// let seq2: &[u8] = b"GATCATATTAGCATTGCTT";
 ///
 /// let sub_matrix: [[u32; 4]; 4] = dna_substitution_matrix(seq1, seq2);
+/// # assert_eq!(sub_matrix, [[4, 0, 0, 1], [0, 2, 1, 0], [0, 0, 3, 0], [0, 0, 1, 7]])
 /// ```
 /// This should return the matrix (bases provided here for context) $$
 /// \begin{pmatrix}  & \text{A} & \text{C} & \text{G} & \text{T} \cr \text{A} &
@@ -32,7 +33,7 @@ pub fn dna_substitution_matrix(seq1: &[u8], seq2: &[u8]) -> [[u32; 4]; 4] {
         seq2.iter().copied().map(ByteMappings::to_dna_index),
     )
     .filter(|(a, b)| *a < 4 && *b < 4)
-    .for_each(|(a, b)| sub_matrix[a][b] += 1);
+    .for_each(|(a, b)| sub_matrix[b][a] += 1);
     sub_matrix
 }
 

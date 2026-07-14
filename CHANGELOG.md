@@ -28,6 +28,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Fixed possible overflow in `get_nth_codon` and `get_nth_codon_mut`
 - Methods for prepending/appending to an `AlignmentStates` now use strict addition to ensure no wrapping occurs during overflow in release mode
 - `TryFrom` impls for `AlignmentStates` now return `MergeIncOverflow` instead of panicking or wrapping when this error occurs
+- Fixed issue where `dna_substitution_matrix()` was returning the transpose of the intended matrix; nucleotide distance calculations are unaffected by the fix
 
 ## [0.0.30] - 2026-06-24
 
