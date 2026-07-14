@@ -1,4 +1,4 @@
-/label ~release
+/label ~Release
 
 - [ ] Make sure all needed PRs or issues are merged/closed for this cycle (consider what may be needed downstream)
 - [ ] Make sure recent documentation is correct and complete
