@@ -12,11 +12,13 @@
 /// 1. The enum definition, with any number of outer attributes, an optional
 ///    visibility specifier, and the variants
 /// 2. The traits to implement, using `impl Trait {}`. Currently, we support
-///    [`Read`], [`Write`], and [`Iterator`].
+///    [`Read`], [`Write`], [`Iterator`], [`DoubleEndedIterator`],
+///    [`ExactSizeIterator`], and [`FusedIterator`].
 ///
 /// ## Examples
 ///
 /// For implementing [`Read`]:
+///
 /// ```
 /// use std::io::Read;
 /// use zoe::define_whichever;
@@ -34,6 +36,7 @@
 /// ```
 ///
 /// For implementing [`Iterator`]:
+///
 /// ```
 /// #![feature(try_trait_v2)]
 /// use zoe::define_whichever;
@@ -85,6 +88,7 @@
 ///
 /// [`Read`]: std::io::Read
 /// [`Write`]: std::io::Write
+/// [`FusedIterator`]: std::iter::FusedIterator
 #[macro_export]
 macro_rules! define_whichever {
     // The public entry-point for the macro
@@ -145,8 +149,9 @@ macro_rules! define_whichever {
 /// A macro to aid in implementing traits for wrapper types. This macro is also
 /// used internally by [`define_whichever`].
 ///
-/// This macro currently supports implementing [`Read`], [`Write`], and
-/// [`Iterator`].
+/// This macro currently supports implementing [`Read`], [`Write`],
+/// [`Iterator`], [`DoubleEndedIterator`], [`ExactSizeIterator`], and
+/// [`FusedIterator`].
 ///
 /// ## Examples
 ///
@@ -188,6 +193,7 @@ macro_rules! define_whichever {
 ///
 /// [`Read`]: std::io::Read
 /// [`Write`]: std::io::Write
+/// [`FusedIterator`]: std::iter::FusedIterator
 #[macro_export]
 macro_rules! impl_traits {
     // The public entry-point for the macro, which assumes that the traits are
@@ -610,8 +616,53 @@ macro_rules! impl_traits {
         }
     };
 
+    (@methods [$dispatch:tt $($map:expr)?] DoubleEndedIterator) => {
+        #[inline]
+        fn next_back(&mut self) -> Option<Self::Item> {
+            $crate::impl_traits!(@delegate $dispatch self, [&mut], inner => inner.next_back()$(.map($map))?)
+        }
+
+        #[inline]
+        fn nth_back(&mut self, n: usize) -> Option<Self::Item> {
+            $crate::impl_traits!(@delegate $dispatch self, [&mut], inner => inner.nth_back(n)$(.map($map))?)
+        }
+
+        #[inline]
+        fn try_rfold<Bb, Ff, Rr>(&mut self, init: Bb, f: Ff) -> Rr
+        where
+            Self: Sized,
+            Ff: FnMut(Bb, Self::Item) -> Rr,
+            Rr: ::std::ops::Try<Output = Bb>,
+        {
+            $crate::impl_traits!(@delegate $dispatch self, [&mut], inner => inner$(.map($map))?.try_rfold(init, f))
+        }
+
+        #[inline]
+        fn rfold<Bb, Ff>(self, init: Bb, f: Ff) -> Bb
+        where
+            Self: Sized,
+            Ff: FnMut(Bb, Self::Item) -> Bb,
+        {
+            $crate::impl_traits!(@delegate $dispatch self, [], inner => inner$(.map($map))?.rfold(init, f))
+        }
+
+        #[inline]
+        fn rfind<Pp>(&mut self, predicate: Pp) -> Option<Self::Item>
+        where
+            Self: Sized,
+            Pp: FnMut(&Self::Item) -> bool,
+        {
+            $crate::impl_traits!(@delegate $dispatch self, [&mut], inner => inner$(.map($map))?.rfind(predicate))
+        }
+    };
+
+    (@methods [$dispatch:tt $($map:expr)?] ExactSizeIterator) => {};
+
+    (@methods [$dispatch:tt $($map:expr)?] FusedIterator) => {};
+
     // Provides the body for a single method implementation, given that a match
     // statement is being used (this path is taken by define_whichever)
+
     (@delegate [match_enum $enum_name:ident { $($variant:ident),+ }] $value:expr, [$($reference:tt)*], $pattern:pat => $result:expr) => {
         match $value {
             $(
@@ -633,6 +684,8 @@ macro_rules! impl_traits {
 
 #[cfg(test)]
 mod tests {
+    use std::iter::FusedIterator;
+
     #[test]
     fn wrapper_supports_lifetimes_and_type_parameters() {
         struct MyIter<'a, T>(std::slice::Iter<'a, T>);
@@ -641,12 +694,18 @@ mod tests {
             impl<'a, T> Iterator for MyIter<'a, T> {
                 type Item = &'a T;
             }
+
+            impl<'a, T> DoubleEndedIterator for MyIter<'a, T> {}
+
+            impl<'a, T> FusedIterator for MyIter<'a, T> {}
+            impl<'a, T> ExactSizeIterator for MyIter<'a, T> {}
         }
 
-        let values = [1, 2, 3];
+        let values = [1, 2, 3, 4];
         let mut iter = MyIter(values.iter());
 
         assert_eq!(iter.next(), Some(&1));
+        assert_eq!(iter.next_back(), Some(&4));
         assert_eq!(iter.collect::<Vec<_>>(), vec![&2, &3]);
     }
 
