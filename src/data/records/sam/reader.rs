@@ -2,7 +2,9 @@ use crate::{
     data::{
         cigar::Cigar,
         err::ResultWithErrorContext,
-        sam::{SamData, SamOptRaw},
+        nucleotides::Nucleotides,
+        phred::QualityScores,
+        sam::{SamData, SamOptRaw, is_missing_sam_field},
     },
     unwrap_or_return_some_err,
 };
@@ -251,9 +253,13 @@ impl<R: std::io::Read, const OPT: bool> Iterator for SAMReader<R, OPT> {
                 }
             };
 
-            let seq = parts[9].into();
+            let seq: Nucleotides = parts[9].into();
 
-            let qual = unwrap_or_return_some_err!(parts[10].as_bytes().try_into());
+            let qual = if is_missing_sam_field(parts[10]) {
+                QualityScores::new()
+            } else {
+                unwrap_or_return_some_err!(parts[10].as_bytes().try_into())
+            };
 
             let opt_fields = if OPT {
                 parts[11..].iter().map(ToString::to_string).collect::<SamOptRaw>()
