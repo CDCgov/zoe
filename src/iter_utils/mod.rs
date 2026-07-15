@@ -246,6 +246,125 @@ pub trait ProcessResultsExt<T, E>: Iterator<Item = Result<T, E>> + Sized {
             None => Ok(value),
         }
     }
+
+    /// A method called within [`process_results_many`] to turn a fallible
+    /// iterator into an infallible iterator.
+    fn or_stop(self, cx: &FallibleContext<E>) -> ProcessResults<'_, Self, E> {
+        ProcessResults {
+            error: &cx.error,
+            iter:  Some(self),
+        }
+    }
 }
 
 impl<T, E, I: Iterator<Item = Result<T, E>>> ProcessResultsExt<T, E> for I {}
+
+/// A method for handling multiple fallible iterators (or multiple fallible
+/// steps in a single iterator) at once.
+///
+/// The [`process_results`] method is a good tool for handling fallible
+/// iterators, using a closure to contain the logic to perform on the non-error
+/// values of the iterator, and then automatically handling error propagation.
+/// However, when there are many fallible iterators or many steps of
+/// fallibility, using [`process_results`] can cause multiple nested closures,
+/// reducing readability.
+///
+/// This standalone function provides a context allowing any fallible iterator
+/// to be transformed into an infallible iterator by calling the [`or_stop`]
+/// method on it. This methods yields the `Ok` items from the iterator until an
+/// error is reached, after which `None` is returned. The first encountered
+/// error is stored to the context and propagated when the closure exits.
+///
+/// ## Examples
+///
+/// Below is an example where two fallible iterators are zipped together:
+///
+/// ```
+/// # use std::array::IntoIter;
+/// # use zoe::iter_utils::{ProcessResultsExt, process_results_many};
+///
+/// let iter1 = [Ok(1), Ok(2), Ok(3), Ok(4)].into_iter();
+/// let iter2 = [Ok('A'), Ok('B'), Ok('C')].into_iter();
+/// # let iter1: IntoIter<Result<i32, ()>, 4> = iter1;
+///
+/// let zipped = process_results_many(|cx| {
+///     let iter1 = iter1.or_stop(cx);
+///     let iter2 = iter2.or_stop(cx);
+///     iter1.zip(iter2).collect::<Vec<_>>()
+/// });
+///
+/// assert_eq!(zipped, Ok(vec![(1, 'A'), (2, 'B'), (3, 'C')]));
+///
+///
+/// let iter1 = [Ok(1), Ok(2), Ok(3), Ok(4)].into_iter();
+/// let iter2 = [Ok('A'), Err("Failure"), Ok('C')].into_iter();
+/// let zipped = process_results_many(|cx| {
+///     let iter1 = iter1.or_stop(cx);
+///     let iter2 = iter2.or_stop(cx);
+///     iter1.zip(iter2).collect::<Vec<_>>()
+/// });
+///
+/// assert_eq!(zipped, Err("Failure"));
+/// ```
+///
+/// Another example involves two fallible `map` operations on a single iterator:
+///
+/// ```
+/// # use zoe::iter_utils::{ProcessResultsExt, process_results_many};
+///
+/// let data = [1, 2, 3];
+/// let idx_iter = ["1", "2", "3", "D"].into_iter();
+///
+/// let vals = process_results_many(|cx| {
+///     idx_iter
+///         .map(|s| s.parse::<usize>().map_err(|_| "Failed to parse index"))
+///         .or_stop(cx)
+///         .map(|idx| data.get(idx).ok_or("Index out of bounds"))
+///         .or_stop(cx)
+///         .collect::<Vec<_>>()
+/// });
+///
+/// assert_eq!(vals, Err("Index out of bounds"));
+/// ```
+///
+/// ## Limitations
+///
+/// Users must ensure that one of the fallible iterators returning `None` is
+/// sufficient to cause the closure to exit, without unanticipated work or
+/// side-effects. For example, using `zip_eq` from Itertools could cause
+/// erroneous panics, or `zip_longest` could cause it to appear that the two
+/// iterators are different lengths when in reality one encountered an error.
+///
+/// Furthermore, only the first error is propagated, despite any number of other
+/// errors being potentially present in the iterator. If some of the errors in
+/// the iterator get ignored or handled by the application, then it may be
+/// necessary to perform this logic within the closure rather than waiting until
+/// after `process_results_many`. Otherwise, some errors may be silently dropped
+/// or never reached.
+///
+/// ## Errors
+///
+/// The first error returned by any of the iterators gets propagated, once the
+/// closure completes.
+///
+/// [`process_results`]: ProcessResultsExt::process_results
+/// [`or_stop`]: ProcessResultsExt::or_stop
+pub fn process_results_many<F, T, E>(f: F) -> Result<T, E>
+where
+    F: for<'a> FnOnce(&'a FallibleContext<E>) -> T, {
+    let cx = FallibleContext { error: OnceCell::new() };
+
+    let value = f(&cx);
+
+    match cx.error.into_inner() {
+        Some(err) => Err(err),
+        None => Ok(value),
+    }
+}
+
+/// A context for use within [`process_results_many`], able to convert fallible
+/// iterators into infallible iterators, recording and propagating the first
+/// encountered error.
+pub struct FallibleContext<E> {
+    error: OnceCell<E>,
+}

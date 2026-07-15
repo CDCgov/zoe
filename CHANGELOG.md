@@ -11,6 +11,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - The 2-bit k-mer encoder not has support for `get_variants` with 2-10 mismatches
 - Added `sample_one_weighted` function for weighted sampling without allocation (behind `rand` feature gate)
 - Added `IndexedKmerCounter` and `IndexedKmerSet` structs
+- Added `process_results_many` for simultaneously handling multiple fallible iterators
 
 ### Changed
 
