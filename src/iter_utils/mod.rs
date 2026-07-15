@@ -3,7 +3,7 @@
 //! This module provides miscellaneous iterators and tools for working with
 //! iterators.
 
-use std::{iter::FusedIterator, ops::ControlFlow};
+use std::{cell::OnceCell, iter::FusedIterator, ops::ControlFlow};
 
 #[cfg(feature = "rand")]
 pub mod sampling;
@@ -32,7 +32,7 @@ pub use stepped_windows::*;
 #[derive(Debug)]
 pub struct ProcessResults<'a, I, E: 'a> {
     /// The first encountered error, if any.
-    error: &'a mut Result<(), E>,
+    error: &'a OnceCell<E>,
     /// The fallible iterator, or `None` if an error has occurred and been
     /// stored.
     iter:  Option<I>,
@@ -51,7 +51,7 @@ where
             Ok(val) => Some(val),
             Err(e) => {
                 self.iter = None;
-                *self.error = Err(e);
+                let _ = self.error.set(e);
                 None
             }
         }
@@ -76,7 +76,7 @@ where
         let res = iter.try_fold(init, |acc, res| match res {
             Ok(val) => ControlFlow::Continue(f(acc, val)),
             Err(e) => {
-                *self.error = Err(e);
+                let _ = self.error.set(e);
                 ControlFlow::Break(acc)
             }
         });
@@ -106,7 +106,7 @@ where
             // issuing a Break, but we wrap the value in Ok to indicate that the
             // outer `try_fold` should not return an error
             Err(e) => {
-                *self.error = Err(e);
+                let _ = self.error.set(e);
                 ControlFlow::Break(Ok(acc))
             }
         });
@@ -136,7 +136,7 @@ where
             Ok(val) => Some(val),
             Err(e) => {
                 self.iter = None;
-                *self.error = Err(e);
+                let _ = self.error.set(e);
                 None
             }
         }
@@ -152,7 +152,7 @@ where
         let res = iter.try_rfold(init, |acc, res| match res {
             Ok(val) => ControlFlow::Continue(f(acc, val)),
             Err(e) => {
-                *self.error = Err(e);
+                let _ = self.error.set(e);
                 ControlFlow::Break(acc)
             }
         });
@@ -182,7 +182,7 @@ where
             // issuing a Break, but we wrap the value in Ok to indicate that the
             // outer `try_fold` should not return an error
             Err(e) => {
-                *self.error = Err(e);
+                let _ = self.error.set(e);
                 ControlFlow::Break(Ok(acc))
             }
         });
@@ -234,14 +234,17 @@ pub trait ProcessResultsExt<T, E>: Iterator<Item = Result<T, E>> + Sized {
     fn process_results<F, R>(self, f: F) -> Result<R, E>
     where
         F: FnOnce(ProcessResults<Self, E>) -> R, {
-        let mut error = Ok(());
+        let error = OnceCell::new();
 
-        let result = f(ProcessResults {
-            error: &mut error,
+        let value = f(ProcessResults {
+            error: &error,
             iter:  Some(self),
         });
 
-        error.map(|()| result)
+        match error.into_inner() {
+            Some(err) => Err(err),
+            None => Ok(value),
+        }
     }
 }
 
