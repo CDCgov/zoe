@@ -23,6 +23,10 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 - Removes some `From` implementations for `ByteSpecs` (behind `fuzzing` feature gate)
 
+### Fixed
+
+- `define_whichever` and `impl_traits` now permit more flexible generics and bounds
+
 ## [0.0.31] - 2026-07-15
 
 ### Added
