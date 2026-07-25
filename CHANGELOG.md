@@ -9,6 +9,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 ### Added
 
 - Added additional `From` and `TryFrom` impls for sequence types
+- Added additional `DisplayErrStack` convenience implementations
 
 ## [0.0.31] - 2026-07-15
 
