@@ -871,11 +871,7 @@ impl OptArray {
     fn fmt_opt_array<T: Display>(f: &mut Formatter<'_>, arr_type: char, vals: &[T]) -> std::fmt::Result {
         write!(f, "B:{arr_type}")?;
 
-        let mut iter = vals.iter();
-        if let Some(first) = iter.next() {
-            write!(f, "{first}")?;
-        }
-        for v in iter {
+        for v in vals {
             write!(f, ",{v}")?;
         }
 
