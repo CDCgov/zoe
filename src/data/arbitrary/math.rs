@@ -15,6 +15,9 @@ pub struct FloatSpecs<T> {
     /// Whether to include `NaN` as a possible output.
     pub include_nan: bool,
 
+    /// Whether to include `NaN` as a possible output.
+    pub include_infinite: bool,
+
     /// Whether to restrict the output to be nonnegative.
     pub nonnegative: bool,
 
@@ -25,9 +28,10 @@ pub struct FloatSpecs<T> {
 impl<T> Default for FloatSpecs<T> {
     fn default() -> Self {
         Self {
-            include_nan: true,
-            nonnegative: false,
-            float:       PhantomData,
+            include_nan:      true,
+            include_infinite: true,
+            nonnegative:      false,
+            float:            PhantomData,
         }
     }
 }
@@ -43,6 +47,10 @@ where
         let mut float = T::arbitrary(u)?;
 
         if !self.include_nan && float.is_nan() {
+            float = T::ZERO;
+        }
+
+        if !self.include_infinite && float.is_infinite() {
             float = T::ZERO;
         }
 

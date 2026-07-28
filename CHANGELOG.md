@@ -10,6 +10,9 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 - Added additional `From` and `TryFrom` impls for sequence types
 - Added additional `DisplayErrStack` convenience implementations
+- Added arbitrary generation and structured specifications for SAM optional fields and values, including configurable valid and unique tags and BAM-oriented constraints (behind `fuzzing` feature gate)
+- `SamData` arbitrary generation now includes optional fields, configurable through `SamDataSpecs` (behind `fuzzing` feature gate)
+- Added an `include_infinite` option to `FloatSpecs` (behind `fuzzing` feature gate)
 
 ## [0.0.31] - 2026-07-15
 
