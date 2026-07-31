@@ -15,7 +15,7 @@ pub struct FloatSpecs<T> {
     /// Whether to include `NaN` as a possible output.
     pub include_nan: bool,
 
-    /// Whether to include `NaN` as a possible output.
+    /// Whether to include `inf` as a possible output.
     pub include_infinite: bool,
 
     /// Whether to restrict the output to be nonnegative.

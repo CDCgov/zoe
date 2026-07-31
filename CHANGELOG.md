@@ -14,6 +14,10 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - `SamData` arbitrary generation now includes optional fields, configurable through `SamDataSpecs` (behind `fuzzing` feature gate)
 - Added an `include_infinite` option to `FloatSpecs` (behind `fuzzing` feature gate)
 
+### Changed
+
+- `SamDataSort::coordinate_sort` now returns a SAM `@HD` line declaring coordinate sort order.
+
 ## [0.0.31] - 2026-07-15
 
 ### Added

@@ -14,14 +14,18 @@ use std::{cmp::Ordering, collections::HashMap};
 /// `@SQ` headers, it is sorted after references that are present in the headers
 /// but before alignments whose `RNAME` is `*`.
 pub trait SamDataSort: Sealed {
-    /// Sorts SAM records in place by coordinate.
+    /// Sorts SAM records in place by coordinate and returns the corresponding
+    /// SAM header line.
     ///
     /// The `headers` argument may be any iterable of raw SAM header lines, such
     /// as the strings stored in the [`Header`] variant. Only `@SQ` lines and
-    /// their `SN` fields are used to determine reference order.
+    /// their `SN` fields are used to determine reference order. The returned
+    /// `@HD` line declares coordinate sort order and has no trailing newline,
+    /// so it can be included in a SAM or BAM header. If included, it must be
+    /// the first header line and replace any existing `@HD` line.
     ///
     /// [`Header`]: crate::data::sam::SamRow::Header
-    fn coordinate_sort<I, H>(&mut self, headers: I)
+    fn coordinate_sort<I, H>(&mut self, headers: I) -> &'static str
     where
         I: IntoIterator<Item = H>,
         H: AsRef<str>;
@@ -29,7 +33,7 @@ pub trait SamDataSort: Sealed {
 
 impl SamDataSort for [SamData] {
     #[inline]
-    fn coordinate_sort<I, H>(&mut self, headers: I)
+    fn coordinate_sort<I, H>(&mut self, headers: I) -> &'static str
     where
         I: IntoIterator<Item = H>,
         H: AsRef<str>, {
@@ -41,6 +45,8 @@ impl SamDataSort for [SamData] {
             .collect();
 
         self.sort_by(|a, b| compare_sam_data(a, b, &reference_order));
+
+        "@HD\tVN:1.6\tSO:coordinate"
     }
 }
 
