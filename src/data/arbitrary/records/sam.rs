@@ -243,6 +243,9 @@ impl<'a> ArbitrarySpecs<'a> for SamOptRawSpecs {
                 };
 
                 if (self.field.valid_tag && tag == *b"CG") || (self.unique_tags && tags.contains(&tag)) {
+                    if u.is_empty() {
+                        return Ok(out);
+                    }
                     continue;
                 }
 
