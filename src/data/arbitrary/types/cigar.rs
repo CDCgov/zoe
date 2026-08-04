@@ -4,7 +4,7 @@
 use crate::{
     alignment::{AlignmentStates, NextCiglet},
     data::{
-        arbitrary::ArbitrarySpecs,
+        arbitrary::{ArbitrarySpecs, ByteSet},
         cigar::{Cigar, Ciglet, FormatCigletForCigarVec, LenInAlignment},
     },
 };
@@ -36,7 +36,8 @@ impl<'a> Arbitrary<'a> for AlignmentStates {
 }
 
 /// Specifications for generating an arbitrary [`Ciglet`].
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+#[allow(clippy::struct_excessive_bools)]
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub struct CigletSpecs {
     /// Whether to restrict the increment to be non-zero.
     pub nonzero_inc: bool,
@@ -46,6 +47,33 @@ pub struct CigletSpecs {
 
     /// Whether to restrict the operation to `MIDNSHP=X`.
     pub valid_op: bool,
+
+    /// Whether to allow `M` as an operation.
+    pub include_m: bool,
+
+    /// Whether to allow `I` as an operation.
+    pub include_i: bool,
+
+    /// Whether to allow `D` as an operation.
+    pub include_d: bool,
+
+    /// Whether to allow `N` as an operation.
+    pub include_n: bool,
+
+    /// Whether to allow `S` as an operation.
+    pub include_s: bool,
+
+    /// Whether to allow `H` as an operation.
+    pub include_h: bool,
+
+    /// Whether to allow `P` as an operation.
+    pub include_p: bool,
+
+    /// Whether to allow `=` as an operation.
+    pub include_eq: bool,
+
+    /// Whether to allow `X` as an operation.
+    pub include_x: bool,
 }
 
 impl Default for CigletSpecs {
@@ -54,7 +82,89 @@ impl Default for CigletSpecs {
             nonzero_inc: false,
             max_inc:     usize::MAX,
             valid_op:    false,
+            include_m:   true,
+            include_i:   true,
+            include_d:   true,
+            include_n:   true,
+            include_s:   true,
+            include_h:   true,
+            include_p:   true,
+            include_eq:  true,
+            include_x:   true,
         }
+    }
+}
+
+impl CigletSpecs {
+    /// Builds the [`ByteSet`] corresponding to the operation.
+    fn op_byte_set(&self) -> ByteSet {
+        let include_op = [
+            (b'M', self.include_m),
+            (b'I', self.include_i),
+            (b'D', self.include_d),
+            (b'N', self.include_n),
+            (b'S', self.include_s),
+            (b'H', self.include_h),
+            (b'P', self.include_p),
+            (b'=', self.include_eq),
+            (b'X', self.include_x),
+        ];
+
+        if self.valid_op {
+            // This is the common case, so make it more efficient by
+            // initializing a vector up front with specified capacity and
+            // linearly building up ByteSet
+
+            let mut options = Vec::with_capacity(include_op.len());
+
+            for (op, include) in include_op {
+                if include {
+                    options.push(op);
+                }
+            }
+
+            ByteSet::from(options)
+        } else {
+            // This is an uncommon case, if any include fields are false. In
+            // that case, we run in quadratic time when building the ByteSet
+
+            let mut byte_set = ByteSet::Any;
+
+            for (byte, include) in include_op {
+                if !include {
+                    byte_set.remove(byte);
+                }
+            }
+
+            byte_set
+        }
+    }
+
+    /// Returns a different operation other than the specified one that still
+    /// meets the specifications.
+    ///
+    /// ## Panics
+    ///
+    /// If `valid_op` is true, all but one `include_*` field is false, and `op`
+    /// is equal to the corresponding byte for the true field, then this panics
+    /// as there is no other byte that can be chosen. Or, if `valid_op` is true
+    /// and all `include_*` fields are false, then this panics as no byte
+    /// satisfies the specifications.
+    fn switch_op(&self, op: u8) -> u8 {
+        let byte_set = self.op_byte_set();
+        if byte_set == ByteSet::Any {
+            return op.wrapping_add(1);
+        }
+
+        let bytes = byte_set.generate_alphabet();
+
+        let first = *bytes.first().expect("No bytes were valid for the given specifications");
+
+        let Some(idx) = bytes.iter().position(|byte| *byte == op) else {
+            return first;
+        };
+
+        bytes.get(idx + 1).copied().unwrap_or(first)
     }
 }
 
@@ -66,13 +176,16 @@ impl<'a> ArbitrarySpecs<'a> for CigletSpecs {
     ///
     /// ## Errors
     ///
-    /// Any errors from the underlying [`arbitrary`] calls are propagated.
+    /// - Any errors from the underlying [`arbitrary`] calls are propagated.
+    /// - If `valid_op` is `true` and all `include_*` fields are `false`,
+    ///   [`EmptyChoose`] is returned.
     ///
     /// ## Panics
     ///
-    /// If `nonzero_inc` is true and `max_inc` is 0, this panics.
+    /// This panics if `nonzero_inc` is true and `max_inc` is 0.
     ///
     /// [`arbitrary`]: arbitrary::Arbitrary::arbitrary
+    /// [`EmptyChoose`]: arbitrary::Error::EmptyChoose
     #[inline]
     fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {
         let min_inc = usize::from(self.nonzero_inc);
@@ -82,11 +195,8 @@ impl<'a> ArbitrarySpecs<'a> for CigletSpecs {
             Ordering::Greater => panic!("max_inc was 0 and nonzero_inc was true"),
         };
 
-        let op = if self.valid_op {
-            *u.choose(b"MIDNSHP=X")?
-        } else {
-            u8::arbitrary(u)?
-        };
+        let byte_set = self.op_byte_set();
+        let op = byte_set.make_arbitrary(u)?;
 
         Ok(Ciglet { inc, op })
     }
@@ -116,6 +226,23 @@ pub struct AlignmentStatesSpecs {
 impl<'a> ArbitrarySpecs<'a> for AlignmentStatesSpecs {
     type Output = AlignmentStates;
 
+    /// Generates an arbitrary [`AlignmentStates`] conforming to the given
+    /// specifications.
+    ///
+    /// ## Errors
+    ///
+    /// Any errors from the underlying [`arbitrary`] calls are propagated.
+    ///
+    /// ## Panics
+    ///
+    /// This panics if:
+    ///
+    /// - [`make_arbitrary`] for the `ciglet_specs` panics
+    /// - If `avoid_repeated_ops` is true, and within `ciglet_specs`, `valid_op`
+    ///   is true and all but one `include_*` field is false, this may panic
+    ///   when an alignment longer than 1 is generated
+    ///
+    /// [`arbitrary`]: arbitrary::Arbitrary::arbitrary
     #[inline]
     fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {
         let mut vec = self.ciglet_specs.make_arbitrary_iter(u).collect::<Result<Vec<_>>>()?;
@@ -127,18 +254,7 @@ impl<'a> ArbitrarySpecs<'a> for AlignmentStatesSpecs {
         {
             for next_ciglet in &mut vec[1..] {
                 if next_ciglet.op == last_ciglet.op {
-                    next_ciglet.op = match last_ciglet.op {
-                        b'M' => b'I',
-                        b'I' => b'D',
-                        b'D' => b'N',
-                        b'N' => b'S',
-                        b'S' => b'H',
-                        b'H' => b'P',
-                        b'P' => b'=',
-                        b'=' => b'X',
-                        b'X' => b'M',
-                        other => other.wrapping_add(1),
-                    }
+                    next_ciglet.op = self.ciglet_specs.switch_op(last_ciglet.op);
                 }
                 last_ciglet = *next_ciglet;
             }
