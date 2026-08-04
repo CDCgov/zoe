@@ -143,11 +143,16 @@ impl Default for NucleotidesByteSet {
 }
 
 impl NucleotidesByteSet {
-    /// A helper function to generate the full character set from a base
-    /// character set and the specifications.
+    /// Given the base characters to generate, returns a vector containing all
+    /// the allowable bytes that may be chosen.
+    ///
+    /// ## Validity
+    ///
+    /// `base_chars` should not contain any of `NnUu-`.
     #[inline]
-    fn add_to_base_chars(self, chars: &[u8]) -> Vec<u8> {
-        let mut chars = chars.to_vec();
+    #[must_use]
+    pub fn generate_alphabet(self, base_chars: &[u8]) -> Vec<u8> {
+        let mut chars = base_chars.to_vec();
         if self.include_n {
             chars.extend_from_slice(b"Nn");
         }
@@ -158,6 +163,16 @@ impl NucleotidesByteSet {
             chars.push(b'-');
         }
         chars
+    }
+
+    /// Returns whether `byte` is contained in either the `base_chars` or the
+    /// additional characters as specified in [`NucleotidesByteSet`].
+    #[must_use]
+    pub fn contains(self, byte: u8, base_chars: &[u8]) -> bool {
+        (self.include_n && byte.eq_ignore_ascii_case(&b'N'))
+            || (self.include_u && byte.eq_ignore_ascii_case(&b'U'))
+            || (self.with_gaps && byte == b'-')
+            || base_chars.contains(&byte)
     }
 }
 
@@ -184,11 +199,16 @@ impl Default for AminoAcidsByteSet {
 }
 
 impl AminoAcidsByteSet {
-    /// A helper function to generate the full character set from a base
-    /// character set and the specifications.
+    /// Given the base characters to generate, returns a vector containing all
+    /// the allowable bytes that may be chosen.
+    ///
+    /// ## Validity
+    ///
+    /// `base_chars` should not contain any of `Xx-`.
     #[inline]
-    fn add_to_base_chars(self, chars: &[u8]) -> Vec<u8> {
-        let mut chars = chars.to_vec();
+    #[must_use]
+    pub fn generate_alphabet(self, base_chars: &[u8]) -> Vec<u8> {
+        let mut chars = base_chars.to_vec();
         if self.include_x {
             chars.extend_from_slice(b"Xx");
         }
@@ -196,6 +216,15 @@ impl AminoAcidsByteSet {
             chars.push(b'-');
         }
         chars
+    }
+
+    /// Returns whether `byte` is contained in either the `base_chars` or the
+    /// additional characters as specified in [`AminoAcidsByteSet`].
+    #[must_use]
+    pub fn contains(self, byte: u8, base_chars: &[u8]) -> bool {
+        (self.include_x && byte.eq_ignore_ascii_case(&b'X'))
+            || (self.with_gaps && byte == b'-')
+            || base_chars.contains(&byte)
     }
 }
 
@@ -213,15 +242,15 @@ impl<'a> ArbitrarySpecs<'a> for ByteSet {
                 .choose(b"%+,-./0123456789:@ABCDEFGHIJKLMNOPQRSTUVWXYZ^_abcdefghijklmnopqrstuvwxyz")
                 .copied(),
             ByteSet::NucleotidesCanonical(set) => {
-                let chars = set.add_to_base_chars(b"ACGTacgt");
+                let chars = set.generate_alphabet(b"ACGTacgt");
                 u.choose(&chars).copied()
             }
             ByteSet::NucleotidesIupac(set) => {
-                let chars = set.add_to_base_chars(b"ACGTURYSWKMBDHVacgturyswkmbdhv");
+                let chars = set.generate_alphabet(b"ACGTRYSWKMBDHVacgtryswkmbdhv");
                 u.choose(&chars).copied()
             }
             ByteSet::AminoAcidsCanonical(set) => {
-                let chars = set.add_to_base_chars(b"ACDEFGHIKLMNPQRSTVWYacdefghiklmnpqrstvwy");
+                let chars = set.generate_alphabet(b"ACDEFGHIKLMNPQRSTVWYacdefghiklmnpqrstvwy");
                 u.choose(&chars).copied()
             }
             ByteSet::Custom(items) => u.choose(items).copied(),
@@ -235,5 +264,70 @@ where
 {
     fn from(value: T) -> Self {
         ByteSet::Custom(Cow::from(value))
+    }
+}
+
+impl ByteSet {
+    /// Retrieves a vector with the allowable bytes that may be chosen.
+    #[must_use]
+    pub fn generate_alphabet(&self) -> Vec<u8> {
+        match self {
+            ByteSet::Any => (0..=u8::MAX).collect(),
+            ByteSet::Ascii => (0..=127).collect(),
+            ByteSet::AsciiGraphicOrSpace => (b' '..=b'~').collect(),
+            ByteSet::AsciiGraphic => (b'!'..=b'~').collect(),
+            ByteSet::AsciiGraphicBashSafe => {
+                b"%+,-./0123456789:@ABCDEFGHIJKLMNOPQRSTUVWXYZ^_abcdefghijklmnopqrstuvwxyz".to_vec()
+            }
+            ByteSet::NucleotidesCanonical(set) => set.generate_alphabet(b"ACGTacgt"),
+            ByteSet::NucleotidesIupac(set) => set.generate_alphabet(b"ACGTURYSWKMBDHVacgturyswkmbdhv"),
+            ByteSet::AminoAcidsCanonical(set) => set.generate_alphabet(b"ACDEFGHIKLMNPQRSTVWYacdefghiklmnpqrstvwy"),
+            ByteSet::Custom(cow) => cow.to_vec(),
+        }
+    }
+
+    /// Consumes the given [`ByteSet`], returning a vector with the allowable
+    /// bytes that may be chosen.
+    ///
+    /// This avoids a clone if an owned [`Custom`] variant is used.
+    fn into_alphabet(self) -> Vec<u8> {
+        match self {
+            ByteSet::Custom(cow) => cow.into_owned(),
+            other => other.generate_alphabet(),
+        }
+    }
+
+    /// Returns whether the [`ByteSet`] contains a given byte.
+    #[must_use]
+    pub fn contains(&self, byte: u8) -> bool {
+        match self {
+            ByteSet::Any => true,
+            ByteSet::Ascii => (0..=127).contains(&byte),
+            ByteSet::AsciiGraphicOrSpace => (b' '..=b'~').contains(&byte),
+            ByteSet::AsciiGraphic => (b'!'..=b'~').contains(&byte),
+            ByteSet::AsciiGraphicBashSafe => {
+                b"%+,-./0123456789:@ABCDEFGHIJKLMNOPQRSTUVWXYZ^_abcdefghijklmnopqrstuvwxyz".contains(&byte)
+            }
+            ByteSet::NucleotidesCanonical(set) => set.contains(byte, b"ACGTacgt"),
+            ByteSet::NucleotidesIupac(set) => set.contains(byte, b"ACGTURYSWKMBDHVacgturyswkmbdhv"),
+            ByteSet::AminoAcidsCanonical(set) => set.contains(byte, b"ACDEFGHIKLMNPQRSTVWYacdefghiklmnpqrstvwy"),
+            ByteSet::Custom(set) => set.contains(&byte),
+        }
+    }
+
+    /// Removes a given byte from the [`ByteSet`].
+    ///
+    /// ## Limitations
+    ///
+    /// This may cause an allocation and the [`Custom`] variant to be used.
+    pub fn remove(&mut self, byte: u8) {
+        if !self.contains(byte) {
+            return;
+        }
+
+        let old_set = std::mem::take(self);
+        let alphabet = old_set.into_alphabet().into_iter().filter(|x| *x != byte).collect::<Vec<_>>();
+        let new_set = ByteSet::from(alphabet);
+        *self = new_set;
     }
 }

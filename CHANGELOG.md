@@ -14,6 +14,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - `SamData` arbitrary generation now includes optional fields, configurable through `SamDataSpecs` (behind `fuzzing` feature gate)
 - Added an `include_infinite` option to `FloatSpecs` (behind `fuzzing` feature gate)
 - Added length specifications to `StringSpecs` (behind `fuzzing` feature gate)
+- Added more public methods to `ByteSpecs` (behind `fuzzing` feature gate)
 
 ### Changed
 
