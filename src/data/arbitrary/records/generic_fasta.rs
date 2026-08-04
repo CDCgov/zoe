@@ -60,21 +60,16 @@ where
     #[inline]
     #[must_use]
     pub fn parsable_fasta() -> Self {
-        const BYTE_SET: ByteSet = ByteSet::Custom(
-            &ByteValidator::none()
-                .add_range(0..=127)
-                .remove(b"\n>")
-                .generate_alphabet::<126>(),
-        );
+        const ALPHABET: [u8; 126] = ByteValidator::none().add_range(0..=127).remove(b"\n>").generate_alphabet();
 
         Self {
             header_specs:   StringSpecs {
-                set: BYTE_SET,
+                set: ByteSet::from(&ALPHABET),
                 case: Case::Any,
                 ..Default::default()
             },
             sequence_specs: ByteSpecs {
-                set:  BYTE_SET,
+                set:  ByteSet::from(&ALPHABET),
                 case: Case::Any,
             }
             .into(),

@@ -1,10 +1,10 @@
 //! A specification struct for generating arbitrary [`String`] values.
 
-use crate::data::arbitrary::{ArbitrarySpecs, ByteSet, ByteSpecs, Case, VecSpecs};
+use crate::data::arbitrary::{ArbitrarySpecs, ByteSet, ByteSpecsView, Case, VecSpecs};
 use arbitrary::{Result, Unstructured};
 
 /// Specifications for generating an arbitrary [`String`].
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub struct StringSpecs {
     /// The character set to which the `u8` bytes must belong.
     pub set: ByteSet,
@@ -50,8 +50,8 @@ impl<'a> ArbitrarySpecs<'a> for StringSpecs {
 
     #[inline]
     fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {
-        let byte_specs = ByteSpecs {
-            set:  self.set,
+        let byte_specs = ByteSpecsView {
+            set:  &self.set,
             case: self.case,
         };
         let vec_specs = VecSpecs {

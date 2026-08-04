@@ -1,7 +1,7 @@
 //! An arbitrary implementation and specification struct for [`AminoAcids`].
 
 use crate::{
-    data::arbitrary::{ArbitrarySpecs, ByteSet, ByteSpecs, Case, VecSpecs},
+    data::arbitrary::{ArbitrarySpecs, ByteSet, ByteSpecs, ByteSpecsView, Case, VecSpecs},
     prelude::AminoAcids,
 };
 use arbitrary::{Arbitrary, Result, Unstructured};
@@ -14,7 +14,7 @@ impl<'a> Arbitrary<'a> for AminoAcids {
 }
 
 /// Specifications for generating an arbitrary [`AminoAcids`] sequence.
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
+#[derive(Clone, Eq, PartialEq, Hash, Debug, Default)]
 pub struct AminoAcidsSpecs {
     /// The character set to which the `u8` bytes must belong.
     ///
@@ -51,7 +51,10 @@ impl<'a> ArbitrarySpecs<'a> for AminoAcidsSpecs {
     #[inline]
     fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {
         let vec_specs = VecSpecs {
-            element_specs: ByteSpecs::from(*self),
+            element_specs: ByteSpecsView {
+                set:  &self.set,
+                case: self.case,
+            },
             ..Default::default()
         };
 

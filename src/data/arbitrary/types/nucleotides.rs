@@ -1,7 +1,7 @@
 //! An arbitrary implementations and specification struct for [`Nucleotides`].
 
 use crate::{
-    data::arbitrary::{ArbitrarySpecs, ByteSet, ByteSpecs, Case, VecSpecs},
+    data::arbitrary::{ArbitrarySpecs, ByteSet, ByteSpecs, ByteSpecsView, Case, VecSpecs},
     prelude::Nucleotides,
 };
 use arbitrary::{Arbitrary, Result, Unstructured};
@@ -14,7 +14,7 @@ impl<'a> Arbitrary<'a> for Nucleotides {
 }
 
 /// Specifications for generating an arbitrary [`Nucleotides`] sequence.
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
+#[derive(Clone, Eq, PartialEq, Hash, Debug, Default)]
 pub struct NucleotidesSpecs {
     /// The character set to which the `u8` bytes must belong.
     ///
@@ -52,10 +52,11 @@ impl<'a> ArbitrarySpecs<'a> for NucleotidesSpecs {
     #[inline]
     fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {
         let vec_specs = VecSpecs {
-            element_specs: ByteSpecs::from(*self),
-            min_len:       0,
-            len:           None,
-            max_len:       usize::MAX,
+            element_specs: ByteSpecsView {
+                set:  &self.set,
+                case: self.case,
+            },
+            ..Default::default()
         };
 
         vec_specs.make_arbitrary(u).map(Nucleotides)

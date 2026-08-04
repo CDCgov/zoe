@@ -17,7 +17,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ### Changed
 
-- `SamDataSort::coordinate_sort` now returns a SAM `@HD` line declaring coordinate sort order.
+- `SamDataSort::coordinate_sort` now returns a SAM `@HD` line declaring coordinate sort order
+- `ByteSet::Custom` now holds `Cow` to support owned data (behind `fuzzing` feature gate)
 
 ### Removed
 
