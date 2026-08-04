@@ -16,6 +16,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added length specifications to `StringSpecs` (behind `fuzzing` feature gate)
 - Added more public methods to `ByteSpecs` (behind `fuzzing` feature gate)
 - Added additional fields for customizing the operation in `CigletSpecs` (behind `fuzzing` feature gate)
+- Added fields to `AlignmentStatesSpecs` for preventing clipping within the interior of the alignment (behind `fuzzing` feature gate)
 
 ### Changed
 

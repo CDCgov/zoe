@@ -320,6 +320,8 @@ impl ByteSet {
     /// ## Limitations
     ///
     /// This may cause an allocation and the [`Custom`] variant to be used.
+    ///
+    /// [`Custom`]: ByteSet::Custom
     pub fn remove(&mut self, byte: u8) {
         if !self.contains(byte) {
             return;

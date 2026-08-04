@@ -139,33 +139,6 @@ impl CigletSpecs {
             byte_set
         }
     }
-
-    /// Returns a different operation other than the specified one that still
-    /// meets the specifications.
-    ///
-    /// ## Panics
-    ///
-    /// If `valid_op` is true, all but one `include_*` field is false, and `op`
-    /// is equal to the corresponding byte for the true field, then this panics
-    /// as there is no other byte that can be chosen. Or, if `valid_op` is true
-    /// and all `include_*` fields are false, then this panics as no byte
-    /// satisfies the specifications.
-    fn switch_op(&self, op: u8) -> u8 {
-        let byte_set = self.op_byte_set();
-        if byte_set == ByteSet::Any {
-            return op.wrapping_add(1);
-        }
-
-        let bytes = byte_set.generate_alphabet();
-
-        let first = *bytes.first().expect("No bytes were valid for the given specifications");
-
-        let Some(idx) = bytes.iter().position(|byte| *byte == op) else {
-            return first;
-        };
-
-        bytes.get(idx + 1).copied().unwrap_or(first)
-    }
 }
 
 impl<'a> ArbitrarySpecs<'a> for CigletSpecs {
@@ -208,6 +181,15 @@ pub struct AlignmentStatesSpecs {
     /// Whether to avoid repeated operations in adjacent ciglets.
     pub avoid_repeated_ops: bool,
 
+    /// Whether to avoid placing hard clipping in the middle of the alignment
+    /// (except when solely flanked on a side by other hard clipping ciglets).
+    pub avoid_middle_hard_clipping: bool,
+
+    /// Whether to avoid placing soft clipping in the middle of the alignment
+    /// (except when solely flanked on a side by other soft clipping ciglets,
+    /// potentially followed by hard clipping ciglets).
+    pub avoid_middle_soft_clipping: bool,
+
     /// Ensures the number of residues consumed in the query is at most the
     /// given value.
     pub max_query_inc: Option<usize>,
@@ -235,29 +217,89 @@ impl<'a> ArbitrarySpecs<'a> for AlignmentStatesSpecs {
     ///
     /// ## Panics
     ///
-    /// This panics if:
-    ///
-    /// - [`make_arbitrary`] for the `ciglet_specs` panics
-    /// - If `avoid_repeated_ops` is true, and within `ciglet_specs`, `valid_op`
-    ///   is true and all but one `include_*` field is false, this may panic
-    ///   when an alignment longer than 1 is generated
+    /// This panics if [`make_arbitrary`] for the `ciglet_specs` panics.
     ///
     /// [`arbitrary`]: arbitrary::Arbitrary::arbitrary
+    /// [`make_arbitrary`]: ArbitrarySpecs::make_arbitrary
     #[inline]
     fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {
         let mut vec = self.ciglet_specs.make_arbitrary_iter(u).collect::<Result<Vec<_>>>()?;
 
-        // Adjust the operations so that adjacent ones are not the same if
-        // needed, ensuring that valid operations remain valid
-        if let Some(mut last_ciglet) = vec.first().copied()
-            && self.avoid_repeated_ops
-        {
-            for next_ciglet in &mut vec[1..] {
-                if next_ciglet.op == last_ciglet.op {
-                    next_ciglet.op = self.ciglet_specs.switch_op(last_ciglet.op);
+        if self.avoid_middle_hard_clipping {
+            let mut iter = vec.as_slice().iter();
+
+            let hard_clip_start = iter.by_ref().take_while(|ciglet| ciglet.op == b'H').count();
+            let hard_clip_back = iter.by_ref().rev().take_while(|ciglet| ciglet.op == b'H').count();
+
+            let start = hard_clip_start;
+            let end = vec.len() - hard_clip_back;
+
+            let mut i = 0;
+            vec.retain(|ciglet| {
+                let keep = !(start..end).contains(&i) || ciglet.op != b'H';
+                i += 1;
+                keep
+            });
+        }
+
+        if self.avoid_middle_soft_clipping {
+            let mut iter = vec.as_slice().iter();
+
+            let clip_start = {
+                let mut clipping_op = b'H';
+                iter.by_ref()
+                    .take_while(|ciglet| {
+                        if ciglet.op == clipping_op {
+                            true
+                        } else if ciglet.op == b'S' && clipping_op == b'H' {
+                            clipping_op = b'S';
+                            true
+                        } else {
+                            false
+                        }
+                    })
+                    .count()
+            };
+
+            let clip_back = {
+                let mut clipping_op = b'H';
+                iter.by_ref()
+                    .rev()
+                    .take_while(|ciglet| {
+                        if ciglet.op == clipping_op {
+                            true
+                        } else if ciglet.op == b'S' && clipping_op == b'H' {
+                            clipping_op = b'S';
+                            true
+                        } else {
+                            false
+                        }
+                    })
+                    .count()
+            };
+
+            let start = clip_start;
+            let end = vec.len() - clip_back;
+
+            let mut i = 0;
+            vec.retain(|ciglet| {
+                let keep = !(start..end).contains(&i) || ciglet.op != b'S';
+                i += 1;
+                keep
+            });
+        }
+
+        if self.avoid_repeated_ops {
+            let mut last_ciglet: Option<Ciglet> = None;
+
+            vec.retain(|ciglet| {
+                if last_ciglet.map(|ciglet| ciglet.op) == Some(ciglet.op) {
+                    false
+                } else {
+                    last_ciglet = Some(*ciglet);
+                    true
                 }
-                last_ciglet = *next_ciglet;
-            }
+            });
         }
 
         let mut states = AlignmentStates(vec);
