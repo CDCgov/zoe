@@ -69,8 +69,9 @@ where
 
         Self {
             header_specs:   StringSpecs {
-                set:  BYTE_SET,
+                set: BYTE_SET,
                 case: Case::Any,
+                ..Default::default()
             },
             sequence_specs: ByteSpecs {
                 set:  BYTE_SET,

@@ -50,8 +50,9 @@ impl FastQSpecs {
     pub fn parsable_fastq() -> Self {
         Self {
             header_specs:   StringSpecs {
-                set:  ByteSet::AsciiGraphicOrSpace,
+                set: ByteSet::AsciiGraphicOrSpace,
                 case: Case::Any,
+                ..Default::default()
             },
             sequence_specs: NucleotidesSpecs {
                 set:  ByteSet::AsciiGraphic,
