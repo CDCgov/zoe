@@ -18,6 +18,10 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 - `SamDataSort::coordinate_sort` now returns a SAM `@HD` line declaring coordinate sort order.
 
+### Removed
+
+- Removes some `From` implementations for `ByteSpecs` (behind `fuzzing` feature gate)
+
 ## [0.0.31] - 2026-07-15
 
 ### Added
