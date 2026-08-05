@@ -374,13 +374,6 @@ impl Error for ErrorWithContext {
     }
 }
 
-impl From<ErrorWithContext> for std::io::Error {
-    #[inline]
-    fn from(e: ErrorWithContext) -> Self {
-        std::io::Error::other(e)
-    }
-}
-
 /// An extension trait for [`Error`] allowing additional context to be added via
 /// a [`ErrorWithContext`].
 pub trait WithErrorContext {
@@ -713,5 +706,85 @@ impl Display for ErrStackDisplay<'_> {
         }
 
         Ok(())
+    }
+}
+
+/// A wrapper type around an error which causes it to be skipped when displaying
+/// the error stack.
+///
+/// Specifically, the display implementation forwards to the source error, and
+/// the source implementation returns the source's source.
+///
+/// ## Validity
+///
+/// The wrapped error must have a source returned by [`Error::source`].
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+struct SkipErrorInStack<E>(E);
+
+impl<E> Display for SkipErrorInStack<E>
+where
+    E: Error,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(source) = self.0.source() {
+            write!(f, "{source}")
+        } else {
+            // This should be unreachable
+            Ok(())
+        }
+    }
+}
+
+impl<E> Error for SkipErrorInStack<E>
+where
+    E: Error,
+{
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        self.0.source().and_then(Error::source)
+    }
+}
+
+impl<E> GetCode for SkipErrorInStack<E>
+where
+    E: GetCode,
+{
+    fn get_code(&self) -> i32 {
+        self.0.get_code()
+    }
+}
+
+/// A trait for wrapping an error in an [`ErrorWithContext`] without adding
+/// another line of context.
+trait WrapErr {
+    fn wrap(self) -> ErrorWithContext;
+}
+
+impl<E> WrapErr for E
+where
+    E: Error + Send + Sync + 'static,
+{
+    fn wrap(self) -> ErrorWithContext {
+        // Extract the display impl of the error into a String.
+        let description = format!("{self}");
+
+        if self.source().is_some() {
+            // Validity: We confirmed that self has a source
+            SkipErrorInStack(self).with_context(description)
+        } else {
+            ErrorWithContext::new(description)
+        }
+    }
+}
+
+impl From<ErrorWithContext> for std::io::Error {
+    #[inline]
+    fn from(e: ErrorWithContext) -> Self {
+        std::io::Error::other(e)
+    }
+}
+
+impl From<std::io::Error> for ErrorWithContext {
+    fn from(value: std::io::Error) -> Self {
+        value.wrap()
     }
 }
