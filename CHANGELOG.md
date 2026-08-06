@@ -30,6 +30,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 ### Fixed
 
 - `define_whichever` and `impl_traits` now permit more flexible generics and bounds
+- Fixed a bug where `annotate_clipping` could cause an empty ciglet in `AlignmentSpecs`
 
 ## [0.0.31] - 2026-07-15
 

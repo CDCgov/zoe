@@ -322,6 +322,12 @@ where
             if let Some(missing_clipping_at_end) = query_len.checked_sub(query_range.end) {
                 if let Some(ref mut ciglet) = soft_clip_at_end_ciglet {
                     ciglet.inc = missing_clipping_at_end;
+
+                    // The above operation could have introduced an empty
+                    // ciglet, so if needed, remove it
+                    if self.states_specs.ciglet_specs.nonzero_inc && missing_clipping_at_end == 0 {
+                        states.as_mut_vec().retain(|ciglet| ciglet.inc > 0);
+                    }
                 } else {
                     states.soft_clip(missing_clipping_at_end);
                 }
