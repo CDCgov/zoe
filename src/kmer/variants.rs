@@ -11,7 +11,6 @@ pub trait GetVariants<const N: usize, const MAX_LEN: usize>: KmerEncoder<MAX_LEN
 
     /// Forms an iterator over the variants of `encoded_kmer`. Consider using
     /// [`KmerEncoder::get_variants`] instead.
-    #[must_use]
     fn variants(&self, encoded_kmer: Self::EncodedKmer) -> Self::Iter;
 }
 

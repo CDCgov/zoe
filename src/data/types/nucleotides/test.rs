@@ -229,7 +229,7 @@ fn check_refine_dna() {
         } else if base == b'.' {
             assert_eq!(seq, b".");
         } else {
-            assert!(seq.is_empty());
+            assert_eq!(seq, []);
         }
 
         let (valid_strat, refine_strat) = (IsValidDNA::AcgtnNoGaps, RefineDNAStrat::AcgtnWithGapsUc);
@@ -241,7 +241,7 @@ fn check_refine_dna() {
         } else if base == b'-' || base == b'.' {
             assert_eq!(seq, &[base]);
         } else {
-            assert!(seq.is_empty());
+            assert_eq!(seq, []);
         }
 
         let (valid_strat, refine_strat) = (IsValidDNA::AcgtnNoGaps, RefineDNAStrat::AcgtnStdGapsUc);
@@ -253,7 +253,7 @@ fn check_refine_dna() {
         } else if base == b'-' || base == b'.' || base == b':' || base == b'~' {
             assert_eq!(seq, b"-");
         } else {
-            assert!(seq.is_empty());
+            assert_eq!(seq, []);
         }
     }
 }

@@ -148,8 +148,8 @@ fn states_sequence() {
     assert_eq!(cigar_mut_slice.next_ciglet_back(), Some(Ciglet { inc: 1, op: b'D' }));
     assert_eq!(ciglet_iterator.next_ciglet_back(), Some(Ciglet { inc: 1, op: b'D' }));
 
-    assert!(!cigar_slice.is_empty());
-    assert!(!cigar_mut_slice.is_empty());
+    assert_ne!(cigar_slice, []);
+    assert_ne!(cigar_mut_slice, []);
 
     assert_eq!(cigar_slice.next_ciglet(), Some(Ciglet { inc: 3, op: b'M' }));
     assert_eq!(cigar_mut_slice.next_ciglet(), Some(Ciglet { inc: 3, op: b'M' }));
@@ -161,8 +161,8 @@ fn states_sequence() {
     assert_eq!(cigar_mut_slice.next_ciglet(), None);
     assert_eq!(ciglet_iterator.next_ciglet(), None);
 
-    assert!(cigar_slice.is_empty());
-    assert!(cigar_mut_slice.is_empty());
+    assert_eq!(cigar_slice, []);
+    assert_eq!(cigar_mut_slice, []);
 }
 
 #[test]
@@ -211,13 +211,13 @@ fn states_sequence_mut() {
     assert_eq!(cigar_mut_slice.next_ciglet_mut(), Some(&mut Ciglet { inc: 9, op: b'I' }));
     assert_eq!(cigar_mut_slice.next_ciglet_back_mut(), Some(&mut Ciglet { inc: 1, op: b'D' }));
 
-    assert!(!cigar_mut_slice.is_empty());
+    assert_ne!(cigar_mut_slice, []);
 
     assert_eq!(cigar_mut_slice.next_ciglet(), Some(Ciglet { inc: 3, op: b'M' }));
     assert_eq!(cigar_mut_slice.next_ciglet_back(), None);
     assert_eq!(cigar_mut_slice.next_ciglet(), None);
 
-    assert!(cigar_mut_slice.is_empty());
+    assert_eq!(cigar_mut_slice, []);
 
     assert_eq!(alignment_states, Cigar::from_slice_unchecked(b"3H4S4S3H11M9I3M1D5I3H5S10S1H"));
 }
@@ -308,8 +308,8 @@ fn states_sequence_zero_ciglets() {
     assert_eq!(cigar_mut_slice.next_ciglet_back(), None);
     assert_eq!(ciglet_iterator.next_ciglet_back(), None);
 
-    assert!(cigar_slice.is_empty());
-    assert!(cigar_mut_slice.is_empty());
+    assert_eq!(cigar_slice, []);
+    assert_eq!(cigar_mut_slice, []);
 }
 
 #[test]

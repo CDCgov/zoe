@@ -311,7 +311,6 @@ pub trait FindKmers<const MAX_LEN: usize>: AsRef<[u8]> {
     ///
     /// [`find_kmers`]: FindKmers::find_kmers
     #[inline]
-    #[must_use]
     fn find_all_kmers<'a, T: FindKmersInSeq<MAX_LEN>>(&'a self, kmers: &'a T) -> impl Iterator<Item = Range<usize>> + 'a {
         kmers.find_all_in_seq(self)
     }
@@ -323,7 +322,6 @@ pub trait FindKmers<const MAX_LEN: usize>: AsRef<[u8]> {
     ///
     /// [`find_kmers_rev`]: FindKmers::find_kmers_rev
     #[inline]
-    #[must_use]
     fn find_all_kmers_rev<'a, T: FindKmersInSeq<MAX_LEN>>(
         &'a self, kmers: &'a T,
     ) -> impl Iterator<Item = Range<usize>> + 'a {
