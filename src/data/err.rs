@@ -261,7 +261,6 @@ where
 /// [`unwrap_or_fail`]: OrFail::unwrap_or_fail
 /// [`unwrap_or_die`]: OrFail::unwrap_or_die
 #[must_use]
-#[derive(Debug)]
 pub struct ErrorWithContext {
     /// The inner representation. Using a single fat pointer is better than
     /// storing the description and source fields directly, since it minimizes
@@ -283,6 +282,27 @@ impl ErrorWithContext {
                 subitem:     None,
                 source:      None,
             }),
+        }
+    }
+}
+
+impl Debug for ErrorWithContext {
+    /// Formats the value using the debug formatter.
+    ///
+    /// By default, this will print the binary name (if available) followed by a
+    /// formatted backtrace of the error. If using the alternate display with
+    /// `{:#}`, a traditional debug format is used.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if f.alternate() {
+            f.debug_struct("ErrorWithContext").field("repr", &self.repr).finish()
+        } else {
+            if let Ok(bin) = std::env::current_exe() {
+                writeln!(f, "Error in {b}", b = bin.display())?;
+            } else {
+                writeln!(f, "Error in program")?;
+            }
+
+            writeln!(f, "{}", self.display_stack())
         }
     }
 }
