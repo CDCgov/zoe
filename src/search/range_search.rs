@@ -260,7 +260,7 @@ pub trait ToRangeSearch: AsRef<[u8]> + Sealed {
     }
 }
 
-impl<T: AsRef<[u8]> + Sealed> ToRangeSearch for T {}
+impl<T: AsRef<[u8]> + ?Sized + Sealed> ToRangeSearch for T {}
 
 #[cfg(test)]
 mod test {
