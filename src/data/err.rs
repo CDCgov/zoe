@@ -284,6 +284,23 @@ impl ErrorWithContext {
             }),
         }
     }
+
+    /// Constructs a new [`ErrorWithContext`] with the given description and
+    /// path, without a source error or any subitems.
+    ///
+    /// The `description` may be anything implementing `Display`. An allocation
+    /// will occur for the resulting error message.
+    pub fn new_with_path(description: impl Display, path: impl AsRef<Path>) -> Self {
+        let description = format!("{description}: '{path}'", path = path.as_ref().display());
+
+        ErrorWithContext {
+            repr: Box::new(ErrorWithContextRepr {
+                description,
+                subitem: None,
+                source: None,
+            }),
+        }
+    }
 }
 
 impl Debug for ErrorWithContext {
