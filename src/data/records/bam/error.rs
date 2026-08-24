@@ -107,7 +107,7 @@ pub enum BamEncodingError {
         /// The name of the field being encoded.
         field:  &'static str,
         /// Target type or BAM field size that would be exceeded.
-        target: &'static str,
+        target: NumberSizeTarget,
     },
     /// A BAM validation or encoding failure without a more specific public
     /// variant.
@@ -135,6 +135,13 @@ impl BamEncodingError {
             source:  Some(Box::new(source)),
         }
     }
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[non_exhaustive]
+pub enum NumberSizeTarget {
+    MaxInclusive(usize),
+    MaxExclusive(usize),
 }
 
 impl From<std::io::Error> for BamError {
@@ -206,8 +213,17 @@ impl fmt::Display for BamRecordError {
 impl fmt::Display for BamEncodingError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            BamEncodingError::SizeOverflow { field, target } => write!(f, "{field} does not fit into {target}"),
+            BamEncodingError::SizeOverflow { field, target } => write!(f, "{field} does not satisfy requirement {target}"),
             BamEncodingError::Other { message, .. } => f.write_str(message),
+        }
+    }
+}
+
+impl fmt::Display for NumberSizeTarget {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            NumberSizeTarget::MaxInclusive(limit) => write!(f, "<= {limit}"),
+            NumberSizeTarget::MaxExclusive(limit) => write!(f, "< {limit}"),
         }
     }
 }

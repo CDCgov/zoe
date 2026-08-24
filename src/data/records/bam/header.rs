@@ -1,7 +1,7 @@
 //! Functions for parsing SAM headers as needed for BAM serialization.
 
 use crate::data::{
-    bam::error::{BamEncodingError, BamError, BamHeaderError, BamRecordError},
+    bam::error::{BamEncodingError, BamError, BamHeaderError, BamRecordError, NumberSizeTarget},
     err::ResultWithErrorContext,
 };
 use std::{
@@ -51,7 +51,7 @@ impl Header {
             if self.refs.len() >= i32::MAX as usize {
                 return Err(BamEncodingError::SizeOverflow {
                     field:  "Number of references",
-                    target: "BAM n_ref (< 2^31)",
+                    target: NumberSizeTarget::MaxExclusive(1usize << 31),
                 }
                 .into());
             }
@@ -95,20 +95,20 @@ impl Header {
             let line_len = line.len().checked_add(1).ok_or_else(|| {
                 BamHeaderError::from(BamEncodingError::SizeOverflow {
                     field:  "header text",
-                    target: "usize",
+                    target: NumberSizeTarget::MaxInclusive(usize::MAX),
                 })
             })?;
             total.checked_add(line_len).ok_or_else(|| {
                 BamHeaderError::from(BamEncodingError::SizeOverflow {
                     field:  "header text",
-                    target: "usize",
+                    target: NumberSizeTarget::MaxInclusive(usize::MAX),
                 })
             })
         })?;
         if header_text_len >= (1usize << 31) {
             return Err(BamHeaderError::from(BamEncodingError::SizeOverflow {
                 field:  "Header text length",
-                target: "BAM l_text (< 2^31)",
+                target: NumberSizeTarget::MaxExclusive(1usize << 31),
             })
             .into());
         }
@@ -116,7 +116,7 @@ impl Header {
         if self.refs.len() >= (1usize << 31) {
             return Err(BamHeaderError::from(BamEncodingError::SizeOverflow {
                 field:  "Number of references",
-                target: "BAM n_ref (< 2^31)",
+                target: NumberSizeTarget::MaxExclusive(1usize << 31),
             })
             .into());
         }
@@ -142,13 +142,13 @@ impl Header {
             let name_len_with_nul = reference.name.len().checked_add(1).ok_or_else(|| {
                 BamHeaderError::from(BamEncodingError::SizeOverflow {
                     field:  "reference name length",
-                    target: "usize",
+                    target: NumberSizeTarget::MaxInclusive(usize::MAX),
                 })
             })?;
             let l_name = u32::try_from(name_len_with_nul).map_err(|_| {
                 BamHeaderError::from(BamEncodingError::SizeOverflow {
                     field:  "reference name",
-                    target: "u32",
+                    target: NumberSizeTarget::MaxInclusive(u32::MAX as usize),
                 })
             })?;
 

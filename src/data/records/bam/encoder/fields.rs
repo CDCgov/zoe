@@ -7,7 +7,7 @@ use crate::{
         ByteIndexMap,
         bam::{
             encoder::MAX_CIGAR_INC,
-            error::{BamEncodingError, BamRecordError},
+            error::{BamEncodingError, BamRecordError, NumberSizeTarget},
         },
         cigar::CigarError,
         nucleotides::Nucleotides,
@@ -31,7 +31,7 @@ pub(super) fn encode_read_name(qname: &str) -> Result<Vec<u8>, BamRecordError> {
     }
     let total_len = qname.len().checked_add(1).ok_or(BamEncodingError::SizeOverflow {
         field:  "QNAME length",
-        target: "usize",
+        target: NumberSizeTarget::MaxInclusive(usize::MAX),
     })?;
     if total_len > u8::MAX as usize {
         return Err(BamEncodingError::other(format!("QNAME is too long for BAM ({total_len} bytes including NUL)")).into());
@@ -105,7 +105,7 @@ pub(super) fn encode_cigar(ciglets: &AlignmentStates) -> Result<Vec<u32>, BamRec
     for ciglet in ciglets {
         let cig_inc = u32::try_from(ciglet.inc).map_err(|_| BamEncodingError::SizeOverflow {
             field:  "CIGAR increment length",
-            target: "u32",
+            target: NumberSizeTarget::MaxInclusive(u32::MAX as usize),
         })?;
         let mapped_op = CIGAR_MAP[ciglet.op];
         if mapped_op == CIGAR_MAP[b'?'] {
@@ -116,7 +116,7 @@ pub(super) fn encode_cigar(ciglets: &AlignmentStates) -> Result<Vec<u32>, BamRec
         if cig_inc > MAX_CIGAR_INC {
             return Err(BamEncodingError::SizeOverflow {
                 field:  "CIGAR increment length",
-                target: "28-bit BAM CIGAR length field",
+                target: NumberSizeTarget::MaxExclusive(1usize << 28),
             }
             .into());
         }
@@ -172,7 +172,7 @@ pub(super) fn encode_aux_fields(aux_fields: &SamOptRaw, cg_field: Option<&[u32]>
             &u32::try_from(cigar.len())
                 .map_err(|_| BamEncodingError::SizeOverflow {
                     field:  "CG array",
-                    target: "u32",
+                    target: NumberSizeTarget::MaxInclusive(u32::MAX as usize),
                 })?
                 .to_le_bytes(),
         );
@@ -287,7 +287,7 @@ fn write_opt_array<V>(
         &u32::try_from(values.len())
             .map_err(|_| BamEncodingError::SizeOverflow {
                 field:  "'B' field array",
-                target: "u32",
+                target: NumberSizeTarget::MaxInclusive(u32::MAX as usize),
             })?
             .to_le_bytes(),
     );
