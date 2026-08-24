@@ -101,12 +101,6 @@ pub enum BamRecordError {
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum BamEncodingError {
-    /// A field contains an embedded NUL byte, which would terminate the BAM
-    /// string representation early.
-    EmbeddedNul {
-        /// The name of the field being encoded.
-        field: &'static str,
-    },
     /// A value does not fit in the integer type or BAM bit width used for the
     /// encoded field.
     SizeOverflow {
@@ -212,7 +206,6 @@ impl fmt::Display for BamRecordError {
 impl fmt::Display for BamEncodingError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            BamEncodingError::EmbeddedNul { field } => write!(f, "{field} contains an embedded NUL byte"),
             BamEncodingError::SizeOverflow { field, target } => write!(f, "{field} does not fit into {target}"),
             BamEncodingError::Other { message, .. } => f.write_str(message),
         }
@@ -255,7 +248,7 @@ impl Error for BamEncodingError {
             BamEncodingError::Other { source, .. } => {
                 source.as_ref().map(|source| source.as_ref() as &(dyn Error + 'static))
             }
-            BamEncodingError::EmbeddedNul { .. } | BamEncodingError::SizeOverflow { .. } => None,
+            BamEncodingError::SizeOverflow { .. } => None,
         }
     }
 }
@@ -293,9 +286,7 @@ impl GetCode for BamRecordError {
 impl GetCode for BamEncodingError {
     fn get_code(&self) -> i32 {
         match self {
-            BamEncodingError::EmbeddedNul { .. }
-            | BamEncodingError::SizeOverflow { .. }
-            | BamEncodingError::Other { .. } => 1,
+            BamEncodingError::SizeOverflow { .. } | BamEncodingError::Other { .. } => 1,
         }
     }
 }

@@ -203,13 +203,11 @@ fn encode_single_aux(field: &SamOptField, out: &mut Vec<u8>) -> Result<(), BamRe
             out.extend_from_slice(&f.to_le_bytes());
         }
         SamOptValue::String(s) => {
-            reject_nul("BAM aux Z field", s.as_bytes())?;
             out.push(b'Z');
             out.extend_from_slice(s.as_bytes());
             out.push(0);
         }
         SamOptValue::Hex(h) => {
-            reject_nul("BAM aux H field", h.as_bytes())?;
             out.push(b'H');
             out.extend_from_slice(h.as_bytes());
             out.push(0);
@@ -296,15 +294,5 @@ fn write_opt_array<V>(
 
     out.extend(bytes);
 
-    Ok(())
-}
-
-/// Rejects byte fields that cannot be represented in BAM because they contain
-/// an embedded NUL terminator.
-fn reject_nul(field: &'static str, bytes: &[u8]) -> Result<(), BamEncodingError> {
-    // TODO: Could make contains_byte method
-    if bytes.find_byte(0).is_some() {
-        return Err(BamEncodingError::EmbeddedNul { field });
-    }
     Ok(())
 }
