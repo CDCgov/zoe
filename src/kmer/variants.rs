@@ -1,6 +1,9 @@
 use crate::kmer::{
     KmerEncoder, SupportedKmerLen,
-    encoders::three_bit::{ThreeBitKmerEncoder, ThreeBitKmerLen, ThreeBitMismatchIter, ThreeBitOneMismatchIter},
+    encoders::{
+        three_bit::{ThreeBitKmerEncoder, ThreeBitKmerLen, ThreeBitMismatchIter, ThreeBitOneMismatchIter},
+        two_bit::{TwoBitKmerEncoder, TwoBitKmerLen, TwoBitOneMismatchIter},
+    },
 };
 
 /// A trait for specializing the implementation of [`KmerEncoder::get_variants`]
@@ -23,6 +26,18 @@ where
     #[inline]
     fn variants(&self, encoded_kmer: Self::EncodedKmer) -> Self::Iter {
         ThreeBitOneMismatchIter::new(encoded_kmer, self)
+    }
+}
+
+impl<const MAX_LEN: usize> GetVariants<1, MAX_LEN> for TwoBitKmerEncoder<MAX_LEN>
+where
+    TwoBitKmerLen<MAX_LEN>: SupportedKmerLen,
+{
+    type Iter = TwoBitOneMismatchIter<MAX_LEN>;
+
+    #[inline]
+    fn variants(&self, encoded_kmer: Self::EncodedKmer) -> Self::Iter {
+        TwoBitOneMismatchIter::new(encoded_kmer, self)
     }
 }
 

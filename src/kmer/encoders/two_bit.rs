@@ -598,6 +598,162 @@ impl<const MAX_LEN: usize> ExactSizeIterator for TwoBitKmerIntoIteratorRev<MAX_L
 {
 }
 
+/// An iterator over all two-bit encoded k-mers that are at most a Hamming
+/// distance of 1 away from a provided k-mer.
+///
+/// The original k-mer is included in the iterator.
+pub struct TwoBitOneMismatchIter<const MAX_LEN: usize>
+where
+    TwoBitKmerLen<MAX_LEN>: SupportedKmerLen, {
+    /// The original encoded k-mer
+    encoded_kmer:  TwoBitMaxLenToType<MAX_LEN>,
+    /// The length of the original k-mer
+    kmer_length:   usize,
+    /// The current k-mer being mutated
+    current_kmer:  TwoBitMaxLenToType<MAX_LEN>,
+    /// The current index within `current_kmer` that is being mutated
+    current_index: usize,
+    /// The number of times that `current_index` has been mutated
+    base_num:      usize,
+    /// The bit to toggle to get the next mutation
+    mask:          TwoBitMaxLenToType<MAX_LEN>,
+    /// Whether the iterator has finished or not (it finishes after yielding
+    /// `encoded_kmer`)
+    not_finished:  bool,
+}
+
+impl<const MAX_LEN: usize, T: Uint> TwoBitOneMismatchIter<MAX_LEN>
+where
+    TwoBitKmerLen<MAX_LEN>: SupportedKmerLen<T = T>,
+{
+    /// Create a new [`TwoBitOneMismatchIter`] from a provided `encoded_kmer`
+    /// and `kmer_length`.
+    ///
+    /// For most purposes, use [`KmerEncoder::get_variants`] to obtain an
+    /// iterator.
+    #[inline]
+    #[must_use]
+    pub(crate) fn new(encoded_kmer: TwoBitEncodedKmer<MAX_LEN>, kmer_encoder: &TwoBitKmerEncoder<MAX_LEN>) -> Self {
+        Self {
+            encoded_kmer:  encoded_kmer.0,
+            kmer_length:   kmer_encoder.kmer_length(),
+            current_kmer:  encoded_kmer.0,
+            current_index: 0,
+            base_num:      0,
+            mask:          T::ONE,
+            not_finished:  true,
+        }
+    }
+}
+
+impl<const MAX_LEN: usize> Iterator for TwoBitOneMismatchIter<MAX_LEN>
+where
+    TwoBitKmerLen<MAX_LEN>: SupportedKmerLen,
+{
+    type Item = TwoBitEncodedKmer<MAX_LEN>;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        // Check for end of iterator
+        while self.current_index < self.kmer_length {
+            match self.base_num {
+                0 => {
+                    self.current_kmer ^= self.mask;
+                    // Switch from flipping first bit to flipping second bit
+                    self.mask <<= 1;
+                }
+                1 => {
+                    self.current_kmer ^= self.mask;
+                    // Switch from flipping second bit to flipping first bit
+                    self.mask >>= 1;
+                }
+                2 => {
+                    self.current_kmer ^= self.mask;
+                }
+                _ => {
+                    self.current_kmer = self.encoded_kmer;
+                    self.current_index += 1;
+                    self.base_num = 0;
+                    // Switch from flipping first bit to flipping first bit of
+                    // next residue
+                    self.mask <<= 2;
+                    continue;
+                }
+            }
+
+            self.base_num += 1;
+            return Some(self.current_kmer.into());
+        }
+
+        // Yield original kmer as last element
+        if self.not_finished {
+            self.not_finished = false;
+            return Some(self.encoded_kmer.into());
+        }
+        None
+    }
+
+    #[inline]
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        // If not_finished, then we still need to yield the original kmer
+        let size = usize::from(self.not_finished) + 3 * (self.kmer_length - self.current_index) - self.base_num;
+        (size, Some(size))
+    }
+
+    fn fold<B, F>(mut self, init: B, mut f: F) -> B
+    where
+        Self: Sized,
+        F: FnMut(B, Self::Item) -> B, {
+        let mut accum = init;
+
+        // Finish out a base that we already started mutating
+        if self.current_index < self.kmer_length && self.base_num > 0 {
+            match self.base_num {
+                1 => {
+                    self.current_kmer ^= self.mask;
+                    accum = f(accum, self.current_kmer.into());
+                    self.current_kmer ^= self.mask >> 1;
+                    accum = f(accum, self.current_kmer.into());
+                    self.mask <<= 1;
+                }
+                2 => {
+                    self.current_kmer ^= self.mask;
+                    accum = f(accum, self.current_kmer.into());
+                    self.mask <<= 2;
+                }
+                3 => {
+                    self.mask <<= 2;
+                }
+                _ => {}
+            }
+
+            self.current_kmer = self.encoded_kmer;
+            self.current_index += 1;
+        }
+
+        // Since fold consumes the iterator, we no longer need to update state
+        for _ in self.current_index..self.kmer_length {
+            self.current_kmer ^= self.mask;
+            accum = f(accum, self.current_kmer.into());
+            self.current_kmer ^= self.mask << 1;
+            accum = f(accum, self.current_kmer.into());
+            self.current_kmer ^= self.mask;
+            accum = f(accum, self.current_kmer.into());
+
+            self.current_kmer = self.encoded_kmer;
+            self.mask <<= 2;
+        }
+
+        if self.not_finished {
+            accum = f(accum, self.encoded_kmer.into());
+        }
+
+        accum
+    }
+}
+
+impl<const MAX_LEN: usize> ExactSizeIterator for TwoBitOneMismatchIter<MAX_LEN> where TwoBitKmerLen<MAX_LEN>: SupportedKmerLen {}
+
 #[cfg(test)]
 mod tests {
     use super::*;

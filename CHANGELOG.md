@@ -9,6 +9,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 ### Added
 
 - Added `BamWriter` for streaming SAM records to BGZF-compressed BAM, including BAM header and record encoding, custom compression backends, and BAI-compatible binning.
+- The 2-bit k-mer encoder now has support for `get_variants` with 1 mismatch
 - Added additional `From` and `TryFrom` impls for sequence types
 - Added additional `DisplayErrStack` convenience implementations
 - `define_whichever` and `impl_traits` now support `DoubleEndedIterator`,

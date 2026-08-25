@@ -629,16 +629,22 @@ impl<const MAX_LEN: usize> ExactSizeIterator for ThreeBitKmerIntoIteratorRev<MAX
 }
 
 /// An iterator over all three-bit encoded k-mers that are at most a Hamming
-/// distance of 1 away from a provided k-mer. The original k-mer is included in
-/// the iterator.
+/// distance of 1 away from a provided k-mer.
+///
+/// The original k-mer is included in the iterator.
 pub struct ThreeBitOneMismatchIter<const MAX_LEN: usize>
 where
     ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen, {
-    encoded_kmer:       ThreeBitEncodedKmer<MAX_LEN>,
+    /// The original encoded k-mer
+    encoded_kmer:       ThreeBitMaxLenToType<MAX_LEN>,
+    /// The length of the original k-mer
     kmer_length:        usize,
-    current_kmer:       ThreeBitEncodedKmer<MAX_LEN>,
+    /// The current k-mer being mutated
+    current_kmer:       ThreeBitMaxLenToType<MAX_LEN>,
+    /// The current index within `current_kmer` that is being mutated
     current_index:      usize,
-    current_base_num:   usize,
+    /// The number of times that `current_index` has been mutated
+    base_num:           usize,
     set_mask_third_bit: ThreeBitMaxLenToType<MAX_LEN>,
     not_finished:       bool,
 }
@@ -654,13 +660,13 @@ where
     #[must_use]
     pub(crate) fn new(encoded_kmer: ThreeBitEncodedKmer<MAX_LEN>, kmer_encoder: &ThreeBitKmerEncoder<MAX_LEN>) -> Self {
         Self {
-            encoded_kmer,
-            kmer_length: kmer_encoder.kmer_length(),
-            current_kmer: encoded_kmer,
-            current_index: 0,
-            current_base_num: 0,
+            encoded_kmer:       encoded_kmer.0,
+            kmer_length:        kmer_encoder.kmer_length(),
+            current_kmer:       encoded_kmer.0,
+            current_index:      0,
+            base_num:           0,
             set_mask_third_bit: T::from_literal(0b100),
-            not_finished: true,
+            not_finished:       true,
         }
     }
 }
@@ -676,34 +682,33 @@ where
         // Check for end of iterator
         while self.current_index < self.kmer_length {
             // Mutate 4 times to other bases
-            if self.current_base_num < 4 {
-                self.current_base_num += 1;
+            if self.base_num < 4 {
+                self.base_num += 1;
                 // When current_kmer = 100, then the second summand will be 0
                 // and the new value will be 000 due to the first summand
                 // getting masked. When current_kmer = 0**, then the first
                 // summand is current_kmer and the second summand is 001.
-                self.current_kmer = ((self.current_kmer.0 | self.set_mask_third_bit)
-                    - ((self.current_kmer.0 & self.set_mask_third_bit) >> 2))
-                    .into();
-                return Some(self.current_kmer);
+                self.current_kmer =
+                    (self.current_kmer | self.set_mask_third_bit) - ((self.current_kmer & self.set_mask_third_bit) >> 2);
+                return Some(self.current_kmer.into());
             }
 
             self.current_kmer = self.encoded_kmer;
             self.current_index += 1;
-            self.current_base_num = 0;
+            self.base_num = 0;
             self.set_mask_third_bit <<= 3;
         }
 
         if self.not_finished {
             self.not_finished = false;
-            return Some(self.encoded_kmer);
+            return Some(self.encoded_kmer.into());
         }
         None
     }
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let size = usize::from(self.not_finished) + 4 * (self.kmer_length - self.current_index) - self.current_base_num;
+        let size = usize::from(self.not_finished) + 4 * (self.kmer_length - self.current_index) - self.base_num;
         (size, Some(size))
     }
 }

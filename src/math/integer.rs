@@ -1,7 +1,7 @@
 use std::{
     fmt::{Binary, Debug, Display},
     hash::Hash,
-    ops::{Add, AddAssign, BitAnd, BitOr, Mul, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign},
+    ops::{Add, AddAssign, BitAnd, BitOr, BitXorAssign, Mul, Not, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign},
     simd::SimdElement,
 };
 
@@ -40,6 +40,7 @@ pub trait AnyInt:
     + Shl<usize, Output = Self>
     + ShrAssign<usize>
     + ShlAssign<usize>
+    + BitXorAssign
     + TryInto<usize>
     + Sealed {
     /// The constant zero.
