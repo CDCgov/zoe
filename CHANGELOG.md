@@ -8,7 +8,12 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ### Added
 
+- The 2-bit k-mer encoder not has support for `get_variants` with 2-10 mismatches
 - Added `sample_one_weighted` function for weighted sampling without allocation (behind `rand` feature gate)
+
+### Changed
+
+- The order of the generics has been reserved in `ThreeBitMismatchIter` for consistency
 
 ### Removed
 

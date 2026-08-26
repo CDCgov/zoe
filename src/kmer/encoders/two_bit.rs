@@ -754,6 +754,210 @@ where
 
 impl<const MAX_LEN: usize> ExactSizeIterator for TwoBitOneMismatchIter<MAX_LEN> where TwoBitKmerLen<MAX_LEN>: SupportedKmerLen {}
 
+/// An iterator over all two-bit encoded k-mers that are at most a Hamming
+/// distance of `N` away from a provided k-mer, where `N >= 2`.
+///
+/// The original k-mer is included in the iterator.
+pub struct TwoBitMismatchIter<const N: usize, const MAX_LEN: usize>
+where
+    TwoBitKmerLen<MAX_LEN>: SupportedKmerLen, {
+    /// The original encoded k-mer.
+    encoded_kmer:    TwoBitMaxLenToType<MAX_LEN>,
+    /// The number of bases in the encoded k-mer.
+    kmer_length:     usize,
+    // TODO: Should these be reduced to u8?
+    /// The maximum distance to generate, capped at `kmer_length`.
+    max_distance:    usize,
+    /// The exact Hamming distance currently being generated.
+    distance:        usize,
+    /// The positions in the k-mer currently being mutated.
+    ///
+    /// Only the first `distance` values are currently being used, and these
+    /// values will be monotone increasing.
+    positions:       [usize; N],
+    /// An indicator of which mutation is currently being applied to each
+    /// position in `positions`.
+    ///
+    /// Only the first `distance` values are currently being used, and all of
+    /// them will be in `1..=3`.
+    ///
+    /// 1 corresponds to flipping the first bit of the base (`base ^ 01`). 2
+    /// corresponds to flipping the second bit of the base (`base ^ 10`). 3
+    /// corresponds to clipping both bits of the base (`base ^ 11`).
+    substitutions:   [i8; N],
+    /// The direction that each value in `substitutions` is being modified.
+    ///
+    /// Only the first `distance` values are currently being used, and all of
+    /// them will be `-1` or `1`.
+    ///
+    /// `-1` means that the corresponding value in `substitutions` is counting
+    /// down, while `1` means that the corresponding value is counting up.
+    directions:      [i8; N],
+    /// The mask used to generate the variant k-mer from the original
+    /// `encoded_kmer` via XOR.
+    difference_mask: TwoBitMaxLenToType<MAX_LEN>,
+    /// Whether the iterator has finished.
+    finished:        bool,
+}
+
+impl<T, const N: usize, const MAX_LEN: usize> TwoBitMismatchIter<N, MAX_LEN>
+where
+    TwoBitKmerLen<MAX_LEN>: SupportedKmerLen<T = T>,
+    T: Uint,
+{
+    /// Creates a new [`TwoBitMismatchIter`].
+    #[inline]
+    #[must_use]
+    pub(crate) fn new(encoded_kmer: TwoBitEncodedKmer<MAX_LEN>, encoder: &TwoBitKmerEncoder<MAX_LEN>) -> Self {
+        const { assert!(N >= 2) }
+
+        let max_distance = N.min(encoder.kmer_length());
+
+        Self {
+            encoded_kmer: encoded_kmer.0,
+            kmer_length: encoder.kmer_length(),
+            max_distance,
+            distance: 0,
+            positions: [0; N],
+            substitutions: [1; N],
+            directions: [1; N],
+            difference_mask: T::ZERO,
+            finished: false,
+        }
+    }
+
+    /// Advances the values in `substitutions` for the next variant, and updates
+    /// `difference_mask` accordingly. Returns `false` when all variants for the
+    /// given set of `positions` begin mutated have been exhausted.
+    #[must_use]
+    fn advance_substitutions(&mut self) -> bool {
+        for index in 0..self.distance {
+            let old_substitution = self.substitutions[index];
+            let new_substitution = old_substitution + self.directions[index];
+
+            if (1..=3).contains(&new_substitution) {
+                let transition = T::from_literal(old_substitution ^ new_substitution);
+                self.difference_mask ^= transition << (2 * self.positions[index]);
+                self.substitutions[index] = new_substitution;
+                return true;
+            }
+
+            self.directions[index] = -self.directions[index];
+        }
+
+        false
+    }
+
+    /// Advances to the next lexicographic combination of mutated positions.
+    fn advance_positions(&mut self) -> bool {
+        // Find the rightmost position being mutated (in positions) that could
+        // be shifted to the right without exceeding the k-mer length or
+        // overlapping with another position in positions.
+        let Some(index) = (0..self.distance).rev().find(|&index| {
+            // The rightmost position that `positions[index]` may occupy before
+            // it overlaps with another or exceeds kmer_length (i.e., the max
+            // value of `positions[index]`). `self.distance-index-1` is the
+            // number of positions in `positions[0..self.distance]` right of the
+            // current one. `self.kmer_length-1` is the maximum value of
+            // `positions[self.distance-1]` (the rightmost position being
+            // mutated). Subtract these to get the maximum value of
+            // `positions[index]`.
+            let rightmost_position = self.kmer_length - self.distance + index;
+            // It can be increased only if it is strictly less than the max
+            // value.
+            self.positions[index] < rightmost_position
+        }) else {
+            return false;
+        };
+
+        // Shift the position to the right by 1
+        self.positions[index] += 1;
+
+        // All positions being mutated to the right get shifted as far left as
+        // possible, to maintain lexcographical ordering
+        for next_index in index + 1..self.distance {
+            self.positions[next_index] = self.positions[next_index - 1] + 1;
+        }
+
+        // Construct a new difference mask for the given postiions
+        self.difference_mask = T::ZERO;
+        for index in 0..self.distance {
+            // The first substitution made at each position will be XOR with
+            // `01`.
+            self.substitutions[index] = 1;
+            // When advancing the substitutions, we add 1 each time, XOR-ing
+            // with `10` and then `11`.
+            self.directions[index] = 1;
+            // Add the substitution to the difference mask
+            self.difference_mask = self.difference_mask | (T::ONE << (2 * self.positions[index]));
+        }
+
+        true
+    }
+
+    /// Increments the Hamming distance, or returns `false` if already at the
+    /// maximum Hamming distance.
+    #[must_use]
+    fn advance_hamming_distance(&mut self) -> bool {
+        if self.distance >= self.max_distance {
+            return false;
+        }
+
+        self.distance += 1;
+
+        self.difference_mask = T::ZERO;
+        for index in 0..self.distance {
+            // We start by mutating the leftmost `distance` positions (the first
+            // lexocographical choice)
+            self.positions[index] = index;
+
+            // Same code as in advance_positions
+            self.substitutions[index] = 1;
+            self.directions[index] = 1;
+            self.difference_mask = self.difference_mask | (T::ONE << (2 * index));
+        }
+
+        true
+    }
+
+    /// Advances to the state which should be yielded on the next call, or set
+    /// the `finished` flag.
+    fn advance(&mut self) {
+        let advanced = self.advance_substitutions() || self.advance_positions() || self.advance_hamming_distance();
+
+        if !advanced {
+            self.finished = true;
+        }
+    }
+}
+
+impl<T, const N: usize, const MAX_LEN: usize> Iterator for TwoBitMismatchIter<N, MAX_LEN>
+where
+    TwoBitKmerLen<MAX_LEN>: SupportedKmerLen<T = T>,
+    T: Uint,
+{
+    type Item = TwoBitEncodedKmer<MAX_LEN>;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.finished {
+            return None;
+        }
+
+        let mut variant = TwoBitEncodedKmer(self.encoded_kmer);
+        variant.0 ^= self.difference_mask;
+
+        self.advance();
+
+        Some(variant)
+    }
+}
+
+impl<const MAX_LEN: usize, const N: usize> std::iter::FusedIterator for TwoBitMismatchIter<N, MAX_LEN> where
+    TwoBitKmerLen<MAX_LEN>: SupportedKmerLen
+{
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

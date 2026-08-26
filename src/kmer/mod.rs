@@ -33,7 +33,7 @@
 //! - [`TwoBitKmerEncoder`], which uses two bits to store each base. It allows
 //!   for `A`, `C`, `G`, and `T` to be represented. It is important to use this
 //!   only on sanitized data, since anything outside of `ACGTacgt` is
-//!   interpretted as `A`. Currently, this does not support generating variants.
+//!   interpreted as `A`.
 //!
 //! For convenience, the type aliases [`ThreeBitKmerSet`],
 //! [`ThreeBitKmerCounter`], [`TwoBitKmerSet`], and [`TwoBitKmerCounter`] are

@@ -719,40 +719,44 @@ impl<const MAX_LEN: usize> ExactSizeIterator for ThreeBitOneMismatchIter<MAX_LEN
 }
 
 /// An iterator over all three-bit encoded k-mers that are at most a Hamming
-/// distance of `N` away from a provided k-mer, where `N >= 2`. The original
-/// k-mer is included in the iterator.
+/// distance of `N` away from a provided k-mer, where `N >= 2`.
+///
+/// The original k-mer is included in the iterator.
 ///
 /// ## Acknowledgements
 ///
-/// The code for subset iteration was inspired by [this
-/// blog](https://fishi.devtail.io/weblog/2015/05/18/common-bitwise-techniques-subset-iterations/)
-pub struct ThreeBitMismatchIter<const MAX_LEN: usize, const N: usize>
+/// The code for subset iteration was inspired by [this blog][subset-iter].
+///
+/// [subset-iter]:
+///     https://fishi.devtail.io/weblog/2015/05/18/common-bitwise-techniques-subset-iterations/
+pub struct ThreeBitMismatchIter<const N: usize, const MAX_LEN: usize>
 where
     ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen, {
-    /// The original encoded k-mer
+    /// The original encoded k-mer.
     encoded_kmer:            ThreeBitMaxLenToType<MAX_LEN>,
     /// The current encoded k-mer, which is mutated as the iterator cycles
-    /// through variants
+    /// through variants.
     current_kmer:            ThreeBitMaxLenToType<MAX_LEN>,
     /// The current subset of bases being mutated, encoded as a bitmask where
     /// ith bit from the left is 1 precisely when the ith base in the kmer is
-    /// being mutated
+    /// being mutated.
     current_subset:          ThreeBitMaxLenToType<MAX_LEN>,
-    /// The number of bases being mutated in `current_subset`
+    /// The number of bases being mutated in `current_subset`.
     subset_size:             usize,
     /// A buffer to hold the `set_mask_third_bit` values for each index in
     /// `current_subset`, as well as the number of times each base in the subset
     /// was mutated. This value will always be at least 1, since every base in
-    /// the subset must be mutated
+    /// the subset must be mutated.
     masks_and_times_mutated: [(ThreeBitMaxLenToType<MAX_LEN>, usize); N],
     /// The upper bound for `current_subset`. We must have `current_subset`
-    /// strictly less than `max_subset`
+    /// strictly less than `max_subset`.
     max_subset:              ThreeBitMaxLenToType<MAX_LEN>,
 }
 
-impl<const MAX_LEN: usize, const N: usize, T: Uint> ThreeBitMismatchIter<MAX_LEN, N>
+impl<T, const N: usize, const MAX_LEN: usize> ThreeBitMismatchIter<N, MAX_LEN>
 where
     ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen<T = T>,
+    T: Uint,
 {
     #[inline]
     #[must_use]
@@ -776,9 +780,10 @@ where
     }
 }
 
-impl<const MAX_LEN: usize, const N: usize, T: Uint> Iterator for ThreeBitMismatchIter<MAX_LEN, N>
+impl<T, const N: usize, const MAX_LEN: usize> Iterator for ThreeBitMismatchIter<N, MAX_LEN>
 where
     ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen<T = T>,
+    T: Uint,
 {
     type Item = ThreeBitEncodedKmer<MAX_LEN>;
 

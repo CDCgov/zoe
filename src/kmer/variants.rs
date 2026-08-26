@@ -2,7 +2,7 @@ use crate::kmer::{
     KmerEncoder, SupportedKmerLen,
     encoders::{
         three_bit::{ThreeBitKmerEncoder, ThreeBitKmerLen, ThreeBitMismatchIter, ThreeBitOneMismatchIter},
-        two_bit::{TwoBitKmerEncoder, TwoBitKmerLen, TwoBitOneMismatchIter},
+        two_bit::{TwoBitKmerEncoder, TwoBitKmerLen, TwoBitMismatchIter, TwoBitOneMismatchIter},
     },
 };
 
@@ -51,7 +51,7 @@ macro_rules! impl_three_bit_get_variants {
             where
                 ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen,
             {
-                type Iter = ThreeBitMismatchIter<MAX_LEN, $n>;
+                type Iter = ThreeBitMismatchIter<$n, MAX_LEN>;
 
                 fn variants(&self, encoded_kmer: Self::EncodedKmer) -> Self::Iter {
                     ThreeBitMismatchIter::new(encoded_kmer, self)
@@ -62,3 +62,25 @@ macro_rules! impl_three_bit_get_variants {
 }
 
 impl_three_bit_get_variants!(2, 3, 4, 5, 6, 7, 8, 9, 10);
+
+/// Implements [`GetVariants`] for [`TwoBitKmerEncoder`] for values of `N`
+/// greater than 1.
+macro_rules! impl_two_bit_get_variants {
+    ($($n:literal),* $(,)?) => {
+        $(
+            impl<const MAX_LEN: usize> GetVariants<$n, MAX_LEN>
+                for TwoBitKmerEncoder<MAX_LEN>
+            where
+                TwoBitKmerLen<MAX_LEN>: SupportedKmerLen,
+            {
+                type Iter = TwoBitMismatchIter<$n, MAX_LEN>;
+
+                fn variants(&self, encoded_kmer: Self::EncodedKmer) -> Self::Iter {
+                    TwoBitMismatchIter::new(encoded_kmer, self)
+                }
+            }
+        )*
+    };
+}
+
+impl_two_bit_get_variants!(2, 3, 4, 5, 6, 7, 8, 9, 10);
