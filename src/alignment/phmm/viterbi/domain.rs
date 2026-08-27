@@ -1,7 +1,8 @@
 use crate::alignment::{
     Alignment, AlignmentStates,
     phmm::{
-        DomainPhmm, LayerParams, PhmmError, PhmmNumber,
+        DomainPhmm, PhmmError, PhmmNumber,
+        components::LayerParams,
         indexing::{DpIndex, GetLayer, GetModule, LastBase, LastMatch, PhmmIndexable, QueryIndex, QueryIndexable},
         modules::PrecomputedDomainModule,
         state::{

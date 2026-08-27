@@ -2,7 +2,8 @@
 pub mod float_compare {
     use crate::{
         alignment::phmm::{
-            CorePhmm, EmissionParams, GlobalPhmm, LayerParams, TransitionParams,
+            GlobalPhmm,
+            components::{CorePhmm, EmissionParams, LayerParams, TransitionParams},
             indexing::{GetCore, GetLayer},
         },
         math::{NearlyEqual, NearlyEqualMethod},

@@ -1,28 +1,17 @@
 use crate::{
     alignment::phmm::{
-        PhmmNumber,
+        InvalidModelError, PhmmNumber,
+        components::{CorePhmm, EmissionParams, LayerParams},
         indexing::{
             GetCore, GetCoreMut, GetLayer, GetLayerMut, GetMapping, GetModule, GetModuleMut, GetPartsMut, PhmmIndex,
+            PhmmIndexable,
         },
         modules::{DomainModule, LocalModule, SemiLocalModule},
     },
     data::mappings::ByteIndexMap,
 };
 
-#[cfg(not(feature = "alignment-diagnostics"))]
-#[doc(auto_cfg(hide(feature, values("alignment-diagnostics"))))]
-mod components;
-#[cfg(not(feature = "alignment-diagnostics"))]
-#[doc(auto_cfg(hide(feature, values("alignment-diagnostics"))))]
-pub use components::EmissionParams;
-#[cfg(not(feature = "alignment-diagnostics"))]
-#[doc(auto_cfg(hide(feature, values("alignment-diagnostics"))))]
-pub(crate) use components::*;
-
-#[cfg(feature = "alignment-diagnostics")]
-mod components;
-#[cfg(feature = "alignment-diagnostics")]
-pub use components::*;
+pub mod components;
 
 /// An implementation of a profile hidden Markov model (pHMM) for global
 /// alignment (aligning a full sequence to a full model).
@@ -40,8 +29,7 @@ impl<T, const S: usize> GlobalPhmm<T, S> {
     /// [`CorePhmm`].
     #[inline]
     #[must_use]
-    #[cfg(feature = "alignment-diagnostics")]
-    pub fn new(mapping: &'static ByteIndexMap<S>, core: CorePhmm<T, S>) -> GlobalPhmm<T, S> {
+    pub fn from_parts(mapping: &'static ByteIndexMap<S>, core: CorePhmm<T, S>) -> GlobalPhmm<T, S> {
         Self { mapping, core }
     }
 
@@ -77,18 +65,27 @@ pub struct LocalPhmm<T, const S: usize> {
 
 impl<T, const S: usize> LocalPhmm<T, S> {
     /// Creates a new [`LocalPhmm`] from the specified parts.
+    ///
+    /// ## Errors
+    ///
+    /// [`InvalidModelError::IncompatibleModule`] is returned if the length of
+    /// `begin` or `end` doesn't match the length of `core`.
     #[inline]
-    #[must_use]
-    #[cfg(feature = "alignment-diagnostics")]
-    pub fn new(
+    pub fn from_parts(
         mapping: &'static ByteIndexMap<S>, core: CorePhmm<T, S>, begin: LocalModule<T, S>, end: LocalModule<T, S>,
-    ) -> LocalPhmm<T, S> {
-        Self {
+    ) -> Result<LocalPhmm<T, S>, InvalidModelError> {
+        if core.num_pseudomatch() != begin.semilocal_params.num_pseudomatch()
+            || core.num_pseudomatch() != end.semilocal_params.num_pseudomatch()
+        {
+            return Err(InvalidModelError::IncompatibleModule);
+        }
+
+        Ok(Self {
             mapping,
             core,
             begin,
             end,
-        }
+        })
     }
 
     /// Returns a reference to the [`ByteIndexMap`] used by the local pHMM.
@@ -124,8 +121,7 @@ impl<T, const S: usize> DomainPhmm<T, S> {
     /// Creates a new [`DomainPhmm`] from the specified parts.
     #[inline]
     #[must_use]
-    #[cfg(feature = "alignment-diagnostics")]
-    pub fn new(
+    pub fn from_parts(
         mapping: &'static ByteIndexMap<S>, core: CorePhmm<T, S>, begin: DomainModule<T, S>, end: DomainModule<T, S>,
     ) -> Self {
         Self {
@@ -167,18 +163,25 @@ pub struct SemiLocalPhmm<T, const S: usize> {
 
 impl<T, const S: usize> SemiLocalPhmm<T, S> {
     /// Creates a new [`SemiLocalPhmm`] from the specified parts.
+    ///
+    /// ## Errors
+    ///
+    /// [`InvalidModelError::IncompatibleModule`] is returned if the length of
+    /// `begin` or `end` doesn't match the length of `core`.
     #[inline]
-    #[must_use]
-    #[cfg(feature = "alignment-diagnostics")]
-    pub fn new(
+    pub fn from_parts(
         mapping: &'static ByteIndexMap<S>, core: CorePhmm<T, S>, begin: SemiLocalModule<T>, end: SemiLocalModule<T>,
-    ) -> Self {
-        Self {
+    ) -> Result<Self, InvalidModelError> {
+        if core.num_pseudomatch() != begin.num_pseudomatch() || core.num_pseudomatch() != end.num_pseudomatch() {
+            return Err(InvalidModelError::IncompatibleModule);
+        }
+
+        Ok(Self {
             mapping,
             core,
             begin,
             end,
-        }
+        })
     }
 
     /// Returns a reference to the [`ByteIndexMap`] used by the semilocal pHMM.

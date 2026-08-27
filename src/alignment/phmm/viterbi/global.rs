@@ -2,7 +2,8 @@ use super::ViterbiTraceback;
 use crate::alignment::{
     Alignment, AlignmentStates,
     phmm::{
-        GlobalPhmm, LayerParams, PhmmError, PhmmNumber,
+        GlobalPhmm, PhmmError, PhmmNumber,
+        components::LayerParams,
         indexing::{GetLayer, PhmmIndexable},
         state::{
             PhmmBacktrackFlags,

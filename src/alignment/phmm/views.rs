@@ -1,6 +1,7 @@
 use crate::{
     alignment::phmm::{
-        CorePhmm, DomainPhmm, GlobalPhmm, LayerParams, LocalPhmm, SemiLocalPhmm,
+        DomainPhmm, GlobalPhmm, LocalPhmm, SemiLocalPhmm,
+        components::{CorePhmm, LayerParams},
         indexing::{
             GetCore, GetCoreMut, GetLayer, GetLayerMut, GetMapping, GetModule, GetModuleMut, GetPartsMut, PhmmIndex,
             PhmmIndexRange, PhmmIndexable,
@@ -400,7 +401,12 @@ where
 {
     #[inline]
     fn to_owned_data(&self) -> Self::Owned {
-        LocalPhmm::new(self.mapping, self.core.clone(), self.begin().clone(), self.end().clone())
+        LocalPhmm {
+            mapping: self.mapping,
+            core:    self.core.clone(),
+            begin:   self.begin().clone(),
+            end:     self.end().clone(),
+        }
     }
 }
 

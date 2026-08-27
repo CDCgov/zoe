@@ -1,6 +1,9 @@
 use crate::{
     alignment::phmm::{
-        CorePhmm, EmissionParams, LayerParams, PhmmNumber, TransitionParams, indexing::GetLayerMut, state::PhmmState,
+        PhmmNumber,
+        components::{CorePhmm, EmissionParams, LayerParams, TransitionParams},
+        indexing::GetLayerMut,
+        state::PhmmState,
     },
     data::arbitrary::{ArbitrarySpecs, ArraySpecs, VecSpecs},
 };

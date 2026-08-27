@@ -1,7 +1,8 @@
 use crate::alignment::phmm::{
-    LayerParams, PhmmNumber,
+    PhmmNumber,
+    components::LayerParams,
     indexing::SeqIndex,
-    state::{PhmmState, PhmmStateOrEnter, best_state},
+    state::{PhmmState, PhmmStateOrModule, best_state},
 };
 
 mod domain;
@@ -140,5 +141,5 @@ enum ExitLocation {
     Match(SeqIndex),
     /// The alignment exited the core pHMM through the END state. The transition
     /// used to reach the END state is stored.
-    End(PhmmStateOrEnter),
+    End(PhmmStateOrModule),
 }

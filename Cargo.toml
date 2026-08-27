@@ -1,7 +1,7 @@
 [package]
 edition = "2024"
 name = "zoe"
-version = "0.0.32"
+version = "0.0.33-dev"
 # Note: use nightly-2026-06-28 or later to silence invalid_doc_attributes
 # warnings and correct documentation generation.
 rust-version = "1.95" 
@@ -70,7 +70,7 @@ dev-generic-fasta = []
 arbitrary = { version = "1", optional = true, features = ["derive"] }
 multiversion = { version = "0.8", optional = true }
 rand_xoshiro = { version = "0.8", optional = true }
-rand = { version = "0.10", default-features = false, optional = true }
+rand = { version = "0.10", default-features = false, optional = true, features = ["alloc", "std"] }
 
 [profile.release]
 strip = true

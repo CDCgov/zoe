@@ -1,6 +1,6 @@
 use crate::{
     alignment::phmm::{
-        CorePhmm, LayerParams,
+        components::{CorePhmm, LayerParams},
         indexing::{PhmmIndex, PhmmIndexRange, PhmmIndexable},
     },
     data::ByteIndexMap,
@@ -42,7 +42,7 @@ pub trait GetModuleMut: GetModule {
 // implementation.
 
 /// A trait providing read-only access to the [`CorePhmm`] within a larger pHMM.
-pub(crate) trait GetCore<T, const S: usize> {
+pub trait GetCore<T, const S: usize> {
     /// Returns a reference to the [`CorePhmm`] holding the core parameters.
     #[must_use]
     fn core(&self) -> &CorePhmm<T, S>;
@@ -53,7 +53,7 @@ pub(crate) trait GetCore<T, const S: usize> {
 // in an implementation.
 
 /// A trait providing read-only access to the [`CorePhmm`] within a larger pHMM.
-pub(crate) trait GetCoreMut<T, const S: usize> {
+pub trait GetCoreMut<T, const S: usize> {
     /// Returns a mutable reference to the [`CorePhmm`] holding the core
     /// parameters.
     #[must_use]
@@ -62,7 +62,6 @@ pub(crate) trait GetCoreMut<T, const S: usize> {
 }
 
 /// A trait providing read-only accessors to the layers of a pHMM.
-#[allow(dead_code)]
 pub trait GetLayer<T, const S: usize>: PhmmIndexable {
     /// Retrieves a slice of the layers contained within the core pHMM.
     ///
@@ -88,6 +87,7 @@ pub trait GetLayer<T, const S: usize>: PhmmIndexable {
     /// This is an infallible version of `model.get_layer(Begin)`.
     #[inline]
     #[must_use]
+    #[allow(dead_code)]
     fn begin_layer(&self) -> &LayerParams<T, S> {
         &self.layers()[0]
     }
@@ -98,6 +98,7 @@ pub trait GetLayer<T, const S: usize>: PhmmIndexable {
     /// This is an infallible version of `model.get_layer(FirstMatch)`.
     #[inline]
     #[must_use]
+    #[allow(dead_code)]
     fn first_match(&self) -> &LayerParams<T, S> {
         &self.layers()[1]
     }
@@ -108,6 +109,7 @@ pub trait GetLayer<T, const S: usize>: PhmmIndexable {
     /// This is an infallible version of `model.get_layer(LastMatch)`.
     #[inline]
     #[must_use]
+    #[allow(dead_code)]
     fn last_match(&self) -> &LayerParams<T, S> {
         &self.layers()[self.layers().len() - 1]
     }
@@ -137,7 +139,6 @@ pub trait GetLayer<T, const S: usize>: PhmmIndexable {
 }
 
 /// A trait providing mutable accessors to the layers of a pHMM.
-#[allow(dead_code)]
 pub trait GetLayerMut<T, const S: usize>: GetLayer<T, S> {
     /// Retrieves a mutable slice of the layers contained within the core pHMM.
     #[must_use]

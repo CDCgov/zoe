@@ -85,7 +85,7 @@ impl<T> Index<(PhmmState, PhmmState)> for TransitionParams<T> {
     /// `index.0` to state `index.1`.
     #[inline]
     fn index(&self, index: (PhmmState, PhmmState)) -> &Self::Output {
-        &self.0[usize::from(index.1)][usize::from(index.0)]
+        &self.0[index.1 as usize][index.0 as usize]
     }
 }
 
@@ -94,7 +94,7 @@ impl<T> IndexMut<(PhmmState, PhmmState)> for TransitionParams<T> {
     /// to moving from state `index.0` to state `index.1`.
     #[inline]
     fn index_mut(&mut self, index: (PhmmState, PhmmState)) -> &mut Self::Output {
-        &mut self.0[usize::from(index.1)][usize::from(index.0)]
+        &mut self.0[index.1 as usize][index.0 as usize]
     }
 }
 
@@ -105,7 +105,7 @@ impl<T> Index<PhmmState> for TransitionParams<T> {
     /// the match, delete, and insert states respectively.
     #[inline]
     fn index(&self, index: PhmmState) -> &Self::Output {
-        &self.0[usize::from(index)]
+        &self.0[index as usize]
     }
 }
 
@@ -115,7 +115,7 @@ impl<T> IndexMut<PhmmState> for TransitionParams<T> {
     /// respectively.
     #[inline]
     fn index_mut(&mut self, index: PhmmState) -> &mut Self::Output {
-        &mut self.0[usize::from(index)]
+        &mut self.0[index as usize]
     }
 }
 

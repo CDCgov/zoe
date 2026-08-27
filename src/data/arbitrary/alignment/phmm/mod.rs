@@ -3,31 +3,22 @@
 
 use crate::{
     alignment::phmm::{
-        DomainPhmm, EmissionParams, GlobalPhmm, LocalPhmm, PhmmNumber, SemiLocalPhmm,
+        DomainPhmm, GlobalPhmm, LocalPhmm, PhmmNumber, SemiLocalPhmm,
+        components::EmissionParams,
         indexing::PhmmIndexable,
         modules::{DomainModule, LocalModule, SemiLocalModule},
     },
     data::{
-        arbitrary::{ArbitrarySpecs, VecSpecs},
+        arbitrary::{
+            ArbitrarySpecs, VecSpecs,
+            components::{CorePhmmSpecs, EmissionParamsSpecs},
+        },
         mappings::DNA_UNAMBIG_PROFILE_MAP,
     },
 };
 use arbitrary::{Arbitrary, Result, Unstructured};
 
-#[cfg(not(feature = "alignment-diagnostics"))]
-#[doc(auto_cfg(hide(feature, values("alignment-diagnostics"))))]
-mod components;
-#[cfg(not(feature = "alignment-diagnostics"))]
-#[doc(auto_cfg(hide(feature, values("alignment-diagnostics"))))]
-pub use components::EmissionParamsSpecs;
-#[cfg(not(feature = "alignment-diagnostics"))]
-#[doc(auto_cfg(hide(feature, values("alignment-diagnostics"))))]
-pub(crate) use components::*;
-
-#[cfg(feature = "alignment-diagnostics")]
-pub(crate) mod components;
-#[cfg(feature = "alignment-diagnostics")]
-pub use components::*;
+pub mod components;
 
 impl<'a, T> Arbitrary<'a> for SemiLocalModule<T>
 where

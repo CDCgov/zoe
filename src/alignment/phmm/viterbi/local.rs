@@ -1,8 +1,8 @@
-use super::ViterbiTraceback;
 use crate::alignment::{
     Alignment, AlignmentStates,
     phmm::{
-        InvalidModelError, LayerParams, LocalPhmm, PhmmError, PhmmNumber,
+        InvalidModelError, LocalPhmm, PhmmError, PhmmNumber,
+        components::LayerParams,
         indexing::{
             Begin, DpIndex, End, GetLayer, GetModule, LastBase, LastMatch, PhmmIndex, PhmmIndexable, QueryIndex,
             QueryIndexable,
@@ -11,9 +11,9 @@ use crate::alignment::{
         state::{
             PhmmBacktrackFlags,
             PhmmState::{self, Delete, Insert, Match},
-            PhmmStateOrEnter, PhmmTracebackState, best_state_or_enter,
+            PhmmStateOrModule, PhmmTracebackState, best_state_or_enter,
         },
-        viterbi::{ExitLocation, update_delete, update_insert},
+        viterbi::{ExitLocation, ViterbiTraceback, update_delete, update_insert},
     },
 };
 use std::ops::Bound::{Excluded, Included};
@@ -81,7 +81,7 @@ impl<T: PhmmNumber> Default for LocalBestScore<T> {
         Self {
             score: T::INFINITY,
             i:     DpIndex(0),
-            loc:   ExitLocation::End(PhmmStateOrEnter::Match),
+            loc:   ExitLocation::End(PhmmStateOrModule::Match),
         }
     }
 }

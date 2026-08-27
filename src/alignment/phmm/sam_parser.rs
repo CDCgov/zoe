@@ -4,7 +4,8 @@
 
 use crate::{
     alignment::phmm::{
-        CorePhmm, EmissionParams, GlobalPhmm, LayerParams, PhmmNumber, TransitionParams,
+        GlobalPhmm, PhmmNumber,
+        components::{CorePhmm, EmissionParams, LayerParams, TransitionParams},
         indexing::{GetLayer, PhmmIndexable},
         state::PhmmState::{self, *},
     },

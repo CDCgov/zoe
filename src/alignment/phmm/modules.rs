@@ -17,7 +17,8 @@
 
 use crate::{
     alignment::phmm::{
-        CorePhmm, EmissionParams, PhmmNumber,
+        PhmmNumber,
+        components::{CorePhmm, EmissionParams},
         indexing::{PhmmIndex, PhmmIndexable, QueryIndex, QueryIndexable},
     },
     data::mappings::ByteIndexMap,
@@ -36,15 +37,20 @@ impl<T> SemiLocalModule<T> {
     /// Returns the parameters as a slice.
     #[inline]
     #[must_use]
-    #[cfg(feature = "alignment-diagnostics")]
     pub fn as_slice(&self) -> &[T] {
         &self.0
+    }
+
+    /// Returns the parameters as a mutable slice.
+    #[inline]
+    #[must_use]
+    pub fn as_slice_mut(&mut self) -> &mut [T] {
+        &mut self.0
     }
 }
 
 impl<T: PhmmNumber> SemiLocalModule<T> {
     /// Constructs a [`SemiLocalModule`] from a slice of parameters.
-    #[cfg(feature = "alignment-diagnostics")]
     pub fn from_slice(params: &[T]) -> Self {
         Self(params.to_vec())
     }
@@ -56,7 +62,7 @@ impl<T: PhmmNumber> SemiLocalModule<T> {
     /// interpretation.
     #[inline]
     #[must_use]
-    pub(crate) fn no_penalty<const S: usize>(core: &CorePhmm<T, S>) -> Self {
+    pub fn no_penalty<const S: usize>(core: &CorePhmm<T, S>) -> Self {
         Self(vec![T::ZERO; core.num_pseudomatch()])
     }
 
@@ -65,7 +71,7 @@ impl<T: PhmmNumber> SemiLocalModule<T> {
     /// `j` (when this module is placed at the end of the [`CorePhmm`]).
     #[inline]
     #[must_use]
-    pub(crate) fn get_score(&self, j: impl PhmmIndex) -> T {
+    pub fn get_score(&self, j: impl PhmmIndex) -> T {
         self.0[self.get_dp_index(j)]
     }
 }
@@ -204,7 +210,7 @@ impl<T: PhmmNumber, const S: usize> LocalModule<T, S> {
     /// interpretation.
     #[inline]
     #[must_use]
-    pub(crate) fn no_penalty(core: &CorePhmm<T, S>, background_emission: EmissionParams<T, S>) -> Self {
+    pub fn no_penalty(core: &CorePhmm<T, S>, background_emission: EmissionParams<T, S>) -> Self {
         Self {
             semilocal_params: SemiLocalModule::no_penalty(core),
             domain_params:    DomainModule::no_penalty(background_emission),

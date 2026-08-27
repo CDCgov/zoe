@@ -3,13 +3,17 @@
 
 use crate::{
     alignment::phmm::{
-        CorePhmm, DomainPhmm, GlobalPhmm, LocalPhmm, SemiLocalPhmm,
+        DomainPhmm, GlobalPhmm, LocalPhmm, SemiLocalPhmm,
+        components::CorePhmm,
         indexing::{GetCore, GetLayer},
         modules::{PrecomputedDomainModule, PrecomputedLocalModule, SemiLocalModule},
     },
     data::views::IndexAdjustable,
 };
-use std::ops::{Bound, Range, RangeBounds, RangeFrom, RangeInclusive, RangeTo, RangeToInclusive};
+use std::{
+    cmp::Ordering,
+    ops::{Bound, Range, RangeBounds, RangeFrom, RangeInclusive, RangeTo, RangeToInclusive},
+};
 
 /// A trait similar to [`RangeBounds`] but for ranges of [`PhmmIndex`] values.
 pub trait PhmmIndexRange: Clone {
@@ -130,6 +134,8 @@ pub trait PhmmIndexable: Sized {
     }
 
     /// Returns the [`PhmmIndex`] as a dynamic programming index.
+    ///
+    /// It is not checked whether the index is past the end of the pHMM.
     #[inline]
     #[must_use]
     fn get_dp_index(&self, j: impl PhmmIndex) -> usize {
@@ -137,6 +143,8 @@ pub trait PhmmIndexable: Sized {
     }
 
     /// Converts the [`PhmmIndex`] to a dynamic programming index.
+    ///
+    /// It is not checked whether the index is past the end of the pHMM.
     #[inline]
     #[must_use]
     #[allow(dead_code)]
@@ -148,7 +156,8 @@ pub trait PhmmIndexable: Sized {
     /// reference represented by the pHMM).
     ///
     /// If the index corresponds to the BEGIN state, then `None` is returned
-    /// since this does not correspond to a position in the reference.
+    /// since this does not correspond to a position in the reference. It is not
+    /// checked whether the index is past the end of the pHMM.
     #[inline]
     #[must_use]
     fn get_seq_index(&self, j: impl PhmmIndex) -> Option<usize> {
@@ -159,7 +168,8 @@ pub trait PhmmIndexable: Sized {
     /// reference represented by the pHMM).
     ///
     /// If the index corresponds to the BEGIN state, then `None` is returned
-    /// since this does not correspond to a position in the reference.
+    /// since this does not correspond to a position in the reference. It is not
+    /// checked whether the index is past the end of the pHMM.
     #[inline]
     #[must_use]
     fn to_seq_index(&self, j: impl PhmmIndex) -> Option<SeqIndex> {
@@ -217,6 +227,14 @@ pub trait PhmmIndexable: Sized {
     fn to_seq_range<R: PhmmIndexRange>(&self, range: R) -> Range<SeqIndex> {
         let Range { start, end } = self.get_seq_range(range);
         SeqIndex(start)..SeqIndex(end)
+    }
+
+    /// Returns an iterator over the indices in a [`PhmmIndexRange`] as a
+    /// [`DpIndex`].
+    #[inline]
+    #[must_use]
+    fn get_dp_iter<R: PhmmIndexRange>(&self, range: R) -> DpIndexRange {
+        DpIndexRange(self.get_dp_range(range))
     }
 }
 
@@ -667,5 +685,211 @@ impl QueryIndex for LastBase {
     fn get_query_dp_index(self, v: &impl QueryIndexable) -> usize {
         // The last value in a slice of length dp_len
         v.dp_len() - 1
+    }
+}
+
+impl Begin {
+    #[must_use]
+    pub fn to_dp_index(self) -> DpIndex {
+        DpIndex(0)
+    }
+}
+
+impl FirstMatch {
+    #[must_use]
+    pub fn to_dp_index(self) -> DpIndex {
+        DpIndex(1)
+    }
+
+    #[must_use]
+    pub fn to_seq_index(self) -> SeqIndex {
+        SeqIndex(0)
+    }
+}
+
+impl SeqIndex {
+    #[must_use]
+    pub fn to_dp_index(self) -> DpIndex {
+        DpIndex(self.0 + 1)
+    }
+}
+
+impl DpIndex {
+    #[must_use]
+    pub fn to_seq_index(self) -> Option<SeqIndex> {
+        self.0.checked_sub(1).map(SeqIndex)
+    }
+}
+
+impl PartialEq<Begin> for SeqIndex {
+    fn eq(&self, _other: &Begin) -> bool {
+        // Begin has DpIndex 0, and SeqIndex has DpIndex >= 1
+        false
+    }
+}
+
+impl PartialEq<SeqIndex> for Begin {
+    fn eq(&self, _other: &SeqIndex) -> bool {
+        // Begin is DpIndex(0), and SeqIndex has DpIndex >= 1
+        false
+    }
+}
+
+impl PartialOrd<Begin> for SeqIndex {
+    fn partial_cmp(&self, _other: &Begin) -> Option<Ordering> {
+        // Begin is DpIndex(0), and SeqIndex has DpIndex >= 1
+        Some(Ordering::Greater)
+    }
+}
+
+impl PartialOrd<SeqIndex> for Begin {
+    fn partial_cmp(&self, _other: &SeqIndex) -> Option<Ordering> {
+        // Begin is DpIndex(0), and SeqIndex has DpIndex >= 1
+        Some(Ordering::Less)
+    }
+}
+
+impl PartialEq<FirstMatch> for SeqIndex {
+    fn eq(&self, other: &FirstMatch) -> bool {
+        *self == other.to_seq_index()
+    }
+}
+
+impl PartialEq<SeqIndex> for FirstMatch {
+    fn eq(&self, other: &SeqIndex) -> bool {
+        self.to_seq_index() == *other
+    }
+}
+
+impl PartialOrd<FirstMatch> for SeqIndex {
+    fn partial_cmp(&self, other: &FirstMatch) -> Option<Ordering> {
+        self.partial_cmp(&other.to_seq_index())
+    }
+}
+
+impl PartialOrd<SeqIndex> for FirstMatch {
+    fn partial_cmp(&self, other: &SeqIndex) -> Option<Ordering> {
+        self.to_seq_index().partial_cmp(other)
+    }
+}
+
+impl PartialEq<Begin> for DpIndex {
+    fn eq(&self, other: &Begin) -> bool {
+        *self == other.to_dp_index()
+    }
+}
+
+impl PartialEq<DpIndex> for Begin {
+    fn eq(&self, other: &DpIndex) -> bool {
+        self.to_dp_index() == *other
+    }
+}
+
+impl PartialOrd<Begin> for DpIndex {
+    fn partial_cmp(&self, other: &Begin) -> Option<Ordering> {
+        self.partial_cmp(&other.to_dp_index())
+    }
+}
+
+impl PartialOrd<DpIndex> for Begin {
+    fn partial_cmp(&self, other: &DpIndex) -> Option<Ordering> {
+        self.to_dp_index().partial_cmp(other)
+    }
+}
+
+impl PartialEq<FirstMatch> for DpIndex {
+    fn eq(&self, other: &FirstMatch) -> bool {
+        *self == other.to_dp_index()
+    }
+}
+
+impl PartialEq<DpIndex> for FirstMatch {
+    fn eq(&self, other: &DpIndex) -> bool {
+        self.to_dp_index() == *other
+    }
+}
+
+impl PartialOrd<FirstMatch> for DpIndex {
+    fn partial_cmp(&self, other: &FirstMatch) -> Option<Ordering> {
+        self.partial_cmp(&other.to_dp_index())
+    }
+}
+
+impl PartialOrd<DpIndex> for FirstMatch {
+    fn partial_cmp(&self, other: &DpIndex) -> Option<Ordering> {
+        self.to_dp_index().partial_cmp(other)
+    }
+}
+
+impl PartialEq<DpIndex> for SeqIndex {
+    fn eq(&self, other: &DpIndex) -> bool {
+        self.to_dp_index() == *other
+    }
+}
+
+impl PartialEq<SeqIndex> for DpIndex {
+    fn eq(&self, other: &SeqIndex) -> bool {
+        *self == other.to_dp_index()
+    }
+}
+
+impl PartialOrd<DpIndex> for SeqIndex {
+    fn partial_cmp(&self, other: &DpIndex) -> Option<Ordering> {
+        self.to_dp_index().partial_cmp(other)
+    }
+}
+
+impl PartialOrd<SeqIndex> for DpIndex {
+    fn partial_cmp(&self, other: &SeqIndex) -> Option<Ordering> {
+        self.partial_cmp(&other.to_dp_index())
+    }
+}
+
+/// Converts a range of [`PhmmIndex`] into a range of the corresponding
+/// reference coordinates.
+///
+/// [`Begin`] and [`End`] are not included in the output range since they do not
+/// correspond to reference coordinates.
+pub fn layer_range_to_ref_range(phmm: &impl PhmmIndexable, range: &impl PhmmIndexRange) -> Range<usize> {
+    // Get inclusive start DpIndex
+    let start = match range.start_bound() {
+        Bound::Included(start) => phmm.to_dp_index(start),
+        // Convert excluded to included
+        Bound::Excluded(start) => phmm.to_dp_index(start).next_index(phmm),
+        Bound::Unbounded => Begin.to_dp_index(),
+    };
+
+    // Convert to SeqIndex, replacing Begin with FirstMatch
+    let start = phmm.to_seq_index(start).unwrap_or(FirstMatch.to_seq_index());
+
+    // Get exclusive end DpIndex
+    let end = match range.end_bound() {
+        // Convert included to excluded
+        Bound::Included(end) => phmm.to_dp_index(end).next_index(phmm),
+        Bound::Excluded(end) => phmm.to_dp_index(end),
+        Bound::Unbounded => phmm.to_dp_index(End),
+    };
+
+    // Convert to SeqIndex, replacing Begin with FirstMatch
+    let mut end = phmm.to_seq_index(end).unwrap_or(FirstMatch.to_seq_index());
+
+    // The maximum inclusive end allowed is LastMatch, so the maximum exclusive
+    // end allowed is End
+    if end > phmm.to_dp_index(End) {
+        // unwrap_or shouldn't happen, since End has a DpIndex strictly bigger
+        // than Start
+        end = phmm.to_seq_index(End).unwrap_or(SeqIndex(0));
+    }
+
+    phmm.get_seq_range(start..end)
+}
+
+pub struct DpIndexRange(Range<usize>);
+
+impl Iterator for DpIndexRange {
+    type Item = DpIndex;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next().map(DpIndex)
     }
 }

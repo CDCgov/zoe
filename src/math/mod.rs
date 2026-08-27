@@ -14,3 +14,8 @@ pub(crate) use float::*;
 mod float_compare;
 #[cfg(any(feature = "fuzzing", test))]
 pub use float_compare::*;
+
+#[cfg(feature = "rand")]
+mod rand;
+#[cfg(feature = "rand")]
+pub use rand::*;

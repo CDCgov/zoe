@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file. The format
 is roughly based on [Keep a Changelog], and this project tries to adheres to
 [Semantic Versioning].
 
+## [0.0.33] - TBD
+
+### Added
+
+- Added `sample_one_weighted` function for weighted sampling without allocation (behind `rand` feature gate)
+
 ## [0.0.32] - 2026-09-02
 
 ### Added
@@ -621,6 +627,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - **Added**: Initial internal release. Provides various readers and types for bioinformatics data manipulation.
 
 <!-- Versions -->
+[0.0.33]: https://github.com/CDCgov/zoe/compare/v0.0.32...v0.0.33
 [0.0.32]: https://github.com/CDCgov/zoe/compare/v0.0.31...v0.0.32
 [0.0.31]: https://github.com/CDCgov/zoe/compare/v0.0.30...v0.0.31
 [0.0.30]: https://github.com/CDCgov/zoe/compare/v0.0.29...v0.0.30

@@ -1,12 +1,13 @@
 use crate::alignment::{
     Alignment, AlignmentStates,
     phmm::{
-        InvalidModelError, LayerParams, PhmmError, PhmmNumber, SemiLocalPhmm,
+        InvalidModelError, PhmmError, PhmmNumber, SemiLocalPhmm,
+        components::LayerParams,
         indexing::{Begin, DpIndex, End, GetLayer, GetModule, LastMatch, NoBases, PhmmIndex, PhmmIndexable, QueryIndexable},
         state::{
             PhmmBacktrackFlags,
             PhmmState::{self, Delete, Insert, Match},
-            PhmmStateOrEnter, PhmmTracebackState, best_state, best_state_or_enter,
+            PhmmStateOrModule, PhmmTracebackState, best_state, best_state_or_enter,
         },
         viterbi::{ExitLocation, ViterbiTraceback, update_delete, update_insert},
     },
@@ -56,7 +57,7 @@ impl<T: PhmmNumber> SemiLocalBestScore<T> {
             best_state_or_enter(match_val, delete_val, insert_val, enter_val)
         } else {
             let (state, score) = best_state(match_val, delete_val, insert_val);
-            (PhmmStateOrEnter::from(state), score)
+            (PhmmStateOrModule::from(state), score)
         };
 
         score += phmm.end().get_score(End);
@@ -73,7 +74,7 @@ impl<T: PhmmNumber> Default for SemiLocalBestScore<T> {
     fn default() -> Self {
         Self {
             score: T::INFINITY,
-            loc:   ExitLocation::End(PhmmStateOrEnter::Match),
+            loc:   ExitLocation::End(PhmmStateOrModule::Match),
         }
     }
 }
@@ -155,7 +156,7 @@ impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
                             delete_val + layer.transition[(Delete, Match)],
                             insert_val + layer.transition[(Insert, Match)],
                         );
-                        (PhmmStateOrEnter::from(state), best + layer.emission_match[x_idx])
+                        (PhmmStateOrModule::from(state), best + layer.emission_match[x_idx])
                     }
                 };
                 traceback_next_row[i + 1].set_match(state_m);

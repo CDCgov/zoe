@@ -1,4 +1,13 @@
-use crate::alignment::phmm::{PhmmError, PhmmNumber};
+//! Enums/structs used for representing the states within a pHMM.
+//!
+//! These enums can be useful when writing pHMM code. For example, [`PhmmState`]
+//! is used when indexing into [`TransitionParams`].
+//!
+//! [`TransitionParams`]:
+//!     crate::alignment::phmm::models::components::TransitionParams
+
+use crate::alignment::phmm::PhmmNumber;
+use std::fmt::Display;
 
 /// An enum representing the three states within each layer of a pHMM.
 ///
@@ -15,97 +24,125 @@ impl PhmmState {
     /// An array containing the three variants of [`PhmmState`], in the order
     /// above.
     pub const VARIANTS: [Self; 3] = [Self::Match, Self::Delete, Self::Insert];
+
+    /// Gets a [`PhmmState`] from a [`PhmmStateOrModule`], returning `None` for
+    /// the [`Module`] state.
+    ///
+    /// [`Module`]: PhmmStateOrModule::Module
+    #[inline]
+    #[must_use]
+    pub fn get_from(value: PhmmStateOrModule) -> Option<PhmmState> {
+        match value {
+            PhmmStateOrModule::Match => Some(PhmmState::Match),
+            PhmmStateOrModule::Delete => Some(PhmmState::Delete),
+            PhmmStateOrModule::Insert => Some(PhmmState::Insert),
+            PhmmStateOrModule::Module => None,
+        }
+    }
+}
+
+impl Display for PhmmState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PhmmState::Match => write!(f, "Match"),
+            PhmmState::Delete => write!(f, "Delete"),
+            PhmmState::Insert => write!(f, "Insert"),
+        }
+    }
 }
 
 /// An enum representing the three states within each layer of a pHMM, in
-/// addition to `Enter`.
-///
-/// This is useful for local pHMMs.
+/// addition to `Module` for entering/exiting the core pHMM.
 #[repr(u8)]
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
-pub enum PhmmStateOrEnter {
+pub enum PhmmStateOrModule {
     Match  = 0,
     Delete = 1,
     Insert = 2,
-    Enter  = 3,
+    Module = 3,
 }
 
-impl PhmmStateOrEnter {
-    /// An array containing the four variants of [`PhmmStateOrEnter`], in the
+impl PhmmStateOrModule {
+    /// An array containing the four variants of [`PhmmStateOrModule`], in the
     /// order above.
-    pub const VARIANTS: [Self; 4] = [Self::Match, Self::Delete, Self::Insert, Self::Enter];
-}
+    pub const VARIANTS: [Self; 4] = [Self::Match, Self::Delete, Self::Insert, Self::Module];
 
-impl From<PhmmState> for u8 {
-    #[inline]
-    fn from(value: PhmmState) -> Self {
-        value as u8
-    }
-}
-
-impl From<PhmmStateOrEnter> for u8 {
-    #[inline]
-    fn from(value: PhmmStateOrEnter) -> Self {
-        value as u8
-    }
-}
-
-impl From<PhmmState> for usize {
-    #[inline]
-    fn from(value: PhmmState) -> Self {
-        value as usize
-    }
-}
-
-impl From<PhmmStateOrEnter> for usize {
-    #[inline]
-    fn from(value: PhmmStateOrEnter) -> Self {
-        value as usize
-    }
-}
-
-impl From<PhmmState> for PhmmStateOrEnter {
-    #[inline]
-    fn from(value: PhmmState) -> Self {
-        match value {
-            PhmmState::Match => PhmmStateOrEnter::Match,
-            PhmmState::Delete => PhmmStateOrEnter::Delete,
-            PhmmState::Insert => PhmmStateOrEnter::Insert,
-        }
-    }
-}
-
-impl PhmmState {
-    /// Gets a [`PhmmState`] from a [`PhmmStateOrEnter`], returning `None` for
-    /// the [`Enter`] state.
+    /// Returns a display wrapper for [`PhmmStateOrModule`] where the [`Module`]
+    /// state is interpretted as _exiting_ the core pHMM.
     ///
-    /// [`Enter`]: PhmmStateOrEnter::Enter
+    /// [`Module`]: PhmmStateOrModule::Module
     #[inline]
     #[must_use]
-    pub(crate) fn get_from(value: PhmmStateOrEnter) -> Option<PhmmState> {
-        match value {
-            PhmmStateOrEnter::Match => Some(PhmmState::Match),
-            PhmmStateOrEnter::Delete => Some(PhmmState::Delete),
-            PhmmStateOrEnter::Insert => Some(PhmmState::Insert),
-            PhmmStateOrEnter::Enter => None,
-        }
+    pub fn display_enter(self) -> PhmmStateOrEnter {
+        PhmmStateOrEnter(self)
     }
 
-    /// Converts a CIGAR-style operation to a [`PhmmState`].
+    /// Returns a display wrapper for [`PhmmStateOrModule`] where the [`Module`]
+    /// state is interpretted as _exiting_ the core pHMM.
     ///
-    /// ## Errors
-    ///
-    /// The operation must be in `MDI=X`.
+    /// [`Module`]: PhmmStateOrModule::Module
     #[inline]
-    #[allow(dead_code)]
-    pub(crate) fn from_op(op: u8) -> Result<Self, PhmmError> {
-        match op {
-            b'M' | b'=' | b'X' => Ok(PhmmState::Match),
-            b'D' => Ok(PhmmState::Delete),
-            b'I' => Ok(PhmmState::Insert),
-            op => Err(PhmmError::InvalidCigarOp(op)),
+    #[must_use]
+    pub fn display_exit(self) -> PhmmStateOrExit {
+        PhmmStateOrExit(self)
+    }
+}
+
+/// A display wrapper for [`PhmmStateOrModule`] where the [`Module`] state is
+/// interpretted as _entering_ the core pHMM.
+///
+/// [`Module`]: PhmmStateOrModule::Module
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub struct PhmmStateOrEnter(PhmmStateOrModule);
+
+/// A display wrapper for [`PhmmStateOrModule`] where the [`Module`] state is
+/// interpretted as _exiting_ the core pHMM.
+///
+/// [`Module`]: PhmmStateOrModule::Module
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub struct PhmmStateOrExit(PhmmStateOrModule);
+
+impl Display for PhmmStateOrEnter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.0 {
+            PhmmStateOrModule::Match => write!(f, "Match"),
+            PhmmStateOrModule::Delete => write!(f, "Delete"),
+            PhmmStateOrModule::Insert => write!(f, "Insert"),
+            PhmmStateOrModule::Module => write!(f, "Enter"),
         }
     }
+}
+
+impl Display for PhmmStateOrExit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.0 {
+            PhmmStateOrModule::Match => write!(f, "Match"),
+            PhmmStateOrModule::Delete => write!(f, "Delete"),
+            PhmmStateOrModule::Insert => write!(f, "Insert"),
+            PhmmStateOrModule::Module => write!(f, "Exit"),
+        }
+    }
+}
+
+impl From<PhmmState> for PhmmStateOrModule {
+    #[inline]
+    fn from(value: PhmmState) -> Self {
+        match value {
+            PhmmState::Match => PhmmStateOrModule::Match,
+            PhmmState::Delete => PhmmStateOrModule::Delete,
+            PhmmState::Insert => PhmmStateOrModule::Insert,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub enum DomainModuleState {
+    Begin,
+    Insert,
+    // TODO: Is this needed? It could maybe be removed if this whole enum went
+    // private. Or maybe a more general run method instead of advance for driver
+    // would remove need for this altogether.
+    End,
 }
 
 /// A [`PhmmState`] or [`PhmmStateOrEnter`] represented as a `u8`.
@@ -150,9 +187,9 @@ impl From<PhmmState> for PhmmTracebackState {
     }
 }
 
-impl From<PhmmStateOrEnter> for PhmmTracebackState {
+impl From<PhmmStateOrModule> for PhmmTracebackState {
     #[inline]
-    fn from(value: PhmmStateOrEnter) -> Self {
+    fn from(value: PhmmStateOrModule) -> Self {
         PhmmTracebackState(value as u8)
     }
 }
@@ -262,13 +299,13 @@ pub(crate) fn best_state<T: PhmmNumber>(match_val: T, delete_val: T, insert_val:
 /// `Delete`, and `Insert`, and `Enter`) and returns the best state and score.
 pub(crate) fn best_state_or_enter<T: PhmmNumber>(
     match_val: T, delete_val: T, insert_val: T, enter_val: T,
-) -> (PhmmStateOrEnter, T) {
-    use PhmmStateOrEnter::*;
+) -> (PhmmStateOrModule, T) {
+    use PhmmStateOrModule::*;
 
     let mut argmin = Match;
     let mut min = match_val;
 
-    for (state, val) in [(Delete, delete_val), (Insert, insert_val), (Enter, enter_val)] {
+    for (state, val) in [(Delete, delete_val), (Insert, insert_val), (Module, enter_val)] {
         if val < min {
             argmin = state;
             min = val;

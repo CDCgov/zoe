@@ -22,39 +22,27 @@ use std::{
 };
 
 mod errors;
+pub mod indexing;
 mod models;
 pub mod modules;
 pub mod sam_parser;
-pub(crate) mod state;
+pub mod state;
 mod traits;
+pub mod traverse;
+pub mod views;
 mod viterbi;
+
+#[cfg(feature = "rand")]
+pub mod sampling;
 
 #[cfg(feature = "alignment-diagnostics")]
 pub mod editing;
 
-#[cfg(not(feature = "alignment-diagnostics"))]
-#[doc(auto_cfg(hide(feature, values("alignment-diagnostics"))))]
-pub(crate) mod indexing;
-#[cfg(feature = "alignment-diagnostics")]
-pub mod indexing;
-
 #[cfg(feature = "alignment-diagnostics")]
 pub mod score_from_path;
 
-#[cfg(not(feature = "alignment-diagnostics"))]
-#[doc(auto_cfg(hide(feature, values("alignment-diagnostics"))))]
-pub(crate) mod views;
-#[cfg(feature = "alignment-diagnostics")]
-pub mod views;
-
-#[cfg(feature = "alignment-diagnostics")]
-pub mod visit_params;
-
 pub use errors::*;
 pub use models::*;
-
-#[cfg(feature = "alignment-diagnostics")]
-pub use state::*;
 
 /// A trait for numeric types compatible with pHMMs.
 ///
