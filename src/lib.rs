@@ -111,6 +111,8 @@ mod private {
     impl<T: SimdElement, const N: usize> Sealed for Simd<T, N> {}
     impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> Sealed for KmerCounter<MAX_LEN, E, S> {}
     impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> Sealed for KmerSet<MAX_LEN, E, S> {}
+    impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>> Sealed for crate::kmer::IndexedKmerSet<MAX_LEN, E> {}
+    impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>> Sealed for crate::kmer::IndexedKmerCounter<MAX_LEN, E> {}
 
     #[cfg(feature = "dev-generic-fasta")]
     sealed!(

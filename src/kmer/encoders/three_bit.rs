@@ -5,7 +5,7 @@
 
 use crate::{
     data::mappings::THREE_BIT_MAPPING,
-    kmer::{Kmer, KmerCounter, KmerEncoder, KmerError, KmerLen, KmerSet, MaxLenToType, SupportedKmerLen},
+    kmer::{Kmer, KmerCounter, KmerEncoder, KmerError, KmerIndex, KmerLen, KmerSet, MaxLenToType, SupportedKmerLen},
     math::{AnyInt, Uint},
 };
 use std::hash::{Hash, Hasher, RandomState};
@@ -62,7 +62,7 @@ pub type ThreeBitKmerCounter<const MAX_LEN: usize, S = RandomState> = KmerCounte
 ///     crate::kmer::encoders::three_bit::ThreeBitKmerCounter
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 #[repr(transparent)]
-pub struct ThreeBitEncodedKmer<const MAX_LEN: usize>(ThreeBitMaxLenToType<MAX_LEN>)
+pub struct ThreeBitEncodedKmer<const MAX_LEN: usize>(pub(crate) ThreeBitMaxLenToType<MAX_LEN>)
 where
     ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen;
 
@@ -884,6 +884,37 @@ where
 
     // We could implement size_hint and ExactSizeIterator, but it is expensive
     // to compute the size of the iterator after it has already started
+}
+
+impl<const MAX_LEN: usize> KmerIndex for ThreeBitEncodedKmer<MAX_LEN>
+where
+    ThreeBitKmerLen<MAX_LEN>: SupportedKmerLen,
+    ThreeBitMaxLenToType<MAX_LEN>: Into<usize>,
+    ThreeBitMaxLenToType<MAX_LEN>: TryFrom<usize>,
+{
+    #[inline]
+    fn as_usize(&self) -> usize {
+        self.0.into()
+    }
+
+    /// Creates a [`KmerIndex`] from a usize
+    ///
+    /// ## Panics
+    ///
+    /// This can panic if an index for a value larger than a [`u64`] is provided
+    #[inline]
+    fn from_usize(index: usize) -> Self {
+        Self(
+            index
+                .try_into()
+                .unwrap_or_else(|_| panic!("index {index} does not fit in ThreeBitEncodedKmer<{MAX_LEN}>")),
+        )
+    }
+
+    #[inline]
+    fn max_index_for_length(kmer_length: usize) -> usize {
+        1 << (3 * kmer_length)
+    }
 }
 
 #[cfg(test)]

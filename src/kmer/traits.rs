@@ -330,3 +330,16 @@ pub trait FindKmers<const MAX_LEN: usize>: AsRef<[u8]> {
 }
 
 impl<const MAX_LEN: usize, Q: AsRef<[u8]>> FindKmers<MAX_LEN> for Q {}
+
+/// A trait for encoded k-mers which can serve as indices into a data structure.
+pub trait KmerIndex: Sized {
+    /// Returns the `usize` index corresponding to the encoded k-mer.
+    fn as_usize(&self) -> usize;
+
+    /// Converts an index back into an encoded k-mer.
+    fn from_usize(index: usize) -> Self;
+
+    /// Returns the maximum index (maximum encoded k-mer) possible for a given
+    /// length.
+    fn max_index_for_length(kmer_length: usize) -> usize;
+}

@@ -5,7 +5,7 @@
 
 use crate::{
     data::mappings::TWO_BIT_MAPPING,
-    kmer::{Kmer, KmerCounter, KmerEncoder, KmerError, KmerLen, KmerSet, MaxLenToType, SupportedKmerLen},
+    kmer::{Kmer, KmerCounter, KmerEncoder, KmerError, KmerIndex, KmerLen, KmerSet, MaxLenToType, SupportedKmerLen},
     math::{AnyInt, Uint},
 };
 use std::hash::{Hash, Hasher, RandomState};
@@ -53,7 +53,7 @@ pub type TwoBitKmerCounter<const MAX_LEN: usize, S = RandomState> = KmerCounter<
 /// [`TwoBitKmerCounter`]: crate::kmer::encoders::two_bit::TwoBitKmerCounter
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 #[repr(transparent)]
-pub struct TwoBitEncodedKmer<const MAX_LEN: usize>(TwoBitMaxLenToType<MAX_LEN>)
+pub struct TwoBitEncodedKmer<const MAX_LEN: usize>(pub(crate) TwoBitMaxLenToType<MAX_LEN>)
 where
     TwoBitKmerLen<MAX_LEN>: SupportedKmerLen;
 
@@ -749,6 +749,37 @@ where
         }
 
         accum
+    }
+}
+
+impl<const MAX_LEN: usize> KmerIndex for TwoBitEncodedKmer<MAX_LEN>
+where
+    TwoBitKmerLen<MAX_LEN>: SupportedKmerLen,
+    TwoBitMaxLenToType<MAX_LEN>: Into<usize>,
+    TwoBitMaxLenToType<MAX_LEN>: TryFrom<usize>,
+{
+    #[inline]
+    fn as_usize(&self) -> usize {
+        self.0.into()
+    }
+
+    /// Creates a [`KmerIndex`] from a usize
+    ///
+    /// ## Panics
+    ///
+    /// This can panic if an index for a value larger than a [`u64`] is provided
+    #[inline]
+    fn from_usize(index: usize) -> Self {
+        Self(
+            index
+                .try_into()
+                .unwrap_or_else(|_| panic!("index {index} does not fit in TwoBitEncodedKmer<{MAX_LEN}>")),
+        )
+    }
+
+    #[inline]
+    fn max_index_for_length(kmer_length: usize) -> usize {
+        1 << (2 * kmer_length)
     }
 }
 

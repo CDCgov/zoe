@@ -10,10 +10,18 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 - The 2-bit k-mer encoder not has support for `get_variants` with 2-10 mismatches
 - Added `sample_one_weighted` function for weighted sampling without allocation (behind `rand` feature gate)
+- Added `IndexedKmerCounter` and `IndexedKmerSet` structs
 
 ### Changed
 
-- The order of the generics has been reserved in `ThreeBitMismatchIter` for consistency
+- The order of the generics has been reversed in `ThreeBitMismatchIter` for consistency
+- Renamed `KmerSet` methods to better differentiate between their `decoded` variants:
+  - `difference()` > `difference_encoded()`
+  - `intersection()` > `intersection_encoded()`
+  - `symmetric_difference()` > `symmetric_difference_encoded()`
+  - `union()` > `union_encoded()`
+- `KmerSet` set operations can now `panic` if the `kmer_length` of the encoders
+  of the sets are not equal
 
 ### Removed
 
