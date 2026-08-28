@@ -7,7 +7,7 @@ use crate::{alignment::AlignOp, data::cigar::Ciglet};
 /// The first output is the reference, and the second is the query.
 ///
 /// Only the portion of the sequences corresponding to the ciglets are included
-/// in the output.
+/// in the output. Clipped residues are also excluded.
 ///
 /// ## Panics
 ///

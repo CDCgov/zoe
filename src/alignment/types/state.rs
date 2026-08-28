@@ -351,11 +351,9 @@ pub struct AlignmentIter<'a, R, Q>
 where
     R: Iterator<Item = u8>,
     Q: Iterator<Item = u8>, {
-    reference: R,
-    query:     Q,
-    ciglets:   std::iter::Copied<std::slice::Iter<'a, Ciglet>>,
-    inc:       usize,
-    op:        AlignOp,
+    reference_iter: R,
+    query_iter:     Q,
+    operations:     CigletOpIter<'a>,
 }
 
 impl<'a, R, Q> AlignmentIter<'a, R, Q>
@@ -367,50 +365,21 @@ where
     /// string, and reference position.
     #[inline]
     #[must_use]
-    pub(crate) fn new(mut reference: R, query: Q, ciglets: &'a AlignmentStates, ref_index: usize) -> Self {
+    pub(crate) fn new(reference: R, query: Q, alignment: &'a AlignmentStates, ref_index: usize) -> Self {
+        let mut reference_iter = reference.into_iter();
+        let query_iter = query.into_iter();
+
         if let Some(ref_skipped) = ref_index.checked_sub(1) {
-            reference.nth(ref_skipped);
+            reference_iter.nth(ref_skipped);
         }
 
-        let mut ciglets = ciglets.into_iter();
-
-        // If no valid ciglets, initialize with inc at 0 so that iterator is empty
-        let Ciglet { inc, op } = ciglets.next().unwrap_or(Ciglet { inc: 0, op: AlignOp::M });
+        let operations = CigletOpIter::new(alignment);
 
         AlignmentIter {
-            reference,
-            query,
-            ciglets,
-            inc,
-            op,
+            reference_iter,
+            query_iter,
+            operations,
         }
-    }
-
-    /// Get the next operation from the iterator. This will advance the
-    /// [`Ciglet`] iterator if necessary. `None` is returned if the iterator has
-    /// reached its end.
-    #[inline]
-    #[must_use]
-    fn get_next_op(&mut self) -> Option<AlignOp> {
-        if self.inc > 0 {
-            self.inc -= 1;
-            Some(self.op)
-        } else {
-            let Ciglet { inc, op } = self.ciglets.next()?;
-            self.inc = inc;
-            self.op = op;
-            self.get_next_op()
-        }
-    }
-
-    /// Forcibly skip to the next Ciglet in the iterator.
-    #[inline]
-    #[must_use]
-    fn skip_to_next_ciglet(&mut self) -> Option<()> {
-        let Ciglet { inc, op } = self.ciglets.next()?;
-        self.inc = inc;
-        self.op = op;
-        Some(())
     }
 
     /// Remove a base from the beginning of the reference buffer.
@@ -421,7 +390,7 @@ where
     #[inline]
     #[must_use]
     fn advance_reference(&mut self) -> u8 {
-        self.reference.next().unwrap()
+        self.reference_iter.next().unwrap()
     }
 
     /// Remove a base from the beginning of the query buffer.
@@ -432,7 +401,7 @@ where
     #[inline]
     #[must_use]
     fn advance_query(&mut self) -> u8 {
-        self.query.next().unwrap()
+        self.query_iter.next().unwrap()
     }
 }
 
@@ -443,35 +412,28 @@ where
 {
     type Item = (Option<u8>, Option<u8>);
 
-    /// # Panics
-    ///
-    /// The reference and query must be at least as long as the length specified
-    /// in the iterator's alignment operations. All CIGAR operations must be in
-    /// `MIDNSHP=X`.
     fn next(&mut self) -> Option<Self::Item> {
-        let op = self.get_next_op()?;
+        loop {
+            let ciglet = self.operations.peek_ciglet_mut()?;
+            ciglet.inc -= 1;
 
-        match op {
-            AlignOp::M | AlignOp::Eq | AlignOp::X => Some((Some(self.advance_reference()), Some(self.advance_query()))),
-            AlignOp::D => Some((Some(self.advance_reference()), None)),
-            AlignOp::I => Some((None, Some(self.advance_query()))),
-            AlignOp::S => {
-                // Skip that many residues in the query. Advanced by inc+1
-                // instead of inc since inc was decremented in get_next_op. This
-                // should use an efficient nth implementation since Q is either
-                // vec::IntoIter or slice::Iter, but eventually this could get
-                // removed when PairwiseSeq is deleted (TODO)
-                self.query.nth(self.inc);
+            let item = match ciglet.op {
+                AlignOp::M | AlignOp::Eq | AlignOp::X => (Some(self.advance_reference()), Some(self.advance_query())),
+                AlignOp::D => (Some(self.advance_reference()), None),
+                AlignOp::I => (None, Some(self.advance_query())),
+                AlignOp::S => {
+                    self.query_iter.nth(ciglet.inc);
+                    ciglet.inc = 0;
+                    continue;
+                }
+                AlignOp::N => (Some(self.advance_reference()), Some(b'N')),
+                AlignOp::H | AlignOp::P => {
+                    ciglet.inc = 0;
+                    continue;
+                }
+            };
 
-                self.skip_to_next_ciglet()?;
-                self.next()
-            }
-            AlignOp::N => Some((Some(self.advance_reference()), Some(b'N'))),
-            AlignOp::H | AlignOp::P => {
-                // Skip this Ciglet without modifying either buffer
-                self.skip_to_next_ciglet()?;
-                self.next()
-            }
+            return Some(item);
         }
     }
 }
@@ -501,12 +463,10 @@ pub trait PeekOp {
 pub trait TakeOp: PeekOp {
     /// Removes and returns one increment of the next operation from the
     /// alignment states.
-    #[must_use]
     fn take_op(&mut self) -> Option<AlignOp>;
 
     /// Removes and returns one increment of the last operation from the
     /// alignment states.
-    #[must_use]
     fn take_op_back(&mut self) -> Option<AlignOp>;
 
     /// Removes and returns the next operation if it meets the specified
