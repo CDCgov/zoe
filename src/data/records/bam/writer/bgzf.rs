@@ -1,3 +1,6 @@
+//! Functionality related to the BGZF file format (Blocked GNU Zip Format),
+//! which is used as a component of BAM.
+
 use crate::data::err::ResultWithErrorContext;
 use std::io::Write;
 
@@ -11,38 +14,44 @@ const GZIP_FOOTER_SIZE: usize = 8;
 /// Maximum raw-DEFLATE (compressed) stream length that fits between a BGZF
 /// header and gzip footer.
 const MAX_DEFLATE_SIZE: usize = MAX_BGZF_BLOCK_SIZE - BGZF_HEADER_SIZE - GZIP_FOOTER_SIZE;
-/// Bytes added by a final
-/// [stored-DEFLATE](https://en.wikipedia.org/wiki/Deflate#:~:text=(sometimes%20called-,stored,-).%20Any%20bits%20up)
-/// (uncompressed data) block: its header, `LEN`, and `NLEN`.
+/// Bytes added by a final [stored-DEFLATE] (uncompressed data) block: its
+/// header, `LEN`, and `NLEN`.
+///
+/// [stored-DEFLATE]:
+///     https://en.wikipedia.org/wiki/Deflate#:~:text=(sometimes%20called-,stored,-).%20Any%20bits%20up
 const STORED_DEFLATE_OVERHEAD: usize = 5;
 /// Maximum uncompressed payload buffered for one BGZF block.
 ///
-/// A
-/// [stored-DEFLATE](https://en.wikipedia.org/wiki/Deflate#:~:text=(sometimes%20called-,stored,-).%20Any%20bits%20up)
-/// (uncompressed data) block of this size exactly fits the BGZF block limit.
-/// Compressed blocks use this same input size and fall back to stored DEFLATE
-/// when their compressed raw-DEFLATE stream does not fit.
+/// A [stored-DEFLATE] (uncompressed data) block of this size exactly fits the
+/// BGZF block limit. Compressed blocks use this same input size and fall back
+/// to stored DEFLATE when their compressed raw-DEFLATE stream does not fit.
+///
+/// [stored-DEFLATE]:
+///     https://en.wikipedia.org/wiki/Deflate#:~:text=(sometimes%20called-,stored,-).%20Any%20bits%20up
 const MAX_BGZF_PAYLOAD: usize = MAX_DEFLATE_SIZE - STORED_DEFLATE_OVERHEAD;
 
 /// Compression hook for producing a raw-DEFLATE (compressed) stream from one
 /// BGZF payload.
 ///
 /// Implementors may return `Ok(None)` to indicate that the payload should be
-/// written as
-/// [stored-DEFLATE](https://en.wikipedia.org/wiki/Deflate#:~:text=(sometimes%20called-,stored,-).%20Any%20bits%20up)
-/// (uncompressed data) instead.
+/// written as [stored-DEFLATE] (uncompressed data) instead.
+///
+/// [stored-DEFLATE]:
+///     https://en.wikipedia.org/wiki/Deflate#:~:text=(sometimes%20called-,stored,-).%20Any%20bits%20up
 pub trait BlockCompressor {
     /// Attempts to compress `input` into `output` as a complete raw-DEFLATE
     /// (compressed) stream.
     ///
     /// On success, returns `Some(len)` where `len` is the number of bytes in
     /// `output` that make up the encoded stream. Returning `None` requests the
-    /// [stored-DEFLATE](https://en.wikipedia.org/wiki/Deflate#:~:text=(sometimes%20called-,stored,-).%20Any%20bits%20up)
-    /// (uncompressed data) fallback path.
+    /// [stored-DEFLATE] (uncompressed data) fallback path.
     ///
     /// # Errors
     ///
     /// Returns an error if compression fails for the current payload.
+    ///
+    /// [stored-DEFLATE]:
+    ///     https://en.wikipedia.org/wiki/Deflate#:~:text=(sometimes%20called-,stored,-).%20Any%20bits%20up
     fn compress(&mut self, input: &[u8], output: &mut Vec<u8>) -> std::io::Result<Option<usize>>;
 }
 
@@ -63,9 +72,11 @@ impl BlockCompressor for NoCompression {
 /// boundaries and the mandatory BGZF EOF marker.
 ///
 /// Compression is delegated to a pluggable [`BlockCompressor`]. The default
-/// type parameter uses [`NoCompression`], which always emits
-/// [stored-DEFLATE](https://en.wikipedia.org/wiki/Deflate#:~:text=(sometimes%20called-,stored,-).%20Any%20bits%20up)
+/// type parameter uses [`NoCompression`], which always emits [stored-DEFLATE]
 /// (uncompressed data) blocks.
+///
+/// [stored-DEFLATE]:
+///     https://en.wikipedia.org/wiki/Deflate#:~:text=(sometimes%20called-,stored,-).%20Any%20bits%20up
 pub(super) struct BgzfWriter<W: Write, C: BlockCompressor = NoCompression> {
     /// Wrapped writer that receives complete BGZF blocks.
     inner:            W,
@@ -80,7 +91,7 @@ pub(super) struct BgzfWriter<W: Write, C: BlockCompressor = NoCompression> {
 }
 
 impl<W: Write, C: BlockCompressor> BgzfWriter<W, C> {
-    /// Creates an empty BGZF writer over `inner`.
+    /// Creates an empty BGZF writer over the `inner` writer.
     pub(super) fn with_compressor(inner: W, compressor: C) -> Self {
         Self {
             inner,
@@ -125,9 +136,10 @@ impl<W: Write, C: BlockCompressor> BgzfWriter<W, C> {
     }
 
     /// Writes one payload as a BGZF block, using compressed raw DEFLATE when
-    /// worthwhile, and
-    /// [stored-DEFLATE](https://en.wikipedia.org/wiki/Deflate#:~:text=(sometimes%20called-,stored,-).%20Any%20bits%20up)
-    /// (uncompressed data) otherwise.
+    /// worthwhile, and [stored-DEFLATE] (uncompressed data) otherwise.
+    ///
+    /// [stored-DEFLATE]:
+    ///     https://en.wikipedia.org/wiki/Deflate#:~:text=(sometimes%20called-,stored,-).%20Any%20bits%20up
     fn write_bgzf_block(&mut self) -> std::io::Result<()> {
         self.compressed_block.clear();
         let deflate_len = self
@@ -138,8 +150,7 @@ impl<W: Write, C: BlockCompressor> BgzfWriter<W, C> {
         // DEFLATE is allowed to expand incompressible payloads. Prefer the
         // existing stored representation unless compression makes the block
         // smaller. If compression is unavailable or unsuitable, fall back to
-        // [stored-DEFLATE](https://en.wikipedia.org/wiki/Deflate#:~:text=(sometimes%20called-,stored,-).%20Any%20bits%20up)
-        // (uncompressed data).
+        // stored-DEFLATE (uncompressed data).
         if let Some(deflate_len) = deflate_len
             && deflate_len < self.payload.len() + STORED_DEFLATE_OVERHEAD
         {
@@ -149,11 +160,13 @@ impl<W: Write, C: BlockCompressor> BgzfWriter<W, C> {
         self.write_stored_bgzf_block()
     }
 
-    /// Writes one `payload` as a single
-    /// [stored-DEFLATE](https://en.wikipedia.org/wiki/Deflate#:~:text=(sometimes%20called-,stored,-).%20Any%20bits%20up)
-    /// (uncompressed data) BGZF block.
+    /// Writes one `payload` as a single [stored-DEFLATE] (uncompressed data)
+    /// BGZF block.
     ///
     /// The `payload` is expected to be no larger than [`MAX_BGZF_PAYLOAD`].
+    ///
+    /// [stored-DEFLATE]:
+    ///     https://en.wikipedia.org/wiki/Deflate#:~:text=(sometimes%20called-,stored,-).%20Any%20bits%20up
     fn write_stored_bgzf_block(&mut self) -> std::io::Result<()> {
         /// DEFLATE header byte for a final (the only) stored block: bit `0` is
         /// `BFINAL = 1`,bits `1..=2` are `BTYPE = 00` and bits `3..=7` are zero

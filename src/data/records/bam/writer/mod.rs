@@ -29,6 +29,7 @@ pub use bgzf::NoCompression;
 /// [`from_writer_with_compressor`].
 ///
 /// Choose a constructor based on how much control is needed:
+///
 /// - [`from_path`]: create or truncate a BAM file at a filesystem path and use
 ///   the default stored-DEFLATE strategy.
 /// - [`from_path_with_compressor`]: create or truncate a BAM file at a path and
@@ -145,7 +146,8 @@ impl<W: Write, C: BlockCompressor> BamWriter<W, C> {
     /// Creates a new BAM writer over an existing writer and compressor.
     ///
     /// The wrapped writer receives BGZF blocks, and compression decisions are
-    /// delegated to `compressor`.
+    /// delegated to `compressor`. It is not recommended to pass a buffered
+    /// writer, since [`BamWriter`] performs its own buffering.
     pub fn from_writer_with_compressor(writer: W, compressor: C) -> Self {
         BamWriter {
             bgzf:        Some(BgzfWriter::with_compressor(writer, compressor)),

@@ -4,32 +4,29 @@ All notable changes to this project will be documented in this file. The format
 is roughly based on [Keep a Changelog], and this project tries to adheres to
 [Semantic Versioning].
 
-## [0.0.32] - TBD
+## [0.0.32] - 2026-09-02
 
 ### Added
 
-- Added `BamWriter` for streaming SAM records to BGZF-compressed BAM, including BAM header and record encoding, custom compression backends, and BAI-compatible binning.
+- Added `BamWriter` for streaming SAM records to BGZF-compressed BAM, including BAM header and record encoding, custom compression backends, and BAI-compatible binning
 - The 2-bit k-mer encoder now has support for `get_variants` with 1 mismatch
+- Added `new_with_path` constructor for `ErrorWithContext`
+- `define_whichever` and `impl_traits` now support `DoubleEndedIterator`, `FusedIterator`, and `ExactSizeIterator`
 - Added additional `From` and `TryFrom` impls for sequence types
 - Added additional `DisplayErrStack` convenience implementations
-- `define_whichever` and `impl_traits` now support `DoubleEndedIterator`,
-  `FusedIterator`, and `ExactSizeIterator`
-- Added `new_with_path` constructor for `ErrorWithContext`
-- Added arbitrary generation and structured specifications for SAM optional fields and values, including configurable valid and unique tags and BAM-oriented constraints (behind `fuzzing` feature gate)
-- `SamData` arbitrary generation now includes optional fields, configurable through `SamDataSpecs` (behind `fuzzing` feature gate)
+- Added addition `Arbitrary` code for SAM data, including options to configure compatibility with `BamWriter` (behind `fuzzing` feature gate)
+- Added fields to `AlignmentStatesSpecs` for preventing clipping within the interior of the alignment (behind `fuzzing` feature gate)
 - Added an `include_infinite` option to `FloatSpecs` (behind `fuzzing` feature gate)
 - Added length specifications to `StringSpecs` (behind `fuzzing` feature gate)
 - Added more public methods to `ByteSpecs` (behind `fuzzing` feature gate)
 - Added additional fields for customizing the operation in `CigletSpecs` (behind `fuzzing` feature gate)
-- Added fields to `AlignmentStatesSpecs` for preventing clipping within the interior of the alignment (behind `fuzzing` feature gate)
 
 ### Changed
 
-- `QUAL` and `SEQ` fields now hold an empty sequence when `*` is present in the
-  file
+- `ErrorWithContext` now automatically pretty-prints the error when using `Debug` to support returning it directly from `main.rs`
 - `SamDataSort::coordinate_sort` now returns a SAM `@HD` line declaring coordinate sort order
 - `ByteSet::Custom` now holds `Cow` to support owned data (behind `fuzzing` feature gate)
-- `ErrorWithContext` now automatically pretty-prints the error when using `Debug` to support returning it directly from `main.rs`
+- `ByteSet`, `StringSpecs`, `AminoAcidSpecs`, and `NucleotidesSpecs` no longer implement `Copy` (behind `fuzzing` feature gate)
 
 ### Removed
 
@@ -37,9 +34,11 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ### Fixed
 
+- `QUAL` and `SEQ` fields read by `SAMReader` now hold an empty sequence when `*` is present in the file
 - `define_whichever` and `impl_traits` now permit more flexible generics and bounds
 - Fixed a bug where `annotate_clipping` could cause an empty ciglet in `AlignmentSpecs`
 - `ToRangeSearch` is now implemented on unsized types
+- Fixed a bug in the display implementation of `SamOptValue` for arrays
 
 ## [0.0.31] - 2026-07-15
 

@@ -58,7 +58,7 @@
 /// ## Notes
 ///
 /// Any trait being implemented must be imported (no qualified paths are
-/// possible with this macro). Const generics are not supported on the type.
+/// possible with this macro).
 ///
 /// When implementing [`Iterator`], the generics `Ff`, `Bb`, `Rr`, `Pp`, `Ss`,
 /// and `Kk` are reserved. These were chosen because they are unlikely to
@@ -184,7 +184,7 @@ macro_rules! define_whichever {
 /// ## Notes
 ///
 /// Any trait being implemented must be imported (no qualified paths are
-/// possible with this macro). Const generics are not supported on the type.
+/// possible with this macro).
 ///
 /// When implementing [`Iterator`], the generics `Ff`, `Bb`, `Rr`, `Pp`, `Ss`,
 /// and `Kk` are reserved. These were chosen because they are unlikely to

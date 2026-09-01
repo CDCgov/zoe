@@ -112,6 +112,8 @@ pub enum ByteSet {
     AminoAcidsCanonical(AminoAcidsByteSet),
 
     /// Includes a custom set of bytes.
+    ///
+    /// This variant can be constructed using [`ByteSet::from`].
     Custom(Cow<'static, [u8]>),
 }
 
@@ -262,6 +264,7 @@ impl<T> From<T> for ByteSet
 where
     Cow<'static, [u8]>: From<T>,
 {
+    /// Constructs a [`ByteSet::Custom`] value from the given byte set.
     fn from(value: T) -> Self {
         ByteSet::Custom(Cow::from(value))
     }
@@ -290,6 +293,8 @@ impl ByteSet {
     /// bytes that may be chosen.
     ///
     /// This avoids a clone if an owned [`Custom`] variant is used.
+    ///
+    /// [`Custom`]: ByteSet::Custom
     fn into_alphabet(self) -> Vec<u8> {
         match self {
             ByteSet::Custom(cow) => cow.into_owned(),
@@ -328,7 +333,10 @@ impl ByteSet {
         }
 
         let old_set = std::mem::take(self);
-        let alphabet = old_set.into_alphabet().into_iter().filter(|x| *x != byte).collect::<Vec<_>>();
+
+        let mut alphabet = old_set.into_alphabet();
+        alphabet.retain(|x| *x != byte);
+
         let new_set = ByteSet::from(alphabet);
         *self = new_set;
     }

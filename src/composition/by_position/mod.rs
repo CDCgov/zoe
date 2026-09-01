@@ -148,6 +148,7 @@ where
     /// order `A > C > G > T > N` is used.
     #[inline]
     #[must_use]
+    #[allow(clippy::needless_range_loop)]
     pub fn plurality_acgtn(&self) -> u8 {
         let mut max_count = self.inner[0];
         let mut max_idx = 0;

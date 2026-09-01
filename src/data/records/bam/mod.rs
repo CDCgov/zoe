@@ -1,8 +1,8 @@
 //! Write [BAM](https://en.wikipedia.org/wiki/BAM_(file_format)) files from
 //! [SAM](https://samtools.github.io/hts-specs/SAMv1.pdf) data.
 //!
-//! This module provides [`BamWriter`] for streaming [`SamData`] records to a
-//! BAM output stream.
+//! This module provides [`BamWriter`] for writing [`SamData`] records to a BAM
+//! output stream.
 //!
 //! Output is BGZF-wrapped BAM with the EOF marker. Compression is controlled by
 //! the writer: the default [`BamWriter`] uses stored-DEFLATE, and downstream

@@ -671,7 +671,9 @@ impl SamOptField {
             }
             'B' => Ok(SamOptField {
                 tag,
-                value: SamOptValue::parse_opt_array(string_value).with_context("Failed to parse 'B' array")?,
+                value: SamOptValue::Array(
+                    OptArray::parse_subtype_and_vals(string_value).with_context("Failed to parse 'B' array")?,
+                ),
             }),
             _ => Err(std::io::Error::other(format!(
                 "Unsupported SAM optional field type {type_code}"
@@ -769,7 +771,26 @@ pub enum SamOptValue {
     Array(OptArray),
 }
 
-impl SamOptValue {
+/// The data array for a [`SamOptValue::Array`] variant (type code `B`).
+#[derive(Clone, PartialEq, Debug)]
+pub enum OptArray {
+    /// Array subtype code `c`.
+    I8(Vec<i8>),
+    /// Array subtype code `C`.
+    U8(Vec<u8>),
+    /// Array subtype code `s`.
+    I16(Vec<i16>),
+    /// Array subtype code `S`.
+    U16(Vec<u16>),
+    /// Array subtype code `i`.
+    I32(Vec<i32>),
+    /// Array subtype code `I`.
+    U32(Vec<u32>),
+    /// Array subtype code `f`.
+    F32(Vec<f32>),
+}
+
+impl OptArray {
     /// Parses the array of optional SAM fields with type `B`.
     ///
     /// ## Errors
@@ -777,7 +798,7 @@ impl SamOptValue {
     /// The first letter in the array indicates the type of numbers in the
     /// following comma-separated array. The letter can be one of `c`, `C`, `s`,
     /// `S`, `i`, `I`, or `f`.
-    fn parse_opt_array(string_value: &str) -> std::io::Result<Self> {
+    fn parse_subtype_and_vals(string_value: &str) -> std::io::Result<Self> {
         let mut pieces = string_value.split(',');
         let Some(subtype) = pieces.next() else {
             return Err(std::io::Error::other("Missing subtype"));
@@ -790,42 +811,42 @@ impl SamOptValue {
                     .process_results(|iter| iter.collect())
                     .with_context("Error parsing 'c' subtype (`i8`)")?;
 
-                Ok(Self::Array(OptArray::I8(values)))
+                Ok(OptArray::I8(values))
             }
             "C" => {
                 let values = pieces
                     .map(str::parse::<u8>)
                     .process_results(|iter| iter.collect())
                     .with_context("Error parsing 'C' subtype (`u8`)")?;
-                Ok(Self::Array(OptArray::U8(values)))
+                Ok(OptArray::U8(values))
             }
             "s" => {
                 let values = pieces
                     .map(str::parse::<i16>)
                     .process_results(|iter| iter.collect())
                     .with_context("Error parsing 's' subtype (`i16`)")?;
-                Ok(Self::Array(OptArray::I16(values)))
+                Ok(OptArray::I16(values))
             }
             "S" => {
                 let values = pieces
                     .map(str::parse::<u16>)
                     .process_results(|iter| iter.collect())
                     .with_context("Error parsing 'S' subtype (`u16`)")?;
-                Ok(Self::Array(OptArray::U16(values)))
+                Ok(OptArray::U16(values))
             }
             "i" => {
                 let values = pieces
                     .map(str::parse::<i32>)
                     .process_results(|iter| iter.collect())
                     .with_context("Error parsing 'i' subtype (`i32`)")?;
-                Ok(Self::Array(OptArray::I32(values)))
+                Ok(OptArray::I32(values))
             }
             "I" => {
                 let values = pieces
                     .map(str::parse::<u32>)
                     .process_results(|iter| iter.collect())
                     .with_context("Error parsing 'I' subtype (`u32`)")?;
-                Ok(Self::Array(OptArray::U32(values)))
+                Ok(OptArray::U32(values))
             }
             "f" => {
                 let values = pieces
@@ -838,7 +859,7 @@ impl SamOptValue {
                     })
                     .process_results(|iter| iter.collect())
                     .with_context("Error parsing 'f' subtype (`f32`)")?;
-                Ok(Self::Array(OptArray::F32(values)))
+                Ok(OptArray::F32(values))
             }
             _ => Err(std::io::Error::other(format!("Unsupported subtype {subtype}"))),
         }
@@ -866,26 +887,8 @@ impl Display for SamOptValue {
     }
 }
 
-/// The data array for `B` field data.
-#[derive(Debug, Clone, PartialEq)]
-pub enum OptArray {
-    /// Array subtype code `c`.
-    I8(Vec<i8>),
-    /// Array subtype code `C`.
-    U8(Vec<u8>),
-    /// Array subtype code `s`.
-    I16(Vec<i16>),
-    /// Array subtype code `S`.
-    U16(Vec<u16>),
-    /// Array subtype code `i`.
-    I32(Vec<i32>),
-    /// Array subtype code `I`.
-    U32(Vec<u32>),
-    /// Array subtype code `f`.
-    F32(Vec<f32>),
-}
-
 impl OptArray {
+    /// A helper function for displaying a [`SamOptValue::Array`].
     fn fmt_opt_array<T: Display>(f: &mut Formatter<'_>, arr_type: char, vals: &[T]) -> std::fmt::Result {
         write!(f, "B:{arr_type}")?;
 

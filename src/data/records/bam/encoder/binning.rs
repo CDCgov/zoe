@@ -51,8 +51,8 @@ const BIN_LEVELS: [BinLevel; 5] = [
 /// Computes the BAI-compatible bin for an alignment.
 ///
 /// `pos0` is the 0-based start position and `ref_span` is the number of
-/// reference bases consumed by the CIGAR. Records without a coordinate (`pos0
-/// == -1`) use BAM's reserved unplaced-unmapped bin `4680`. Records with the
+/// reference bases consumed by the CIGAR. Records without a coordinate (`pos0`
+/// as `-1`) use BAM's reserved unplaced-unmapped bin `4680`. Records with the
 /// unmapped flag set but with a coordinate are binned as a one-base interval at
 /// `pos0`.
 ///

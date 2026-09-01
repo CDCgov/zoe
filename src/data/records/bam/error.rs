@@ -45,7 +45,7 @@ pub enum BamError {
     Record {
         /// Record name context.
         qname:  String,
-        /// The record-specific error..
+        /// The record-specific error.
         source: BamRecordError,
     },
 }
@@ -106,7 +106,7 @@ pub enum BamEncodingError {
     SizeOverflow {
         /// The name of the field being encoded.
         field:  &'static str,
-        /// Target type or BAM field size that would be exceeded.
+        /// The maximum allowable value for the field.
         target: NumberSizeTarget,
     },
     /// A BAM validation or encoding failure without a more specific public
@@ -137,6 +137,8 @@ impl BamEncodingError {
     }
 }
 
+/// The maximum allowable value for a BAM field, expressed as either an
+/// inclusive or exclusive bound.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 #[non_exhaustive]
 pub enum NumberSizeTarget {

@@ -2,7 +2,7 @@
 //! type.
 
 use crate::{
-    data::arbitrary::{ArbitrarySpecs, ByteSet, Case, NucleotidesSpecs, StringSpecs},
+    data::arbitrary::{ArbitrarySpecs, ByteSet, NucleotidesSpecs, StringSpecs},
     prelude::{FastQ, Len, Nucleotides, QualityScores},
 };
 use arbitrary::{Arbitrary, Result, Unstructured};
@@ -51,12 +51,11 @@ impl FastQSpecs {
         Self {
             header_specs:   StringSpecs {
                 set: ByteSet::AsciiGraphicOrSpace,
-                case: Case::Any,
                 ..Default::default()
             },
             sequence_specs: NucleotidesSpecs {
-                set:  ByteSet::AsciiGraphic,
-                case: Case::Any,
+                set: ByteSet::AsciiGraphic,
+                ..Default::default()
             },
             same_lengths:   true,
         }

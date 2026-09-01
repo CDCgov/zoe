@@ -53,7 +53,7 @@ pub(super) fn encode_read_name(qname: &str) -> Result<Vec<u8>, BamRecordError> {
 /// deviates from the SAM/BAM spec; the spec's BAM sequence alphabet does not
 /// include a `U` code.
 pub(super) fn encode_seq(seq: &Nucleotides) -> Vec<u8> {
-    /// Sequence byte index map: `=ACMGRSVTWYHKDBN` are mapped to `[0,15]`. `N`
+    /// Sequence byte index map: `=ACMGRSVTWYHKDBN` are mapped to `[0, 15]`. `N`
     /// is used as a catch-all for all other characters, and `U` is encoded as
     /// `T` as an intentional deviation from the BAM sequence alphabet. `=` is
     /// called a base code in the specs.
@@ -97,7 +97,7 @@ pub(super) fn encode_qual(qual: &QualityScores, l_seq: usize) -> Result<Vec<u8>,
 ///
 /// Each word stores a 28-bit operation length and a 4-bit operation code.
 pub(super) fn encode_cigar(ciglets: &AlignmentStates) -> Result<Vec<u32>, BamRecordError> {
-    /// CIGAR byte index map: `MIDNSHP=X`→`012345678`. `?` is used as a
+    /// CIGAR byte index map: `MIDNSHP=X` maps to `012345678`. `?` is used as a
     /// catch-all for invalid CIGAR operations.
     const CIGAR_MAP: ByteIndexMap<10> = ByteIndexMap::new(*b"MIDNSHP=X?", b'?');
 
@@ -278,7 +278,8 @@ fn encode_bam_aux_array(array: &OptArray, out: &mut Vec<u8>) -> Result<(), BamRe
     Ok(())
 }
 
-/// Helper functions for encoding auxiliary arrays.
+/// A helper function for [`encode_bam_aux_array`] that pushes the subtype,
+/// length, and encoded `bytes` to `out`.
 fn write_opt_array<V>(
     out: &mut Vec<u8>, subtype: u8, values: &[V], bytes: impl IntoIterator<Item = u8>,
 ) -> Result<(), BamRecordError> {

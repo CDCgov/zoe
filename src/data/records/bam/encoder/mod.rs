@@ -5,8 +5,6 @@
 //! bins, normalizes BAM flag bits, and handles BAM's long-CIGAR representation
 //! when the inline CIGAR field would overflow.
 
-const MAX_SAM_POS: usize = i32::MAX as usize;
-
 use crate::{
     alignment::AlignmentStates,
     data::{
@@ -23,6 +21,7 @@ use crate::{
         views::Len,
     },
 };
+
 mod binning;
 mod fields;
 
@@ -46,7 +45,7 @@ pub(super) struct PreparedBamRecord {
     bin:         u16,
     /// Number of inline CIGAR operations stored in `cigar_field`.
     n_cigar_op:  u16,
-    /// BAM flag word after normalizing SAM flags for Zoe's BAM output.
+    /// BAM flag word after normalizing SAM flags for *Zoe*'s BAM output.
     flag:        u16,
     /// Query sequence length stored in the BAM core record.
     l_seq:       u32,
@@ -72,7 +71,11 @@ impl PreparedBamRecord {
     /// CIGAR or auxiliary fields cannot be parsed, if an option field contains
     /// the reserved long CIGAR `CG` tag, or if any encoded field would overflow
     /// BAM's size limits.
+    #[allow(clippy::too_many_lines)]
     pub(super) fn new(header: &Header, data: &SamData) -> Result<Self, BamRecordError> {
+        /// The maximum inclusive position allowed by the SAM file format.
+        const MAX_SAM_POS: usize = i32::MAX as usize;
+
         let ref_id = header.get_ref_id(&data.rname)?;
         // 0-indexed
         let pos0 = match data.pos {
@@ -196,13 +199,13 @@ impl PreparedBamRecord {
     /// Returns an error if the total block size overflows BAM's representable
     /// limits.
     pub(super) fn encode(&self, qname: &str) -> Result<Vec<u8>, BamError> {
-        /// Placeholder mate reference ID written because Zoe does not
+        /// Placeholder mate reference ID written because *Zoe* does not
         /// currently preserve SAM `RNEXT`.
         const RNEXT: i32 = -1;
-        /// Placeholder mate position written because Zoe does not currently
+        /// Placeholder mate position written because *Zoe* does not currently
         /// preserve SAM `PNEXT`.
         const PNEXT: i32 = -1;
-        /// Placeholder template length written because Zoe does not currently
+        /// Placeholder template length written because *Zoe* does not currently
         /// preserve SAM `TLEN`.
         const TLEN: i32 = 0;
         /// Total length of BAM fields with fixed length `refID` through `tlen`.
@@ -284,11 +287,11 @@ impl PreparedBamRecord {
     }
 }
 
-/// Normalizes the SAM flag word for the BAM record Zoe can faithfully emit.
+/// Normalizes the SAM flag word for the BAM record *Zoe* can faithfully emit.
 ///
 /// Unsupported or mate-dependent bits are cleared, and records with an empty
 /// CIGAR are marked as unmapped so the serialized BAM flag is consistent with
-/// Zoe's treatment of empty-CIGAR records.
+/// *Zoe*'s treatment of empty-CIGAR records.
 fn normalize_flags(flag: u16, cigar_is_missing: bool) -> u16 {
     let mut flag = filter_unsupported_flags(flag);
 

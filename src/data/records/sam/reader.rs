@@ -61,7 +61,9 @@ impl std::fmt::Display for SamRow {
 /// An iterator for buffered reading of a SAM file.
 ///
 /// This iterator guarantees quality scores are valid (see [`QualityScores`] for
-/// more details). It does not check for the validity of the CIGAR strings.
+/// more details). It does not check for the validity of the CIGAR strings. When
+/// the `SEQ` or `QUAL` fields are `*`, empty sequences are stored in the
+/// resulting [`SamData`] items.
 ///
 /// ## Parameters
 ///
