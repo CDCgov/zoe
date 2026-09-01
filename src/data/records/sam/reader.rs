@@ -253,12 +253,16 @@ impl<R: std::io::Read, const OPT: bool> Iterator for SAMReader<R, OPT> {
                 }
             };
 
-            let seq: Nucleotides = parts[9].into();
+            let seq = if is_missing_sam_field(parts[9]) {
+                Nucleotides::new()
+            } else {
+                parts[9].into()
+            };
 
             let qual = if is_missing_sam_field(parts[10]) {
                 QualityScores::new()
             } else {
-                unwrap_or_return_some_err!(parts[10].as_bytes().try_into())
+                unwrap_or_return_some_err!(parts[10].try_into())
             };
 
             let opt_fields = if OPT {
@@ -281,6 +285,7 @@ impl<R: std::io::Read, const OPT: bool> Iterator for SAMReader<R, OPT> {
                 qual,
                 opt_fields,
             };
+
             Some(Ok(SamRow::Data(row)))
         }
     }

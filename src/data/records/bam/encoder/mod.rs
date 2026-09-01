@@ -92,19 +92,23 @@ impl PreparedBamRecord {
 
         let ciglets = AlignmentStates::try_from(&data.cigar).map_err(|source| BamRecordError::InvalidCigar { source })?;
         let cigar_is_missing = ciglets.is_empty();
-        let Some(query_bases_from_cigar) = ciglets.query_len_in_alignment_checked() else {
-            return Err(BamEncodingError::SizeOverflow {
-                field:  "query-consuming CIGAR length",
-                target: NumberSizeTarget::MaxInclusive(usize::MAX),
+
+        if !cigar_is_missing {
+            let Some(query_bases_from_cigar) = ciglets.query_len_in_alignment_checked() else {
+                return Err(BamEncodingError::SizeOverflow {
+                    field:  "query-consuming CIGAR length",
+                    target: NumberSizeTarget::MaxInclusive(usize::MAX),
+                }
+                .into());
+            };
+            if !seq_missing && query_bases_from_cigar != l_seq {
+                return Err(BamEncodingError::other(format!(
+                    "SEQ length ({l_seq}) does not match query-consuming CIGAR length ({query_bases_from_cigar})"
+                ))
+                .into());
             }
-            .into());
-        };
-        if !seq_missing && !cigar_is_missing && query_bases_from_cigar != l_seq {
-            return Err(BamEncodingError::other(format!(
-                "SEQ length ({l_seq}) does not match query-consuming CIGAR length ({query_bases_from_cigar})"
-            ))
-            .into());
         }
+
         if seq_missing && !qual_missing {
             return Err(BamEncodingError::other("QUAL must be missing when SEQ is missing").into());
         }

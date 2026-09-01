@@ -25,6 +25,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ### Changed
 
+- `QUAL` and `SEQ` fields now hold an empty sequence when `*` is present in the
+  file
 - `SamDataSort::coordinate_sort` now returns a SAM `@HD` line declaring coordinate sort order
 - `ByteSet::Custom` now holds `Cow` to support owned data (behind `fuzzing` feature gate)
 - `ErrorWithContext` now automatically pretty-prints the error when using `Debug` to support returning it directly from `main.rs`
