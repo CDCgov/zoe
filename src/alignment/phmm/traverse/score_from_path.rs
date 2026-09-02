@@ -2,13 +2,12 @@
 
 use crate::{
     alignment::phmm::{
-        PhmmNumber,
+        DomainPhmm, GlobalPhmm, LocalPhmm, PhmmNumber, SemiLocalPhmm,
         components::{EmissionParams, TransitionParams},
         indexing::{DpIndex, SeqIndex},
         modules::{DomainModule, SemiLocalModule},
         state::{PhmmState, PhmmStateOrModule},
         traverse::{DomainVisitor, EndInsert, EndInsertExit, GlobalVisitor, LocalVisitor, ModuleLocation, SemiLocalVisitor},
-        views::{DomainPhmmView, GlobalPhmmView, LocalPhmmView, SemiLocalPhmmView},
     },
     data::ByteIndexMap,
 };
@@ -89,7 +88,7 @@ where
 
     fn choose_emission(
         &mut self, layer: DpIndex, state: PhmmState, params: &EmissionParams<T, S>, map: &ByteIndexMap<S>,
-        phmm: GlobalPhmmView<T, S>,
+        phmm: &GlobalPhmm<T, S>,
     ) -> Result<usize, Self::Error> {
         let idx = self.inner_visitor.choose_emission(layer, state, params, map, phmm)?;
         self.score += params[idx];
@@ -97,7 +96,7 @@ where
     }
 
     fn choose_core_transition(
-        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, phmm: GlobalPhmmView<T, S>,
+        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, phmm: &GlobalPhmm<T, S>,
     ) -> Result<PhmmState, Self::Error> {
         let next_state = self.inner_visitor.choose_core_transition(layer, exiting, params, phmm)?;
         self.score += params[(exiting, next_state)];
@@ -105,7 +104,7 @@ where
     }
 
     fn choose_end_or_insert(
-        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, phmm: GlobalPhmmView<T, S>,
+        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, phmm: &GlobalPhmm<T, S>,
     ) -> Result<EndInsert, Self::Error> {
         let next_state = self.inner_visitor.choose_end_or_insert(layer, exiting, params, phmm)?;
         let param = match next_state {
@@ -116,7 +115,7 @@ where
         Ok(next_state)
     }
 
-    fn finalize(self, phmm: GlobalPhmmView<T, S>) -> Result<Self::Output, Self::Error> {
+    fn finalize(self, phmm: &GlobalPhmm<T, S>) -> Result<Self::Output, Self::Error> {
         Ok(WithScore {
             output: self.inner_visitor.finalize(phmm)?,
             score:  self.score,
@@ -134,7 +133,7 @@ where
 
     fn choose_emission(
         &mut self, layer: DpIndex, state: PhmmState, params: &EmissionParams<T, S>, map: &ByteIndexMap<S>,
-        phmm: DomainPhmmView<T, S>,
+        phmm: &DomainPhmm<T, S>,
     ) -> Result<usize, Self::Error> {
         let idx = self.inner_visitor.choose_emission(layer, state, params, map, phmm)?;
         self.score += params[idx];
@@ -142,7 +141,7 @@ where
     }
 
     fn choose_core_transition(
-        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, phmm: DomainPhmmView<T, S>,
+        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, phmm: &DomainPhmm<T, S>,
     ) -> Result<PhmmState, Self::Error> {
         let next_state = self.inner_visitor.choose_core_transition(layer, exiting, params, phmm)?;
         self.score += params[(exiting, next_state)];
@@ -150,7 +149,7 @@ where
     }
 
     fn choose_end_or_insert(
-        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, phmm: DomainPhmmView<T, S>,
+        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, phmm: &DomainPhmm<T, S>,
     ) -> Result<EndInsert, Self::Error> {
         let next_state = self.inner_visitor.choose_end_or_insert(layer, exiting, params, phmm)?;
         let param = match next_state {
@@ -162,7 +161,7 @@ where
     }
 
     fn choose_domain_emission(
-        &mut self, params: &EmissionParams<T, S>, mapping: &ByteIndexMap<S>, loc: ModuleLocation, phmm: DomainPhmmView<T, S>,
+        &mut self, params: &EmissionParams<T, S>, mapping: &ByteIndexMap<S>, loc: ModuleLocation, phmm: &DomainPhmm<T, S>,
     ) -> Result<usize, Self::Error> {
         // This function does not update the score, since that is done later in
         // exit_module_insert. However, it does update module_inserted.
@@ -172,7 +171,7 @@ where
     }
 
     fn enter_module_insert(
-        &mut self, module: &DomainModule<T, S>, loc: ModuleLocation, phmm: DomainPhmmView<T, S>,
+        &mut self, module: &DomainModule<T, S>, loc: ModuleLocation, phmm: &DomainPhmm<T, S>,
     ) -> Result<bool, Self::Error> {
         // This function does not update the score, since that is done later in
         // exiting_module
@@ -180,7 +179,7 @@ where
     }
 
     fn exit_module_insert(
-        &mut self, module: &DomainModule<T, S>, loc: ModuleLocation, phmm: DomainPhmmView<T, S>,
+        &mut self, module: &DomainModule<T, S>, loc: ModuleLocation, phmm: &DomainPhmm<T, S>,
     ) -> Result<bool, Self::Error> {
         // This function does not update the score, since that is done later in
         // exiting_module
@@ -190,7 +189,7 @@ where
     }
 
     fn exiting_module(
-        &mut self, module: &DomainModule<T, S>, loc: ModuleLocation, phmm: DomainPhmmView<T, S>,
+        &mut self, module: &DomainModule<T, S>, loc: ModuleLocation, phmm: &DomainPhmm<T, S>,
     ) -> Result<(), Self::Error> {
         // Update score all at once to have correct order of floating point
         // operations
@@ -203,7 +202,7 @@ where
         self.inner_visitor.exiting_module(module, loc, phmm)
     }
 
-    fn finalize(self, phmm: DomainPhmmView<T, S>, query_range: Range<SeqIndex>) -> Result<Self::Output, Self::Error> {
+    fn finalize(self, phmm: &DomainPhmm<T, S>, query_range: Range<SeqIndex>) -> Result<Self::Output, Self::Error> {
         Ok(WithScore {
             output: self.inner_visitor.finalize(phmm, query_range)?,
             score:  self.score,
@@ -221,7 +220,7 @@ where
 
     fn choose_emission(
         &mut self, layer: DpIndex, state: PhmmState, params: &EmissionParams<T, S>, map: &ByteIndexMap<S>,
-        phmm: SemiLocalPhmmView<T, S>,
+        phmm: &SemiLocalPhmm<T, S>,
     ) -> Result<usize, Self::Error> {
         let idx = self.inner_visitor.choose_emission(layer, state, params, map, phmm)?;
         self.score += params[idx];
@@ -229,7 +228,7 @@ where
     }
 
     fn choose_core_transition(
-        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, phmm: SemiLocalPhmmView<T, S>,
+        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, phmm: &SemiLocalPhmm<T, S>,
     ) -> Result<PhmmState, Self::Error> {
         let next_state = self.inner_visitor.choose_core_transition(layer, exiting, params, phmm)?;
         self.score += params[(exiting, next_state)];
@@ -237,7 +236,7 @@ where
     }
 
     fn choose_end_or_insert(
-        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, phmm: SemiLocalPhmmView<T, S>,
+        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, phmm: &SemiLocalPhmm<T, S>,
     ) -> Result<EndInsert, Self::Error> {
         let next_state = self.inner_visitor.choose_end_or_insert(layer, exiting, params, phmm)?;
         let param = match next_state {
@@ -249,7 +248,7 @@ where
     }
 
     fn choose_core_transition_or_exit(
-        &mut self, layer: DpIndex, params: &TransitionParams<T>, exit_param: T, phmm: SemiLocalPhmmView<T, S>,
+        &mut self, layer: DpIndex, params: &TransitionParams<T>, exit_param: T, phmm: &SemiLocalPhmm<T, S>,
     ) -> Result<PhmmStateOrModule, Self::Error> {
         let next_state = self
             .inner_visitor
@@ -264,7 +263,7 @@ where
 
     fn choose_end_insert_or_exit(
         &mut self, layer: DpIndex, params: &TransitionParams<T>, exit_param: T, exit_from_end_param: T,
-        phmm: SemiLocalPhmmView<T, S>,
+        phmm: &SemiLocalPhmm<T, S>,
     ) -> Result<EndInsertExit, Self::Error> {
         let next_state =
             self.inner_visitor
@@ -279,27 +278,25 @@ where
         Ok(next_state)
     }
 
-    fn enter_core(&mut self, module: &SemiLocalModule<T>, phmm: SemiLocalPhmmView<T, S>) -> Result<DpIndex, Self::Error> {
+    fn enter_core(&mut self, module: &SemiLocalModule<T>, phmm: &SemiLocalPhmm<T, S>) -> Result<DpIndex, Self::Error> {
         let layer = self.inner_visitor.enter_core(module, phmm)?;
         self.score += module.get_score(layer);
         Ok(layer)
     }
 
-    fn exit_core_from_end(
-        &mut self, layer: DpIndex, exit_param: T, phmm: SemiLocalPhmmView<T, S>,
-    ) -> Result<(), Self::Error> {
+    fn exit_core_from_end(&mut self, layer: DpIndex, exit_param: T, phmm: &SemiLocalPhmm<T, S>) -> Result<(), Self::Error> {
         self.inner_visitor.exit_core_from_end(layer, exit_param, phmm)?;
         Ok(())
     }
 
-    fn exit_core(&mut self, layer_idx: DpIndex, exit_param: T, phmm: SemiLocalPhmmView<T, S>) -> Result<(), Self::Error> {
+    fn exit_core(&mut self, layer_idx: DpIndex, exit_param: T, phmm: &SemiLocalPhmm<T, S>) -> Result<(), Self::Error> {
         self.inner_visitor.exit_core(layer_idx, exit_param, phmm)?;
         self.score += exit_param;
         Ok(())
     }
 
     fn finalize(
-        self, phmm: SemiLocalPhmmView<T, S>, aligned_layers: RangeInclusive<DpIndex>,
+        self, phmm: &SemiLocalPhmm<T, S>, aligned_layers: RangeInclusive<DpIndex>,
     ) -> Result<Self::Output, Self::Error> {
         Ok(WithScore {
             output: self.inner_visitor.finalize(phmm, aligned_layers)?,
@@ -318,7 +315,7 @@ where
 
     fn choose_emission(
         &mut self, layer: DpIndex, state: PhmmState, params: &EmissionParams<T, S>, map: &ByteIndexMap<S>,
-        phmm: LocalPhmmView<T, S>,
+        phmm: &LocalPhmm<T, S>,
     ) -> Result<usize, Self::Error> {
         let idx = self.inner_visitor.choose_emission(layer, state, params, map, phmm)?;
         self.score += params[idx];
@@ -326,7 +323,7 @@ where
     }
 
     fn choose_core_transition(
-        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, phmm: LocalPhmmView<T, S>,
+        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, phmm: &LocalPhmm<T, S>,
     ) -> Result<PhmmState, Self::Error> {
         let next_state = self.inner_visitor.choose_core_transition(layer, exiting, params, phmm)?;
         self.score += params[(exiting, next_state)];
@@ -334,7 +331,7 @@ where
     }
 
     fn choose_end_or_insert(
-        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, phmm: LocalPhmmView<T, S>,
+        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, phmm: &LocalPhmm<T, S>,
     ) -> Result<EndInsert, Self::Error> {
         let next_state = self.inner_visitor.choose_end_or_insert(layer, exiting, params, phmm)?;
         let param = match next_state {
@@ -346,7 +343,7 @@ where
     }
 
     fn choose_core_transition_or_exit(
-        &mut self, layer: DpIndex, params: &TransitionParams<T>, exit_param: T, phmm: LocalPhmmView<T, S>,
+        &mut self, layer: DpIndex, params: &TransitionParams<T>, exit_param: T, phmm: &LocalPhmm<T, S>,
     ) -> Result<PhmmStateOrModule, Self::Error> {
         let next_state = self
             .inner_visitor
@@ -361,7 +358,7 @@ where
 
     fn choose_end_insert_or_exit(
         &mut self, layer: DpIndex, params: &TransitionParams<T>, exit_param: T, exit_from_end_param: T,
-        phmm: LocalPhmmView<T, S>,
+        phmm: &LocalPhmm<T, S>,
     ) -> Result<EndInsertExit, Self::Error> {
         let next_state =
             self.inner_visitor
@@ -376,25 +373,25 @@ where
         Ok(next_state)
     }
 
-    fn enter_core(&mut self, module: &SemiLocalModule<T>, phmm: LocalPhmmView<T, S>) -> Result<DpIndex, Self::Error> {
+    fn enter_core(&mut self, module: &SemiLocalModule<T>, phmm: &LocalPhmm<T, S>) -> Result<DpIndex, Self::Error> {
         let layer = self.inner_visitor.enter_core(module, phmm)?;
         self.score += module.get_score(layer);
         Ok(layer)
     }
 
-    fn exit_core_from_end(&mut self, layer: DpIndex, exit_param: T, phmm: LocalPhmmView<T, S>) -> Result<(), Self::Error> {
+    fn exit_core_from_end(&mut self, layer: DpIndex, exit_param: T, phmm: &LocalPhmm<T, S>) -> Result<(), Self::Error> {
         self.inner_visitor.exit_core_from_end(layer, exit_param, phmm)?;
         Ok(())
     }
 
-    fn exit_core(&mut self, layer_idx: DpIndex, exit_param: T, phmm: LocalPhmmView<T, S>) -> Result<(), Self::Error> {
+    fn exit_core(&mut self, layer_idx: DpIndex, exit_param: T, phmm: &LocalPhmm<T, S>) -> Result<(), Self::Error> {
         self.inner_visitor.exit_core(layer_idx, exit_param, phmm)?;
         self.exit_param = exit_param;
         Ok(())
     }
 
     fn choose_local_emission(
-        &mut self, params: &EmissionParams<T, S>, mapping: &ByteIndexMap<S>, loc: ModuleLocation, phmm: LocalPhmmView<T, S>,
+        &mut self, params: &EmissionParams<T, S>, mapping: &ByteIndexMap<S>, loc: ModuleLocation, phmm: &LocalPhmm<T, S>,
     ) -> Result<usize, Self::Error> {
         // This function does not update the score, since that is done later in
         // exit_module_insert. However, it does update module_inserted.
@@ -404,7 +401,7 @@ where
     }
 
     fn enter_module_insert(
-        &mut self, module: &DomainModule<T, S>, loc: ModuleLocation, phmm: LocalPhmmView<T, S>,
+        &mut self, module: &DomainModule<T, S>, loc: ModuleLocation, phmm: &LocalPhmm<T, S>,
     ) -> Result<bool, Self::Error> {
         // This function does not update the score, since that is done later in
         // exit_module_insert
@@ -412,7 +409,7 @@ where
     }
 
     fn exit_module_insert(
-        &mut self, module: &DomainModule<T, S>, loc: ModuleLocation, phmm: LocalPhmmView<T, S>,
+        &mut self, module: &DomainModule<T, S>, loc: ModuleLocation, phmm: &LocalPhmm<T, S>,
     ) -> Result<bool, Self::Error> {
         // This function does not update the score, since that is done later in
         // exiting_module
@@ -422,7 +419,7 @@ where
     }
 
     fn exiting_domain_module(
-        &mut self, module: &DomainModule<T, S>, loc: ModuleLocation, phmm: LocalPhmmView<T, S>,
+        &mut self, module: &DomainModule<T, S>, loc: ModuleLocation, phmm: &LocalPhmm<T, S>,
     ) -> Result<(), Self::Error> {
         // Update score all at once to have correct order of floating point
         // operations
@@ -440,7 +437,7 @@ where
     }
 
     fn finalize(
-        self, phmm: LocalPhmmView<T, S>, aligned_layers: Range<DpIndex>, query_range: Range<SeqIndex>,
+        self, phmm: &LocalPhmm<T, S>, aligned_layers: RangeInclusive<DpIndex>, query_range: Range<SeqIndex>,
     ) -> Result<Self::Output, Self::Error> {
         Ok(WithScore {
             output: self.inner_visitor.finalize(phmm, aligned_layers, query_range)?,

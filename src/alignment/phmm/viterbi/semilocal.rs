@@ -20,7 +20,7 @@ struct SemiLocalBestScore<T> {
     score: T,
     /// The location from which the alignment exits the [`CorePhmm`]
     ///
-    /// [`CorePhmm`]: crate::alignment::phmm::CorePhmm
+    /// [`CorePhmm`]: crate::alignment::phmm::components::CorePhmm
     loc:   ExitLocation,
 }
 

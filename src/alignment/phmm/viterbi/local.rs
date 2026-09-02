@@ -24,11 +24,11 @@ struct LocalBestScore<T> {
     score: T,
     /// The last query index consumed by the [`CorePhmm`]
     ///
-    /// [`CorePhmm`]: crate::alignment::phmm::CorePhmm
+    /// [`CorePhmm`]: crate::alignment::phmm::components::CorePhmm
     i:     DpIndex,
     /// The location from which the alignment exits the [`CorePhmm`]
     ///
-    /// [`CorePhmm`]: crate::alignment::phmm::CorePhmm
+    /// [`CorePhmm`]: crate::alignment::phmm::components::CorePhmm
     loc:   ExitLocation,
 }
 

@@ -72,13 +72,7 @@ pub(crate) use crate::data::extension::simd;
 
 mod private {
     #[cfg(feature = "dev-phmm")]
-    use crate::alignment::phmm::{
-        DomainPhmm, GlobalPhmm, LocalPhmm, SemiLocalPhmm,
-        views::{
-            DomainPhmmView, DomainPhmmViewMut, GlobalPhmmView, GlobalPhmmViewMut, LocalPhmmView, LocalPhmmViewMut,
-            SemiLocalPhmmView, SemiLocalPhmmViewMut,
-        },
-    };
+    use crate::alignment::phmm::{DomainPhmm, GlobalPhmm, LocalPhmm, SemiLocalPhmm};
     use crate::{
         data::{
             cigar::{Cigar, CigarView, CigarViewMut},
@@ -142,27 +136,11 @@ mod private {
     #[cfg(feature = "dev-phmm")]
     impl<T, const S: usize> Sealed for GlobalPhmm<T, S> {}
     #[cfg(feature = "dev-phmm")]
-    impl<T, const S: usize> Sealed for GlobalPhmmView<'_, T, S> {}
-    #[cfg(feature = "dev-phmm")]
-    impl<T, const S: usize> Sealed for GlobalPhmmViewMut<'_, T, S> {}
-    #[cfg(feature = "dev-phmm")]
     impl<T, const S: usize> Sealed for LocalPhmm<T, S> {}
-    #[cfg(feature = "dev-phmm")]
-    impl<T, const S: usize> Sealed for LocalPhmmView<'_, T, S> {}
-    #[cfg(feature = "dev-phmm")]
-    impl<T, const S: usize> Sealed for LocalPhmmViewMut<'_, T, S> {}
     #[cfg(feature = "dev-phmm")]
     impl<T, const S: usize> Sealed for SemiLocalPhmm<T, S> {}
     #[cfg(feature = "dev-phmm")]
-    impl<T, const S: usize> Sealed for SemiLocalPhmmView<'_, T, S> {}
-    #[cfg(feature = "dev-phmm")]
-    impl<T, const S: usize> Sealed for SemiLocalPhmmViewMut<'_, T, S> {}
-    #[cfg(feature = "dev-phmm")]
     impl<T, const S: usize> Sealed for DomainPhmm<T, S> {}
-    #[cfg(feature = "dev-phmm")]
-    impl<T, const S: usize> Sealed for DomainPhmmView<'_, T, S> {}
-    #[cfg(feature = "dev-phmm")]
-    impl<T, const S: usize> Sealed for DomainPhmmViewMut<'_, T, S> {}
 
     sealed!(
         AminoAcids,

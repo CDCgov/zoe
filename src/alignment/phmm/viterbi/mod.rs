@@ -131,7 +131,7 @@ impl<T> ViterbiTraceback<T> {
 /// The location from which the alignment exits the [`CorePhmm`] for local or
 /// semilocal alignment.
 ///
-/// [`CorePhmm`]: super::CorePhmm
+/// [`CorePhmm`]: crate::alignment::phmm::components::CorePhmm
 #[derive(Clone, Copy)]
 enum ExitLocation {
     /// The alignment exited the core pHMM through the BEGIN state.

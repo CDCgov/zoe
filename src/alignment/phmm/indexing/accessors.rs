@@ -81,6 +81,16 @@ pub trait GetLayer<T, const S: usize>: PhmmIndexable {
     #[must_use]
     fn split_last_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]);
 
+    /// Returns the layers, split at a particular index.
+    ///
+    /// If the index is out of bounds, `None` is returned.
+    #[inline]
+    #[must_use]
+    #[allow(clippy::type_complexity)]
+    fn split_layers_at(&self, j: impl PhmmIndex) -> Option<(&[LayerParams<T, S>], &[LayerParams<T, S>])> {
+        self.layers().split_at_checked(self.get_dp_index(j))
+    }
+
     /// Returns a reference to the parameters for the layer containing the BEGIN
     /// state.
     ///
@@ -135,6 +145,20 @@ pub trait GetLayer<T, const S: usize>: PhmmIndexable {
     #[must_use]
     fn get_layers(&self, range: impl PhmmIndexRange) -> Option<&[LayerParams<T, S>]> {
         self.layers().get(self.get_dp_range(range))
+    }
+}
+
+impl<P: GetLayer<T, S>, T, const S: usize> GetLayer<T, S> for &P {
+    fn layers(&self) -> &[LayerParams<T, S>] {
+        P::layers(self)
+    }
+
+    fn split_first_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
+        P::split_first_layer(self)
+    }
+
+    fn split_last_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
+        P::split_last_layer(self)
     }
 }
 

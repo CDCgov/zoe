@@ -21,7 +21,7 @@ struct DomainBestScore<T> {
     score: T,
     /// The last query index consumed by the [`CorePhmm`]
     ///
-    /// [`CorePhmm`]: crate::alignment::phmm::CorePhmm
+    /// [`CorePhmm`]: crate::alignment::phmm::components::CorePhmm
     i:     DpIndex,
     /// The state from which the END state was reached
     state: PhmmState,

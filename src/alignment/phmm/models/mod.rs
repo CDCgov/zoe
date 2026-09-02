@@ -617,3 +617,31 @@ impl<T, const S: usize> GetMapping<S> for DomainPhmm<T, S> {
         self.mapping
     }
 }
+
+impl<T, const S: usize> GetMapping<S> for &GlobalPhmm<T, S> {
+    #[inline]
+    fn mapping(&self) -> &'static ByteIndexMap<S> {
+        self.mapping
+    }
+}
+
+impl<T, const S: usize> GetMapping<S> for &LocalPhmm<T, S> {
+    #[inline]
+    fn mapping(&self) -> &'static ByteIndexMap<S> {
+        self.mapping
+    }
+}
+
+impl<T, const S: usize> GetMapping<S> for &SemiLocalPhmm<T, S> {
+    #[inline]
+    fn mapping(&self) -> &'static ByteIndexMap<S> {
+        self.mapping
+    }
+}
+
+impl<T, const S: usize> GetMapping<S> for &DomainPhmm<T, S> {
+    #[inline]
+    fn mapping(&self) -> &'static ByteIndexMap<S> {
+        self.mapping
+    }
+}

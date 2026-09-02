@@ -135,16 +135,6 @@ impl From<PhmmState> for PhmmStateOrModule {
     }
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
-pub enum DomainModuleState {
-    Begin,
-    Insert,
-    // TODO: Is this needed? It could maybe be removed if this whole enum went
-    // private. Or maybe a more general run method instead of advance for driver
-    // would remove need for this altogether.
-    End,
-}
-
 /// A [`PhmmState`] or [`PhmmStateOrEnter`] represented as a `u8`.
 ///
 /// `Match` corresponds to 0, `Delete` corresponds to 1, `Insert` corresponds to

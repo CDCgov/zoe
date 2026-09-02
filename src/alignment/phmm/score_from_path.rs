@@ -4,13 +4,9 @@ use crate::alignment::{
     AlignmentStates,
     phmm::{
         DomainPhmm, GlobalPhmm, LocalPhmm, PhmmNumber, SemiLocalPhmm,
-        traverse::{
-            DomainPhmmDriver, GlobalPhmmDriver, LocalPhmmDriver, SemiLocalPhmmDriver,
-            alignment::{
-                DomainAlignmentVisitor, DomainTraverseFromAlignError, GlobalAlignmentVisitor, GlobalTraverseFromAlignError,
-                LocalAlignmentVisitor, LocalTraverseFromAlignError, SemiLocalAlignmentVisitor,
-                SemiLocalTraverseFromAlignError,
-            },
+        traverse::alignment::{
+            DomainAlignmentVisitor, DomainTraverseFromAlignError, GlobalAlignmentVisitor, GlobalTraverseFromAlignError,
+            LocalAlignmentVisitor, LocalTraverseFromAlignError, SemiLocalAlignmentVisitor, SemiLocalTraverseFromAlignError,
         },
     },
 };
@@ -34,9 +30,7 @@ where
     pub fn score_from_path<Q: AsRef<[u8]>>(
         &self, seq: Q, states: &AlignmentStates,
     ) -> Result<T, GlobalTraverseFromAlignError> {
-        let driver = GlobalPhmmDriver::new(self);
-        let visitor = GlobalAlignmentVisitor::new(seq.as_ref(), states, self);
-        driver.run(visitor)
+        self.traverse(GlobalAlignmentVisitor::new(seq.as_ref(), states, self))
     }
 }
 
@@ -64,9 +58,7 @@ where
     pub fn score_from_path<Q: AsRef<[u8]>>(
         &self, seq: Q, alignment: &AlignmentStates, ref_start: usize,
     ) -> Result<T, LocalTraverseFromAlignError> {
-        let driver = LocalPhmmDriver::new(self);
-        let visitor = LocalAlignmentVisitor::new(seq.as_ref(), alignment, ref_start, self)?;
-        driver.run(visitor)
+        self.traverse(LocalAlignmentVisitor::new(seq.as_ref(), alignment, ref_start, self)?)
     }
 }
 
@@ -90,9 +82,7 @@ where
     pub fn score_from_path<Q: AsRef<[u8]>>(
         &self, seq: Q, states: &AlignmentStates,
     ) -> Result<T, DomainTraverseFromAlignError> {
-        let driver = DomainPhmmDriver::new(self);
-        let visitor = DomainAlignmentVisitor::new(seq.as_ref(), states, self)?;
-        driver.run(visitor)
+        self.traverse(DomainAlignmentVisitor::new(seq.as_ref(), states, self)?)
     }
 }
 
@@ -121,8 +111,6 @@ where
     pub fn score_from_path<Q: AsRef<[u8]>>(
         &self, seq: Q, states: &AlignmentStates, ref_start: usize,
     ) -> Result<T, SemiLocalTraverseFromAlignError> {
-        let driver = SemiLocalPhmmDriver::new(self);
-        let visitor = SemiLocalAlignmentVisitor::new(seq.as_ref(), states, ref_start, self)?;
-        driver.run(visitor)
+        self.traverse(SemiLocalAlignmentVisitor::new(seq.as_ref(), states, ref_start, self)?)
     }
 }

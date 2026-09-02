@@ -2,10 +2,7 @@ use crate::alignment::{
     Alignment,
     phmm::{
         DomainPhmm, GlobalPhmm, LocalPhmm, PhmmNumber, SemiLocalPhmm,
-        traverse::{
-            DomainPhmmDriver, GlobalPhmmDriver, LocalPhmmDriver, SemiLocalPhmmDriver,
-            score_from_path::{ScoreVisitor, WithScore},
-        },
+        traverse::score_from_path::{ScoreVisitor, WithScore},
     },
 };
 use rand::Rng;
@@ -50,9 +47,8 @@ impl<T: PhmmNumber, const S: usize> GlobalPhmm<T, S> {
     pub fn sample(&self, rng: &mut impl Rng) -> Result<SampledSequence<T>, SamplingError<T, S>>
     where
         T: Clone + 'static, {
-        let driver = GlobalPhmmDriver::new(self);
         let visitor = ScoreVisitor::new(SampleVisitor::new(rng));
-        let output = driver.run(visitor)?;
+        let output = self.traverse(visitor)?;
 
         let WithScore {
             output: SampledSequence { sequence, alignment },
@@ -94,9 +90,8 @@ impl<T: PhmmNumber, const S: usize> DomainPhmm<T, S> {
     pub fn sample(&self, rng: &mut impl Rng) -> Result<SampledSequence<T>, SamplingError<T, S>>
     where
         T: Clone + 'static, {
-        let driver = DomainPhmmDriver::new(self);
         let visitor = ScoreVisitor::new(SampleVisitor::new(rng));
-        let output = driver.run(visitor)?;
+        let output = self.traverse(visitor)?;
 
         let WithScore {
             output: SampledSequence { sequence, alignment },
@@ -138,9 +133,7 @@ impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
     pub fn sample(&self, rng: &mut impl Rng) -> Result<SampledSequence<T>, SamplingError<T, S>>
     where
         T: Clone + 'static, {
-        let driver = SemiLocalPhmmDriver::new(self);
-        let visitor = ScoreVisitor::new(SampleVisitor::new(rng));
-        let output = driver.run(visitor)?;
+        let output = self.traverse(ScoreVisitor::new(SampleVisitor::new(rng)))?;
 
         let WithScore {
             output: SampledSequence { sequence, alignment },
@@ -182,9 +175,7 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
     pub fn sample(&self, rng: &mut impl Rng) -> Result<SampledSequence<T>, SamplingError<T, S>>
     where
         T: Clone + 'static, {
-        let driver = LocalPhmmDriver::new(self);
-        let visitor = ScoreVisitor::new(SampleVisitor::new(rng));
-        let output = driver.run(visitor)?;
+        let output = self.traverse(ScoreVisitor::new(SampleVisitor::new(rng)))?;
 
         let WithScore {
             output: SampledSequence { sequence, alignment },

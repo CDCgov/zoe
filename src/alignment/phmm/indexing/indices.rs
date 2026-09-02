@@ -238,6 +238,18 @@ pub trait PhmmIndexable: Sized {
     }
 }
 
+impl<P: PhmmIndexable> PhmmIndexable for &P {
+    fn num_pseudomatch(&self) -> usize {
+        P::num_pseudomatch(self)
+    }
+}
+
+impl<P: PhmmIndexable> PhmmIndexable for &mut P {
+    fn num_pseudomatch(&self) -> usize {
+        P::num_pseudomatch(self)
+    }
+}
+
 /// A trait for structures that can be indexed via a [`QueryIndex`], such as
 /// query sequence.
 pub trait QueryIndexable: Sized {
@@ -455,37 +467,7 @@ impl<T, const S: usize> PhmmIndexable for CorePhmm<T, S> {
     }
 }
 
-impl<T, const S: usize> PhmmIndexable for &CorePhmm<T, S> {
-    #[inline]
-    fn num_pseudomatch(&self) -> usize {
-        // The END state does not have an index in the CorePhmm, so we add 1
-        self.layers().len() + 1
-    }
-}
-
-impl<T, const S: usize> PhmmIndexable for &mut CorePhmm<T, S> {
-    #[inline]
-    fn num_pseudomatch(&self) -> usize {
-        // The END state does not have an index in the CorePhmm, so we add 1
-        self.layers().len() + 1
-    }
-}
-
 impl<T, const S: usize> PhmmIndexable for GlobalPhmm<T, S> {
-    #[inline]
-    fn num_pseudomatch(&self) -> usize {
-        self.core().num_pseudomatch()
-    }
-}
-
-impl<T, const S: usize> PhmmIndexable for &GlobalPhmm<T, S> {
-    #[inline]
-    fn num_pseudomatch(&self) -> usize {
-        self.core().num_pseudomatch()
-    }
-}
-
-impl<T, const S: usize> PhmmIndexable for &mut GlobalPhmm<T, S> {
     #[inline]
     fn num_pseudomatch(&self) -> usize {
         self.core().num_pseudomatch()
@@ -499,35 +481,7 @@ impl<T, const S: usize> PhmmIndexable for LocalPhmm<T, S> {
     }
 }
 
-impl<T, const S: usize> PhmmIndexable for &LocalPhmm<T, S> {
-    #[inline]
-    fn num_pseudomatch(&self) -> usize {
-        self.core().num_pseudomatch()
-    }
-}
-
-impl<T, const S: usize> PhmmIndexable for &mut LocalPhmm<T, S> {
-    #[inline]
-    fn num_pseudomatch(&self) -> usize {
-        self.core().num_pseudomatch()
-    }
-}
-
 impl<T, const S: usize> PhmmIndexable for SemiLocalPhmm<T, S> {
-    #[inline]
-    fn num_pseudomatch(&self) -> usize {
-        self.core().num_pseudomatch()
-    }
-}
-
-impl<T, const S: usize> PhmmIndexable for &SemiLocalPhmm<T, S> {
-    #[inline]
-    fn num_pseudomatch(&self) -> usize {
-        self.core().num_pseudomatch()
-    }
-}
-
-impl<T, const S: usize> PhmmIndexable for &mut SemiLocalPhmm<T, S> {
     #[inline]
     fn num_pseudomatch(&self) -> usize {
         self.core().num_pseudomatch()
@@ -541,20 +495,6 @@ impl<T, const S: usize> PhmmIndexable for DomainPhmm<T, S> {
     }
 }
 
-impl<T, const S: usize> PhmmIndexable for &DomainPhmm<T, S> {
-    #[inline]
-    fn num_pseudomatch(&self) -> usize {
-        self.core().num_pseudomatch()
-    }
-}
-
-impl<T, const S: usize> PhmmIndexable for &mut DomainPhmm<T, S> {
-    #[inline]
-    fn num_pseudomatch(&self) -> usize {
-        self.core().num_pseudomatch()
-    }
-}
-
 impl<T> PhmmIndexable for SemiLocalModule<T> {
     #[inline]
     fn num_pseudomatch(&self) -> usize {
@@ -562,35 +502,7 @@ impl<T> PhmmIndexable for SemiLocalModule<T> {
     }
 }
 
-impl<T> PhmmIndexable for &SemiLocalModule<T> {
-    #[inline]
-    fn num_pseudomatch(&self) -> usize {
-        self.0.len()
-    }
-}
-
-impl<T> PhmmIndexable for &mut SemiLocalModule<T> {
-    #[inline]
-    fn num_pseudomatch(&self) -> usize {
-        self.0.len()
-    }
-}
-
 impl<T, const S: usize> PhmmIndexable for PrecomputedLocalModule<'_, T, S> {
-    #[inline]
-    fn num_pseudomatch(&self) -> usize {
-        self.semilocal_params.num_pseudomatch()
-    }
-}
-
-impl<T, const S: usize> PhmmIndexable for &PrecomputedLocalModule<'_, T, S> {
-    #[inline]
-    fn num_pseudomatch(&self) -> usize {
-        self.semilocal_params.num_pseudomatch()
-    }
-}
-
-impl<T, const S: usize> PhmmIndexable for &mut PrecomputedLocalModule<'_, T, S> {
     #[inline]
     fn num_pseudomatch(&self) -> usize {
         self.semilocal_params.num_pseudomatch()

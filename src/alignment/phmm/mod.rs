@@ -29,7 +29,6 @@ pub mod sam_parser;
 pub mod state;
 mod traits;
 pub mod traverse;
-pub mod views;
 mod viterbi;
 
 #[cfg(feature = "rand")]

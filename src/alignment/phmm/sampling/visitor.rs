@@ -2,7 +2,7 @@ use crate::{
     alignment::{
         Alignment, AlignmentStates,
         phmm::{
-            PhmmNumber,
+            DomainPhmm, GlobalPhmm, LocalPhmm, PhmmNumber, SemiLocalPhmm,
             components::{EmissionParams, TransitionParams},
             indexing::{DpIndex, PhmmIndexable, SeqIndex, layer_range_to_ref_range},
             modules::{DomainModule, SemiLocalModule},
@@ -15,7 +15,6 @@ use crate::{
             traverse::{
                 DomainVisitor, EndInsert, EndInsertExit, GlobalVisitor, LocalVisitor, ModuleLocation, SemiLocalVisitor,
             },
-            views::{DomainPhmmView, GlobalPhmmView, LocalPhmmView, SemiLocalPhmmView},
         },
     },
     data::ByteIndexMap,
@@ -399,24 +398,24 @@ where
 
     fn choose_emission(
         &mut self, layer: DpIndex, state: PhmmState, params: &EmissionParams<T, S>, map: &ByteIndexMap<S>,
-        _phmm: GlobalPhmmView<T, S>,
+        _phmm: &GlobalPhmm<T, S>,
     ) -> Result<usize, SamplingError<T, S>> {
         self.choose_emission(layer, state, params, map)
     }
 
     fn choose_core_transition(
-        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: GlobalPhmmView<T, S>,
+        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: &GlobalPhmm<T, S>,
     ) -> Result<PhmmState, SamplingError<T, S>> {
         self.choose_core_transition(layer, exiting, params)
     }
 
     fn choose_end_or_insert(
-        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: GlobalPhmmView<T, S>,
+        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: &GlobalPhmm<T, S>,
     ) -> Result<EndInsert, SamplingError<T, S>> {
         self.choose_end_or_insert(layer, exiting, params)
     }
 
-    fn finalize(self, phmm: GlobalPhmmView<T, S>) -> Result<SampledSequence<()>, Self::Error> {
+    fn finalize(self, phmm: &GlobalPhmm<T, S>) -> Result<SampledSequence<()>, Self::Error> {
         let alignment = Alignment {
             score:       (),
             ref_range:   0..phmm.seq_len(),
@@ -443,48 +442,48 @@ where
 
     fn choose_emission(
         &mut self, layer: DpIndex, state: PhmmState, params: &EmissionParams<T, S>, map: &ByteIndexMap<S>,
-        _phmm: DomainPhmmView<T, S>,
+        _phmm: &DomainPhmm<T, S>,
     ) -> Result<usize, SamplingError<T, S>> {
         self.choose_emission(layer, state, params, map)
     }
 
     fn choose_core_transition(
-        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: DomainPhmmView<T, S>,
+        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: &DomainPhmm<T, S>,
     ) -> Result<PhmmState, SamplingError<T, S>> {
         self.choose_core_transition(layer, exiting, params)
     }
 
     fn choose_end_or_insert(
-        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: DomainPhmmView<T, S>,
+        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: &DomainPhmm<T, S>,
     ) -> Result<EndInsert, SamplingError<T, S>> {
         self.choose_end_or_insert(layer, exiting, params)
     }
 
     fn choose_domain_emission(
-        &mut self, params: &EmissionParams<T, S>, map: &ByteIndexMap<S>, loc: ModuleLocation, _phmm: DomainPhmmView<T, S>,
+        &mut self, params: &EmissionParams<T, S>, map: &ByteIndexMap<S>, loc: ModuleLocation, _phmm: &DomainPhmm<T, S>,
     ) -> Result<usize, SamplingError<T, S>> {
         self.choose_domain_emission(params, map, loc)
     }
 
     fn enter_module_insert(
-        &mut self, module: &DomainModule<T, S>, loc: ModuleLocation, _phmm: DomainPhmmView<T, S>,
+        &mut self, module: &DomainModule<T, S>, loc: ModuleLocation, _phmm: &DomainPhmm<T, S>,
     ) -> Result<bool, SamplingError<T, S>> {
         self.enter_module_insert(module, loc)
     }
 
     fn exit_module_insert(
-        &mut self, module: &DomainModule<T, S>, loc: ModuleLocation, _phmm: DomainPhmmView<T, S>,
+        &mut self, module: &DomainModule<T, S>, loc: ModuleLocation, _phmm: &DomainPhmm<T, S>,
     ) -> Result<bool, SamplingError<T, S>> {
         self.exit_module_insert(module, loc)
     }
 
     fn exiting_module(
-        &mut self, _module: &DomainModule<T, S>, _loc: ModuleLocation, _phmm: DomainPhmmView<T, S>,
+        &mut self, _module: &DomainModule<T, S>, _loc: ModuleLocation, _phmm: &DomainPhmm<T, S>,
     ) -> Result<(), Self::Error> {
         Ok(())
     }
 
-    fn finalize(self, phmm: DomainPhmmView<T, S>, query_range: Range<SeqIndex>) -> Result<Self::Output, Self::Error> {
+    fn finalize(self, phmm: &DomainPhmm<T, S>, query_range: Range<SeqIndex>) -> Result<Self::Output, Self::Error> {
         let alignment = Alignment {
             score:       (),
             ref_range:   0..phmm.seq_len(),
@@ -511,54 +510,54 @@ where
 
     fn choose_emission(
         &mut self, layer: DpIndex, state: PhmmState, params: &EmissionParams<T, S>, map: &ByteIndexMap<S>,
-        _phmm: SemiLocalPhmmView<T, S>,
+        _phmm: &SemiLocalPhmm<T, S>,
     ) -> Result<usize, SamplingError<T, S>> {
         self.choose_emission(layer, state, params, map)
     }
 
     fn choose_core_transition(
-        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: SemiLocalPhmmView<T, S>,
+        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: &SemiLocalPhmm<T, S>,
     ) -> Result<PhmmState, SamplingError<T, S>> {
         self.choose_core_transition(layer, exiting, params)
     }
 
     fn choose_end_or_insert(
-        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: SemiLocalPhmmView<T, S>,
+        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: &SemiLocalPhmm<T, S>,
     ) -> Result<EndInsert, SamplingError<T, S>> {
         self.choose_end_or_insert(layer, exiting, params)
     }
 
     fn choose_core_transition_or_exit(
-        &mut self, layer: DpIndex, params: &TransitionParams<T>, exit_param: T, _phmm: SemiLocalPhmmView<T, S>,
+        &mut self, layer: DpIndex, params: &TransitionParams<T>, exit_param: T, _phmm: &SemiLocalPhmm<T, S>,
     ) -> Result<PhmmStateOrModule, SamplingError<T, S>> {
         self.choose_core_transition_or_exit(layer, params, exit_param)
     }
 
     fn choose_end_insert_or_exit(
         &mut self, layer: DpIndex, params: &TransitionParams<T>, exit_param: T, exit_from_end_param: T,
-        _phmm: SemiLocalPhmmView<T, S>,
+        _phmm: &SemiLocalPhmm<T, S>,
     ) -> Result<EndInsertExit, SamplingError<T, S>> {
         self.choose_end_insert_or_exit(layer, params, exit_param, exit_from_end_param)
     }
 
     fn enter_core(
-        &mut self, module: &SemiLocalModule<T>, _phmm: SemiLocalPhmmView<T, S>,
+        &mut self, module: &SemiLocalModule<T>, _phmm: &SemiLocalPhmm<T, S>,
     ) -> Result<DpIndex, SamplingError<T, S>> {
         self.enter_core(module)
     }
 
     fn exit_core_from_end(
-        &mut self, _layer: DpIndex, _exit_param: T, _phmm: SemiLocalPhmmView<T, S>,
+        &mut self, _layer: DpIndex, _exit_param: T, _phmm: &SemiLocalPhmm<T, S>,
     ) -> Result<(), SamplingError<T, S>> {
         Ok(())
     }
 
-    fn exit_core(&mut self, _layer_idx: DpIndex, _exit_param: T, _phmm: SemiLocalPhmmView<T, S>) -> Result<(), Self::Error> {
+    fn exit_core(&mut self, _layer_idx: DpIndex, _exit_param: T, _phmm: &SemiLocalPhmm<T, S>) -> Result<(), Self::Error> {
         Ok(())
     }
 
     fn finalize(
-        self, phmm: SemiLocalPhmmView<T, S>, aligned_layers: RangeInclusive<DpIndex>,
+        self, phmm: &SemiLocalPhmm<T, S>, aligned_layers: RangeInclusive<DpIndex>,
     ) -> Result<Self::Output, Self::Error> {
         let alignment = Alignment {
             score:       (),
@@ -586,78 +585,76 @@ where
 
     fn choose_emission(
         &mut self, layer: DpIndex, state: PhmmState, params: &EmissionParams<T, S>, map: &ByteIndexMap<S>,
-        _phmm: LocalPhmmView<T, S>,
+        _phmm: &LocalPhmm<T, S>,
     ) -> Result<usize, SamplingError<T, S>> {
         self.choose_emission(layer, state, params, map)
     }
 
     fn choose_core_transition(
-        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: LocalPhmmView<T, S>,
+        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: &LocalPhmm<T, S>,
     ) -> Result<PhmmState, SamplingError<T, S>> {
         self.choose_core_transition(layer, exiting, params)
     }
 
     fn choose_end_or_insert(
-        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: LocalPhmmView<T, S>,
+        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: &LocalPhmm<T, S>,
     ) -> Result<EndInsert, SamplingError<T, S>> {
         self.choose_end_or_insert(layer, exiting, params)
     }
 
     fn choose_core_transition_or_exit(
-        &mut self, layer: DpIndex, params: &TransitionParams<T>, exit_param: T, _phmm: LocalPhmmView<T, S>,
+        &mut self, layer: DpIndex, params: &TransitionParams<T>, exit_param: T, _phmm: &LocalPhmm<T, S>,
     ) -> Result<PhmmStateOrModule, SamplingError<T, S>> {
         self.choose_core_transition_or_exit(layer, params, exit_param)
     }
 
     fn choose_end_insert_or_exit(
         &mut self, layer: DpIndex, params: &TransitionParams<T>, exit_param: T, exit_from_end_param: T,
-        _phmm: LocalPhmmView<T, S>,
+        _phmm: &LocalPhmm<T, S>,
     ) -> Result<EndInsertExit, SamplingError<T, S>> {
         self.choose_end_insert_or_exit(layer, params, exit_param, exit_from_end_param)
     }
 
-    fn enter_core(
-        &mut self, module: &SemiLocalModule<T>, _phmm: LocalPhmmView<T, S>,
-    ) -> Result<DpIndex, SamplingError<T, S>> {
+    fn enter_core(&mut self, module: &SemiLocalModule<T>, _phmm: &LocalPhmm<T, S>) -> Result<DpIndex, SamplingError<T, S>> {
         self.enter_core(module)
     }
 
     fn exit_core_from_end(
-        &mut self, _layer: DpIndex, _exit_param: T, _phmm: LocalPhmmView<T, S>,
+        &mut self, _layer: DpIndex, _exit_param: T, _phmm: &LocalPhmm<T, S>,
     ) -> Result<(), SamplingError<T, S>> {
         Ok(())
     }
 
     fn choose_local_emission(
-        &mut self, params: &EmissionParams<T, S>, mapping: &ByteIndexMap<S>, loc: ModuleLocation, _phmm: LocalPhmmView<T, S>,
+        &mut self, params: &EmissionParams<T, S>, mapping: &ByteIndexMap<S>, loc: ModuleLocation, _phmm: &LocalPhmm<T, S>,
     ) -> Result<usize, SamplingError<T, S>> {
         self.choose_domain_emission(params, mapping, loc)
     }
 
     fn enter_module_insert(
-        &mut self, module: &DomainModule<T, S>, loc: ModuleLocation, _phmm: LocalPhmmView<T, S>,
+        &mut self, module: &DomainModule<T, S>, loc: ModuleLocation, _phmm: &LocalPhmm<T, S>,
     ) -> Result<bool, SamplingError<T, S>> {
         self.enter_module_insert(module, loc)
     }
 
     fn exit_module_insert(
-        &mut self, module: &DomainModule<T, S>, loc: ModuleLocation, _phmm: LocalPhmmView<T, S>,
+        &mut self, module: &DomainModule<T, S>, loc: ModuleLocation, _phmm: &LocalPhmm<T, S>,
     ) -> Result<bool, SamplingError<T, S>> {
         self.exit_module_insert(module, loc)
     }
 
     fn exiting_domain_module(
-        &mut self, _module: &DomainModule<T, S>, _loc: ModuleLocation, _phmm: LocalPhmmView<T, S>,
+        &mut self, _module: &DomainModule<T, S>, _loc: ModuleLocation, _phmm: &LocalPhmm<T, S>,
     ) -> Result<(), Self::Error> {
         Ok(())
     }
 
-    fn exit_core(&mut self, _layer_idx: DpIndex, _exit_param: T, _phmm: LocalPhmmView<T, S>) -> Result<(), Self::Error> {
+    fn exit_core(&mut self, _layer_idx: DpIndex, _exit_param: T, _phmm: &LocalPhmm<T, S>) -> Result<(), Self::Error> {
         Ok(())
     }
 
     fn finalize(
-        self, phmm: LocalPhmmView<T, S>, aligned_layers: Range<DpIndex>, query_range: Range<SeqIndex>,
+        self, phmm: &LocalPhmm<T, S>, aligned_layers: RangeInclusive<DpIndex>, query_range: Range<SeqIndex>,
     ) -> Result<Self::Output, Self::Error> {
         let alignment = Alignment {
             score:       (),

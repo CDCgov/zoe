@@ -13,10 +13,9 @@ use crate::{
                 DomainVisitor, EndInsert, EndInsertExit, GetScoreDomain, GetScoreLocal, GlobalVisitor, LocalVisitor,
                 ModuleLocation, SemiLocalVisitor,
             },
-            views::{AsSemiLocalView, DomainPhmmView, GlobalPhmmView, LocalPhmmView, SemiLocalPhmmView},
         },
     },
-    data::{ByteIndexMap, cigar::Ciglet, views::AsView},
+    data::{ByteIndexMap, cigar::Ciglet},
 };
 use std::ops::{Range, RangeInclusive};
 
@@ -196,9 +195,9 @@ where
     ///
     /// `ref_start` must be less than the reference coordinate length to which
     /// the pHMM corresponds if the alignment is non-empty.
-    fn new<const S: usize>(
-        query: &'a [u8], states: &'a [Ciglet], ref_start: usize, phmm: SemiLocalPhmmView<T, S>, context: C,
-    ) -> Result<Self, C::Error> {
+    fn new<P>(query: &'a [u8], states: &'a [Ciglet], ref_start: usize, phmm: &P, context: C) -> Result<Self, C::Error>
+    where
+        P: PhmmIndexable, {
         if !states.is_empty() && ref_start >= phmm.seq_len() {
             return Err(context.ref_start_out_of_bounds());
         }
@@ -346,9 +345,9 @@ where
     ///
     /// [`invalid_op`]: CoreContextToErr::invalid_op
     /// [`no_match_after_enter`]: CoreContextWithExitToErr::no_match_after_enter
-    fn enter_core<const S: usize>(
-        &mut self, module: &SemiLocalModule<T>, phmm: SemiLocalPhmmView<T, S>,
-    ) -> Result<DpIndex, C::Error> {
+    fn enter_core<P, const S: usize>(&mut self, module: &SemiLocalModule<T>, phmm: &P) -> Result<DpIndex, C::Error>
+    where
+        P: GetModule<End: SemiLocalParams<T>> + PhmmIndexable + GetLayer<T, S>, {
         let next_op = self.inner.op_iter.peek_op();
 
         let next_op = match next_op {
@@ -453,7 +452,7 @@ where
     /// [`QueryLenMismatch`]: GlobalTraverseFromAlignError::QueryLenMismatch
     fn choose_emission(
         &mut self, _layer: DpIndex, _state: PhmmState, params: &EmissionParams<T, S>, map: &ByteIndexMap<S>,
-        _phmm: GlobalPhmmView<T, S>,
+        _phmm: &GlobalPhmm<T, S>,
     ) -> Result<usize, GlobalTraverseFromAlignError> {
         self.inner.choose_emission(params, map)
     }
@@ -477,7 +476,7 @@ where
     /// [`LastMatch`]: crate::alignment::phmm::indexing::LastMatch
     /// [`choose_end_or_insert`]: GlobalVisitor::choose_end_or_insert
     fn choose_core_transition(
-        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: GlobalPhmmView<T, S>,
+        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: &GlobalPhmm<T, S>,
     ) -> Result<PhmmState, GlobalTraverseFromAlignError> {
         self.inner.choose_core_transition(layer, exiting, params)
     }
@@ -497,7 +496,7 @@ where
     /// [`End`]: crate::alignment::phmm::indexing::End
     /// [`LastMatch`]: crate::alignment::phmm::indexing::LastMatch
     fn choose_end_or_insert(
-        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: GlobalPhmmView<T, S>,
+        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: &GlobalPhmm<T, S>,
     ) -> Result<EndInsert, GlobalTraverseFromAlignError> {
         self.inner.choose_end_or_insert(layer, exiting, params)
     }
@@ -510,7 +509,7 @@ where
     /// Returns [`QueryLenMismatch`] if the full query was not consumed.
     ///
     /// [`QueryLenMismatch`]: GlobalTraverseFromAlignError::QueryLenMismatch
-    fn finalize(mut self, _phmm: GlobalPhmmView<T, S>) -> Result<T, GlobalTraverseFromAlignError> {
+    fn finalize(mut self, _phmm: &GlobalPhmm<T, S>) -> Result<T, GlobalTraverseFromAlignError> {
         // It is known that op_iter will be empty since choose_end_or_insert
         // will continue to return Insert until either op_iter is empty or an
         // error is thrown
@@ -562,7 +561,7 @@ where
         };
 
         Ok(Self {
-            inner: AlignmentVisitorWithExit::new(query, states.as_slice(), ref_start, phmm.as_view(), context)?,
+            inner: AlignmentVisitorWithExit::new(query, states.as_slice(), ref_start, phmm, context)?,
         })
     }
 }
@@ -585,7 +584,7 @@ where
     /// [`QueryLenMismatch`]: SemiLocalTraverseFromAlignError::QueryLenMismatch
     fn choose_emission(
         &mut self, _layer: DpIndex, _state: PhmmState, params: &EmissionParams<T, S>, map: &ByteIndexMap<S>,
-        _phmm: SemiLocalPhmmView<T, S>,
+        _phmm: &SemiLocalPhmm<T, S>,
     ) -> Result<usize, SemiLocalTraverseFromAlignError> {
         self.inner.choose_emission(params, map)
     }
@@ -609,7 +608,7 @@ where
     ///     SemiLocalVisitor::choose_core_transition_or_exit
     /// [`choose_end_or_insert`]: SemiLocalVisitor::choose_end_or_insert
     fn choose_core_transition(
-        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: SemiLocalPhmmView<T, S>,
+        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: &SemiLocalPhmm<T, S>,
     ) -> Result<PhmmState, SemiLocalTraverseFromAlignError> {
         self.inner.choose_core_transition(layer, exiting, params)
     }
@@ -634,7 +633,7 @@ where
     /// [`choose_end_insert_or_exit`]:
     ///     SemiLocalVisitor::choose_end_insert_or_exit
     fn choose_end_or_insert(
-        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: SemiLocalPhmmView<T, S>,
+        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: &SemiLocalPhmm<T, S>,
     ) -> Result<EndInsert, SemiLocalTraverseFromAlignError> {
         self.inner.choose_end_or_insert(layer, exiting, params)
     }
@@ -654,7 +653,7 @@ where
     ///
     /// [`InvalidCigarOp`]: SemiLocalTraverseFromAlignError::InvalidCigarOp
     fn choose_core_transition_or_exit(
-        &mut self, _layer: DpIndex, params: &TransitionParams<T>, exit_param: T, _phmm: SemiLocalPhmmView<T, S>,
+        &mut self, _layer: DpIndex, params: &TransitionParams<T>, exit_param: T, _phmm: &SemiLocalPhmm<T, S>,
     ) -> Result<PhmmStateOrModule, SemiLocalTraverseFromAlignError> {
         self.inner.choose_core_transition_or_exit(params, exit_param)
     }
@@ -678,7 +677,7 @@ where
     /// [`ModelLenMismatch`]: SemiLocalTraverseFromAlignError::ModelLenMismatch
     fn choose_end_insert_or_exit(
         &mut self, layer: DpIndex, params: &TransitionParams<T>, exit_param: T, exit_from_end_param: T,
-        _phmm: SemiLocalPhmmView<T, S>,
+        _phmm: &SemiLocalPhmm<T, S>,
     ) -> Result<EndInsertExit, SemiLocalTraverseFromAlignError> {
         let enter_insert = self.inner.enter_insert_at_end(layer, params)?;
 
@@ -713,7 +712,7 @@ where
     /// [`ModelLenMismatch`]: SemiLocalTraverseFromAlignError::ModelLenMismatch
     /// [`MissingMatchOp`]: SemiLocalTraverseFromAlignError::MissingMatchOp
     fn enter_core(
-        &mut self, module: &SemiLocalModule<T>, phmm: SemiLocalPhmmView<T, S>,
+        &mut self, module: &SemiLocalModule<T>, phmm: &SemiLocalPhmm<T, S>,
     ) -> Result<DpIndex, SemiLocalTraverseFromAlignError> {
         let index = self.inner.enter_core(module, phmm)?;
 
@@ -730,7 +729,7 @@ where
     ///
     /// This implementation is infallible.
     fn exit_core_from_end(
-        &mut self, _layer: DpIndex, _exit_param: T, _phmm: SemiLocalPhmmView<T, S>,
+        &mut self, _layer: DpIndex, _exit_param: T, _phmm: &SemiLocalPhmm<T, S>,
     ) -> Result<(), SemiLocalTraverseFromAlignError> {
         Ok(())
     }
@@ -753,7 +752,7 @@ where
     ///     SemiLocalVisitor::choose_end_insert_or_exit
     /// [`exit_core_from_end`]: SemiLocalVisitor::exit_core_from_end
     fn exit_core(
-        &mut self, _layer_idx: DpIndex, exit_param: T, _phmm: SemiLocalPhmmView<T, S>,
+        &mut self, _layer_idx: DpIndex, exit_param: T, _phmm: &SemiLocalPhmm<T, S>,
     ) -> Result<(), SemiLocalTraverseFromAlignError> {
         self.inner.inner.score += exit_param;
         Ok(())
@@ -773,7 +772,7 @@ where
     /// [`QueryLenMismatch`]: SemiLocalTraverseFromAlignError::QueryLenMismatch
     /// [`ModelLenMismatch`]: SemiLocalTraverseFromAlignError::ModelLenMismatch
     fn finalize(
-        mut self, _phmm: SemiLocalPhmmView<T, S>, _aligned_layers: RangeInclusive<DpIndex>,
+        mut self, _phmm: &SemiLocalPhmm<T, S>, _aligned_layers: RangeInclusive<DpIndex>,
     ) -> Result<T, SemiLocalTraverseFromAlignError> {
         // op_iter will normally be empty based on enter_insert_at_end's
         // guarantees, but if enter_core directly enters the END state, then we
@@ -871,7 +870,7 @@ where
     /// [`QueryLenMismatch`]: DomainTraverseFromAlignError::QueryLenMismatch
     fn choose_emission(
         &mut self, _layer: DpIndex, _state: PhmmState, params: &EmissionParams<T, S>, map: &ByteIndexMap<S>,
-        _phmm: DomainPhmmView<T, S>,
+        _phmm: &DomainPhmm<T, S>,
     ) -> Result<usize, DomainTraverseFromAlignError> {
         self.inner.choose_emission(params, map)
     }
@@ -897,7 +896,7 @@ where
     /// [`LastMatch`]: crate::alignment::phmm::indexing::LastMatch
     /// [`choose_end_or_insert`]: DomainVisitor::choose_end_or_insert
     fn choose_core_transition(
-        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: DomainPhmmView<T, S>,
+        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: &DomainPhmm<T, S>,
     ) -> Result<PhmmState, DomainTraverseFromAlignError> {
         self.inner.choose_core_transition(layer, exiting, params)
     }
@@ -920,7 +919,7 @@ where
     /// [`End`]: crate::alignment::phmm::indexing::End
     /// [`LastMatch`]: crate::alignment::phmm::indexing::LastMatch
     fn choose_end_or_insert(
-        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: DomainPhmmView<T, S>,
+        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: &DomainPhmm<T, S>,
     ) -> Result<EndInsert, DomainTraverseFromAlignError> {
         if self.inner.op_iter.peek_op() == Some(b'S') {
             self.inner.score += params[(exiting, PhmmState::Match)];
@@ -940,8 +939,7 @@ where
     ///
     /// [`QueryLenMismatch`]: DomainTraverseFromAlignError::QueryLenMismatch
     fn choose_domain_emission(
-        &mut self, _params: &EmissionParams<T, S>, mapping: &ByteIndexMap<S>, loc: ModuleLocation,
-        _phmm: DomainPhmmView<T, S>,
+        &mut self, _params: &EmissionParams<T, S>, mapping: &ByteIndexMap<S>, loc: ModuleLocation, _phmm: &DomainPhmm<T, S>,
     ) -> Result<usize, DomainTraverseFromAlignError> {
         // This function does not update the score, since that was done
         // pre-emptively in enter_module_insert
@@ -964,7 +962,7 @@ where
     ///
     /// This implementation is infallible.
     fn enter_module_insert(
-        &mut self, _module: &DomainModule<T, S>, loc: ModuleLocation, phmm: DomainPhmmView<T, S>,
+        &mut self, _module: &DomainModule<T, S>, loc: ModuleLocation, phmm: &DomainPhmm<T, S>,
     ) -> Result<bool, DomainTraverseFromAlignError> {
         // This function pre-emptively updates the score all at once for the
         // domain module. This is to ensure the order of floating point
@@ -991,7 +989,7 @@ where
     ///
     /// This implementation is infallible.
     fn exit_module_insert(
-        &mut self, _module: &DomainModule<T, S>, loc: ModuleLocation, _phmm: DomainPhmmView<T, S>,
+        &mut self, _module: &DomainModule<T, S>, loc: ModuleLocation, _phmm: &DomainPhmm<T, S>,
     ) -> Result<bool, DomainTraverseFromAlignError> {
         // This function does not update the score, since that was done
         // pre-emptively in enter_module_insert
@@ -1002,7 +1000,7 @@ where
     }
 
     fn exiting_module(
-        &mut self, _module: &DomainModule<T, S>, _loc: ModuleLocation, _phmm: DomainPhmmView<T, S>,
+        &mut self, _module: &DomainModule<T, S>, _loc: ModuleLocation, _phmm: &DomainPhmm<T, S>,
     ) -> Result<(), Self::Error> {
         // TODO: Likely want to do score updates here for clarity, rather than
         // in enter_module_insert
@@ -1025,7 +1023,7 @@ where
     /// [`QueryLenMismatch`]: DomainTraverseFromAlignError::QueryLenMismatch
     /// [`ModelLenMismatch`]: DomainTraverseFromAlignError::ModelLenMismatch
     fn finalize(
-        mut self, _phmm: DomainPhmmView<T, S>, _aligned_seq: Range<SeqIndex>,
+        mut self, _phmm: &DomainPhmm<T, S>, _aligned_seq: Range<SeqIndex>,
     ) -> Result<T, DomainTraverseFromAlignError> {
         if let Some(op) = self.inner.op_iter.next() {
             return Err(self.inner.context.remaining_op_error(op));
@@ -1157,7 +1155,7 @@ where
             (begin_residues, end_residues, None)
         };
 
-        let inner = AlignmentVisitorWithExit::new(query, states, ref_start, phmm.as_semilocal_view(), context)?;
+        let inner = AlignmentVisitorWithExit::new(query, states, ref_start, phmm, context)?;
 
         Ok(Self {
             inner,
@@ -1167,7 +1165,7 @@ where
         })
     }
 
-    fn compute_end_module_score<const S: usize>(&self, exit_param: T, phmm: LocalPhmmView<'_, T, S>) -> T {
+    fn compute_end_module_score<const S: usize>(&self, exit_param: T, phmm: &LocalPhmm<T, S>) -> T {
         let domain_score = phmm.end().domain_params.get_end_score(self.end_residues, phmm.mapping());
         domain_score + exit_param
     }
@@ -1191,7 +1189,7 @@ where
     /// [`QueryLenMismatch`]: LocalTraverseFromAlignError::QueryLenMismatch
     fn choose_emission(
         &mut self, _layer: DpIndex, _state: PhmmState, params: &EmissionParams<T, S>, map: &ByteIndexMap<S>,
-        _phmm: LocalPhmmView<T, S>,
+        _phmm: &LocalPhmm<T, S>,
     ) -> Result<usize, LocalTraverseFromAlignError> {
         self.inner.choose_emission(params, map)
     }
@@ -1215,12 +1213,13 @@ where
     /// [`DuplicateOp`]: LocalTraverseFromAlignError::DuplicateOp
     /// [`InternalClipping`]: LocalTraverseFromAlignError::InternalClipping
     /// [`QueryLenMismatch`]: LocalTraverseFromAlignError::QueryLenMismatch
+    /// [`ModelLenMismatch`]: LocalTraverseFromAlignError::ModelLenMismatch
     /// [`LastMatch`]: crate::alignment::phmm::indexing::LastMatch
     /// [`choose_core_transition_or_exit`]:
     ///     LocalVisitor::choose_core_transition_or_exit
     /// [`choose_end_or_insert`]: LocalVisitor::choose_end_or_insert
     fn choose_core_transition(
-        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: LocalPhmmView<T, S>,
+        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: &LocalPhmm<T, S>,
     ) -> Result<PhmmState, LocalTraverseFromAlignError> {
         self.inner.choose_core_transition(layer, exiting, params)
     }
@@ -1247,7 +1246,7 @@ where
     /// [`LastMatch`]: crate::alignment::phmm::indexing::LastMatch
     /// [`choose_end_insert_or_exit`]: LocalVisitor::choose_end_insert_or_exit
     fn choose_end_or_insert(
-        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: LocalPhmmView<T, S>,
+        &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: &LocalPhmm<T, S>,
     ) -> Result<EndInsert, LocalTraverseFromAlignError> {
         if self.inner.inner.op_iter.peek_op() == Some(b'S') {
             self.inner.inner.score += params[(exiting, PhmmState::Match)];
@@ -1275,7 +1274,7 @@ where
     /// [`QueryLenMismatch`]: LocalTraverseFromAlignError::QueryLenMismatch
     /// [`ModelLenMismatch`]: LocalTraverseFromAlignError::ModelLenMismatch
     fn choose_core_transition_or_exit(
-        &mut self, _layer: DpIndex, params: &TransitionParams<T>, exit_param: T, _phmm: LocalPhmmView<T, S>,
+        &mut self, _layer: DpIndex, params: &TransitionParams<T>, exit_param: T, _phmm: &LocalPhmm<T, S>,
     ) -> Result<PhmmStateOrModule, LocalTraverseFromAlignError> {
         let out = if self.empty_info.is_some() {
             PhmmStateOrModule::Module
@@ -1306,7 +1305,7 @@ where
     /// [`End`]: crate::alignment::phmm::indexing::End
     fn choose_end_insert_or_exit(
         &mut self, layer: DpIndex, params: &TransitionParams<T>, exit_param: T, exit_from_end_param: T,
-        phmm: LocalPhmmView<T, S>,
+        phmm: &LocalPhmm<T, S>,
     ) -> Result<EndInsertExit, LocalTraverseFromAlignError> {
         if self.empty_info.is_some() {
             return Ok(EndInsertExit::Exit);
@@ -1342,7 +1341,7 @@ where
     /// [`InvalidCigarOp`]: LocalTraverseFromAlignError::InvalidCigarOp
     /// [`LocalModule`]: crate::alignment::phmm::modules::LocalModule
     fn enter_core(
-        &mut self, module: &SemiLocalModule<T>, phmm: LocalPhmmView<T, S>,
+        &mut self, module: &SemiLocalModule<T>, phmm: &LocalPhmm<T, S>,
     ) -> Result<DpIndex, LocalTraverseFromAlignError> {
         let layer = if let Some(empty_info) = &self.empty_info {
             if empty_info.through_begin {
@@ -1351,7 +1350,7 @@ where
                 phmm.to_dp_index(End)
             }
         } else {
-            self.inner.enter_core(module, phmm.as_semilocal_view())?
+            self.inner.enter_core(module, phmm)?
         };
 
         self.inner.inner.score += phmm.get_begin_semilocal_score(layer);
@@ -1367,7 +1366,7 @@ where
     ///
     /// [`LocalModule`]: crate::alignment::phmm::modules::LocalModule
     fn exit_core_from_end(
-        &mut self, _layer: DpIndex, _exit_param: T, _phmm: LocalPhmmView<T, S>,
+        &mut self, _layer: DpIndex, _exit_param: T, _phmm: &LocalPhmm<T, S>,
     ) -> Result<(), LocalTraverseFromAlignError> {
         Ok(())
     }
@@ -1383,8 +1382,7 @@ where
     /// [`QueryLenMismatch`]: DomainTraverseFromAlignError::QueryLenMismatch
     /// [`LocalModule`]: crate::alignment::phmm::modules::LocalModule
     fn choose_local_emission(
-        &mut self, _params: &EmissionParams<T, S>, mapping: &ByteIndexMap<S>, loc: ModuleLocation,
-        _phmm: LocalPhmmView<T, S>,
+        &mut self, _params: &EmissionParams<T, S>, mapping: &ByteIndexMap<S>, loc: ModuleLocation, _phmm: &LocalPhmm<T, S>,
     ) -> Result<usize, LocalTraverseFromAlignError> {
         let byte = match loc {
             ModuleLocation::Begin => self.begin_residues.split_off_first(),
@@ -1412,7 +1410,7 @@ where
     ///
     /// [`LocalModule`]: crate::alignment::phmm::modules::LocalModule
     fn enter_module_insert(
-        &mut self, _module: &DomainModule<T, S>, loc: ModuleLocation, phmm: LocalPhmmView<T, S>,
+        &mut self, _module: &DomainModule<T, S>, loc: ModuleLocation, phmm: &LocalPhmm<T, S>,
     ) -> Result<bool, LocalTraverseFromAlignError> {
         match loc {
             ModuleLocation::Begin => {
@@ -1435,7 +1433,7 @@ where
     ///
     /// [`LocalModule`]: crate::alignment::phmm::modules::LocalModule
     fn exit_module_insert(
-        &mut self, _module: &DomainModule<T, S>, loc: ModuleLocation, _phmm: LocalPhmmView<T, S>,
+        &mut self, _module: &DomainModule<T, S>, loc: ModuleLocation, _phmm: &LocalPhmm<T, S>,
     ) -> Result<bool, LocalTraverseFromAlignError> {
         match loc {
             ModuleLocation::Begin => Ok(self.begin_residues.is_empty()),
@@ -1444,7 +1442,7 @@ where
     }
 
     fn exiting_domain_module(
-        &mut self, _module: &DomainModule<T, S>, _loc: ModuleLocation, _phmm: LocalPhmmView<T, S>,
+        &mut self, _module: &DomainModule<T, S>, _loc: ModuleLocation, _phmm: &LocalPhmm<T, S>,
     ) -> Result<(), Self::Error> {
         // TODO: Likely want to do score updates here for clarity, rather than
         // in enter_module_insert
@@ -1452,7 +1450,7 @@ where
     }
 
     fn exit_core(
-        &mut self, _layer_idx: DpIndex, exit_param: T, phmm: LocalPhmmView<T, S>,
+        &mut self, _layer_idx: DpIndex, exit_param: T, phmm: &LocalPhmm<T, S>,
     ) -> Result<(), LocalTraverseFromAlignError> {
         self.inner.inner.score += self.compute_end_module_score(exit_param, phmm);
         Ok(())
@@ -1474,7 +1472,7 @@ where
     /// [`QueryLenMismatch`]: LocalTraverseFromAlignError::QueryLenMismatch
     /// [`ModelLenMismatch`]: LocalTraverseFromAlignError::ModelLenMismatch
     fn finalize(
-        mut self, _phmm: LocalPhmmView<T, S>, _aligned_layers: Range<DpIndex>, _aligned_seq: Range<SeqIndex>,
+        mut self, _phmm: &LocalPhmm<T, S>, _aligned_layers: RangeInclusive<DpIndex>, _aligned_seq: Range<SeqIndex>,
     ) -> Result<T, LocalTraverseFromAlignError> {
         if let Some(op) = self.inner.inner.op_iter.next() {
             return Err(self.inner.inner.context.remaining_op_error(op));
