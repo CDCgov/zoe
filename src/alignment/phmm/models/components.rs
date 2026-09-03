@@ -1,7 +1,7 @@
 //! Internal components of a profile Hidden Markov Model, specifically
 //! [`TransitionParams`], [`EmissionParams`], [`LayerParams`], and [`CorePhmm`].
 use crate::alignment::phmm::{
-    InvalidModelError, PhmmError, PhmmNumber,
+    InvalidModelError, PhmmNumber,
     indexing::{GetLayer, GetLayerMut},
     nonempty_vec::NonEmptyVec,
     state::PhmmState,
@@ -274,21 +274,20 @@ impl<T, const S: usize> CorePhmm<T, S> {
     ///
     /// ## Errors
     ///
-    /// At least two layers are required, otherwise [`InvalidModel`] with cause
-    /// [`TooFewLayers`] is returned.
+    /// At least two layers are required, otherwise [`TooFewLayers`] is
+    /// returned.
     ///
-    /// [`InvalidModel`]: PhmmError::InvalidModel
     /// [`TooFewLayers`]:
-    ///     crate::alignment::phmm::errors::InvalidModelError::TooFewLayers
+    ///     crate::alignment::phmm::InvalidModelError::TooFewLayers
     #[inline]
-    pub fn new(layers: Vec<LayerParams<T, S>>) -> Result<Self, PhmmError> {
+    pub fn new(layers: Vec<LayerParams<T, S>>) -> Result<Self, InvalidModelError> {
         if layers.len() >= 2 {
             let Ok(layers) = NonEmptyVec::try_from(layers) else {
                 unreachable!("length checked above")
             };
             Ok(CorePhmm(layers))
         } else {
-            Err(InvalidModelError::TooFewLayers(2).into())
+            Err(InvalidModelError::TooFewLayers(2))
         }
     }
 

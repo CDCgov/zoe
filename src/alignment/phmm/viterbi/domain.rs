@@ -1,7 +1,7 @@
 use crate::alignment::{
     Alignment, AlignmentStates,
     phmm::{
-        DomainPhmm, PhmmError, PhmmNumber,
+        DomainPhmm, PhmmNumber,
         components::LayerParams,
         indexing::{AlnIndex, AlnIndexRange, AlnIndexable, DpIndex, GetLayer, GetModule, IndexRangeInner, LastResidue},
         modules::PrecomputedDomainModule,
@@ -10,7 +10,7 @@ use crate::alignment::{
             PhmmState::{self, Delete, Insert, Match},
             PhmmTracebackState, best_state,
         },
-        viterbi::{ViterbiTraceback, update_delete, update_insert},
+        viterbi::{ViterbiError, ViterbiTraceback, update_delete, update_insert},
     },
 };
 use std::ops::Bound::{Excluded, Included};
@@ -71,9 +71,9 @@ impl<T: PhmmNumber, const S: usize> DomainPhmm<T, S> {
     /// [`NoAlignmentFound`] is returned if no alignment with nonzero
     /// probability is found.
     ///
-    /// [`NoAlignmentFound`]: PhmmError::NoAlignmentFound
+    /// [`NoAlignmentFound`]: ViterbiError::NoAlignmentFound
     #[allow(clippy::too_many_lines)]
-    pub fn viterbi<Q: AsRef<[u8]>>(&self, seq: Q) -> Result<Alignment<T>, PhmmError> {
+    pub fn viterbi<Q: AsRef<[u8]>>(&self, seq: Q) -> Result<Alignment<T>, ViterbiError> {
         let seq = seq.as_ref();
 
         let begin_mod = self.begin().precompute_begin_mod(seq, self.mapping());
@@ -169,7 +169,7 @@ impl<T: PhmmNumber, const S: usize> DomainPhmm<T, S> {
 
         // This is a necessary check, otherwise the traceback may panic
         if best_score.score == T::INFINITY {
-            return Err(PhmmError::NoAlignmentFound);
+            return Err(ViterbiError::NoAlignmentFound);
         }
 
         let DomainBestScore {

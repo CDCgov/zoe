@@ -1,16 +1,63 @@
 //! Implementations of the Viterbi algorithm on pHMMs for sequence alignment.
 
 use crate::alignment::phmm::{
-    PhmmNumber,
+    InvalidModelError, PhmmNumber,
     components::LayerParams,
     indexing::SeqIndex,
     state::{PhmmState, PhmmStateOrModule, best_state},
+};
+use std::{
+    error::Error,
+    fmt::{Debug, Display},
 };
 
 mod domain;
 mod global;
 mod local;
 mod semilocal;
+
+/// An enum representing errors that can happen within the Viterbi algorithm.
+#[derive(Eq, PartialEq)]
+pub enum ViterbiError {
+    /// An error caused by an invalid model
+    InvalidModel(InvalidModelError),
+    /// No alignment with nonzero probability can be found with the pHMM
+    NoAlignmentFound,
+}
+
+impl Display for ViterbiError {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            ViterbiError::InvalidModel(_) => write!(f, "The pHMM model is invalid!"),
+            ViterbiError::NoAlignmentFound => write!(f, "No alignment with nonzero probability found!"),
+        }
+    }
+}
+
+impl Debug for ViterbiError {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{self}")
+    }
+}
+
+impl Error for ViterbiError {
+    #[inline]
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            ViterbiError::InvalidModel(invalid_model_error) => Some(invalid_model_error),
+            ViterbiError::NoAlignmentFound => None,
+        }
+    }
+}
+
+impl From<InvalidModelError> for ViterbiError {
+    #[inline]
+    fn from(value: InvalidModelError) -> Self {
+        ViterbiError::InvalidModel(value)
+    }
+}
 
 /// Given the current `vals` for delete/match/insert and the next `layer`,
 /// calculate the best score for the next insert state and the state from which

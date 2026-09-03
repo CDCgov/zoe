@@ -21,7 +21,6 @@ use std::{
     ops::{Add, AddAssign, Mul},
 };
 
-mod errors;
 pub mod indexing;
 mod models;
 pub mod modules;
@@ -37,8 +36,8 @@ pub mod sampling;
 #[cfg(feature = "alignment-diagnostics")]
 pub mod score_from_path;
 
-pub use errors::*;
 pub use models::*;
+pub use viterbi::*;
 
 /// A trait for numeric types compatible with pHMMs.
 ///

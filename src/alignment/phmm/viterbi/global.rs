@@ -1,7 +1,7 @@
 use crate::alignment::{
     Alignment, AlignmentStates,
     phmm::{
-        GlobalPhmm, PhmmError, PhmmNumber,
+        GlobalPhmm, PhmmNumber,
         components::LayerParams,
         indexing::{AlnIndexable, GetLayer},
         state::{
@@ -9,7 +9,7 @@ use crate::alignment::{
             PhmmState::{self, Delete, Insert, Match},
             PhmmTracebackState, best_state,
         },
-        viterbi::{ViterbiTraceback, update_delete, update_insert},
+        viterbi::{ViterbiError, ViterbiTraceback, update_delete, update_insert},
     },
 };
 
@@ -60,7 +60,7 @@ impl<T: PhmmNumber, const S: usize> GlobalPhmm<T, S> {
     ///
     /// If no alignment with nonzero probability is found, an error is given. An
     /// error is also returned if the model has no layers.
-    pub fn viterbi<Q: AsRef<[u8]>>(&self, seq: Q) -> Result<Alignment<T>, PhmmError> {
+    pub fn viterbi<Q: AsRef<[u8]>>(&self, seq: Q) -> Result<Alignment<T>, ViterbiError> {
         let seq = seq.as_ref();
 
         let (end, layers) = self.layers().split_last();
@@ -140,7 +140,7 @@ impl<T: PhmmNumber, const S: usize> GlobalPhmm<T, S> {
 
         // This is a necessary check, otherwise the traceback may panic
         if best_score.score == T::INFINITY {
-            return Err(PhmmError::NoAlignmentFound);
+            return Err(ViterbiError::NoAlignmentFound);
         }
 
         let mut cursor = traceback.data.len() - 1;

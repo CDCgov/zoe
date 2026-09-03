@@ -1,6 +1,6 @@
 use crate::{
     alignment::phmm::{
-        InvalidModelError, PhmmNumber,
+        PhmmNumber,
         components::{CorePhmm, EmissionParams, LayerParams},
         indexing::{
             AlnIndex, AlnIndexable, GetCore, GetCoreMut, GetLayer, GetLayerMut, GetMapping, GetModule, GetModuleMut,
@@ -9,6 +9,10 @@ use crate::{
         nonempty_vec::NonEmptyVec,
     },
     data::mappings::ByteIndexMap,
+};
+use std::{
+    error::Error,
+    fmt::{Debug, Display},
 };
 
 pub mod components;
@@ -563,3 +567,38 @@ impl<T, const S: usize> GetMapping<S> for &DomainPhmm<T, S> {
         self.mapping
     }
 }
+
+/// An enum representing errors that can happen when working with pHMMs.
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub enum InvalidModelError {
+    /// The model has no layers
+    EmptyModel,
+    /// Not enough layers were specified
+    TooFewLayers(usize),
+    /// Alignment modules were incompatible with core pHMM
+    IncompatibleModule,
+}
+
+impl Display for InvalidModelError {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            InvalidModelError::EmptyModel => write!(f, "No layers were present in the pHMM!"),
+            InvalidModelError::TooFewLayers(num) => {
+                write!(f, "Too few layers were specified for the pHMM! At least {num} are required")
+            }
+            InvalidModelError::IncompatibleModule => {
+                write!(f, "The pHMM's alignment modules are incompatible with the core pHMM!")
+            }
+        }
+    }
+}
+
+impl Debug for InvalidModelError {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{self}")
+    }
+}
+
+impl Error for InvalidModelError {}
