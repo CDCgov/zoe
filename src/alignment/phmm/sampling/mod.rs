@@ -1,3 +1,6 @@
+//! Implementations for sampling sequences/alignments probabilistically from
+//! pHMMs.
+
 use crate::alignment::{
     Alignment,
     phmm::{

@@ -26,7 +26,6 @@ mod models;
 pub mod modules;
 pub mod sam_parser;
 pub mod state;
-mod traits;
 pub mod traverse;
 mod viterbi;
 

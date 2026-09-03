@@ -1,3 +1,5 @@
+//! The definitions of the pHMMs and their components.
+
 use crate::{
     alignment::phmm::{
         PhmmNumber,
@@ -17,6 +19,9 @@ use std::{
 
 pub mod components;
 pub mod nonempty_vec;
+
+#[cfg(feature = "fuzzing")]
+mod float_compare;
 
 /// An implementation of a profile hidden Markov model (pHMM) for global
 /// alignment (aligning a full sequence to a full model).
