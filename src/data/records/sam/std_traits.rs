@@ -58,6 +58,7 @@ impl std::fmt::Display for SamDataView<'_> {
             tlen,
             seq,
             qual,
+            opt_fields,
         } = self;
 
         let seq = if is_missing_sam_field(seq) {
@@ -76,7 +77,12 @@ impl std::fmt::Display for SamDataView<'_> {
         write!(
             f,
             "{qname}\t{flag}\t{rname}\t{pos}\t{mapq}\t{cigar}\t{rnext}\t{pnext}\t{tlen}\t{seq}\t{qual}"
-        )
+        )?;
+
+        for opt_field in opt_fields.0 {
+            write!(f, "\t{opt_field}")?;
+        }
+        Ok(())
     }
 }
 

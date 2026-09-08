@@ -76,7 +76,7 @@ mod private {
     use crate::{
         data::{
             cigar::{Cigar, CigarView, CigarViewMut},
-            sam::{SamData, SamDataView, SamDataViewMut},
+            sam::{SamData, SamDataView, SamDataViewMut, SamOptRaw, SamOptRawView},
         },
         prelude::*,
     };
@@ -161,6 +161,8 @@ mod private {
         SamData,
         SamDataView<'_>,
         SamDataViewMut<'_>,
+        SamOptRaw,
+        SamOptRawView<'_>,
     );
     sealed!(f32, f64, u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
 }

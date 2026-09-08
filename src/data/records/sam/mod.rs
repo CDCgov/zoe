@@ -110,35 +110,77 @@ impl Hash for SamData {
 ///
 /// See [Views](crate::data#views) for more details. This struct is primarily
 /// used for displaying SAM data without requiring ownership.
-#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+#[derive(Clone, Debug)]
 pub struct SamDataView<'a> {
     /// Query name.
-    pub qname: &'a str,
+    pub qname:      &'a str,
     /// SAM flag: strandedness, etc.
-    pub flag:  u16,
+    pub flag:       u16,
     /// Reference name.
-    pub rname: &'a str,
+    pub rname:      &'a str,
     /// The 1-based position in the reference to which the start of the query
     /// aligns. This excludes clipped bases.
-    pub pos:   usize,
+    pub pos:        usize,
     /// Mystical map quality value.
-    pub mapq:  u8,
+    pub mapq:       u8,
     /// Old style cigar format that does not include match and mismatch as
     /// separate values.
-    pub cigar: CigarView<'a>,
+    pub cigar:      CigarView<'a>,
     /// Reference name of the mate / next read. Currently not implemented and
     /// set to `*`.
-    rnext:     char,
+    rnext:          char,
     /// Position of the mate / next read. Currently not implemented and set to
     /// `0`.
-    pnext:     u32,
+    pnext:          u32,
     /// So-called "observed template length." Currently not implemented and
     /// always set to `0`.
-    tlen:      i32,
+    tlen:           i32,
     /// Query sequence.
-    pub seq:   NucleotidesView<'a>,
+    pub seq:        NucleotidesView<'a>,
     /// Query quality scores in ASCII-encoded format with Phred Quality of +33.
-    pub qual:  QualityScoresView<'a>,
+    pub qual:       QualityScoresView<'a>,
+    /// Optional fields which can be lazily parsed and accessed.
+    pub opt_fields: SamOptRawView<'a>,
+}
+
+impl PartialEq for SamDataView<'_> {
+    /// Tests for `self` and `other` values to be equal, and is used by `==`.
+    /// Note that this implementation ignores the `opt_fields` field, which
+    /// contains optional SAM values.
+    #[inline]
+    fn eq(&self, other: &Self) -> bool {
+        self.qname == other.qname
+            && self.flag == other.flag
+            && self.rname == other.rname
+            && self.pos == other.pos
+            && self.mapq == other.mapq
+            && self.cigar == other.cigar
+            && self.rnext == other.rnext
+            && self.pnext == other.pnext
+            && self.tlen == other.tlen
+            && self.seq == other.seq
+            && self.qual == other.qual
+    }
+}
+
+impl Eq for SamDataView<'_> {}
+
+impl Hash for SamDataView<'_> {
+    /// Feeds this value into the given `Hasher`. Note that this implementation
+    /// ignores the `opt_fields` field, which contains optional SAM values.
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.qname.hash(state);
+        self.flag.hash(state);
+        self.rname.hash(state);
+        self.pos.hash(state);
+        self.mapq.hash(state);
+        self.cigar.hash(state);
+        self.rnext.hash(state);
+        self.pnext.hash(state);
+        self.tlen.hash(state);
+        self.seq.hash(state);
+        self.qual.hash(state);
+    }
 }
 
 /// A mutable view of a [`SamData`] record, where sequence and string types are
@@ -378,6 +420,7 @@ impl<'a> SamDataView<'a> {
             tlen: 0,
             seq,
             qual,
+            opt_fields: SamOptRawView::new(),
         }
     }
 
@@ -488,18 +531,7 @@ impl SamOptRaw {
     /// or `B`. `VALUE` must successfully parse into the corresponding type.
     #[inline]
     pub fn iter(&self) -> impl Iterator<Item = std::io::Result<SamOptField>> {
-        self.0.iter().map(|field| {
-            let inv_opt_err_msg = || std::io::Error::other(format!("Invalid optional field {field}"));
-
-            let (tag_text, rest) = field.split_once(':').ok_or_else(inv_opt_err_msg)?;
-            let (type_text, string_value) = rest.split_once(':').ok_or_else(inv_opt_err_msg)?;
-
-            let tag = SamOptField::parse_tag(tag_text)?;
-            let type_code = SamOptField::parse_type(type_text)?;
-            let opt_field = SamOptField::parse_value(tag, type_code, string_value)
-                .with_context(format!("Failed to parse field '{field}'"))?;
-            Ok(opt_field)
-        })
+        self.as_view().iter()
     }
 
     /// Provides an iterator over the raw, unparsed optional fields present.
@@ -525,7 +557,97 @@ impl SamOptRaw {
     ///
     /// [`get`]: SamOptRaw::get
     pub fn get(&self, tag: &str) -> std::io::Result<Option<SamOptField>> {
-        for field in &self.0 {
+        self.as_view().get(tag)
+    }
+
+    /// Adds an optional field to the [`SamOptRaw`] struct.
+    ///
+    /// ## Validity
+    ///
+    /// The tag name being pushed should not already be present in `self`.
+    #[inline]
+    pub fn push(&mut self, tag: &str, data: &SamOptValue) {
+        self.0.push(format!("{tag}:{data}"));
+    }
+}
+
+/// Any optional fields stored in a SAM record, lazily parsed on an as-needed
+/// basis.
+///
+/// Each optional field consists of a tag, value type, and value.
+#[derive(Copy, Clone, Debug, Default)]
+pub struct SamOptRawView<'a>(&'a [String]);
+
+impl SamOptRawView<'_> {
+    /// Returns an empty collection of optional fields.
+    #[inline]
+    #[must_use]
+    pub fn new() -> Self {
+        SamOptRawView(&[])
+    }
+
+    /// Returns whether the optional data is empty.
+    #[inline]
+    #[must_use]
+    pub fn is_empty(self) -> bool {
+        self.0.is_empty()
+    }
+
+    /// Returns the number of optional fields present.
+    #[inline]
+    #[must_use]
+    pub fn len(self) -> usize {
+        self.0.len()
+    }
+
+    /// Provides an iterator over the optional fields present (the tag names and
+    /// parsed values).
+    ///
+    /// ## Limitations
+    ///
+    /// This iterator parses the fields lazily. If the [`SamOptRaw`] struct will
+    /// be iterated over many times, consider parsing the fields once and
+    /// collecting them.
+    ///
+    /// ## Errors
+    ///
+    /// The field in the SAM record must be of the form `TAG:TYPE:VALUE`. `TAG`
+    /// cannot contain a colon. `TYPE` must be either `A`, `i`, `f`, `Z`, `H`,
+    /// or `B`. `VALUE` must successfully parse into the corresponding type.
+    #[inline]
+    pub fn iter(self) -> impl Iterator<Item = std::io::Result<SamOptField>> {
+        self.0.iter().map(|field| {
+            let inv_opt_err_msg = || std::io::Error::other(format!("Invalid optional field {field}"));
+
+            let (tag_text, rest) = field.split_once(':').ok_or_else(inv_opt_err_msg)?;
+            let (type_text, string_value) = rest.split_once(':').ok_or_else(inv_opt_err_msg)?;
+
+            let tag = SamOptField::parse_tag(tag_text)?;
+            let type_code = SamOptField::parse_type(type_text)?;
+            let opt_field = SamOptField::parse_value(tag, type_code, string_value)
+                .with_context(format!("Failed to parse field '{field}'"))?;
+            Ok(opt_field)
+        })
+    }
+
+    /// Returns the optional data for the provided tag, if it is present.
+    ///
+    /// ## Limitations
+    ///
+    /// This struct parses fields lazily and will repeat the computations each
+    /// time [`get`] is called. The function runs in $O(n)$ time where $n$ is
+    /// the number of fields. Validation of the field format is only performed
+    /// where necessary.
+    ///
+    /// ## Errors
+    ///
+    /// The field in the SAM record must be of the form `TAG:TYPE:VALUE`. `TAG`
+    /// cannot contain a colon. `TYPE` must be either `A`, `i`, `f`, `Z`, `H`,
+    /// `B`. `VALUE` must successfully parse into the corresponding type.
+    ///
+    /// [`get`]: SamOptRaw::get
+    pub fn get(self, tag: &str) -> std::io::Result<Option<SamOptField>> {
+        for field in self.0 {
             let inv_opt_err_msg = || std::io::Error::other(format!("Invalid optional field {field}"));
             let (this_tag, rest) = field.split_once(':').ok_or_else(inv_opt_err_msg)?;
 
@@ -547,16 +669,6 @@ impl SamOptRaw {
             }
         }
         Ok(None)
-    }
-
-    /// Adds an optional field to the [`SamOptRaw`] struct.
-    ///
-    /// ## Validity
-    ///
-    /// The tag name being pushed should not already be present in `self`.
-    #[inline]
-    pub fn push(&mut self, tag: &str, data: &SamOptValue) {
-        self.0.push(format!("{tag}:{data}"));
     }
 }
 
