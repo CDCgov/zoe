@@ -13,6 +13,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `IndexedKmerCounter` and `IndexedKmerSet` structs
 - Added `process_results_many` for simultaneously handling multiple fallible iterators
 - `SamOptField` now implements `Display`
+- The raw tags are now exposed in `SamOptRaw` via `iter_raw`
 
 ### Changed
 

@@ -502,6 +502,12 @@ impl SamOptRaw {
         })
     }
 
+    /// Provides an iterator over the raw, unparsed optional fields present.
+    #[inline]
+    pub fn iter_raw(&self) -> std::slice::Iter<'_, String> {
+        self.0.iter()
+    }
+
     /// Returns the optional data for the provided tag, if it is present.
     ///
     /// ## Limitations
