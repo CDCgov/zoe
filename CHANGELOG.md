@@ -10,6 +10,10 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 - Added `sample_one_weighted` function for weighted sampling without allocation (behind `rand` feature gate)
 
+### Removed
+
+- Removed deprecated `SAMReader` constructors
+
 ## [0.0.32] - 2026-09-02
 
 ### Added

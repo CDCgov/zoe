@@ -4,7 +4,7 @@ use crate::{
         err::ResultWithErrorContext,
         nucleotides::Nucleotides,
         phred::QualityScores,
-        sam::{SamData, SamOptRaw, is_missing_sam_field},
+        sam::{is_missing_sam_field, SamData, SamOptRaw},
     },
     unwrap_or_return_some_err,
 };
@@ -121,17 +121,6 @@ impl<R: std::io::Read> SAMReader<R, true> {
 }
 
 impl<R: std::io::Read> SAMReader<R, false> {
-    /// Deprecated, use [`new_ignore_opt`] instead.
-    ///
-    /// [`new_ignore_opt`]: SAMReader::new_ignore_opt
-    #[deprecated(
-        since = "0.0.29",
-        note = "please use `new_ignore_opt` instead. This function will be removed in v0.0.31"
-    )]
-    pub fn new_ignore_tags(inner: R) -> Self {
-        SAMReader::new_ignore_opt(inner)
-    }
-
     /// Creates an iterator over SAM data, wrapping the input in a buffered
     /// reader.
     ///
@@ -149,18 +138,6 @@ impl<R: std::io::Read> SAMReader<R, false> {
         SAMReader {
             sam_reader: std::io::BufReader::new(inner).lines(),
         }
-    }
-
-    /// Deprecated, use [`from_readable_ignore_opt`] instead.
-    ///
-    /// [`from_readable_ignore_opt`]: SAMReader::from_readable_ignore_opt
-    #[allow(clippy::missing_errors_doc)]
-    #[deprecated(
-        since = "0.0.29",
-        note = "please use `from_readable_ignore_opt` instead. This function will be removed in v0.0.31"
-    )]
-    pub fn from_readable_ignore_tags(read: R) -> std::io::Result<Self> {
-        SAMReader::from_readable_ignore_opt(read)
     }
 
     /// Creates an iterator over SAM data from a type implementing [`Read`],
@@ -319,20 +296,6 @@ impl SAMReader<File, true> {
 }
 
 impl SAMReader<File, false> {
-    /// Deprecated, use [`from_path_ignore_opt`] instead.
-    ///
-    /// [`from_path_ignore_opt`]: SAMReader::from_path_ignore_opt
-    #[allow(clippy::missing_errors_doc)]
-    #[deprecated(
-        since = "0.0.29",
-        note = "please use `from_path_ignore_opt` instead. This function will be removed in v0.0.31"
-    )]
-    pub fn from_path_ignore_tags<P>(path: P) -> Result<Self, std::io::Error>
-    where
-        P: AsRef<Path>, {
-        Self::from_path_ignore_opt(path)
-    }
-
     /// Creates an iterator over the SAM data contained in a path, using a
     /// buffered reader.
     ///
