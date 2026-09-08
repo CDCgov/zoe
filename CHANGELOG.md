@@ -26,6 +26,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
   - `union()` > `union_encoded()`
 - `KmerSet` set operations can now `panic` if the `kmer_length` of the encoders
   of the sets are not equal
+- Empty `qname`, `rname`, or `cigar` fields are now displayed as `*` by `SamData` and view types
 
 ### Removed
 

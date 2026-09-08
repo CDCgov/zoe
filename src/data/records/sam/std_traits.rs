@@ -25,11 +25,21 @@ impl std::fmt::Display for SamDataView<'_> {
             opt_fields,
         } = self;
 
+        let qname = if is_missing_sam_field(qname) { "*" } else { qname };
+        let rname = if is_missing_sam_field(rname) { "*" } else { rname };
+
+        let cigar = if is_missing_sam_field(cigar.as_bytes()) {
+            CigarView::from_slice_unchecked(b"*")
+        } else {
+            *cigar
+        };
+
         let seq = if is_missing_sam_field(seq) {
             NucleotidesView::from(b"*")
         } else {
             *seq
         };
+
         let qual = if is_missing_sam_field(qual) {
             // Safety: `b"*"` is graphic ASCII, which satisfies
             // `QualityScoresView`'s byte invariant.
