@@ -752,7 +752,7 @@ impl SamOptField {
 }
 
 /// The value of an optional field (for the SAM file format).
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum SamOptValue {
     /// A printable character (type code `A`).
     Char(u8),
@@ -863,39 +863,5 @@ impl OptArray {
             }
             _ => Err(std::io::Error::other(format!("Unsupported subtype {subtype}"))),
         }
-    }
-}
-
-impl Display for SamOptValue {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            SamOptValue::Char(val) => write!(f, "A:{val}", val = *val as char),
-            SamOptValue::Int(val) => write!(f, "i:{val}"),
-            SamOptValue::Float(val) => write!(f, "f:{val}"),
-            SamOptValue::String(val) => write!(f, "Z:{val}"),
-            SamOptValue::Hex(val) => write!(f, "H:{val}"),
-            SamOptValue::Array(val) => match val {
-                OptArray::I8(vec) => OptArray::fmt_opt_array(f, 'c', vec),
-                OptArray::U8(vec) => OptArray::fmt_opt_array(f, 'C', vec),
-                OptArray::I16(vec) => OptArray::fmt_opt_array(f, 's', vec),
-                OptArray::U16(vec) => OptArray::fmt_opt_array(f, 'S', vec),
-                OptArray::I32(vec) => OptArray::fmt_opt_array(f, 'i', vec),
-                OptArray::U32(vec) => OptArray::fmt_opt_array(f, 'I', vec),
-                OptArray::F32(vec) => OptArray::fmt_opt_array(f, 'f', vec),
-            },
-        }
-    }
-}
-
-impl OptArray {
-    /// A helper function for displaying a [`SamOptValue::Array`].
-    fn fmt_opt_array<T: Display>(f: &mut Formatter<'_>, arr_type: char, vals: &[T]) -> std::fmt::Result {
-        write!(f, "B:{arr_type}")?;
-
-        for v in vals {
-            write!(f, ",{v}")?;
-        }
-
-        Ok(())
     }
 }
