@@ -189,6 +189,10 @@ impl Hash for SamDataView<'_> {
 /// See [Views](crate::data#views) for more details. This struct is primarily
 /// used for displaying SAM data without requiring ownership.
 #[derive(Eq, PartialEq, Hash, Debug)]
+#[deprecated(
+    since = "0.0.33",
+    note = "consider using an immutable view or a custom struct instead. This struct will be removed in v0.0.35. Open an issue with a use-case if this struct is required"
+)]
 pub struct SamDataViewMut<'a> {
     /// Query name.
     pub qname: &'a mut String,
@@ -440,6 +444,7 @@ impl<'a> SamDataView<'a> {
     }
 }
 
+#[allow(deprecated)]
 impl<'a> SamDataViewMut<'a> {
     /// Constructs a new [`SamDataViewMut`] record from the corresponding
     /// fields.

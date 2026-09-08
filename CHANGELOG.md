@@ -30,6 +30,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 ### Removed
 
 - Removed deprecated `SAMReader` constructors
+- Deprecated `SamDataViewMut`
 
 ## [0.0.32] - 2026-09-02
 

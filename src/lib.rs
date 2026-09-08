@@ -70,6 +70,7 @@ pub mod prelude {
 
 pub(crate) use crate::data::extension::simd;
 
+#[allow(deprecated)]
 mod private {
     #[cfg(feature = "dev-phmm")]
     use crate::alignment::phmm::{DomainPhmm, GlobalPhmm, LocalPhmm, SemiLocalPhmm};

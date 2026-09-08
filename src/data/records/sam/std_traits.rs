@@ -86,6 +86,7 @@ impl std::fmt::Display for SamDataView<'_> {
     }
 }
 
+#[allow(deprecated)]
 impl std::fmt::Display for SamDataViewMut<'_> {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
