@@ -267,16 +267,17 @@ where
     }
 }
 
-impl<const MAX_LEN: usize, E, S> Index<E::EncodedKmer> for KmerCounter<MAX_LEN, E, S>
+impl<const MAX_LEN: usize, E, K, S> Index<K> for KmerCounter<MAX_LEN, E, S>
 where
     E: KmerEncoder<MAX_LEN>,
+    K: KmerEncode<MAX_LEN, E>,
     S: BuildHasher,
 {
     type Output = usize;
 
     #[inline]
-    fn index(&self, index: E::EncodedKmer) -> &Self::Output {
-        &self.map[&index]
+    fn index(&self, index: K) -> &Self::Output {
+        &self.map[&index.encode_kmer(&self.encoder)]
     }
 }
 

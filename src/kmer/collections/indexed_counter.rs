@@ -279,28 +279,30 @@ where
     }
 }
 
-impl<const MAX_LEN: usize, E> Index<E::EncodedKmer> for IndexedKmerCounter<MAX_LEN, E>
+impl<const MAX_LEN: usize, E, K> Index<K> for IndexedKmerCounter<MAX_LEN, E>
 where
     E: KmerEncoder<MAX_LEN, EncodedKmer: KmerIndex>,
+    K: KmerEncode<MAX_LEN, E>,
 {
     type Output = usize;
 
     #[inline]
-    fn index(&self, index: E::EncodedKmer) -> &Self::Output {
-        &self.vec[index.as_usize()]
+    fn index(&self, index: K) -> &Self::Output {
+        &self.vec[index.encode_kmer(&self.encoder).as_usize()]
     }
 }
 
 // This implementation is okay for IndexedKmerCounter since a count of zero
 // means it isn't present in the counter, but this same implementation for
 // KmerCounter is not allowed and could lead to invalid state
-impl<const MAX_LEN: usize, E> IndexMut<E::EncodedKmer> for IndexedKmerCounter<MAX_LEN, E>
+impl<const MAX_LEN: usize, E, K> IndexMut<K> for IndexedKmerCounter<MAX_LEN, E>
 where
     E: KmerEncoder<MAX_LEN, EncodedKmer: KmerIndex>,
+    K: KmerEncode<MAX_LEN, E>,
 {
     #[inline]
-    fn index_mut(&mut self, index: E::EncodedKmer) -> &mut Self::Output {
-        &mut self.vec[index.as_usize()]
+    fn index_mut(&mut self, index: K) -> &mut Self::Output {
+        &mut self.vec[index.encode_kmer(&self.encoder).as_usize()]
     }
 }
 

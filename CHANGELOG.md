@@ -42,7 +42,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
   AVX-512 capable machines for a modest binary size increase.
 - `or_stop` with `process_results_many` now uses a new iterator called `OrStop`
 - `encode_kmer` now panics if the k-mer length is incorrect for the given
-  encoder, and added `encode_kmer_unchecked` which does no check 
+  encoder, and added `encode_kmer_unchecked` which does no check
+- `KmerCounter` now supports indexing with either encoded or decoded k-mers
 
 ### Removed
 
