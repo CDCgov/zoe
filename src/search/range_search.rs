@@ -1,5 +1,5 @@
 use crate::{
-    data::views::{IndexAdjustable, SliceRange},
+    data::views::{IndexAdjustable, SliceRange, StrSliceRange},
     kmer::{FindKmers, FindKmersInSeq},
     prelude::{NucleotidesView, Translate},
     private::Sealed,
@@ -7,15 +7,18 @@ use crate::{
 use std::{
     marker::PhantomData,
     ops::{Bound, Range},
+    str::pattern::{Pattern, ReverseSearcher},
 };
 
-/// A subsequence along with its starting index. This is used for restricting
-/// the search range when performing a search. See [Restricting the search
+/// A subsequence of a byte string along with its starting index. This is used
+/// for restricting the search range when performing a search.
+///
+/// See [Restricting the search
 /// range](crate::search#restricting-the-search-range) for more details.
 ///
 /// It is compatible with:
 ///
-/// - Performing string search via the [`ByteSubstring`] trait
+/// - Performing byte string search via the [`ByteSubstring`] trait
 /// - Searching for k-mers using methods similar to those in [`FindKmers`]
 /// - Searching for amino acids in a nucleotides sequence similar to methods in
 ///   [`Translate`]. This requires the original type to implement [`Translate`]
@@ -210,7 +213,9 @@ impl<'a, Q: ?Sized> RangeSearch<'a, Q> {
 
 /// Trait for performing restricted string searches on byte substrings. In
 /// particular, it provides methods for generating a [`RangeSearch`] struct from
-/// a byte string. See [Restricting the search
+/// a byte string.
+///
+/// See [Restricting the search
 /// range](crate::search#restricting-the-search-range) for more details.
 pub trait ToRangeSearch: AsRef<[u8]> + Sealed {
     /// Restrict the search to be in `range`.
@@ -261,6 +266,162 @@ pub trait ToRangeSearch: AsRef<[u8]> + Sealed {
 }
 
 impl<T: AsRef<[u8]> + ?Sized + Sealed> ToRangeSearch for T {}
+
+/// A subsequence of a string along with its starting index. This is used for
+/// restricting the search range when performing a search.
+///
+/// See [Restricting the search
+/// range](crate::search#restricting-the-search-range) for more details.
+///
+/// It is compatible with performing string search using the `find` and `rfind`
+/// methods, similar to the standard library.
+///
+/// <div class="warning note">
+///
+/// **Note**
+///
+/// All search methods called on a [`StrRangeSearch`] struct return indices with
+/// respect to the original sequence, not the subsequence.
+///
+/// </div>
+///
+/// ## Limitations
+///
+/// This does not use SIMD due to searching a UTF-8 string. If a search of the
+/// raw bytes is sufficient, then [`RangeSearch`] can offer better performance.
+pub struct StrRangeSearch<'a> {
+    pub(crate) slice:       &'a str,
+    pub(crate) starting_at: usize,
+}
+
+impl<'a> StrRangeSearch<'a> {
+    /// Creates a new [`StrRangeSearch`] from a string and a range.
+    ///
+    /// ## Panics
+    ///
+    /// The range must fall on a character boundary, otherwise this will panic.
+    fn new<R>(sequence: &'a str, range: R) -> Self
+    where
+        R: StrSliceRange, {
+        let slice = &sequence[range.clone()];
+        let starting_at = match range.start_bound() {
+            Bound::Included(&start) => start,
+            Bound::Unbounded => 0,
+            Bound::Excluded(&start) => start.saturating_add(1),
+        };
+        Self { slice, starting_at }
+    }
+
+    /// Given an index/range in the frame of reference of `slice`, adjust it to
+    /// be in the original frame of reference.
+    #[inline]
+    fn adjust_to_context<I: IndexAdjustable>(&self, index: &I) -> I {
+        index.add(self.starting_at)
+    }
+
+    /// Returns the byte index of the first character of this string slice that
+    /// matches the pattern.
+    ///
+    /// Returns [`None`] if the pattern doesn't match.
+    ///
+    /// The [pattern] can be a `&str`, [`char`], a slice of [`char`]s, or a
+    /// function or closure that determines if a character matches.
+    ///
+    /// [pattern]: std::str::pattern
+    #[inline]
+    pub fn find<P>(&self, pat: P) -> Option<usize>
+    where
+        P: Pattern, {
+        self.slice.find(pat).map(|r| self.adjust_to_context(&r))
+    }
+
+    /// Returns the byte index for the first character of the last match of the
+    /// pattern in this string slice.
+    ///
+    /// Returns [`None`] if the pattern doesn't match.
+    ///
+    /// The [pattern] can be a `&str`, [`char`], a slice of [`char`]s, or a
+    /// function or closure that determines if a character matches.
+    ///
+    /// [pattern]: std::str::pattern
+    #[inline]
+    pub fn rfind<P>(&self, pat: P) -> Option<usize>
+    where
+        P: Pattern,
+        for<'b> <P as Pattern>::Searcher<'b>: ReverseSearcher<'b>, {
+        self.slice.rfind(pat).map(|r| self.adjust_to_context(&r))
+    }
+}
+
+/// Trait for performing restricted string searches on substrings. In
+/// particular, it provides methods for generating a [`StrRangeSearch`] struct
+/// from a UTF-8 string.
+///
+/// See [Restricting the search
+/// range](crate::search#restricting-the-search-range) for more details.
+pub trait ToStrRangeSearch: AsRef<str> + Sealed {
+    /// Restrict the search to be in `range`.
+    ///
+    /// <div class="warning note">
+    ///
+    /// **Note**
+    ///
+    /// All string search methods called on the resulting struct return indices
+    /// with respect to the original sequence, not the subsequence.
+    ///
+    /// </div>
+    ///
+    /// ## Panics
+    ///
+    /// Panics if the range contains incomplete UTF-8 characters within the
+    /// string, or if the range is out of bounds.
+    fn str_search_in<R: StrSliceRange>(&self, range: R) -> StrRangeSearch<'_> {
+        StrRangeSearch::new(self.as_ref(), range)
+    }
+
+    /// Restrict the search to be in only the first `n` bytes. If the sequence
+    /// is less than `n` bytes long, then the full sequence is searched.
+    ///
+    /// <div class="warning note">
+    ///
+    /// **Note**
+    ///
+    /// All string search methods called on the resulting struct return indices
+    /// with respect to the original sequence, not the subsequence.
+    ///
+    /// </div>
+    ///
+    /// ## Panics
+    ///
+    /// Panics if `..n` contains incomplete UTF-8 characters within the string.
+    #[inline]
+    fn str_search_in_first(&self, n: usize) -> StrRangeSearch<'_> {
+        Self::str_search_in(self, ..n.min(self.as_ref().len()))
+    }
+
+    /// Restrict the search to be in only the last `n` bytes. If the sequence is
+    /// less than `n` bytes long, then the full sequence is searched.
+    ///
+    /// <div class="warning note">
+    ///
+    /// **Note**
+    ///
+    /// All string search methods called on the resulting struct return indices
+    /// with respect to the original sequence, not the subsequence.
+    ///
+    /// </div>
+    ///
+    /// ## Panics
+    ///
+    /// Panics if `len-n..` contains incomplete UTF-8 characters within the
+    /// string.
+    #[inline]
+    fn str_search_in_last(&self, n: usize) -> StrRangeSearch<'_> {
+        Self::str_search_in(self, self.as_ref().len().saturating_sub(n)..)
+    }
+}
+
+impl<T: AsRef<str> + ?Sized + Sealed> ToStrRangeSearch for T {}
 
 #[cfg(test)]
 mod test {

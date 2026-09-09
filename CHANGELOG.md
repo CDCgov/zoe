@@ -18,6 +18,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `CigletIteratorChecked` to provide a fallible iterator over `Cigar`
 - Added `to_ciglet_iter_checked` to `ToCigletIterator`, providing fallible iterators
 - Added `op_consumes_query` and `op_consumes_ref` methods to `Ciglet`
+- Added a version of `RangeSearch` that is compatible with UTF-8 `&str` 
 
 ### Changed
 

@@ -3,10 +3,15 @@ use std::{
     slice::SliceIndex,
 };
 
-/// A trait alias for range types (with `usize` bounds, used to index into
-/// `&[u8]`).
+/// A trait alias for range types with `usize` bounds, used to index into
+/// `&[u8]`.
 pub trait SliceRange: SliceIndex<[u8], Output = [u8]> + Clone + RangeBounds<usize> {}
 impl<T: SliceIndex<[u8], Output = [u8]> + Clone + RangeBounds<usize>> SliceRange for T {}
+
+/// A trait alias for range types with `usize` bounds, used to index into
+/// `&str`.
+pub trait StrSliceRange: SliceIndex<str, Output = str> + Clone + RangeBounds<usize> {}
+impl<T: SliceIndex<str, Output = str> + Clone + RangeBounds<usize>> StrSliceRange for T {}
 
 /// Helper trait for adding a constant value to an index or range.
 pub(crate) trait IndexAdjustable {

@@ -16,8 +16,8 @@
 //!
 //! ## Restricting the search range
 //!
-//! Sometimes, you may want to search a particular region of a string. There are
-//! two main scenarios:
+//! Sometimes, you may want to search a particular region of a byte string.
+//! There are two main scenarios:
 //!
 //! 1. The string search should return an index/range with respect to the
 //!    subsequence. For example, searching `ACGT` for `G` in the range `1..3`
@@ -67,6 +67,10 @@
 //! assert_eq!(position, Some(19..23))
 //! ```
 //!
+//! Similar functionality for searching UTF-8 substrings is available with
+//! [`StrRangeSearch`], constructed with [`str_search_in`],
+//! [`str_search_in_first`], or [`str_search_in_last`].
+//!
 //! [`substring_match`]: crate::search::substring_match
 //! [`substring_match_simd`]: crate::search::substring_match_simd
 //! [`fuzzy_substring_match`]: crate::search::fuzzy_substring_match
@@ -79,6 +83,9 @@
 //! [`search_in`]: crate::search::ToRangeSearch::search_in
 //! [`search_in_first`]: crate::search::ToRangeSearch::search_in_first
 //! [`search_in_last`]: crate::search::ToRangeSearch::search_in_last
+//! [`str_search_in`]: crate::search::ToStrRangeSearch::str_search_in
+//! [`str_search_in_first`]: crate::search::ToStrRangeSearch::str_search_in_first
+//! [`str_search_in_last`]: crate::search::ToStrRangeSearch::str_search_in_last
 
 /// Search and/or replace bytes.
 mod bytes;
@@ -100,5 +107,5 @@ mod bench;
 pub use bytes::*;
 pub use inexact::*;
 pub use k_repeating::*;
-pub use range_search::{RangeSearch, ToRangeSearch};
+pub use range_search::{RangeSearch, StrRangeSearch, ToRangeSearch, ToStrRangeSearch};
 pub use substring::*;
