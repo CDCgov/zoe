@@ -34,12 +34,15 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
   - `union()` > `union_encoded()`
 - `KmerSet` set operations can now `panic` if the `kmer_length` of the encoders
   of the sets are not equal
-- Empty `qname`, `rname`, or `cigar` fields are now displayed as `*` by `SamData` and view types
+- Empty `qname`, `rname`, or `cigar` fields are now displayed as `*` by
+  `SamData` and view types
 - `OrFail` and `Fail` now find raw OS error codes directly in the error source
   chain and otherwise use exit code 1
 - Multiversion updated to 0.9, which brings a measurable bump in performance on
   AVX-512 capable machines for a modest binary size increase.
 - `or_stop` with `process_results_many` now uses a new iterator called `OrStop`
+- `encode_kmer` now panics if the k-mer length is incorrect for the given
+  encoder, and added `encode_kmer_unchecked` which does no check 
 
 ### Removed
 
@@ -47,6 +50,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Deprecated `SamDataViewMut`
 - Removed the `GetCode` trait
 - Deprecated `FastaNTAnnot`
+- Deprecated `encode_kmer_checked`
 
 ## Fixed
 

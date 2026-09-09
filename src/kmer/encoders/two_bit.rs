@@ -191,7 +191,7 @@ where
     }
 
     #[inline]
-    fn encode_kmer(&self, kmer: impl AsRef<[u8]>) -> Self::EncodedKmer {
+    fn encode_kmer_unchecked(&self, kmer: impl AsRef<[u8]>) -> Self::EncodedKmer {
         let mut encoded_kmer = T::ZERO;
 
         for &base in kmer.as_ref() {
@@ -259,12 +259,12 @@ where
             Self::empty()
         } else {
             let index = encoder.kmer_length - 1;
-            // Validity: This code does not conform to the assumptions of the kmer
-            // API, since it uses `encode_kmer` on a kmer that is one base too
-            // short. However, each iteration of the loop adds another base as
-            // the first operation, so this is corrected when the iterator
-            // starts.
-            let pre_first_kmer = encoder.encode_kmer(&seq[..index]);
+            // Validity: This code does not conform to the assumptions of the
+            // kmer API, since it uses encode_kmer_unchecked on a kmer that is
+            // one base too short. However, each iteration of the loop adds
+            // another base as the first operation, so this is corrected when
+            // the iterator starts.
+            let pre_first_kmer = encoder.encode_kmer_unchecked(&seq[..index]);
 
             TwoBitKmerIterator {
                 current_kmer: pre_first_kmer,
@@ -359,11 +359,11 @@ where
         } else {
             let index = encoder.kmer_length - 1;
             // Validity: This code does not conform to the assumptions of the
-            // kmer API, since it uses `encode_kmer` on a kmer that is one base
-            // too short. However, each iteration of the loop adds another base
-            // as the first operation, so this is corrected when the iterator
-            // starts.
-            let pre_first_kmer = encoder.encode_kmer(&seq[..index]);
+            // kmer API, since it uses encode_kmer_unchecked on a kmer that is
+            // one base too short. However, each iteration of the loop adds
+            // another base as the first operation, so this is corrected when
+            // the iterator starts.
+            let pre_first_kmer = encoder.encode_kmer_unchecked(&seq[..index]);
 
             TwoBitKmerIntoIterator {
                 seq,
@@ -440,12 +440,12 @@ where
             Self::empty()
         } else {
             let index = seq.len() + 1 - encoder.kmer_length;
-            // Validity: This code does not conform to the assumptions of the kmer
-            // API, since it uses `encode_kmer` on a kmer that is one base too
-            // short. However, each iteration of the loop adds another base as
-            // the first operation, so this is corrected when the iterator
-            // starts.
-            let pre_last_kmer = encoder.encode_kmer(&seq[index..]).0 << 2;
+            // Validity: This code does not conform to the assumptions of the
+            // kmer API, since it uses encode_kmer_unchecked on a kmer that is
+            // one base too short. However, each iteration of the loop adds
+            // another base as the first operation, so this is corrected when
+            // the iterator starts.
+            let pre_last_kmer = encoder.encode_kmer_unchecked(&seq[index..]).0 << 2;
 
             TwoBitKmerIteratorRev {
                 current_kmer: pre_last_kmer.into(),
@@ -537,12 +537,12 @@ where
             Self::empty()
         } else {
             let index = seq.len() + 1 - encoder.kmer_length;
-            // Validity: This code does not conform to the assumptions of the kmer
-            // API, since it uses `encode_kmer` on a kmer that is one base too
-            // short. However, each iteration of the loop adds another base as
-            // the first operation, so this is corrected when the iterator
-            // starts.
-            let pre_last_kmer = encoder.encode_kmer(&seq[index..]).0 << 2;
+            // Validity: This code does not conform to the assumptions of the
+            // kmer API, since it uses encode_kmer_unchecked on a kmer that is
+            // one base too short. However, each iteration of the loop adds
+            // another base as the first operation, so this is corrected when
+            // the iterator starts.
+            let pre_last_kmer = encoder.encode_kmer_unchecked(&seq[index..]).0 << 2;
 
             seq.truncate(index);
 

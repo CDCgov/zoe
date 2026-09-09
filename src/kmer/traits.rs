@@ -27,8 +27,11 @@ pub trait KmerEncode<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>> {
     /// Ensures the provided k-mer is encoded. If the k-mer is already encoded,
     /// returns the input value.
     ///
-    /// If the k-mer is decoded, then it must be of the correct length for the
-    /// `encoder`.
+    /// ## Panics
+    ///
+    /// Panics if the k-mer is decoded and not of length [`E::kmer_length`].
+    ///
+    /// [`E::kmer_length`]: KmerEncoder::kmer_length
     #[must_use]
     fn encode_kmer(&self, encoder: &E) -> E::EncodedKmer;
 }
@@ -118,8 +121,13 @@ pub trait FindKmersInSeq<const MAX_LEN: usize>: EncodedKmerCollection<MAX_LEN> +
     ///
     /// The k-mers can be either encoded or decoded (in which case it is encoded
     /// before checking). If it is encoded, it must have been generated using
-    /// the [`KmerEncoder`] associated with this collection. If it is decoded,
-    /// it must be of length `self.kmer_length()`.
+    /// the [`KmerEncoder`] associated with this collection.
+    ///
+    /// ## Panics
+    ///
+    /// Panics if the k-mer is decoded and not of length [`Self::kmer_length`].
+    ///
+    /// [`Self::kmer_length`]: EncodedKmerCollection::kmer_length
     #[must_use]
     fn contains<K>(&self, kmer: &K) -> bool
     where

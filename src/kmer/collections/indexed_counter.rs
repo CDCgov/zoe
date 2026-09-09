@@ -95,7 +95,10 @@ where
     /// The k-mer can be either encoded or decoded (in which case it gets
     /// automatically encoded). If it is encoded, it must have been generated
     /// using the [`KmerEncoder`] associated with this [`IndexedKmerCounter`].
-    /// If it is decoded, it must be of length [`Self::kmer_length`].
+    ///
+    /// ## Panics
+    ///
+    /// Panics if the k-mer is decoded and not of length [`Self::kmer_length`].
     #[inline]
     pub fn tally_kmer<K>(&mut self, kmer: &K)
     where
@@ -109,8 +112,11 @@ where
     /// The original k-mer is also tallied. The k-mer can be either encoded or
     /// decoded (in which case it gets automatically encoded). If it is encoded,
     /// it must have been generated using the [`KmerEncoder`] associated with
-    /// this [`IndexedKmerCounter`]. If it is decoded, it must be of length
-    /// [`Self::kmer_length`].
+    /// this [`IndexedKmerCounter`].
+    ///
+    /// ## Panics
+    ///
+    /// Panics if the k-mer is decoded and not of length [`Self::kmer_length`].
     #[inline]
     pub fn tally_kmer_with_variants<const N: usize>(&mut self, kmer: &impl KmerEncode<MAX_LEN, E>)
     where
@@ -124,8 +130,7 @@ where
     ///
     /// The k-mer can be either encoded or decoded (in which case it is encoded
     /// for indexing). If it is encoded, it must have been generated using the
-    /// [`KmerEncoder`] associated with this [`IndexedKmerCounter`]. If it is
-    /// decoded, it must be of length [`Self::kmer_length`].
+    /// [`KmerEncoder`] associated with this [`IndexedKmerCounter`].
     ///
     /// <div class="warning note">
     ///
@@ -135,6 +140,11 @@ where
     /// encoded k-mers rather than decoded ones.
     ///
     /// </div>
+    ///
+    /// ## Panics
+    ///
+    /// Panics if the k-mers are decoded and not of length
+    /// [`Self::kmer_length`].
     #[inline]
     pub fn tally_from_iter<I: IntoIterator<Item: KmerEncode<MAX_LEN, E>>>(&mut self, iter: I) {
         iter.into_iter().for_each(|kmer| self.tally_kmer(&kmer));
@@ -174,7 +184,10 @@ where
     /// The k-mer can be either encoded or decoded (in which case it gets
     /// automatically encoded). If it is encoded, it must have been generated
     /// using the [`KmerEncoder`] associated with this [`IndexedKmerCounter`].
-    /// If it is decoded, it must be of length [`Self::kmer_length`].
+    ///
+    /// ## Panics
+    ///
+    /// Panics if the k-mer is decoded and not of length [`Self::kmer_length`].
     #[inline]
     #[must_use]
     pub fn contains<K>(&self, kmer: &K) -> bool
@@ -189,7 +202,10 @@ where
     /// k-mer can be either encoded or decoded (in which case it gets
     /// automatically encoded). If it is encoded, it must have been generated
     /// using the [`KmerEncoder`] associated with this [`IndexedKmerCounter`].
-    /// If it is decoded, it must be of length [`Self::kmer_length`].
+    ///
+    /// ## Panics
+    ///
+    /// Panics if the k-mer is decoded and not of length [`Self::kmer_length`].
     #[inline]
     #[must_use]
     pub fn get<K>(&self, kmer: &K) -> usize

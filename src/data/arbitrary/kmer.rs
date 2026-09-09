@@ -65,9 +65,8 @@ where
                 set:  ByteSet::Ascii,
                 case: Case::Any,
             },
-            min_len:       0,
-            len:           Some(set.len()),
-            max_len:       usize::MAX,
+            len: Some(set.len()),
+            ..Default::default()
         };
 
         set.insert_from_iter(kmer_specs.make_arbitrary_iter(u).filter_map(std::result::Result::ok));

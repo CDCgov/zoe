@@ -99,8 +99,11 @@ where
     ///
     /// The k-mer can be either encoded or decoded (in which case it is encoded
     /// before insertion). If it is encoded, it must have been generated using
-    /// the [`KmerEncoder`] associated with this [`IndexedKmerSet`]. If it is
-    /// decoded, it must be of length [`Self::kmer_length`].
+    /// the [`KmerEncoder`] associated with this [`IndexedKmerSet`].
+    ///
+    /// ## Panics
+    ///
+    /// Panics if the k-mer is decoded and not of length [`Self::kmer_length`].
     #[inline]
     pub fn insert_kmer<K>(&mut self, kmer: &K)
     where
@@ -114,8 +117,11 @@ where
     /// The original k-mer is also inserted. The original k-mer can be either
     /// encoded or decoded (in which case it is encoded before insertion and
     /// variant generation). If it is encoded, it must have been generated using
-    /// the [`KmerEncoder`] associated with this [`IndexedKmerSet`]. If it is
-    /// decoded, it must be of length [`Self::kmer_length`].
+    /// the [`KmerEncoder`] associated with this [`IndexedKmerSet`].
+    ///
+    /// ## Panics
+    ///
+    /// Panics if the k-mer is decoded and not of length [`Self::kmer_length`].
     #[inline]
     pub fn insert_kmer_with_variants<const N: usize>(&mut self, kmer: &impl KmerEncode<MAX_LEN, E>)
     where
@@ -129,8 +135,7 @@ where
     ///
     /// The k-mers can be either encoded or decoded (in which case it is encoded
     /// before insertion). If it is encoded, it must have been generated using
-    /// the [`KmerEncoder`] associated with this [`IndexedKmerSet`]. If it is
-    /// decoded, it must be of length [`Self::kmer_length`].
+    /// the [`KmerEncoder`] associated with this [`IndexedKmerSet`].
     ///
     /// <div class="warning note">
     ///
@@ -140,6 +145,11 @@ where
     /// encoded k-mers rather than decoded ones.
     ///
     /// </div>
+    ///
+    /// ## Panics
+    ///
+    /// Panics if the k-mers are decoded and not of length
+    /// [`Self::kmer_length`].
     #[inline]
     pub fn insert_from_iter<I: IntoIterator<Item: KmerEncode<MAX_LEN, E>>>(&mut self, iter: I) {
         iter.into_iter().for_each(|kmer| self.insert_kmer(&kmer));
@@ -177,8 +187,11 @@ where
     ///
     /// The k-mers can be either encoded or decoded (in which case it is encoded
     /// before checking). If it is encoded, it must have been generated using
-    /// the [`KmerEncoder`] associated with this [`IndexedKmerSet`]. If it is
-    /// decoded, it must be of length [`Self::kmer_length`].
+    /// the [`KmerEncoder`] associated with this [`IndexedKmerSet`].
+    ///
+    /// ## Panics
+    ///
+    /// Panics if the k-mer is decoded and not of length [`Self::kmer_length`].
     #[inline]
     #[must_use]
     pub fn contains<K>(&self, kmer: &K) -> bool

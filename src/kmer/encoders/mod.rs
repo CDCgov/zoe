@@ -54,14 +54,30 @@ where
     /// Retrieves the k-mer length associated with this [`KmerEncoder`].
     fn kmer_length(&self) -> usize;
 
+    /// Encodes a k-mer where the length is known to be correct.
+    ///
+    /// ## Validity
+    ///
+    /// The k-mer length is assumed to be valid for the given [`KmerEncoder`],
+    /// and a check is not made.
+    fn encode_kmer_unchecked(&self, kmer: impl AsRef<[u8]>) -> Self::EncodedKmer;
+
     /// Encodes a k-mer.
     ///
-    /// The k-mer length is assumed to be valid for the given [`KmerEncoder`].
-    /// Consider [`encode_kmer_checked`] when it is not known whether the k-mer
-    /// length will be valid.
+    /// ## Panic
     ///
-    /// [`encode_kmer_checked`]: KmerEncoder::encode_kmer_checked
-    fn encode_kmer(&self, kmer: impl AsRef<[u8]>) -> Self::EncodedKmer;
+    /// Panics if the length of `kmer` does not match the expected length set in
+    /// the encoder.
+    fn encode_kmer(&self, kmer: impl AsRef<[u8]>) -> Self::EncodedKmer {
+        assert_eq!(
+            kmer.as_ref().len(),
+            self.kmer_length(),
+            "The length of the k-mer must agree with that of the encoder"
+        );
+
+        // Validity: check made above
+        self.encode_kmer_unchecked(kmer)
+    }
 
     /// Decodes a k-mer.
     ///
@@ -143,6 +159,10 @@ where
     /// returning [`None`] otherwise).
     #[inline]
     #[must_use]
+    #[deprecated(
+        since = "0.0.33",
+        note = "consider using encode_kmer or performing a manual check beforehand"
+    )]
     fn encode_kmer_checked<S: AsRef<[u8]>>(&self, kmer: S) -> Option<Self::EncodedKmer> {
         if kmer.as_ref().len() == self.kmer_length() {
             Some(self.encode_kmer(kmer))
