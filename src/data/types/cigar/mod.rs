@@ -307,6 +307,24 @@ pub struct Ciglet {
     pub op:  u8,
 }
 
+impl Ciglet {
+    /// Returns true if the operation in the [`Ciglet`] consumes positions from
+    /// the query.
+    #[inline]
+    #[must_use]
+    pub fn op_consumes_query(self) -> bool {
+        matches!(self.op, b'M' | b'I' | b'S' | b'=' | b'X')
+    }
+
+    /// Returns true if the operation in the [`Ciglet`] consumes positions from
+    /// the reference.
+    #[inline]
+    #[must_use]
+    pub fn op_consumes_ref(self) -> bool {
+        matches!(self.op, b'M' | b'D' | b'N' | b'=' | b'X')
+    }
+}
+
 impl PartialEq<AlignmentStates> for Cigar {
     #[inline]
     fn eq(&self, other: &AlignmentStates) -> bool {
@@ -395,28 +413,28 @@ where
     #[inline]
     fn ref_len_in_alignment(&self) -> usize {
         self.to_ciglet_iterator()
-            .filter_map(|Ciglet { inc, op }| matches!(op, b'M' | b'D' | b'N' | b'=' | b'X').then_some(inc))
+            .filter_map(|ciglet| ciglet.op_consumes_ref().then_some(ciglet.inc))
             .sum()
     }
 
     #[inline]
     fn query_len_in_alignment(&self) -> usize {
         self.to_ciglet_iterator()
-            .filter_map(|Ciglet { inc, op }| matches!(op, b'M' | b'I' | b'S' | b'=' | b'X').then_some(inc))
+            .filter_map(|ciglet| ciglet.op_consumes_query().then_some(ciglet.inc))
             .sum()
     }
 
     #[inline]
     fn ref_len_in_alignment_checked(&self) -> Option<usize> {
         self.to_ciglet_iterator()
-            .filter_map(|Ciglet { inc, op }| matches!(op, b'M' | b'D' | b'N' | b'=' | b'X').then_some(inc))
+            .filter_map(|ciglet| ciglet.op_consumes_ref().then_some(ciglet.inc))
             .try_fold(0, usize::checked_add)
     }
 
     #[inline]
     fn query_len_in_alignment_checked(&self) -> Option<usize> {
         self.to_ciglet_iterator()
-            .filter_map(|Ciglet { inc, op }| matches!(op, b'M' | b'I' | b'S' | b'=' | b'X').then_some(inc))
+            .filter_map(|ciglet| ciglet.op_consumes_query().then_some(ciglet.inc))
             .try_fold(0, usize::checked_add)
     }
 }
