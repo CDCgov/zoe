@@ -11,12 +11,11 @@ use crate::{
         bam::{
             encoder::{
                 binning::compute_bin,
-                fields::{encode_aux_fields, encode_cigar, encode_qual, encode_read_name, encode_seq},
+                fields::{CigarSpans, encode_aux_fields, encode_cigar, encode_qual, encode_read_name, encode_seq},
             },
             error::{BamEncodingError, BamError, BamRecordError, NumberSizeTarget},
             header::Header,
         },
-        cigar::LenInAlignment,
         sam::{SamData, is_missing_sam_field},
         views::Len,
     },
@@ -96,22 +95,6 @@ impl PreparedBamRecord {
         let ciglets = AlignmentStates::try_from(&data.cigar).map_err(|source| BamRecordError::InvalidCigar { source })?;
         let cigar_is_missing = ciglets.is_empty();
 
-        if !cigar_is_missing {
-            let Some(query_bases_from_cigar) = ciglets.query_len_in_alignment_checked() else {
-                return Err(BamEncodingError::SizeOverflow {
-                    field:  "query-consuming CIGAR length",
-                    target: NumberSizeTarget::MaxInclusive(usize::MAX),
-                }
-                .into());
-            };
-            if !seq_missing && query_bases_from_cigar != l_seq {
-                return Err(BamEncodingError::other(format!(
-                    "SEQ length ({l_seq}) does not match query-consuming CIGAR length ({query_bases_from_cigar})"
-                ))
-                .into());
-            }
-        }
-
         if seq_missing && !qual_missing {
             return Err(BamEncodingError::other("QUAL must be missing when SEQ is missing").into());
         }
@@ -126,14 +109,15 @@ impl PreparedBamRecord {
         let read_name = encode_read_name(&data.qname)?;
         let seq = encode_seq(&data.seq);
         let qual = encode_qual(&data.qual, l_seq)?;
-        let encoded_cigar = encode_cigar(&ciglets)?;
-        let Some(Ok(ref_span)) = ciglets.ref_len_in_alignment_checked().map(u32::try_from) else {
-            return Err(BamEncodingError::SizeOverflow {
-                field:  "reference-consuming CIGAR length",
-                target: NumberSizeTarget::MaxInclusive(u32::MAX as usize),
-            }
+        let (encoded_cigar, CigarSpans { query_span, ref_span }) = encode_cigar(&ciglets)?;
+
+        if !cigar_is_missing && !seq_missing && query_span != l_seq {
+            return Err(BamEncodingError::other(format!(
+                "SEQ length ({l_seq}) does not match query-consuming CIGAR length ({query_span})"
+            ))
             .into());
-        };
+        }
+
         let long_cigar = encoded_cigar.len() > u16::MAX as usize;
         let flag = normalize_flags(data.flag, cigar_is_missing);
         let l_seq = u32::try_from(l_seq).map_err(|_| BamEncodingError::SizeOverflow {

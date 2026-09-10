@@ -92,15 +92,24 @@ pub(super) fn encode_qual(qual: &QualityScores, l_seq: usize) -> Result<Vec<u8>,
     Ok(qual_view.iter().map(|&byte| QScoreInt::from(byte).as_u8()).collect())
 }
 
-/// Encodes parsed a CIGAR string as BAM CIGAR words.
+pub(super) struct CigarSpans {
+    pub(super) query_span: usize,
+    pub(super) ref_span:   u32,
+}
+
+/// Encodes parsed a CIGAR string as BAM CIGAR words, as well as returning the
+/// query and reference span.
 ///
 /// Each word stores a 28-bit operation length and a 4-bit operation code.
-pub(super) fn encode_cigar(ciglets: &impl ToCigletIterator) -> Result<Vec<u32>, BamRecordError> {
+pub(super) fn encode_cigar(ciglets: &impl ToCigletIterator) -> Result<(Vec<u32>, CigarSpans), BamRecordError> {
     /// CIGAR byte index map: `MIDNSHP=X` maps to `012345678`. `?` is used as a
     /// catch-all for invalid CIGAR operations.
     const CIGAR_MAP: ByteIndexMap<10> = ByteIndexMap::new(*b"MIDNSHP=X?", b'?');
 
-    ciglets
+    let mut query_inc: usize = 0;
+    let mut ref_inc: u32 = 0;
+
+    let encoded = ciglets
         .to_ciglet_iterator_checked()
         .map(|ciglet| {
             let ciglet = ciglet.map_err(|source| BamRecordError::InvalidCigar { source })?;
@@ -109,6 +118,22 @@ pub(super) fn encode_cigar(ciglets: &impl ToCigletIterator) -> Result<Vec<u32>, 
                 field:  "CIGAR increment length",
                 target: NumberSizeTarget::MaxInclusive(u32::MAX as usize),
             })?;
+
+            if ciglet.op_consumes_query() {
+                query_inc = query_inc
+                    .checked_add(ciglet.inc)
+                    .ok_or_else(|| BamEncodingError::SizeOverflow {
+                        field:  "query-consuming CIGAR length",
+                        target: NumberSizeTarget::MaxInclusive(usize::MAX),
+                    })?;
+            }
+
+            if ciglet.op_consumes_ref() {
+                ref_inc = ref_inc.checked_add(cig_inc).ok_or_else(|| BamEncodingError::SizeOverflow {
+                    field:  "reference-consuming CIGAR length",
+                    target: NumberSizeTarget::MaxInclusive(u32::MAX as usize),
+                })?;
+            }
 
             let mapped_op = CIGAR_MAP[ciglet.op];
             if mapped_op == CIGAR_MAP[b'?'] {
@@ -127,7 +152,15 @@ pub(super) fn encode_cigar(ciglets: &impl ToCigletIterator) -> Result<Vec<u32>, 
 
             Ok(cig_inc << 4 | u32::from(mapped_op))
         })
-        .collect()
+        .collect::<Result<_, _>>()?;
+
+    Ok((
+        encoded,
+        CigarSpans {
+            query_span: query_inc,
+            ref_span:   ref_inc,
+        },
+    ))
 }
 
 /// Encodes SAM optional fields in BAM aux-field format.
