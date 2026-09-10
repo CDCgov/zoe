@@ -2,14 +2,13 @@
 
 use crate::{
     DEFAULT_SIMD_LANES,
-    alignment::AlignmentStates,
     data::{
         ByteIndexMap,
         bam::{
             encoder::MAX_CIGAR_INC,
             error::{BamEncodingError, BamRecordError, NumberSizeTarget},
         },
-        cigar::CigarError,
+        cigar::{CigarError, ToCigletIterator},
         nucleotides::Nucleotides,
         phred::{QScoreInt, QualityScores, QualityScoresView},
         sam::{OptArray, SamOptField, SamOptRaw, SamOptValue, is_missing_sam_field},
@@ -93,36 +92,42 @@ pub(super) fn encode_qual(qual: &QualityScores, l_seq: usize) -> Result<Vec<u8>,
     Ok(qual_view.iter().map(|&byte| QScoreInt::from(byte).as_u8()).collect())
 }
 
-/// Encodes parsed [`AlignmentStates`] as BAM CIGAR words.
+/// Encodes parsed a CIGAR string as BAM CIGAR words.
 ///
 /// Each word stores a 28-bit operation length and a 4-bit operation code.
-pub(super) fn encode_cigar(ciglets: &AlignmentStates) -> Result<Vec<u32>, BamRecordError> {
+pub(super) fn encode_cigar(ciglets: &impl ToCigletIterator) -> Result<Vec<u32>, BamRecordError> {
     /// CIGAR byte index map: `MIDNSHP=X` maps to `012345678`. `?` is used as a
     /// catch-all for invalid CIGAR operations.
     const CIGAR_MAP: ByteIndexMap<10> = ByteIndexMap::new(*b"MIDNSHP=X?", b'?');
 
-    let mut encoded = Vec::with_capacity(ciglets.len());
-    for ciglet in ciglets {
-        let cig_inc = u32::try_from(ciglet.inc).map_err(|_| BamEncodingError::SizeOverflow {
-            field:  "CIGAR increment length",
-            target: NumberSizeTarget::MaxInclusive(u32::MAX as usize),
-        })?;
-        let mapped_op = CIGAR_MAP[ciglet.op];
-        if mapped_op == CIGAR_MAP[b'?'] {
-            return Err(BamRecordError::InvalidCigar {
-                source: CigarError::InvalidOperation,
-            });
-        }
-        if cig_inc > MAX_CIGAR_INC {
-            return Err(BamEncodingError::SizeOverflow {
+    ciglets
+        .to_ciglet_iterator_checked()
+        .map(|ciglet| {
+            let ciglet = ciglet.map_err(|source| BamRecordError::InvalidCigar { source })?;
+
+            let cig_inc = u32::try_from(ciglet.inc).map_err(|_| BamEncodingError::SizeOverflow {
                 field:  "CIGAR increment length",
-                target: NumberSizeTarget::MaxExclusive(1usize << 28),
+                target: NumberSizeTarget::MaxInclusive(u32::MAX as usize),
+            })?;
+
+            let mapped_op = CIGAR_MAP[ciglet.op];
+            if mapped_op == CIGAR_MAP[b'?'] {
+                return Err(BamRecordError::InvalidCigar {
+                    source: CigarError::InvalidOperation,
+                });
             }
-            .into());
-        }
-        encoded.push(cig_inc << 4 | u32::from(mapped_op));
-    }
-    Ok(encoded)
+
+            if cig_inc > MAX_CIGAR_INC {
+                return Err(BamEncodingError::SizeOverflow {
+                    field:  "CIGAR increment length",
+                    target: NumberSizeTarget::MaxExclusive(1usize << 28),
+                }
+                .into());
+            }
+
+            Ok(cig_inc << 4 | u32::from(mapped_op))
+        })
+        .collect()
 }
 
 /// Encodes SAM optional fields in BAM aux-field format.
