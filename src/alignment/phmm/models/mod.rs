@@ -7,11 +7,13 @@ use crate::{
             PhmmIndexable,
         },
         modules::{DomainModule, LocalModule, SemiLocalModule},
+        nonempty_vec::NonEmptyVec,
     },
     data::mappings::ByteIndexMap,
 };
 
 pub mod components;
+pub mod nonempty_vec;
 
 /// An implementation of a profile hidden Markov model (pHMM) for global
 /// alignment (aligning a full sequence to a full model).
@@ -435,7 +437,7 @@ impl<T, const S: usize> GetLayerMut<T, S> for GlobalPhmm<T, S> {
     }
 
     #[inline]
-    fn layers_mut_vec(&mut self) -> &mut Vec<LayerParams<T, S>> {
+    fn layers_mut_vec(&mut self) -> &mut NonEmptyVec<LayerParams<T, S>> {
         self.core.layers_mut_vec()
     }
 }
@@ -478,7 +480,7 @@ impl<T, const S: usize> GetLayerMut<T, S> for DomainPhmm<T, S> {
     }
 
     #[inline]
-    fn layers_mut_vec(&mut self) -> &mut Vec<LayerParams<T, S>> {
+    fn layers_mut_vec(&mut self) -> &mut NonEmptyVec<LayerParams<T, S>> {
         self.core.layers_mut_vec()
     }
 }
@@ -521,7 +523,7 @@ impl<T, const S: usize> GetLayerMut<T, S> for SemiLocalPhmm<T, S> {
     }
 
     #[inline]
-    fn layers_mut_vec(&mut self) -> &mut Vec<LayerParams<T, S>> {
+    fn layers_mut_vec(&mut self) -> &mut NonEmptyVec<LayerParams<T, S>> {
         self.core.layers_mut_vec()
     }
 }
@@ -564,7 +566,7 @@ impl<T, const S: usize> GetLayerMut<T, S> for LocalPhmm<T, S> {
     }
 
     #[inline]
-    fn layers_mut_vec(&mut self) -> &mut Vec<LayerParams<T, S>> {
+    fn layers_mut_vec(&mut self) -> &mut NonEmptyVec<LayerParams<T, S>> {
         self.core.layers_mut_vec()
     }
 }

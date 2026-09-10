@@ -2,6 +2,7 @@ use crate::{
     alignment::phmm::{
         components::{CorePhmm, LayerParams},
         indexing::{PhmmIndex, PhmmIndexRange, PhmmIndexable},
+        nonempty_vec::NonEmptyVec,
     },
     data::ByteIndexMap,
 };
@@ -171,7 +172,7 @@ pub trait GetLayerMut<T, const S: usize>: GetLayer<T, S> {
     /// Returns a mutable reference to the vector of layer parameters stored in
     /// the core pHMM.
     #[must_use]
-    fn layers_mut_vec(&mut self) -> &mut Vec<LayerParams<T, S>>;
+    fn layers_mut_vec(&mut self) -> &mut NonEmptyVec<LayerParams<T, S>>;
 
     /// Returns a reference to the parameters for the layer containing the BEGIN
     /// state.

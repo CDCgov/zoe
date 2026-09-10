@@ -1,6 +1,7 @@
 use crate::alignment::phmm::{
     InvalidModelError, PhmmError, PhmmNumber,
     indexing::{GetLayer, GetLayerMut},
+    nonempty_vec::NonEmptyVec,
     state::PhmmState,
 };
 use std::ops::{Index, IndexMut};
@@ -264,7 +265,7 @@ impl<T: PhmmNumber, const S: usize> Default for LayerParams<T, S> {
 /// [`LocalPhmm`]: crate::alignment::phmm::models::LocalPhmm
 /// [`SemiLocalPhmm`]: crate::alignment::phmm::models::SemiLocalPhmm
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct CorePhmm<T, const S: usize>(Vec<LayerParams<T, S>>);
+pub struct CorePhmm<T, const S: usize>(NonEmptyVec<LayerParams<T, S>>);
 
 impl<T, const S: usize> CorePhmm<T, S> {
     /// Create a new [`CorePhmm`] from a `Vec` of the parameters.
@@ -278,9 +279,11 @@ impl<T, const S: usize> CorePhmm<T, S> {
     /// [`TooFewLayers`]:
     ///     crate::alignment::phmm::errors::InvalidModelError::TooFewLayers
     #[inline]
-    #[allow(dead_code)]
     pub fn new(layers: Vec<LayerParams<T, S>>) -> Result<Self, PhmmError> {
         if layers.len() >= 2 {
+            let Ok(layers) = NonEmptyVec::try_from(layers) else {
+                unreachable!("length checked above")
+            };
             Ok(CorePhmm(layers))
         } else {
             Err(InvalidModelError::TooFewLayers(2).into())
@@ -294,10 +297,14 @@ impl<T, const S: usize> CorePhmm<T, S> {
     ///
     /// The length of `layers` must be at least 2, corresponding to a reference
     /// length of at least 1.
+    ///
+    /// ## Panic
+    ///
+    /// Panics if `layers` is empty.
     #[inline]
     #[must_use]
     pub(crate) fn new_unchecked(layers: Vec<LayerParams<T, S>>) -> Self {
-        CorePhmm(layers)
+        CorePhmm(NonEmptyVec::try_from(layers).unwrap())
     }
 }
 
@@ -325,7 +332,7 @@ impl<T, const S: usize> GetLayerMut<T, S> for CorePhmm<T, S> {
     }
 
     #[inline]
-    fn layers_mut_vec(&mut self) -> &mut Vec<LayerParams<T, S>> {
+    fn layers_mut_vec(&mut self) -> &mut NonEmptyVec<LayerParams<T, S>> {
         &mut self.0
     }
 }
