@@ -58,13 +58,20 @@ const BIN_LEVELS: [BinLevel; 5] = [
 ///
 /// Coordinate-bearing records must have a 0-based half-open interval within
 /// `[0, 2^29)`.
-pub(super) fn compute_bin(pos0: i32, ref_span: u32, flag: u16) -> Result<u16, BamRecordError> {
+pub(super) fn compute_bin(pos0: i32, ref_span: Option<u32>, flag: u16) -> Result<u16, BamRecordError> {
     match pos0 {
         ..=-2 => Err(BamRecordError::BinningOutOfRange),
         -1 => Ok(UNPLACED_UNMAPPED_BIN),
         pos0 @ 0..=i32::MAX => {
             let beg = pos0.cast_unsigned();
-            let effective_ref_span = if (flag & 0x4) != 0 || ref_span == 0 { 1 } else { ref_span };
+
+            let effective_ref_span = if (flag & 0x4) != 0 {
+                1
+            } else if let Some(ref_span) = ref_span {
+                ref_span.max(1)
+            } else {
+                1
+            };
 
             let end = beg.checked_add(effective_ref_span).ok_or(BamRecordError::BinningOutOfRange)?;
 

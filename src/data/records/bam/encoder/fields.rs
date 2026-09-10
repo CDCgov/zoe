@@ -102,10 +102,16 @@ pub(super) struct CigarSpans {
 /// query and reference span.
 ///
 /// Each word stores a 28-bit operation length and a 4-bit operation code.
-pub(super) fn encode_cigar(ciglets: &impl ToCigletIterator) -> Result<(Vec<u32>, CigarSpans), BamRecordError> {
+pub(super) fn encode_cigar(
+    ciglets: Option<&impl ToCigletIterator>,
+) -> Result<(Vec<u32>, Option<CigarSpans>), BamRecordError> {
     /// CIGAR byte index map: `MIDNSHP=X` maps to `012345678`. `?` is used as a
     /// catch-all for invalid CIGAR operations.
     const CIGAR_MAP: ByteIndexMap<10> = ByteIndexMap::new(*b"MIDNSHP=X?", b'?');
+
+    let Some(ciglets) = ciglets else {
+        return Ok((Vec::new(), None));
+    };
 
     let mut query_inc: usize = 0;
     let mut ref_inc: u32 = 0;
@@ -157,10 +163,10 @@ pub(super) fn encode_cigar(ciglets: &impl ToCigletIterator) -> Result<(Vec<u32>,
 
     Ok((
         encoded,
-        CigarSpans {
+        Some(CigarSpans {
             query_span: query_inc,
             ref_span:   ref_inc,
-        },
+        }),
     ))
 }
 

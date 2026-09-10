@@ -9,7 +9,7 @@ use crate::data::{
     bam::{
         encoder::{
             binning::compute_bin,
-            fields::{CigarSpans, encode_aux_fields, encode_cigar, encode_qual, encode_read_name, encode_seq},
+            fields::{encode_aux_fields, encode_cigar, encode_qual, encode_read_name, encode_seq},
         },
         error::{BamEncodingError, BamError, BamRecordError, NumberSizeTarget},
         header::Header,
@@ -74,6 +74,7 @@ impl PreparedBamRecord {
 
         let seq = Some(&data.seq).filter(|s| !is_missing_sam_field(s));
         let qual = Some(&data.qual).filter(|q| !is_missing_sam_field(q));
+        let cigar = Some(&data.cigar).filter(|c| !is_missing_sam_field(c.as_bytes()));
 
         let ref_id = header.get_ref_id(&data.rname)?;
         // 0-indexed
@@ -91,8 +92,6 @@ impl PreparedBamRecord {
 
         let l_seq = seq.map_or(0, Len::len);
 
-        let cigar_is_missing = data.cigar.is_empty();
-
         if seq.is_none() && qual.is_some() {
             return Err(BamEncodingError::other("QUAL must be missing when SEQ is missing").into());
         }
@@ -109,16 +108,20 @@ impl PreparedBamRecord {
         let read_name = encode_read_name(&data.qname)?;
         let encoded_seq = encode_seq(seq);
         let encoded_qual = encode_qual(qual, l_seq)?;
-        let (encoded_cigar, CigarSpans { query_span, ref_span }) = encode_cigar(&data.cigar)?;
+        let (encoded_cigar, spans) = encode_cigar(cigar)?;
 
-        if !cigar_is_missing && seq.is_some() && query_span != l_seq {
+        if let Some(spans) = &spans
+            && seq.is_some()
+            && spans.query_span != l_seq
+        {
             return Err(BamEncodingError::other(format!(
-                "SEQ length ({l_seq}) does not match query-consuming CIGAR length ({query_span})"
+                "SEQ length ({l_seq}) does not match query-consuming CIGAR length ({})",
+                spans.query_span
             ))
             .into());
         }
 
-        let flag = normalize_flags(data.flag, cigar_is_missing);
+        let flag = normalize_flags(data.flag, cigar.is_none());
         let l_seq = u32::try_from(l_seq).map_err(|_| BamEncodingError::SizeOverflow {
             field:  "SEQ",
             target: NumberSizeTarget::MaxInclusive(u32::MAX as usize),
@@ -126,7 +129,9 @@ impl PreparedBamRecord {
 
         let long_cigar = encoded_cigar.len() > u16::MAX as usize;
 
-        let (aux, cigar_field, n_cigar_op) = if long_cigar {
+        let (aux, cigar_field, n_cigar_op) = if let Some(spans) = &spans
+            && long_cigar
+        {
             if l_seq > MAX_CIGAR_INC {
                 return Err(BamEncodingError::SizeOverflow {
                     field:  "long-CIGAR placeholder sequence length",
@@ -135,7 +140,7 @@ impl PreparedBamRecord {
                 .into());
             }
 
-            if ref_span > MAX_CIGAR_INC {
+            if spans.ref_span > MAX_CIGAR_INC {
                 return Err(BamEncodingError::SizeOverflow {
                     field:  "long-CIGAR placeholder reference span",
                     target: NumberSizeTarget::MaxExclusive(1usize << 28),
@@ -144,7 +149,7 @@ impl PreparedBamRecord {
             }
 
             let aux = encode_aux_fields(&data.opt_fields, Some(&encoded_cigar))?;
-            let cigar_field = vec![(l_seq << 4) | 4, (ref_span << 4) | 3];
+            let cigar_field = vec![(l_seq << 4) | 4, (spans.ref_span << 4) | 3];
             let n_cigar_op = 2;
 
             (aux, cigar_field, n_cigar_op)
@@ -158,7 +163,7 @@ impl PreparedBamRecord {
             (aux, encoded_cigar, n_cigar_op)
         };
 
-        let bin = compute_bin(pos0, ref_span, flag)?;
+        let bin = compute_bin(pos0, spans.map(|spans| spans.ref_span), flag)?;
 
         Ok(Self {
             ref_id,
