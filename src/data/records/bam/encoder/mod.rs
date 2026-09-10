@@ -118,14 +118,15 @@ impl PreparedBamRecord {
             .into());
         }
 
-        let long_cigar = encoded_cigar.len() > u16::MAX as usize;
         let flag = normalize_flags(data.flag, cigar_is_missing);
         let l_seq = u32::try_from(l_seq).map_err(|_| BamEncodingError::SizeOverflow {
             field:  "SEQ",
             target: NumberSizeTarget::MaxInclusive(u32::MAX as usize),
         })?;
 
-        if long_cigar {
+        let long_cigar = encoded_cigar.len() > u16::MAX as usize;
+
+        let (aux, cigar_field, n_cigar_op) = if long_cigar {
             if l_seq > MAX_CIGAR_INC {
                 return Err(BamEncodingError::SizeOverflow {
                     field:  "long-CIGAR placeholder sequence length",
@@ -141,18 +142,20 @@ impl PreparedBamRecord {
                 }
                 .into());
             }
-        }
 
-        let aux = encode_aux_fields(&data.opt_fields, if long_cigar { Some(&encoded_cigar) } else { None })?;
+            let aux = encode_aux_fields(&data.opt_fields, Some(&encoded_cigar))?;
+            let cigar_field = vec![(l_seq << 4) | 4, (ref_span << 4) | 3];
+            let n_cigar_op = 2;
 
-        let (cigar_field, n_cigar_op) = if long_cigar {
-            (vec![(l_seq << 4) | 4, (ref_span << 4) | 3], 2)
+            (aux, cigar_field, n_cigar_op)
         } else {
-            let n = u16::try_from(encoded_cigar.len()).map_err(|_| BamEncodingError::SizeOverflow {
+            let aux = encode_aux_fields(&data.opt_fields, None)?;
+            let n_cigar_op = u16::try_from(encoded_cigar.len()).map_err(|_| BamEncodingError::SizeOverflow {
                 field:  "number of CIGAR ops",
                 target: NumberSizeTarget::MaxInclusive(u16::MAX as usize),
             })?;
-            (encoded_cigar, n)
+
+            (aux, encoded_cigar, n_cigar_op)
         };
 
         let bin = compute_bin(pos0, ref_span, flag)?;
