@@ -54,6 +54,8 @@
 
 mod accessors;
 mod indices;
+mod ranges;
 
 pub use accessors::*;
 pub use indices::*;
+pub use ranges::*;

@@ -12,102 +12,8 @@ use crate::{
 };
 use std::{
     cmp::Ordering,
-    ops::{Add, AddAssign, Bound, Range, RangeBounds, RangeFrom, RangeInclusive, RangeTo, RangeToInclusive},
+    ops::{Add, AddAssign, Bound, Range},
 };
-
-/// A trait similar to [`RangeBounds`] but for ranges of [`PhmmIndex`] values.
-pub trait PhmmIndexRange: Clone {
-    /// The type of the starting index.
-    type Start: PhmmIndex;
-    /// The type of the ending index.
-    type End: PhmmIndex;
-
-    /// Returns the starting index in the range as a [`Bound`].
-    fn start_bound(&self) -> Bound<Self::Start>;
-
-    /// Returns the ending index in the range as a [`Bound`].
-    fn end_bound(&self) -> Bound<Self::End>;
-}
-
-impl<I: PhmmIndex, J: PhmmIndex> PhmmIndexRange for (Bound<I>, Bound<J>) {
-    type Start = I;
-    type End = J;
-
-    #[inline]
-    fn start_bound(&self) -> Bound<Self::Start> {
-        self.0
-    }
-
-    #[inline]
-    fn end_bound(&self) -> Bound<Self::End> {
-        self.1
-    }
-}
-
-impl<I: PhmmIndex> PhmmIndexRange for Range<I> {
-    type Start = I;
-    type End = I;
-
-    fn start_bound(&self) -> Bound<Self::Start> {
-        <Self as RangeBounds<I>>::start_bound(self).map(|x| *x)
-    }
-
-    fn end_bound(&self) -> Bound<Self::End> {
-        <Self as RangeBounds<I>>::end_bound(self).map(|x| *x)
-    }
-}
-
-impl<I: PhmmIndex> PhmmIndexRange for RangeInclusive<I> {
-    type Start = I;
-    type End = I;
-
-    fn start_bound(&self) -> Bound<Self::Start> {
-        <Self as RangeBounds<I>>::start_bound(self).map(|x| *x)
-    }
-
-    fn end_bound(&self) -> Bound<Self::End> {
-        <Self as RangeBounds<I>>::end_bound(self).map(|x| *x)
-    }
-}
-
-impl<I: PhmmIndex> PhmmIndexRange for RangeFrom<I> {
-    type Start = I;
-    type End = I;
-
-    fn start_bound(&self) -> Bound<Self::Start> {
-        <Self as RangeBounds<I>>::start_bound(self).map(|x| *x)
-    }
-
-    fn end_bound(&self) -> Bound<Self::End> {
-        <Self as RangeBounds<I>>::end_bound(self).map(|x| *x)
-    }
-}
-
-impl<I: PhmmIndex> PhmmIndexRange for RangeTo<I> {
-    type Start = I;
-    type End = I;
-
-    fn start_bound(&self) -> Bound<Self::Start> {
-        <Self as RangeBounds<I>>::start_bound(self).map(|x| *x)
-    }
-
-    fn end_bound(&self) -> Bound<Self::End> {
-        <Self as RangeBounds<I>>::end_bound(self).map(|x| *x)
-    }
-}
-
-impl<I: PhmmIndex> PhmmIndexRange for RangeToInclusive<I> {
-    type Start = I;
-    type End = I;
-
-    fn start_bound(&self) -> Bound<Self::Start> {
-        <Self as RangeBounds<I>>::start_bound(self).map(|x| *x)
-    }
-
-    fn end_bound(&self) -> Bound<Self::End> {
-        <Self as RangeBounds<I>>::end_bound(self).map(|x| *x)
-    }
-}
 
 /// A trait for structures that can be indexed via a [`PhmmIndex`], such as
 /// pHMMs and modules.
@@ -131,67 +37,6 @@ pub trait PhmmIndexable: Sized {
     fn seq_len(&self) -> usize {
         // Validity: num_pseudomatch returns at least 2
         self.num_pseudomatch() - 2
-    }
-
-    /// Returns a range of dynamic programming indices from a
-    /// [`PhmmIndexRange`].
-    #[inline]
-    #[must_use]
-    fn get_dp_range<R: PhmmIndexRange>(&self, range: R) -> Range<usize> {
-        let start = match range.start_bound() {
-            Bound::Included(start) => start.to_dp_index(self).0,
-            // +1 due to converting Excluded to Included
-            Bound::Excluded(start) => start.to_dp_index(self).0 + 1,
-            Bound::Unbounded => 0,
-        };
-        let end = match range.end_bound() {
-            // +1 due to converting Included to Excluded
-            Bound::Included(end) => end.to_dp_index(self).0 + 1,
-            Bound::Excluded(end) => end.to_dp_index(self).0,
-            Bound::Unbounded => self.seq_len(),
-        };
-
-        start..end
-    }
-
-    /// Converts a [`PhmmIndexRange`] to a range of [`DpIndex`].
-    #[inline]
-    #[must_use]
-    #[allow(dead_code)]
-    fn to_dp_range<R: PhmmIndexRange>(&self, range: R) -> Range<DpIndex> {
-        let Range { start, end } = self.get_dp_range(range);
-        DpIndex(start)..DpIndex(end)
-    }
-
-    /// Returns a range of sequence indices from [`PhmmIndexRange`].
-    ///
-    /// If either index corresponds to the BEGIN state, then this will be mapped
-    /// to 0 (the same sequence index that [`FirstMatch`] corresponds to).
-    #[inline]
-    #[must_use]
-    fn get_seq_range<R: PhmmIndexRange>(&self, range: R) -> Range<usize> {
-        // -1 for converting dynamic programming index to sequence index
-        self.get_dp_range(range).saturating_sub(1)
-    }
-
-    /// Converts a [`PhmmIndexRange`] to a range of [`SeqIndex`].
-    ///
-    /// If either index corresponds to the BEGIN state, then this will be mapped
-    /// to 0 (the same sequence index that [`FirstMatch`] corresponds to).
-    #[inline]
-    #[must_use]
-    #[allow(dead_code)]
-    fn to_seq_range<R: PhmmIndexRange>(&self, range: R) -> Range<SeqIndex> {
-        let Range { start, end } = self.get_seq_range(range);
-        SeqIndex(start)..SeqIndex(end)
-    }
-
-    /// Returns an iterator over the indices in a [`PhmmIndexRange`] as a
-    /// [`DpIndex`].
-    #[inline]
-    #[must_use]
-    fn get_dp_iter<R: PhmmIndexRange>(&self, range: R) -> DpIndexRange {
-        DpIndexRange(self.get_dp_range(range))
     }
 }
 
@@ -771,43 +616,6 @@ impl AddAssign<usize> for SeqIndex {
     fn add_assign(&mut self, rhs: usize) {
         self.0 += rhs;
     }
-}
-
-/// Converts a range of [`PhmmIndex`] into a range of the corresponding
-/// reference coordinates.
-///
-/// [`Begin`] and [`End`] are not included in the output range since they do not
-/// correspond to reference coordinates.
-pub fn layer_range_to_ref_range(phmm: &impl PhmmIndexable, range: &impl PhmmIndexRange) -> Range<usize> {
-    // Get inclusive start DpIndex
-    let start = match range.start_bound() {
-        Bound::Included(start) => start.to_dp_index(phmm),
-        // Convert excluded to included
-        Bound::Excluded(start) => start.to_dp_index(phmm).next_index(phmm),
-        Bound::Unbounded => Begin.to_dp_index(),
-    };
-
-    // Convert to SeqIndex, replacing Begin with FirstMatch
-    let start = start.to_seq_index().unwrap_or(FirstMatch.to_seq_index());
-
-    // Get exclusive end DpIndex
-    let end = match range.end_bound() {
-        // Convert included to excluded
-        Bound::Included(end) => end.to_dp_index(phmm).next_index(phmm),
-        Bound::Excluded(end) => end.to_dp_index(phmm),
-        Bound::Unbounded => End.to_dp_index(phmm),
-    };
-
-    // Convert to SeqIndex, replacing Begin with FirstMatch
-    let mut end = end.to_seq_index().unwrap_or(FirstMatch.to_seq_index());
-
-    // The maximum inclusive end allowed is LastMatch, so the maximum exclusive
-    // end allowed is End
-    if end > End.to_dp_index(phmm) {
-        end = End.to_seq_index(phmm);
-    }
-
-    phmm.get_seq_range(start..end)
 }
 
 pub struct DpIndexRange(Range<usize>);

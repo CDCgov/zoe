@@ -1,7 +1,7 @@
 use crate::{
     alignment::phmm::{
         components::{CorePhmm, LayerParams},
-        indexing::{Begin, FirstMatch, LastMatch, PhmmIndex, PhmmIndexRange, PhmmIndexable},
+        indexing::{Begin, FirstMatch, IndexRangeInner, LastMatch, PhmmIndex, PhmmIndexRange, PhmmIndexable},
         nonempty_vec::NonEmptyVec,
     },
     data::ByteIndexMap,
@@ -93,8 +93,8 @@ pub trait GetLayer<T, const S: usize>: PhmmIndexable {
     }
 
     /// Returns a reference to the parameters for the specified layer which is
-    /// guaranteed to exist in the pHMM, either [`Begin`], [`FirstResidue`], or
-    /// [`LastResidue`].
+    /// guaranteed to exist in the pHMM, either [`Begin`], [`FirstMatch`], or
+    /// [`LastMatch`].
     #[inline]
     #[must_use]
     fn layer(&self, idx: impl InfallibleLayerIdx) -> &LayerParams<T, S> {
@@ -109,7 +109,8 @@ pub trait GetLayer<T, const S: usize>: PhmmIndexable {
     #[inline]
     #[must_use]
     fn get_layers(&self, range: impl PhmmIndexRange) -> Option<&[LayerParams<T, S>]> {
-        self.layers().get(self.get_dp_range(range))
+        let range = range.to_dp_range(self);
+        self.layers().get(range.into_inner())
     }
 }
 
@@ -155,8 +156,8 @@ pub trait GetLayerMut<T, const S: usize>: GetLayer<T, S> {
     #[inline]
     #[must_use]
     fn get_layers_mut(&mut self, range: impl PhmmIndexRange) -> Option<&mut [LayerParams<T, S>]> {
-        let range = self.get_dp_range(range);
-        self.layers_mut().get_mut(range)
+        let range = range.to_dp_range(self);
+        self.layers_mut().get_mut(range.into_inner())
     }
 
     /// Gets mutable references to two distinct layers within the core pHMM.

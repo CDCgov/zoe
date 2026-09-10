@@ -4,7 +4,7 @@ use crate::{
         phmm::{
             DomainPhmm, GlobalPhmm, LocalPhmm, PhmmNumber, SemiLocalPhmm,
             components::{EmissionParams, TransitionParams},
-            indexing::{DpIndex, PhmmIndexable, SeqIndex, layer_range_to_ref_range},
+            indexing::{DpIndex, IndexRangeInner, PhmmIndexRange, PhmmIndexable, SeqIndex},
             modules::{DomainModule, SemiLocalModule},
             sampling::{
                 DomainEnterInsertError, DomainExitInsertError, LayerSamplingError, ModuleSamplingError,
@@ -487,7 +487,7 @@ where
         let alignment = Alignment {
             score:       (),
             ref_range:   0..phmm.seq_len(),
-            query_range: phmm.get_seq_range(query_range),
+            query_range: query_range.into_inner(),
             states:      self.states,
             ref_len:     phmm.seq_len(),
             query_len:   self.seq.len(),
@@ -561,7 +561,7 @@ where
     ) -> Result<Self::Output, Self::Error> {
         let alignment = Alignment {
             score:       (),
-            ref_range:   layer_range_to_ref_range(&phmm, &aligned_layers),
+            ref_range:   aligned_layers.saturating_to_seq_range(&phmm).into_inner(),
             query_range: 0..self.seq.len(),
             states:      self.states,
             ref_len:     phmm.seq_len(),
@@ -658,8 +658,8 @@ where
     ) -> Result<Self::Output, Self::Error> {
         let alignment = Alignment {
             score:       (),
-            ref_range:   layer_range_to_ref_range(&phmm, &aligned_layers),
-            query_range: phmm.get_seq_range(query_range),
+            ref_range:   aligned_layers.saturating_to_seq_range(&phmm).into_inner(),
+            query_range: query_range.into_inner(),
             states:      self.states,
             ref_len:     phmm.seq_len(),
             query_len:   self.seq.len(),

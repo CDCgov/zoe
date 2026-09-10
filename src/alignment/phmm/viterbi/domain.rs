@@ -4,7 +4,8 @@ use crate::alignment::{
         DomainPhmm, PhmmError, PhmmNumber,
         components::LayerParams,
         indexing::{
-            DpIndex, GetLayer, GetModule, LastBase, LastMatch, PhmmIndex, PhmmIndexable, QueryIndex, QueryIndexable,
+            DpIndex, GetLayer, GetModule, IndexRangeInner, LastBase, LastMatch, PhmmIndex, PhmmIndexRange, PhmmIndexable,
+            QueryIndex, QueryIndexable,
         },
         modules::PrecomputedDomainModule,
         state::{
@@ -220,7 +221,7 @@ impl<T: PhmmNumber, const S: usize> DomainPhmm<T, S> {
 
         Ok(Alignment {
             score,
-            ref_range: self.get_seq_range((start_j, end_j)),
+            ref_range: (start_j, end_j).saturating_to_seq_range(self).into_inner(),
             query_range: seq.get_seq_range(start_i, end_i),
             states,
             ref_len: self.seq_len(),

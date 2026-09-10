@@ -4,8 +4,8 @@ use crate::alignment::{
         InvalidModelError, LocalPhmm, PhmmError, PhmmNumber,
         components::LayerParams,
         indexing::{
-            Begin, DpIndex, End, GetLayer, GetModule, LastBase, LastMatch, PhmmIndex, PhmmIndexable, QueryIndex,
-            QueryIndexable,
+            Begin, DpIndex, End, GetLayer, GetModule, IndexRangeInner, LastBase, LastMatch, PhmmIndex, PhmmIndexRange,
+            PhmmIndexable, QueryIndex, QueryIndexable,
         },
         modules::PrecomputedLocalModule,
         state::{
@@ -242,7 +242,7 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
                     states.soft_clip(seq.len());
                     return Ok(Alignment {
                         score,
-                        ref_range: self.get_seq_range(End..End),
+                        ref_range: (End..End).saturating_to_seq_range(self).into_inner(),
                         query_range: 0..0,
                         states,
                         ref_len: self.seq_len(),
@@ -296,7 +296,7 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
 
         Ok(Alignment {
             score,
-            ref_range: self.get_seq_range((start_j, end_j)),
+            ref_range: (start_j, end_j).saturating_to_seq_range(self).into_inner(),
             query_range: seq.get_seq_range(start_i, end_i),
             states,
             ref_len: self.seq_len(),

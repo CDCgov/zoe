@@ -3,7 +3,10 @@ use crate::alignment::{
     phmm::{
         InvalidModelError, PhmmError, PhmmNumber, SemiLocalPhmm,
         components::LayerParams,
-        indexing::{Begin, DpIndex, End, GetLayer, GetModule, LastMatch, NoBases, PhmmIndex, PhmmIndexable, QueryIndexable},
+        indexing::{
+            Begin, DpIndex, End, GetLayer, GetModule, IndexRangeInner, LastMatch, NoBases, PhmmIndex, PhmmIndexRange,
+            PhmmIndexable, QueryIndexable,
+        },
         state::{
             PhmmBacktrackFlags,
             PhmmState::{self, Delete, Insert, Match},
@@ -223,7 +226,7 @@ impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
                     states.soft_clip(seq.len());
                     return Ok(Alignment {
                         score,
-                        ref_range: self.get_seq_range(End..End),
+                        ref_range: (End..End).saturating_to_seq_range(self).into_inner(),
                         query_range: 0..0,
                         states,
                         ref_len: self.seq_len(),
@@ -278,7 +281,7 @@ impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
 
         Ok(Alignment {
             score,
-            ref_range: self.get_seq_range((start_j, end_j)),
+            ref_range: (start_j, end_j).saturating_to_seq_range(self).into_inner(),
             query_range: seq.get_seq_range(start_i, end_i),
             states,
             ref_len: self.seq_len(),
