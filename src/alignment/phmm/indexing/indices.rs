@@ -608,6 +608,17 @@ impl DpIndex {
     }
 }
 
+impl End {
+    /// An inherent method override for [`PhmmIndex::to_seq_index`] that is
+    /// infallible.
+    #[must_use]
+    pub fn to_seq_index<Q>(self, seq: &Q) -> SeqIndex
+    where
+        Q: PhmmIndexable, {
+        SeqIndex(seq.seq_len())
+    }
+}
+
 impl PartialEq<Begin> for SeqIndex {
     fn eq(&self, _other: &Begin) -> bool {
         // Begin has DpIndex 0, and SeqIndex has DpIndex >= 1
@@ -763,9 +774,7 @@ pub fn layer_range_to_ref_range(phmm: &impl PhmmIndexable, range: &impl PhmmInde
     // The maximum inclusive end allowed is LastMatch, so the maximum exclusive
     // end allowed is End
     if end > End.to_dp_index(phmm) {
-        // unwrap_or shouldn't happen, since End has a DpIndex strictly bigger
-        // than Start
-        end = End.to_seq_index(phmm).unwrap_or(SeqIndex(0));
+        end = End.to_seq_index(phmm);
     }
 
     phmm.get_seq_range(start..end)
