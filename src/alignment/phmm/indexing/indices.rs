@@ -12,7 +12,7 @@ use crate::{
 };
 use std::{
     cmp::Ordering,
-    ops::{Bound, Range, RangeBounds, RangeFrom, RangeInclusive, RangeTo, RangeToInclusive},
+    ops::{Add, AddAssign, Bound, Range, RangeBounds, RangeFrom, RangeInclusive, RangeTo, RangeToInclusive},
 };
 
 /// A trait similar to [`RangeBounds`] but for ranges of [`PhmmIndex`] values.
@@ -740,6 +740,36 @@ impl PartialOrd<DpIndex> for SeqIndex {
 impl PartialOrd<SeqIndex> for DpIndex {
     fn partial_cmp(&self, other: &SeqIndex) -> Option<Ordering> {
         self.partial_cmp(&other.to_dp_index())
+    }
+}
+
+impl Add<usize> for DpIndex {
+    type Output = DpIndex;
+
+    fn add(mut self, rhs: usize) -> Self::Output {
+        self.0 += rhs;
+        self
+    }
+}
+
+impl Add<usize> for SeqIndex {
+    type Output = SeqIndex;
+
+    fn add(mut self, rhs: usize) -> Self::Output {
+        self.0 += rhs;
+        self
+    }
+}
+
+impl AddAssign<usize> for DpIndex {
+    fn add_assign(&mut self, rhs: usize) {
+        self.0 += rhs;
+    }
+}
+
+impl AddAssign<usize> for SeqIndex {
+    fn add_assign(&mut self, rhs: usize) {
+        self.0 += rhs;
     }
 }
 
