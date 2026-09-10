@@ -11,7 +11,7 @@ use crate::{
         cigar::{CigarError, ToCigletIterator},
         nucleotides::Nucleotides,
         phred::{QScoreInt, QualityScores, QualityScoresView},
-        sam::{OptArray, SamOptField, SamOptRaw, SamOptValue, is_missing_sam_field},
+        sam::{OptArray, SamOptField, SamOptRaw, SamOptValue},
         validation::CheckSequence,
         views::Len,
     },
@@ -44,14 +44,14 @@ pub(super) fn encode_read_name(qname: &str) -> Result<Vec<u8>, BamRecordError> {
 
 /// Encodes a [`Nucleotides`] sequence in BAM's packed 4-bit representation.
 ///
-/// A missing sequence (`*`) or empty sequence is encoded as an empty byte
-/// vector. Bases are packed two per byte, with the first base in the high
-/// nibble and the second base in the low nibble. The BAM alphabet
+/// A missing sequence (`*` or empty) should be passed as `None`, and is encoded
+/// as an empty byte vector. Bases are packed two per byte, with the first base
+/// in the high nibble and the second base in the low nibble. The BAM alphabet
 /// `=ACMGRSVTWYHKDBN` is used; `U` is encoded as `T`, and any other byte is
 /// encoded as `N`. Treating `U` as `T` is an intentional *Zoe* choice that
 /// deviates from the SAM/BAM spec; the spec's BAM sequence alphabet does not
 /// include a `U` code.
-pub(super) fn encode_seq(seq: &Nucleotides) -> Vec<u8> {
+pub(super) fn encode_seq(seq: Option<&Nucleotides>) -> Vec<u8> {
     /// Sequence byte index map: `=ACMGRSVTWYHKDBN` are mapped to `[0, 15]`. `N`
     /// is used as a catch-all for all other characters, and `U` is encoded as
     /// `T` as an intentional deviation from the BAM sequence alphabet. `=` is
@@ -59,9 +59,9 @@ pub(super) fn encode_seq(seq: &Nucleotides) -> Vec<u8> {
     const SEQ_MAP: ByteIndexMap<16> =
         ByteIndexMap::new_ignoring_case(*b"=ACMGRSVTWYHKDBN", b'N').add_synonym_ignore_case(b'U', b'T');
 
-    if seq.as_bytes() == b"*" || seq.is_empty() {
+    let Some(seq) = seq else {
         return Vec::new();
-    }
+    };
 
     let mut out = Vec::with_capacity(seq.len().div_ceil(2));
     let mut iter = seq.iter().copied();
@@ -75,17 +75,18 @@ pub(super) fn encode_seq(seq: &Nucleotides) -> Vec<u8> {
 
 /// Encodes [`QualityScores`] as BAM quality bytes.
 ///
-/// BAM stores raw Phred scores, so the ASCII `+33` offset is removed. A SAM
-/// quality value that is missing (`*` or empty) becomes `0xFF` repeated once
-/// per sequence base. If `l_seq` is zero, this always returns an empty byte
-/// vector.
-pub(super) fn encode_qual(qual: &QualityScores, l_seq: usize) -> Result<Vec<u8>, BamRecordError> {
+/// If `l_seq` is zero, this always returns an empty byte vector. Missing
+/// quality scores (`*` or empty) should be passed as `None`, and becomes `0xFF`
+/// repeated once per sequence base. BAM stores raw Phred scores, so the ASCII
+/// `+33` offset is removed.
+pub(super) fn encode_qual(qual: Option<&QualityScores>, l_seq: usize) -> Result<Vec<u8>, BamRecordError> {
     if l_seq == 0 {
         return Ok(Vec::new());
     }
-    if is_missing_sam_field(qual) {
+
+    let Some(qual) = qual else {
         return Ok(vec![0xFF; l_seq]);
-    }
+    };
 
     let qual_view = QualityScoresView::try_from(qual.as_bytes())
         .map_err(|source| BamEncodingError::other_with_source("Quality scores cannot be encoded as BAM", source))?;

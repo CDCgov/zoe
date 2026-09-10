@@ -72,6 +72,9 @@ impl PreparedBamRecord {
         /// The maximum inclusive position allowed by the SAM file format.
         const MAX_SAM_POS: usize = i32::MAX as usize;
 
+        let seq = Some(&data.seq).filter(|s| !is_missing_sam_field(s));
+        let qual = Some(&data.qual).filter(|q| !is_missing_sam_field(q));
+
         let ref_id = header.get_ref_id(&data.rname)?;
         // 0-indexed
         let pos0 = match data.pos {
@@ -85,29 +88,30 @@ impl PreparedBamRecord {
                 .into());
             }
         };
-        let seq_missing = is_missing_sam_field(&data.seq);
-        let qual_missing = is_missing_sam_field(&data.qual);
-        let l_seq = if seq_missing { 0 } else { data.seq.len() };
+
+        let l_seq = seq.map_or(0, Len::len);
 
         let cigar_is_missing = data.cigar.is_empty();
 
-        if seq_missing && !qual_missing {
+        if seq.is_none() && qual.is_some() {
             return Err(BamEncodingError::other("QUAL must be missing when SEQ is missing").into());
         }
-        if !qual_missing && data.qual.len() != l_seq {
+        if let Some(qual) = qual
+            && qual.len() != l_seq
+        {
             return Err(BamEncodingError::other(format!(
                 "QUAL length ({qual_len}) does not match SEQ length ({l_seq})",
-                qual_len = data.qual.len(),
+                qual_len = qual.len(),
             ))
             .into());
         }
 
         let read_name = encode_read_name(&data.qname)?;
-        let seq = encode_seq(&data.seq);
-        let qual = encode_qual(&data.qual, l_seq)?;
+        let encoded_seq = encode_seq(seq);
+        let encoded_qual = encode_qual(qual, l_seq)?;
         let (encoded_cigar, CigarSpans { query_span, ref_span }) = encode_cigar(&data.cigar)?;
 
-        if !cigar_is_missing && !seq_missing && query_span != l_seq {
+        if !cigar_is_missing && seq.is_some() && query_span != l_seq {
             return Err(BamEncodingError::other(format!(
                 "SEQ length ({l_seq}) does not match query-consuming CIGAR length ({query_span})"
             ))
@@ -163,8 +167,8 @@ impl PreparedBamRecord {
             l_seq,
             read_name,
             cigar_field,
-            seq,
-            qual,
+            seq: encoded_seq,
+            qual: encoded_qual,
             aux,
         })
     }
