@@ -295,7 +295,14 @@ pub trait ToCigletIterator {
         Self: 'a;
 
     /// Creates an iterator over the [`Ciglet`] values.
+    ///
+    /// If there is any invalid state, the iterator ends early. For a checked
+    /// version that uses [`Result`], use [`to_ciglet_iterator_checked`].
     fn to_ciglet_iterator(&self) -> Self::Iter<'_>;
+
+    /// Creates an iterator over the [`Ciglet`] values, returning an `Err` on
+    /// invalid data.
+    fn to_ciglet_iterator_checked(&self) -> impl Iterator<Item = Result<Ciglet, CigarError>>;
 }
 
 impl<'a> ToCigletIterator for CigletIterator<'a> {
@@ -308,6 +315,11 @@ impl<'a> ToCigletIterator for CigletIterator<'a> {
     fn to_ciglet_iterator(&self) -> Self::Iter<'_> {
         self.clone()
     }
+
+    #[inline]
+    fn to_ciglet_iterator_checked(&self) -> impl Iterator<Item = Result<Ciglet, CigarError>> {
+        CigletIteratorChecked::new(self.buffer)
+    }
 }
 
 impl ToCigletIterator for Cigar {
@@ -316,6 +328,11 @@ impl ToCigletIterator for Cigar {
     #[inline]
     fn to_ciglet_iterator(&self) -> CigletIterator<'_> {
         self.iter()
+    }
+
+    #[inline]
+    fn to_ciglet_iterator_checked(&self) -> impl Iterator<Item = Result<Ciglet, CigarError>> {
+        CigletIteratorChecked::new(&self.0)
     }
 }
 
@@ -329,6 +346,11 @@ impl ToCigletIterator for &Cigar {
     fn to_ciglet_iterator(&self) -> CigletIterator<'_> {
         self.iter()
     }
+
+    #[inline]
+    fn to_ciglet_iterator_checked(&self) -> impl Iterator<Item = Result<Ciglet, CigarError>> {
+        CigletIteratorChecked::new(&self.0)
+    }
 }
 
 impl ToCigletIterator for &mut Cigar {
@@ -340,6 +362,11 @@ impl ToCigletIterator for &mut Cigar {
     #[inline]
     fn to_ciglet_iterator(&self) -> CigletIterator<'_> {
         self.iter()
+    }
+
+    #[inline]
+    fn to_ciglet_iterator_checked(&self) -> impl Iterator<Item = Result<Ciglet, CigarError>> {
+        CigletIteratorChecked::new(&self.0)
     }
 }
 
@@ -353,6 +380,11 @@ impl<'b> ToCigletIterator for CigarView<'b> {
     fn to_ciglet_iterator(&self) -> CigletIterator<'b> {
         self.iter()
     }
+
+    #[inline]
+    fn to_ciglet_iterator_checked(&self) -> impl Iterator<Item = Result<Ciglet, CigarError>> {
+        CigletIteratorChecked::new(self.as_bytes())
+    }
 }
 
 impl<'b> ToCigletIterator for &CigarView<'b> {
@@ -364,6 +396,11 @@ impl<'b> ToCigletIterator for &CigarView<'b> {
     #[inline]
     fn to_ciglet_iterator(&self) -> CigletIterator<'b> {
         self.iter()
+    }
+
+    #[inline]
+    fn to_ciglet_iterator_checked(&self) -> impl Iterator<Item = Result<Ciglet, CigarError>> {
+        CigletIteratorChecked::new(self.as_bytes())
     }
 }
 
@@ -377,6 +414,11 @@ impl ToCigletIterator for &CigarViewMut<'_> {
     fn to_ciglet_iterator(&self) -> CigletIterator<'_> {
         self.iter()
     }
+
+    #[inline]
+    fn to_ciglet_iterator_checked(&self) -> impl Iterator<Item = Result<Ciglet, CigarError>> {
+        CigletIteratorChecked::new(self.as_bytes())
+    }
 }
 
 impl ToCigletIterator for AlignmentStates {
@@ -385,6 +427,11 @@ impl ToCigletIterator for AlignmentStates {
     #[inline]
     fn to_ciglet_iterator(&self) -> Self::Iter<'_> {
         self.iter().copied()
+    }
+
+    #[inline]
+    fn to_ciglet_iterator_checked(&self) -> impl Iterator<Item = Result<Ciglet, CigarError>> {
+        self.to_ciglet_iterator().map(Ok)
     }
 }
 
@@ -398,6 +445,11 @@ impl ToCigletIterator for &AlignmentStates {
     fn to_ciglet_iterator(&self) -> Self::Iter<'_> {
         self.iter().copied()
     }
+
+    #[inline]
+    fn to_ciglet_iterator_checked(&self) -> impl Iterator<Item = Result<Ciglet, CigarError>> {
+        self.to_ciglet_iterator().map(Ok)
+    }
 }
 
 impl ToCigletIterator for &mut AlignmentStates {
@@ -410,6 +462,11 @@ impl ToCigletIterator for &mut AlignmentStates {
     fn to_ciglet_iterator(&self) -> Self::Iter<'_> {
         self.iter().copied()
     }
+
+    #[inline]
+    fn to_ciglet_iterator_checked(&self) -> impl Iterator<Item = Result<Ciglet, CigarError>> {
+        self.to_ciglet_iterator().map(Ok)
+    }
 }
 
 impl ToCigletIterator for Vec<Ciglet> {
@@ -418,6 +475,11 @@ impl ToCigletIterator for Vec<Ciglet> {
     #[inline]
     fn to_ciglet_iterator(&self) -> Self::Iter<'_> {
         self.iter().copied()
+    }
+
+    #[inline]
+    fn to_ciglet_iterator_checked(&self) -> impl Iterator<Item = Result<Ciglet, CigarError>> {
+        self.to_ciglet_iterator().map(Ok)
     }
 }
 
@@ -431,6 +493,11 @@ impl ToCigletIterator for &[Ciglet] {
     fn to_ciglet_iterator(&self) -> Self::Iter<'_> {
         self.iter().copied()
     }
+
+    #[inline]
+    fn to_ciglet_iterator_checked(&self) -> impl Iterator<Item = Result<Ciglet, CigarError>> {
+        self.to_ciglet_iterator().map(Ok)
+    }
 }
 
 impl ToCigletIterator for &mut [Ciglet] {
@@ -442,6 +509,11 @@ impl ToCigletIterator for &mut [Ciglet] {
     #[inline]
     fn to_ciglet_iterator(&self) -> Self::Iter<'_> {
         self.iter().copied()
+    }
+
+    #[inline]
+    fn to_ciglet_iterator_checked(&self) -> impl Iterator<Item = Result<Ciglet, CigarError>> {
+        self.to_ciglet_iterator().map(Ok)
     }
 }
 
@@ -462,7 +534,7 @@ impl ToCigletIterator for &mut [Ciglet] {
 ///
 /// If any of these are not valid, a [`CigarError`] is returned. Note that this
 /// iterator does not confirm that adjacent operations are distinct.
-pub(crate) struct CigletIteratorChecked<'a> {
+pub struct CigletIteratorChecked<'a> {
     /// The bytes remaining to decode
     buffer: &'a [u8],
 }

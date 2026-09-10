@@ -15,6 +15,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - `SamOptField` now implements `Display`
 - The raw tags are now exposed in `SamOptRaw` via `iter_raw`
 - `SamDataView` now contains a view of the optional fields
+- Added `CigletIteratorChecked` to provide a fallible iterator over `Cigar`
+- Added `to_ciglet_iter_checked` to `ToCigletIterator`, providing fallible iterators
 
 ### Changed
 
