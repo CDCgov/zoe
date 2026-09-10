@@ -293,12 +293,7 @@ trait SamHmmConfig<const S: usize, const L: usize> {
         writeln!(writer, "MODEL")?;
         writeln!(writer, "alphabet {}", Self::unparse_mapping(model.mapping())?)?;
 
-        let [first_layer, rest @ ..] = model.layers() else {
-            return Err(IOError::new(
-                ErrorKind::InvalidData,
-                "At least two layers must be present in the model!",
-            ));
-        };
+        let (first_layer, rest) = model.layers().split_first();
 
         let mut current_layer = LayerParams::<T, S>::default();
 

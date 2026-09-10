@@ -68,19 +68,7 @@ pub trait GetLayer<T, const S: usize>: PhmmIndexable {
     ///
     /// This slice will be at least 2 in length.
     #[must_use]
-    fn layers(&self) -> &[LayerParams<T, S>];
-
-    /// Returns the first layer, as well as all subsequent layers.
-    ///
-    /// This is an infallible version of `model.layers().split_first()`.
-    #[must_use]
-    fn split_first_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]);
-
-    /// Returns the last layer, as well as all previous layers.
-    ///
-    /// This is an infallible version of `model.layers().split_last()`.
-    #[must_use]
-    fn split_last_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]);
+    fn layers(&self) -> &NonEmptyVec<LayerParams<T, S>>;
 
     /// Returns the layers, split at a particular index.
     ///
@@ -150,16 +138,8 @@ pub trait GetLayer<T, const S: usize>: PhmmIndexable {
 }
 
 impl<P: GetLayer<T, S>, T, const S: usize> GetLayer<T, S> for &P {
-    fn layers(&self) -> &[LayerParams<T, S>] {
+    fn layers(&self) -> &NonEmptyVec<LayerParams<T, S>> {
         P::layers(self)
-    }
-
-    fn split_first_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
-        P::split_first_layer(self)
-    }
-
-    fn split_last_layer(&self) -> (&LayerParams<T, S>, &[LayerParams<T, S>]) {
-        P::split_last_layer(self)
     }
 }
 

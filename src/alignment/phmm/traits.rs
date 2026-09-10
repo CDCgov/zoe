@@ -5,23 +5,30 @@ pub mod float_compare {
             GlobalPhmm,
             components::{CorePhmm, EmissionParams, LayerParams, TransitionParams},
             indexing::{GetCore, GetLayer},
+            nonempty_vec::NonEmptyVec,
         },
         math::{NearlyEqual, NearlyEqualMethod},
     };
 
-    impl<T: NearlyEqual<T> + Copy> NearlyEqual<T> for TransitionParams<T> {
+    impl<T, A: NearlyEqual<T>> NearlyEqual<T> for NonEmptyVec<A> {
+        fn nearly_equal<M: NearlyEqualMethod<T>>(&self, b: &Self, strategy: &M) -> (bool, Option<(T, T)>) {
+            self.as_slice().nearly_equal(&b.as_slice(), strategy)
+        }
+    }
+
+    impl<T: NearlyEqual<T>> NearlyEqual<T> for TransitionParams<T> {
         fn nearly_equal<M: NearlyEqualMethod<T>>(&self, b: &Self, strategy: &M) -> (bool, Option<(T, T)>) {
             self.0.nearly_equal(&b.0, strategy)
         }
     }
 
-    impl<T: NearlyEqual<T> + Copy, const S: usize> NearlyEqual<T> for EmissionParams<T, S> {
+    impl<T: NearlyEqual<T>, const S: usize> NearlyEqual<T> for EmissionParams<T, S> {
         fn nearly_equal<M: NearlyEqualMethod<T>>(&self, b: &Self, strategy: &M) -> (bool, Option<(T, T)>) {
             self.as_array().nearly_equal(b.as_array(), strategy)
         }
     }
 
-    impl<T: NearlyEqual<T> + Copy, const S: usize> NearlyEqual<T> for LayerParams<T, S> {
+    impl<T: NearlyEqual<T>, const S: usize> NearlyEqual<T> for LayerParams<T, S> {
         fn nearly_equal<M: NearlyEqualMethod<T>>(&self, b: &Self, strategy: &M) -> (bool, Option<(T, T)>) {
             let (eq, vals) = self.transition.nearly_equal(&b.transition, strategy);
             if !eq {
@@ -36,13 +43,13 @@ pub mod float_compare {
         }
     }
 
-    impl<T: NearlyEqual<T> + Copy, const S: usize> NearlyEqual<T> for CorePhmm<T, S> {
+    impl<T: NearlyEqual<T>, const S: usize> NearlyEqual<T> for CorePhmm<T, S> {
         fn nearly_equal<M: NearlyEqualMethod<T>>(&self, b: &Self, strategy: &M) -> (bool, Option<(T, T)>) {
-            self.layers().nearly_equal(&b.layers(), strategy)
+            self.layers().nearly_equal(b.layers(), strategy)
         }
     }
 
-    impl<T: NearlyEqual<T> + Copy, const S: usize> NearlyEqual<T> for GlobalPhmm<T, S> {
+    impl<T: NearlyEqual<T>, const S: usize> NearlyEqual<T> for GlobalPhmm<T, S> {
         fn nearly_equal<M: NearlyEqualMethod<T>>(&self, b: &Self, strategy: &M) -> (bool, Option<(T, T)>) {
             if self.mapping() == b.mapping() {
                 self.core().nearly_equal(b.core(), strategy)

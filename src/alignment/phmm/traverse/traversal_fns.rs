@@ -28,7 +28,7 @@ fn traverse_core_phmm<V, P, T, const S: usize>(
 ) -> Result<usize, P::Error>
 where
     P: GetMapping<S> + GetLayer<T, S> + VisitCore<V, T, S>, {
-    let (mut layer, mut remaining_layers) = phmm.split_first_layer();
+    let (mut layer, mut remaining_layers) = phmm.layers().split_first();
     let mut layer_idx = Begin.to_dp_index();
     let mut state = PhmmState::Match;
 

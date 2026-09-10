@@ -85,7 +85,7 @@ impl<T: PhmmNumber, const S: usize> DomainPhmm<T, S> {
             unreachable!("The domain module had an incompatible length");
         }
 
-        let (end, layers) = self.split_last_layer();
+        let (end, layers) = self.layers().split_last();
 
         let query_dim = seq.len() + 1;
         // This is equivalent to self.seq_len()+1, but may help with bounds

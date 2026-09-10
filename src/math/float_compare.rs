@@ -246,7 +246,7 @@ impl<T, S: NearlyEqual<T>> NearlyEqual<T> for Option<S> {
     }
 }
 
-impl<T: Copy, S: NearlyEqual<T>, const N: usize> NearlyEqual<T> for [S; N] {
+impl<T, S: NearlyEqual<T>, const N: usize> NearlyEqual<T> for [S; N] {
     #[inline]
     fn nearly_equal<M: NearlyEqualMethod<T>>(&self, b: &Self, strategy: &M) -> (bool, Option<(T, T)>) {
         for (eq, vals) in self.iter().zip(b).map(|(x, y)| x.nearly_equal(y, strategy)) {
@@ -258,7 +258,7 @@ impl<T: Copy, S: NearlyEqual<T>, const N: usize> NearlyEqual<T> for [S; N] {
     }
 }
 
-impl<T: Copy, S: NearlyEqual<T>> NearlyEqual<T> for &[S] {
+impl<T, S: NearlyEqual<T>> NearlyEqual<T> for &[S] {
     #[inline]
     fn nearly_equal<M: NearlyEqualMethod<T>>(&self, b: &Self, strategy: &M) -> (bool, Option<(T, T)>) {
         if self.len() == b.len() {

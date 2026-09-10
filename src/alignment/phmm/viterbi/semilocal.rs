@@ -101,7 +101,7 @@ impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
             return Err(InvalidModelError::IncompatibleModule.into());
         }
 
-        let (end, layers) = self.split_last_layer();
+        let (end, layers) = self.layers().split_last();
 
         let query_dim = seq.len() + 1;
         // This is equivalent to self.seq_len()+1, but may help with bounds
