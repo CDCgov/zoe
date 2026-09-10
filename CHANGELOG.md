@@ -36,6 +36,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Empty `qname`, `rname`, or `cigar` fields are now displayed as `*` by `SamData` and view types
 - `OrFail` and `Fail` now find raw OS error codes directly in the error source
   chain and otherwise use exit code 1
+- Multiversion updated to 0.9, which brings a measurable bump in performance on
+  AVX-512 capable machines for a modest binary size increase.
 
 ### Removed
 
