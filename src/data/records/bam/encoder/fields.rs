@@ -75,16 +75,31 @@ pub(super) fn encode_seq(seq: Option<&Nucleotides>) -> Vec<u8> {
 
 /// Encodes [`QualityScores`] as BAM quality bytes.
 ///
-/// Missing quality scores (`*` or empty) should be passed as `None`, and
-/// becomes `0xFF` repeated once per sequence base. BAM stores raw Phred scores,
-/// so the ASCII `+33` offset is removed.
-pub(super) fn encode_qual(qual: Option<&QualityScores>, l_seq: usize) -> Result<Vec<u8>, BamRecordError> {
+/// Missing quality scores and nucleotides (`*` or empty) should be passed as
+/// `None`. Missing quality scores become `0xFF` repeated once per sequence
+/// base. BAM stores raw Phred scores, so the ASCII `+33` offset is removed.
+pub(super) fn encode_qual(qual: Option<&QualityScores>, seq: Option<&Nucleotides>) -> Result<Vec<u8>, BamRecordError> {
     let Some(qual) = qual else {
-        return Ok(vec![0xFF; l_seq]);
+        let len = seq.map_or(0, Len::len);
+        return Ok(vec![0xFF; len]);
     };
+
+    let Some(seq) = seq else {
+        return Err(BamEncodingError::other("QUAL must be missing when SEQ is missing").into());
+    };
+
+    if seq.len() != qual.len() {
+        return Err(BamEncodingError::other(format!(
+            "QUAL length ({qual_len}) does not match SEQ length ({seq_len})",
+            qual_len = qual.len(),
+            seq_len = seq.len(),
+        ))
+        .into());
+    }
 
     let qual_view = QualityScoresView::try_from(qual.as_bytes())
         .map_err(|source| BamEncodingError::other_with_source("Quality scores cannot be encoded as BAM", source))?;
+
     Ok(qual_view.iter().map(|&byte| QScoreInt::from(byte).as_u8()).collect())
 }
 

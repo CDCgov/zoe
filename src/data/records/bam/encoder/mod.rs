@@ -67,7 +67,6 @@ impl PreparedBamRecord {
     /// CIGAR or auxiliary fields cannot be parsed, if an option field contains
     /// the reserved long CIGAR `CG` tag, or if any encoded field would overflow
     /// BAM's size limits.
-    #[allow(clippy::too_many_lines)]
     pub(super) fn new(header: &Header, data: &SamData) -> Result<Self, BamRecordError> {
         /// The maximum inclusive position allowed by the SAM file format.
         const MAX_SAM_POS: usize = i32::MAX as usize;
@@ -90,41 +89,30 @@ impl PreparedBamRecord {
             }
         };
 
-        let l_seq = seq.map_or(0, Len::len);
-
-        if seq.is_none() && qual.is_some() {
-            return Err(BamEncodingError::other("QUAL must be missing when SEQ is missing").into());
-        }
-        if let Some(qual) = qual
-            && qual.len() != l_seq
-        {
-            return Err(BamEncodingError::other(format!(
-                "QUAL length ({qual_len}) does not match SEQ length ({l_seq})",
-                qual_len = qual.len(),
-            ))
-            .into());
-        }
-
         let read_name = encode_read_name(&data.qname)?;
         let encoded_seq = encode_seq(seq);
-        let encoded_qual = encode_qual(qual, l_seq)?;
+        let encoded_qual = encode_qual(qual, seq)?;
         let (encoded_cigar, spans) = encode_cigar(cigar)?;
 
         if let Some(spans) = &spans
-            && seq.is_some()
-            && spans.query_span != l_seq
+            && let Some(seq) = seq
+            && spans.query_span != seq.len()
         {
             return Err(BamEncodingError::other(format!(
-                "SEQ length ({l_seq}) does not match query-consuming CIGAR length ({})",
-                spans.query_span
+                "SEQ length ({seq_len}) does not match query-consuming CIGAR length ({query_span})",
+                seq_len = seq.len(),
+                query_span = spans.query_span
             ))
             .into());
         }
 
         let flag = normalize_flags(data.flag, cigar.is_none());
-        let l_seq = u32::try_from(l_seq).map_err(|_| BamEncodingError::SizeOverflow {
-            field:  "SEQ",
-            target: NumberSizeTarget::MaxInclusive(u32::MAX as usize),
+
+        let l_seq = seq.map_or(Ok(0), |seq| {
+            u32::try_from(seq.len()).map_err(|_| BamEncodingError::SizeOverflow {
+                field:  "SEQ",
+                target: NumberSizeTarget::MaxInclusive(u32::MAX as usize),
+            })
         })?;
 
         let long_cigar = encoded_cigar.len() > u16::MAX as usize;
