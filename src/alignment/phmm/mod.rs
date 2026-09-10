@@ -35,9 +35,6 @@ mod viterbi;
 pub mod sampling;
 
 #[cfg(feature = "alignment-diagnostics")]
-pub mod editing;
-
-#[cfg(feature = "alignment-diagnostics")]
 pub mod score_from_path;
 
 pub use errors::*;
