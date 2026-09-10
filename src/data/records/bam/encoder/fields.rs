@@ -75,15 +75,10 @@ pub(super) fn encode_seq(seq: Option<&Nucleotides>) -> Vec<u8> {
 
 /// Encodes [`QualityScores`] as BAM quality bytes.
 ///
-/// If `l_seq` is zero, this always returns an empty byte vector. Missing
-/// quality scores (`*` or empty) should be passed as `None`, and becomes `0xFF`
-/// repeated once per sequence base. BAM stores raw Phred scores, so the ASCII
-/// `+33` offset is removed.
+/// Missing quality scores (`*` or empty) should be passed as `None`, and
+/// becomes `0xFF` repeated once per sequence base. BAM stores raw Phred scores,
+/// so the ASCII `+33` offset is removed.
 pub(super) fn encode_qual(qual: Option<&QualityScores>, l_seq: usize) -> Result<Vec<u8>, BamRecordError> {
-    if l_seq == 0 {
-        return Ok(Vec::new());
-    }
-
     let Some(qual) = qual else {
         return Ok(vec![0xFF; l_seq]);
     };
