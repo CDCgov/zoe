@@ -5,20 +5,17 @@
 //! bins, normalizes BAM flag bits, and handles BAM's long-CIGAR representation
 //! when the inline CIGAR field would overflow.
 
-use crate::{
-    alignment::AlignmentStates,
-    data::{
-        bam::{
-            encoder::{
-                binning::compute_bin,
-                fields::{CigarSpans, encode_aux_fields, encode_cigar, encode_qual, encode_read_name, encode_seq},
-            },
-            error::{BamEncodingError, BamError, BamRecordError, NumberSizeTarget},
-            header::Header,
+use crate::data::{
+    bam::{
+        encoder::{
+            binning::compute_bin,
+            fields::{CigarSpans, encode_aux_fields, encode_cigar, encode_qual, encode_read_name, encode_seq},
         },
-        sam::{SamData, is_missing_sam_field},
-        views::Len,
+        error::{BamEncodingError, BamError, BamRecordError, NumberSizeTarget},
+        header::Header,
     },
+    sam::{SamData, is_missing_sam_field},
+    views::Len,
 };
 
 mod binning;
@@ -92,8 +89,7 @@ impl PreparedBamRecord {
         let qual_missing = is_missing_sam_field(&data.qual);
         let l_seq = if seq_missing { 0 } else { data.seq.len() };
 
-        let ciglets = AlignmentStates::try_from(&data.cigar).map_err(|source| BamRecordError::InvalidCigar { source })?;
-        let cigar_is_missing = ciglets.is_empty();
+        let cigar_is_missing = data.cigar.is_empty();
 
         if seq_missing && !qual_missing {
             return Err(BamEncodingError::other("QUAL must be missing when SEQ is missing").into());
@@ -109,7 +105,7 @@ impl PreparedBamRecord {
         let read_name = encode_read_name(&data.qname)?;
         let seq = encode_seq(&data.seq);
         let qual = encode_qual(&data.qual, l_seq)?;
-        let (encoded_cigar, CigarSpans { query_span, ref_span }) = encode_cigar(&ciglets)?;
+        let (encoded_cigar, CigarSpans { query_span, ref_span }) = encode_cigar(&data.cigar)?;
 
         if !cigar_is_missing && !seq_missing && query_span != l_seq {
             return Err(BamEncodingError::other(format!(
