@@ -2,7 +2,7 @@ use crate::{
     alignment::phmm::{
         PhmmNumber,
         components::{CorePhmm, EmissionParams, LayerParams, TransitionParams},
-        indexing::GetLayerMut,
+        indexing::{Begin, GetLayerMut, LastMatch},
         state::PhmmState,
     },
     data::arbitrary::{ArbitrarySpecs, ArraySpecs, VecSpecs},
@@ -88,12 +88,12 @@ where
         let mut core = CorePhmm::new_unchecked(specs.make_arbitrary(u)?);
 
         if self.disallow_invalid {
-            let first_layer = core.begin_layer_mut();
+            let first_layer = core.layer_mut(Begin);
             first_layer.transition[(Delete, Delete)] = K::Output::INFINITY;
             first_layer.transition[(Delete, Match)] = K::Output::INFINITY;
             first_layer.transition[(Delete, Insert)] = K::Output::INFINITY;
 
-            let last_layer = core.last_match_mut();
+            let last_layer = core.layer_mut(LastMatch);
             last_layer.transition[(Delete, Delete)] = K::Output::INFINITY;
             last_layer.transition[(Insert, Delete)] = K::Output::INFINITY;
             last_layer.transition[(Match, Delete)] = K::Output::INFINITY;

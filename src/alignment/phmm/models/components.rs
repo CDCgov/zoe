@@ -317,12 +317,7 @@ impl<T, const S: usize> GetLayer<T, S> for CorePhmm<T, S> {
 
 impl<T, const S: usize> GetLayerMut<T, S> for CorePhmm<T, S> {
     #[inline]
-    fn layers_mut(&mut self) -> &mut [LayerParams<T, S>] {
-        self.0.as_mut_slice()
-    }
-
-    #[inline]
-    fn layers_mut_vec(&mut self) -> &mut NonEmptyVec<LayerParams<T, S>> {
+    fn layers_mut(&mut self) -> &mut NonEmptyVec<LayerParams<T, S>> {
         &mut self.0
     }
 }

@@ -422,13 +422,8 @@ impl<T, const S: usize> GetCoreMut<T, S> for GlobalPhmm<T, S> {
 
 impl<T, const S: usize> GetLayerMut<T, S> for GlobalPhmm<T, S> {
     #[inline]
-    fn layers_mut(&mut self) -> &mut [LayerParams<T, S>] {
+    fn layers_mut(&mut self) -> &mut NonEmptyVec<LayerParams<T, S>> {
         self.core.layers_mut()
-    }
-
-    #[inline]
-    fn layers_mut_vec(&mut self) -> &mut NonEmptyVec<LayerParams<T, S>> {
-        self.core.layers_mut_vec()
     }
 }
 
@@ -455,13 +450,8 @@ impl<T, const S: usize> GetCoreMut<T, S> for DomainPhmm<T, S> {
 
 impl<T, const S: usize> GetLayerMut<T, S> for DomainPhmm<T, S> {
     #[inline]
-    fn layers_mut(&mut self) -> &mut [LayerParams<T, S>] {
+    fn layers_mut(&mut self) -> &mut NonEmptyVec<LayerParams<T, S>> {
         self.core.layers_mut()
-    }
-
-    #[inline]
-    fn layers_mut_vec(&mut self) -> &mut NonEmptyVec<LayerParams<T, S>> {
-        self.core.layers_mut_vec()
     }
 }
 
@@ -488,13 +478,8 @@ impl<T, const S: usize> GetCoreMut<T, S> for SemiLocalPhmm<T, S> {
 
 impl<T, const S: usize> GetLayerMut<T, S> for SemiLocalPhmm<T, S> {
     #[inline]
-    fn layers_mut(&mut self) -> &mut [LayerParams<T, S>] {
+    fn layers_mut(&mut self) -> &mut NonEmptyVec<LayerParams<T, S>> {
         self.core.layers_mut()
-    }
-
-    #[inline]
-    fn layers_mut_vec(&mut self) -> &mut NonEmptyVec<LayerParams<T, S>> {
-        self.core.layers_mut_vec()
     }
 }
 
@@ -521,13 +506,8 @@ impl<T, const S: usize> GetCoreMut<T, S> for LocalPhmm<T, S> {
 
 impl<T, const S: usize> GetLayerMut<T, S> for LocalPhmm<T, S> {
     #[inline]
-    fn layers_mut(&mut self) -> &mut [LayerParams<T, S>] {
+    fn layers_mut(&mut self) -> &mut NonEmptyVec<LayerParams<T, S>> {
         self.core.layers_mut()
-    }
-
-    #[inline]
-    fn layers_mut_vec(&mut self) -> &mut NonEmptyVec<LayerParams<T, S>> {
-        self.core.layers_mut_vec()
     }
 }
 

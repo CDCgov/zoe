@@ -1,7 +1,7 @@
 use crate::{
     alignment::phmm::{
         components::{CorePhmm, LayerParams},
-        indexing::{PhmmIndex, PhmmIndexRange, PhmmIndexable},
+        indexing::{Begin, FirstMatch, LastMatch, PhmmIndex, PhmmIndexRange, PhmmIndexable},
         nonempty_vec::NonEmptyVec,
     },
     data::ByteIndexMap,
@@ -80,39 +80,6 @@ pub trait GetLayer<T, const S: usize>: PhmmIndexable {
         self.layers().split_at_checked(self.get_dp_index(j))
     }
 
-    /// Returns a reference to the parameters for the layer containing the BEGIN
-    /// state.
-    ///
-    /// This is an infallible version of `model.get_layer(Begin)`.
-    #[inline]
-    #[must_use]
-    #[allow(dead_code)]
-    fn begin_layer(&self) -> &LayerParams<T, S> {
-        &self.layers()[0]
-    }
-
-    /// Returns a reference to the parameters for the layer containing the first
-    /// match state.
-    ///
-    /// This is an infallible version of `model.get_layer(FirstMatch)`.
-    #[inline]
-    #[must_use]
-    #[allow(dead_code)]
-    fn first_match(&self) -> &LayerParams<T, S> {
-        &self.layers()[1]
-    }
-
-    /// Returns a reference to the parameters for the layer containing the last
-    /// match state.
-    ///
-    /// This is an infallible version of `model.get_layer(LastMatch)`.
-    #[inline]
-    #[must_use]
-    #[allow(dead_code)]
-    fn last_match(&self) -> &LayerParams<T, S> {
-        &self.layers()[self.layers().len() - 1]
-    }
-
     /// Gets a layer from within the core pHMM.
     ///
     /// This returns `None` if the index is out of bounds or [`End`] (since
@@ -123,6 +90,15 @@ pub trait GetLayer<T, const S: usize>: PhmmIndexable {
     #[must_use]
     fn get_layer(&self, j: impl PhmmIndex) -> Option<&LayerParams<T, S>> {
         self.layers().get(self.get_dp_index(j))
+    }
+
+    /// Returns a reference to the parameters for the specified layer which is
+    /// guaranteed to exist in the pHMM, either [`Begin`], [`FirstResidue`], or
+    /// [`LastResidue`].
+    #[inline]
+    #[must_use]
+    fn layer(&self, idx: impl InfallibleLayerIdx) -> &LayerParams<T, S> {
+        idx.layer(self.layers())
     }
 
     /// Gets a range of layers from within the core pHMM.
@@ -147,43 +123,7 @@ impl<P: GetLayer<T, S>, T, const S: usize> GetLayer<T, S> for &P {
 pub trait GetLayerMut<T, const S: usize>: GetLayer<T, S> {
     /// Retrieves a mutable slice of the layers contained within the core pHMM.
     #[must_use]
-    fn layers_mut(&mut self) -> &mut [LayerParams<T, S>];
-
-    /// Returns a mutable reference to the vector of layer parameters stored in
-    /// the core pHMM.
-    #[must_use]
-    fn layers_mut_vec(&mut self) -> &mut NonEmptyVec<LayerParams<T, S>>;
-
-    /// Returns a reference to the parameters for the layer containing the BEGIN
-    /// state.
-    ///
-    /// This is an infallible version of `model.get_layer_mut(Begin)`.
-    #[inline]
-    #[must_use]
-    fn begin_layer_mut(&mut self) -> &mut LayerParams<T, S> {
-        &mut self.layers_mut()[0]
-    }
-
-    /// Returns a reference to the parameters for the layer containing the first
-    /// match state.
-    ///
-    /// This is an infallible version of `model.get_layer_mut(FirstMatch)`.
-    #[inline]
-    #[must_use]
-    fn first_match_mut(&mut self) -> &mut LayerParams<T, S> {
-        &mut self.layers_mut()[1]
-    }
-
-    /// Returns a reference to the parameters for the layer containing the last
-    /// match state.
-    ///
-    /// This is an infallible version of `model.get_layer_mut(LastMatch)`.
-    #[inline]
-    #[must_use]
-    fn last_match_mut(&mut self) -> &mut LayerParams<T, S> {
-        let idx = self.layers().len() - 1;
-        &mut self.layers_mut()[idx]
-    }
+    fn layers_mut(&mut self) -> &mut NonEmptyVec<LayerParams<T, S>>;
 
     /// Gets a mutable reference to a layer from within the core pHMM.
     ///
@@ -196,6 +136,15 @@ pub trait GetLayerMut<T, const S: usize>: GetLayer<T, S> {
     fn get_layer_mut(&mut self, j: impl PhmmIndex) -> Option<&mut LayerParams<T, S>> {
         let idx = self.get_dp_index(j);
         self.layers_mut().get_mut(idx)
+    }
+
+    /// Returns a mutable reference to the parameters for the specified layer
+    /// which is guaranteed to exist in the pHMM, either [`Begin`],
+    /// [`FirstMatch`], or [`LastMatch`].
+    #[inline]
+    #[must_use]
+    fn layer_mut(&mut self, idx: impl InfallibleLayerIdx) -> &mut LayerParams<T, S> {
+        idx.layer_mut(self.layers_mut())
     }
 
     /// Get a range of mutable layers from within the core pHMM.
@@ -250,4 +199,50 @@ pub trait GetMapping<const S: usize> {
     /// Returns a reference to the underlying alphabet of the pHMM.
     #[must_use]
     fn mapping(&self) -> &'static ByteIndexMap<S>;
+}
+
+/// A trait unifying [`Begin`], [`FirstResidue`], and [`LastResidue`], which are
+/// layers of a pHMM that are guaranteed to exist.
+pub trait InfallibleLayerIdx: Copy {
+    /// Returns the specified layer from `layers`.
+    fn layer<T, const S: usize>(self, layers: &NonEmptyVec<LayerParams<T, S>>) -> &LayerParams<T, S>;
+
+    /// Returns a mutable reference to the specified layer from `layers`.
+    fn layer_mut<T, const S: usize>(self, layers: &mut NonEmptyVec<LayerParams<T, S>>) -> &mut LayerParams<T, S>;
+}
+
+impl InfallibleLayerIdx for Begin {
+    #[inline]
+    fn layer<T, const S: usize>(self, layers: &NonEmptyVec<LayerParams<T, S>>) -> &LayerParams<T, S> {
+        layers.first()
+    }
+
+    #[inline]
+    fn layer_mut<T, const S: usize>(self, layers: &mut NonEmptyVec<LayerParams<T, S>>) -> &mut LayerParams<T, S> {
+        layers.first_mut()
+    }
+}
+
+impl InfallibleLayerIdx for FirstMatch {
+    #[inline]
+    fn layer<T, const S: usize>(self, layers: &NonEmptyVec<LayerParams<T, S>>) -> &LayerParams<T, S> {
+        &layers[1]
+    }
+
+    #[inline]
+    fn layer_mut<T, const S: usize>(self, layers: &mut NonEmptyVec<LayerParams<T, S>>) -> &mut LayerParams<T, S> {
+        &mut layers[1]
+    }
+}
+
+impl InfallibleLayerIdx for LastMatch {
+    #[inline]
+    fn layer<T, const S: usize>(self, layers: &NonEmptyVec<LayerParams<T, S>>) -> &LayerParams<T, S> {
+        layers.last()
+    }
+
+    #[inline]
+    fn layer_mut<T, const S: usize>(self, layers: &mut NonEmptyVec<LayerParams<T, S>>) -> &mut LayerParams<T, S> {
+        layers.last_mut()
+    }
 }

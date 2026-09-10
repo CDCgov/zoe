@@ -390,7 +390,7 @@ where
 
         match state {
             PhmmState::Match => {
-                let begin_to_first_match_param = phmm.begin_layer().transition[(PhmmState::Match, PhmmState::Match)];
+                let begin_to_first_match_param = phmm.layer(Begin).transition[(PhmmState::Match, PhmmState::Match)];
 
                 let skip_begin_score = self.inner.score + module.get_score(FirstMatch);
                 let through_begin_score = self.inner.score + module.get_score(Begin) + begin_to_first_match_param;
