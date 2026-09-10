@@ -41,7 +41,7 @@ impl<T: PhmmNumber> LocalBestScore<T> {
         if score < self.score {
             self.score = score;
             self.i = seq.to_dp_index(i);
-            self.loc = match end.to_seq_index(j) {
+            self.loc = match j.to_seq_index(end) {
                 Some(loc) => ExitLocation::Match(loc),
                 None => ExitLocation::Begin,
             }
@@ -235,7 +235,7 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
                     query_len: seq.len(),
                 });
             }
-            ExitLocation::Match(j) => (Match, self.get_dp_index(j)),
+            ExitLocation::Match(j) => (Match, j.to_dp_index().0),
             ExitLocation::End(state) => {
                 let Some(state) = PhmmState::get_from(state) else {
                     let mut states = AlignmentStates::new();
@@ -249,7 +249,7 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
                         query_len: seq.len(),
                     });
                 };
-                (state, self.get_dp_index(LastMatch))
+                (state, LastMatch.to_dp_index(self).0)
             }
         };
 

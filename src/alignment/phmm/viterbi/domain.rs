@@ -3,7 +3,9 @@ use crate::alignment::{
     phmm::{
         DomainPhmm, PhmmError, PhmmNumber,
         components::LayerParams,
-        indexing::{DpIndex, GetLayer, GetModule, LastBase, LastMatch, PhmmIndexable, QueryIndex, QueryIndexable},
+        indexing::{
+            DpIndex, GetLayer, GetModule, LastBase, LastMatch, PhmmIndex, PhmmIndexable, QueryIndex, QueryIndexable,
+        },
         modules::PrecomputedDomainModule,
         state::{
             PhmmBacktrackFlags,
@@ -177,7 +179,7 @@ impl<T: PhmmNumber, const S: usize> DomainPhmm<T, S> {
             i: DpIndex(end_i),
             state,
         } = best_score;
-        let end_j = self.get_dp_index(LastMatch);
+        let end_j = LastMatch.to_dp_index(self).0;
 
         let mut state = PhmmTracebackState::from(state);
         let mut i = end_i;

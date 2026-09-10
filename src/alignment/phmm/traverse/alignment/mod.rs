@@ -6,7 +6,7 @@ use crate::{
         phmm::{
             DomainPhmm, GlobalPhmm, LocalPhmm, PhmmNumber, SemiLocalPhmm,
             components::{EmissionParams, TransitionParams},
-            indexing::{Begin, DpIndex, End, FirstMatch, GetLayer, GetModule, PhmmIndexable, SeqIndex},
+            indexing::{Begin, DpIndex, End, FirstMatch, GetLayer, GetModule, PhmmIndex, PhmmIndexable, SeqIndex},
             modules::{DomainModule, SemiLocalModule, SemiLocalParams},
             state::{PhmmState, PhmmStateOrModule},
             traverse::{
@@ -361,7 +361,7 @@ where
                 let idx = if score_through_begin <= score_through_end {
                     Begin.to_dp_index()
                 } else {
-                    phmm.to_dp_index(End)
+                    End.to_dp_index(phmm)
                 };
 
                 return Ok(idx);
@@ -1110,7 +1110,7 @@ where
 
             for begin_residues_len in 0..=query.len() {
                 let (begin_residues, end_residues) = query.split_at(begin_residues_len);
-                for (through_begin, through_state) in [(true, phmm.to_dp_index(Begin)), (false, phmm.to_dp_index(End))] {
+                for (through_begin, through_state) in [(true, Begin.to_dp_index()), (false, End.to_dp_index(phmm))] {
                     let begin_score = phmm.get_begin_score(begin_residues, through_state);
                     let end_score = phmm.get_end_score(end_residues, through_state);
                     let score = begin_score + end_score;
@@ -1345,9 +1345,9 @@ where
     ) -> Result<DpIndex, LocalTraverseFromAlignError> {
         let layer = if let Some(empty_info) = &self.empty_info {
             if empty_info.through_begin {
-                phmm.to_dp_index(Begin)
+                Begin.to_dp_index()
             } else {
-                phmm.to_dp_index(End)
+                End.to_dp_index(phmm)
             }
         } else {
             self.inner.enter_core(module, phmm)?

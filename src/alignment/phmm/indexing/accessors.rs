@@ -77,7 +77,7 @@ pub trait GetLayer<T, const S: usize>: PhmmIndexable {
     #[must_use]
     #[allow(clippy::type_complexity)]
     fn split_layers_at(&self, j: impl PhmmIndex) -> Option<(&[LayerParams<T, S>], &[LayerParams<T, S>])> {
-        self.layers().split_at_checked(self.get_dp_index(j))
+        self.layers().split_at_checked(j.to_dp_index(&self).0)
     }
 
     /// Gets a layer from within the core pHMM.
@@ -89,7 +89,7 @@ pub trait GetLayer<T, const S: usize>: PhmmIndexable {
     #[inline]
     #[must_use]
     fn get_layer(&self, j: impl PhmmIndex) -> Option<&LayerParams<T, S>> {
-        self.layers().get(self.get_dp_index(j))
+        self.layers().get(j.to_dp_index(self).0)
     }
 
     /// Returns a reference to the parameters for the specified layer which is
@@ -134,8 +134,8 @@ pub trait GetLayerMut<T, const S: usize>: GetLayer<T, S> {
     #[inline]
     #[must_use]
     fn get_layer_mut(&mut self, j: impl PhmmIndex) -> Option<&mut LayerParams<T, S>> {
-        let idx = self.get_dp_index(j);
-        self.layers_mut().get_mut(idx)
+        let idx = j.to_dp_index(self);
+        self.layers_mut().get_mut(idx.0)
     }
 
     /// Returns a mutable reference to the parameters for the specified layer
@@ -174,10 +174,10 @@ pub trait GetLayerMut<T, const S: usize>: GetLayer<T, S> {
     fn get_two_layers_mut(
         &mut self, j1: impl PhmmIndex, j2: impl PhmmIndex,
     ) -> Result<(&mut LayerParams<T, S>, &mut LayerParams<T, S>), GetDisjointMutError> {
-        let j1 = self.get_dp_index(j1);
-        let j2 = self.get_dp_index(j2);
+        let j1 = j1.to_dp_index(self);
+        let j2 = j2.to_dp_index(self);
 
-        let [l1, l2] = self.layers_mut().get_disjoint_mut([j1, j2])?;
+        let [l1, l2] = self.layers_mut().get_disjoint_mut([j1.0, j2.0])?;
 
         Ok((l1, l2))
     }

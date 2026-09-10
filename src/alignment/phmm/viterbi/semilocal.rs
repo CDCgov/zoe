@@ -30,7 +30,7 @@ impl<T: PhmmNumber> SemiLocalBestScore<T> {
         let score = match_val + phmm.end().get_score(j);
         if score < self.score {
             self.score = score;
-            self.loc = match phmm.to_seq_index(j) {
+            self.loc = match j.to_seq_index(phmm) {
                 Some(loc) => ExitLocation::Match(loc),
                 None => ExitLocation::Begin,
             }
@@ -216,7 +216,7 @@ impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
                     query_len: seq.len(),
                 });
             }
-            ExitLocation::Match(j) => (Match, self.get_dp_index(j)),
+            ExitLocation::Match(j) => (Match, j.to_dp_index().0),
             ExitLocation::End(ptr) => {
                 let Some(ptr) = PhmmState::get_from(ptr) else {
                     let mut states = AlignmentStates::new();
@@ -230,7 +230,7 @@ impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
                         query_len: seq.len(),
                     });
                 };
-                (ptr, self.get_dp_index(LastMatch))
+                (ptr, LastMatch.to_dp_index(self).0)
             }
         };
         let end_i = seq.len();

@@ -72,7 +72,7 @@ impl<T: PhmmNumber> SemiLocalModule<T> {
     #[inline]
     #[must_use]
     pub fn get_score(&self, j: impl PhmmIndex) -> T {
-        self.0[self.get_dp_index(j)]
+        self.0[j.to_dp_index(self).0]
     }
 }
 

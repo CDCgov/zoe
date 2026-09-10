@@ -133,64 +133,21 @@ pub trait PhmmIndexable: Sized {
         self.num_pseudomatch() - 2
     }
 
-    /// Returns the [`PhmmIndex`] as a dynamic programming index.
-    ///
-    /// It is not checked whether the index is past the end of the pHMM.
-    #[inline]
-    #[must_use]
-    fn get_dp_index(&self, j: impl PhmmIndex) -> usize {
-        j.get_phmm_dp_index(self)
-    }
-
-    /// Converts the [`PhmmIndex`] to a dynamic programming index.
-    ///
-    /// It is not checked whether the index is past the end of the pHMM.
-    #[inline]
-    #[must_use]
-    #[allow(dead_code)]
-    fn to_dp_index(&self, j: impl PhmmIndex) -> DpIndex {
-        DpIndex(self.get_dp_index(j))
-    }
-
-    /// Returns the [`PhmmIndex`] as a sequence index (with respect to the
-    /// reference represented by the pHMM).
-    ///
-    /// If the index corresponds to the BEGIN state, then `None` is returned
-    /// since this does not correspond to a position in the reference. It is not
-    /// checked whether the index is past the end of the pHMM.
-    #[inline]
-    #[must_use]
-    fn get_seq_index(&self, j: impl PhmmIndex) -> Option<usize> {
-        self.get_dp_index(j).checked_sub(1)
-    }
-
-    /// Converts the [`PhmmIndex`] to a sequence index (with respect to the
-    /// reference represented by the pHMM).
-    ///
-    /// If the index corresponds to the BEGIN state, then `None` is returned
-    /// since this does not correspond to a position in the reference. It is not
-    /// checked whether the index is past the end of the pHMM.
-    #[inline]
-    #[must_use]
-    fn to_seq_index(&self, j: impl PhmmIndex) -> Option<SeqIndex> {
-        self.get_seq_index(j).map(SeqIndex)
-    }
-
     /// Returns a range of dynamic programming indices from a
     /// [`PhmmIndexRange`].
     #[inline]
     #[must_use]
     fn get_dp_range<R: PhmmIndexRange>(&self, range: R) -> Range<usize> {
         let start = match range.start_bound() {
-            Bound::Included(start) => self.get_dp_index(start),
+            Bound::Included(start) => start.to_dp_index(self).0,
             // +1 due to converting Excluded to Included
-            Bound::Excluded(start) => self.get_dp_index(start) + 1,
+            Bound::Excluded(start) => start.to_dp_index(self).0 + 1,
             Bound::Unbounded => 0,
         };
         let end = match range.end_bound() {
             // +1 due to converting Included to Excluded
-            Bound::Included(end) => self.get_dp_index(end) + 1,
-            Bound::Excluded(end) => self.get_dp_index(end),
+            Bound::Included(end) => end.to_dp_index(self).0 + 1,
+            Bound::Excluded(end) => end.to_dp_index(self).0,
             Bound::Unbounded => self.seq_len(),
         };
 
@@ -325,7 +282,22 @@ pub trait PhmmIndex: Copy {
     /// Helper function for [`PhmmIndexable::get_dp_index`], allowing each index
     /// type to control how it gets coverted to a dynamic programming index
     #[must_use]
-    fn get_phmm_dp_index(self, v: &impl PhmmIndexable) -> usize;
+    fn to_dp_index<Q>(self, phmm: &Q) -> DpIndex
+    where
+        Q: PhmmIndexable;
+
+    /// Returns the index as a [`SeqIndex`].
+    ///
+    /// If the index corresponds to [`Begin`], then `None` is returned since
+    /// this does not correspond to a position in the pHMM. It is not checked
+    /// whether the index is past the end of `phmm`.
+    #[inline]
+    #[must_use]
+    fn to_seq_index<Q>(&self, phmm: &Q) -> Option<SeqIndex>
+    where
+        Q: PhmmIndexable, {
+        self.to_dp_index(phmm).0.checked_sub(1).map(SeqIndex)
+    }
 
     /// Gets the index before the current one, as a [`DpIndex`].
     ///
@@ -337,7 +309,7 @@ pub trait PhmmIndex: Copy {
     #[must_use]
     #[allow(dead_code)]
     fn prev_index(self, phmm: &impl PhmmIndexable) -> DpIndex {
-        DpIndex(phmm.get_dp_index(self) - 1)
+        DpIndex(self.to_dp_index(phmm).0 - 1)
     }
 
     /// Gets the index after the current one, as a [`DpIndex`].
@@ -347,7 +319,7 @@ pub trait PhmmIndex: Copy {
     #[inline]
     #[must_use]
     fn next_index(self, phmm: &impl PhmmIndexable) -> DpIndex {
-        DpIndex(phmm.get_dp_index(self) + 1)
+        DpIndex(self.to_dp_index(phmm).0 + 1)
     }
 
     /// Gets the minimum of two [`PhmmIndex`] structs as a [`DpIndex`] (the
@@ -356,9 +328,8 @@ pub trait PhmmIndex: Copy {
     /// No bounds checking is performed.
     #[inline]
     #[must_use]
-    #[allow(dead_code)]
     fn min_index(self, other: impl PhmmIndex, phmm: &impl PhmmIndexable) -> DpIndex {
-        phmm.to_dp_index(self).min(phmm.to_dp_index(other))
+        self.to_dp_index(phmm).min(other.to_dp_index(phmm))
     }
 
     /// Gets the maximum of two [`PhmmIndex`] structs as a [`DpIndex`] (the
@@ -367,9 +338,8 @@ pub trait PhmmIndex: Copy {
     /// No bounds checking is performed.
     #[inline]
     #[must_use]
-    #[allow(dead_code)]
     fn max_index(self, other: impl PhmmIndex, phmm: &impl PhmmIndexable) -> DpIndex {
-        phmm.to_dp_index(self).max(phmm.to_dp_index(other))
+        self.to_dp_index(phmm).max(other.to_dp_index(phmm))
     }
 
     /// Tests two indices for equality by converting them both to [`DpIndex`].
@@ -377,9 +347,8 @@ pub trait PhmmIndex: Copy {
     /// No bounds checking is performed.
     #[inline]
     #[must_use]
-    #[allow(dead_code)]
     fn eq_index(self, other: impl PhmmIndex, phmm: &impl PhmmIndexable) -> bool {
-        phmm.to_dp_index(self) == phmm.to_dp_index(other)
+        self.to_dp_index(phmm) == other.to_dp_index(phmm)
     }
 }
 
@@ -523,44 +492,50 @@ impl<T, const S: usize> QueryIndexable for PrecomputedDomainModule<T, S> {
 }
 
 impl PhmmIndex for DpIndex {
-    #[inline]
-    fn get_phmm_dp_index(self, _v: &impl PhmmIndexable) -> usize {
-        self.0
+    fn to_dp_index<Q>(self, _phmm: &Q) -> DpIndex
+    where
+        Q: PhmmIndexable, {
+        self
     }
 }
 
 impl PhmmIndex for SeqIndex {
-    #[inline]
-    fn get_phmm_dp_index(self, _v: &impl PhmmIndexable) -> usize {
-        self.0 + 1
+    fn to_dp_index<Q>(self, _phmm: &Q) -> DpIndex
+    where
+        Q: PhmmIndexable, {
+        DpIndex(self.0 + 1)
     }
 }
 
 impl PhmmIndex for Begin {
-    #[inline]
-    fn get_phmm_dp_index(self, _v: &impl PhmmIndexable) -> usize {
-        0
+    fn to_dp_index<Q>(self, _phmm: &Q) -> DpIndex
+    where
+        Q: PhmmIndexable, {
+        DpIndex(0)
     }
 }
 
 impl PhmmIndex for FirstMatch {
-    #[inline]
-    fn get_phmm_dp_index(self, _v: &impl PhmmIndexable) -> usize {
-        1
+    fn to_dp_index<Q>(self, _phmm: &Q) -> DpIndex
+    where
+        Q: PhmmIndexable, {
+        DpIndex(1)
     }
 }
 
 impl PhmmIndex for LastMatch {
-    #[inline]
-    fn get_phmm_dp_index(self, v: &impl PhmmIndexable) -> usize {
-        v.num_pseudomatch() - 2
+    fn to_dp_index<Q>(self, phmm: &Q) -> DpIndex
+    where
+        Q: PhmmIndexable, {
+        DpIndex(phmm.seq_len())
     }
 }
 
 impl PhmmIndex for End {
-    #[inline]
-    fn get_phmm_dp_index(self, v: &impl PhmmIndexable) -> usize {
-        v.num_pseudomatch() - 1
+    fn to_dp_index<Q>(self, phmm: &Q) -> DpIndex
+    where
+        Q: PhmmIndexable, {
+        DpIndex(phmm.seq_len() + 1)
     }
 }
 
@@ -663,25 +638,25 @@ impl PartialOrd<SeqIndex> for Begin {
 
 impl PartialEq<FirstMatch> for SeqIndex {
     fn eq(&self, other: &FirstMatch) -> bool {
-        *self == other.to_seq_index()
+        *self == (*other).to_seq_index()
     }
 }
 
 impl PartialEq<SeqIndex> for FirstMatch {
     fn eq(&self, other: &SeqIndex) -> bool {
-        self.to_seq_index() == *other
+        (*self).to_seq_index() == *other
     }
 }
 
 impl PartialOrd<FirstMatch> for SeqIndex {
     fn partial_cmp(&self, other: &FirstMatch) -> Option<Ordering> {
-        self.partial_cmp(&other.to_seq_index())
+        self.partial_cmp(&(*other).to_seq_index())
     }
 }
 
 impl PartialOrd<SeqIndex> for FirstMatch {
     fn partial_cmp(&self, other: &SeqIndex) -> Option<Ordering> {
-        self.to_seq_index().partial_cmp(other)
+        (*self).to_seq_index().partial_cmp(other)
     }
 }
 
@@ -765,32 +740,32 @@ impl PartialOrd<SeqIndex> for DpIndex {
 pub fn layer_range_to_ref_range(phmm: &impl PhmmIndexable, range: &impl PhmmIndexRange) -> Range<usize> {
     // Get inclusive start DpIndex
     let start = match range.start_bound() {
-        Bound::Included(start) => phmm.to_dp_index(start),
+        Bound::Included(start) => start.to_dp_index(phmm),
         // Convert excluded to included
-        Bound::Excluded(start) => phmm.to_dp_index(start).next_index(phmm),
+        Bound::Excluded(start) => start.to_dp_index(phmm).next_index(phmm),
         Bound::Unbounded => Begin.to_dp_index(),
     };
 
     // Convert to SeqIndex, replacing Begin with FirstMatch
-    let start = phmm.to_seq_index(start).unwrap_or(FirstMatch.to_seq_index());
+    let start = start.to_seq_index().unwrap_or(FirstMatch.to_seq_index());
 
     // Get exclusive end DpIndex
     let end = match range.end_bound() {
         // Convert included to excluded
-        Bound::Included(end) => phmm.to_dp_index(end).next_index(phmm),
-        Bound::Excluded(end) => phmm.to_dp_index(end),
-        Bound::Unbounded => phmm.to_dp_index(End),
+        Bound::Included(end) => end.to_dp_index(phmm).next_index(phmm),
+        Bound::Excluded(end) => end.to_dp_index(phmm),
+        Bound::Unbounded => End.to_dp_index(phmm),
     };
 
     // Convert to SeqIndex, replacing Begin with FirstMatch
-    let mut end = phmm.to_seq_index(end).unwrap_or(FirstMatch.to_seq_index());
+    let mut end = end.to_seq_index().unwrap_or(FirstMatch.to_seq_index());
 
     // The maximum inclusive end allowed is LastMatch, so the maximum exclusive
     // end allowed is End
-    if end > phmm.to_dp_index(End) {
+    if end > End.to_dp_index(phmm) {
         // unwrap_or shouldn't happen, since End has a DpIndex strictly bigger
         // than Start
-        end = phmm.to_seq_index(End).unwrap_or(SeqIndex(0));
+        end = End.to_seq_index(phmm).unwrap_or(SeqIndex(0));
     }
 
     phmm.get_seq_range(start..end)

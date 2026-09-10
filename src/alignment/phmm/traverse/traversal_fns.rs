@@ -191,7 +191,7 @@ where
                 phmm.choose_end_insert_or_exit(visitor, layer_idx, &layer.transition, exit_param, exit_from_end_param)?;
             match next_state {
                 EndInsertExit::End => {
-                    layer_idx = phmm.to_dp_index(End);
+                    layer_idx = End.to_dp_index(phmm);
                     phmm.exit_core_from_end(visitor, layer_idx, phmm.end().semilocal_params().get_score(layer_idx))?;
                     break;
                 }
@@ -208,7 +208,7 @@ where
             let next_state = phmm.choose_end_or_insert(visitor, layer_idx, state, &layer.transition)?;
             match next_state {
                 EndInsert::End => {
-                    layer_idx = phmm.to_dp_index(End);
+                    layer_idx = End.to_dp_index(phmm);
                     phmm.exit_core_from_end(visitor, layer_idx, phmm.end().semilocal_params().get_score(layer_idx))?;
                     break;
                 }
