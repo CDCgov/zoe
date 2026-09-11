@@ -20,6 +20,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `op_consumes_query` and `op_consumes_ref` methods to `Ciglet`
 - Added a version of `RangeSearch` that is compatible with UTF-8 `&str`
 - Added traits for retrieving or splitting off annotations from record headers
+- Added `OrFail::unwrap_or_exit` for exiting with an explicit application-selected
+  error code
 
 ### Changed
 
@@ -32,11 +34,14 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - `KmerSet` set operations can now `panic` if the `kmer_length` of the encoders
   of the sets are not equal
 - Empty `qname`, `rname`, or `cigar` fields are now displayed as `*` by `SamData` and view types
+- `OrFail` and `Fail` now find raw OS error codes directly in the error source
+  chain and otherwise use exit code 1
 
 ### Removed
 
 - Removed deprecated `SAMReader` constructors
 - Deprecated `SamDataViewMut`
+- Removed the `GetCode` trait
 
 ## [0.0.32] - 2026-09-02
 

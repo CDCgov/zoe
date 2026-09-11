@@ -1,6 +1,5 @@
 //! K-mer related error types
 
-use crate::data::err::GetCode;
 use std::{error::Error, fmt};
 
 /// A k-mer related error.
@@ -27,4 +26,3 @@ impl fmt::Debug for KmerError {
 }
 
 impl Error for KmerError {}
-impl GetCode for KmerError {}

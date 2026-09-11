@@ -38,7 +38,7 @@ use crate::{
             state::{PhmmState, PhmmStateOrModule},
         },
     },
-    data::{cigar::LenInAlignment, err::GetCode},
+    data::cigar::LenInAlignment,
 };
 use std::{error::Error, fmt::Display};
 
@@ -376,13 +376,9 @@ impl Display for LocalTraverseFromAlignError {
 }
 
 impl Error for GlobalTraverseFromAlignError {}
-impl GetCode for GlobalTraverseFromAlignError {}
 impl Error for SemiLocalTraverseFromAlignError {}
-impl GetCode for SemiLocalTraverseFromAlignError {}
 impl Error for DomainTraverseFromAlignError {}
-impl GetCode for DomainTraverseFromAlignError {}
 impl Error for LocalTraverseFromAlignError {}
-impl GetCode for LocalTraverseFromAlignError {}
 
 /// A trait unifying the context types for all pHMM types.
 pub(super) trait CoreContextToErr {

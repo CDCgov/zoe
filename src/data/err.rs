@@ -5,8 +5,7 @@
 //! - The error type [`ErrorWithContext`], along with the traits
 //!   [`ResultWithErrorContext`] and [`WithErrorContext`], for wrapping errors
 //!   with additional context while preserving the error source chain.
-//! - [`GetCode`], [`OrFail`], and [`Fail`] for graceful CLI error handling with
-//!   exit codes.
+//! - [`OrFail`] and [`Fail`] for graceful CLI error handling with exit codes.
 //!
 //! ## Error Handling Philosophy in *Zoe*
 //!
@@ -51,7 +50,6 @@
 //! [`ErrorWithContext`]: crate::data::err::ErrorWithContext
 //! [`ResultWithErrorContext`]: crate::data::err::ResultWithErrorContext
 //! [`WithErrorContext`]: crate::data::err::WithErrorContext
-//! [`GetCode`]: crate::data::err::GetCode
 //! [`OrFail`]: crate::data::err::OrFail
 //! [`FastQReader::from_path`]: crate::prelude::FastQReader::from_path
 //! [`Error::source`]: std::error::Error::source
@@ -66,6 +64,10 @@ use std::{
     hint::cold_path,
     path::Path,
 };
+
+/// Maximum number of errors inspected when traversing a source chain, both for
+/// retrieving exit codes and for displaying the stack.
+const MAX_ERROR_CHAIN_DEPTH: usize = 256;
 
 /// A macro for unwrapping a [`Result`] and propagating any error as a
 /// `Some(Err(e))`.
@@ -82,86 +84,76 @@ macro_rules! unwrap_or_return_some_err {
     };
 }
 
-/// Trait for specifying getting exit codes originating from IO errors.
+/// Finds the first raw OS error code in an error's chain.
 ///
-/// Implementing this trait allows the error type to work with [`OrFail`]. If
-/// this is being implemented for a top-level error containing a nested error,
-/// one should manually implement [`get_code`] to retrieve the underlying code
-/// for the nested error, rather than using the blanket implementation.
-///
-/// [`get_code`]: GetCode::get_code
-pub trait GetCode {
-    /// Retrieves the exit code associated with a given error.
-    ///
-    /// ## Validity
-    ///
-    /// If this method is manually implemented, then it must recursively call
-    /// [`get_code`] on [`Error::source`]. Any other behavior or logic is not
-    /// guaranteed to be consistent within *Zoe*, and may or may not be
-    /// correctly applied when using wrapped errors ([`ErrorWithContext`]).
-    ///
-    /// The blanket implementation returns `1`. We also implement on
-    /// [`std::io::Error`] to return the [`raw_os_error`] if available.
-    ///
-    /// [`raw_os_error`]: std::io::Error::raw_os_error
-    /// [`get_code`]: GetCode::get_code
-    #[inline]
-    #[must_use]
-    fn get_code(&self) -> i32 {
-        1
-    }
-}
+/// Unlike [`Error::source`], this descends into transparent sources and IO
+/// payloads. These can hold a raw OS error code which is not visible by the
+/// wrapping error.
+fn io_exit_code(error: &(dyn Error + 'static)) -> i32 {
+    let mut current = Some(error);
 
-impl GetCode for std::io::Error {
-    #[inline]
-    fn get_code(&self) -> i32 {
-        if let Some(code) = self.raw_os_error() {
+    for _ in 0..MAX_ERROR_CHAIN_DEPTH {
+        let Some(error) = current else {
+            break;
+        };
+
+        // Extract the raw_os_error if present
+        if let Some(io_error) = error.downcast_ref::<std::io::Error>()
+            && let Some(code) = io_error.raw_os_error()
+        {
             return code;
         }
 
-        let mut source = self.source();
-        while let Some(err) = source {
-            if let Some(e) = err.downcast_ref::<std::io::Error>()
-                && let Some(code) = e.raw_os_error()
-            {
-                return code;
-            }
-            source = err.source();
-        }
-
-        1
+        // Get any transparent errors, IO payloads, or the source error
+        current = if let Some(context) = error.downcast_ref::<ErrorWithContext>() {
+            context.repr.source.as_ref().map(ErrorSource::as_error)
+        } else if let Some(payload) = error.downcast_ref::<std::io::Error>().and_then(std::io::Error::get_ref) {
+            Some(payload)
+        } else {
+            error.source()
+        };
     }
+
+    1
+}
+
+/// Writes an error stack to stderr and exits with `code`.
+fn exit_with_error(error: &(dyn Error + 'static), msg: Option<&str>, code: i32) -> ! {
+    match (std::env::current_exe(), msg) {
+        (Ok(bin), Some(msg)) => eprintln!("Error in {bin}: {msg}", bin = bin.display()),
+        (Ok(bin), None) => eprintln!("Error in {bin}", bin = bin.display()),
+        (Err(_), Some(msg)) => eprintln!("Error: {msg}"),
+        (Err(_), None) => eprintln!("Error in program"),
+    }
+
+    eprint!("{}", error.display_stack());
+    std::process::exit(code);
 }
 
 /// A trait for providing more graceful error reporting and aborting.
-///
-/// A status code is provided by [`GetCode`], and any context available in
-/// [`Error::source`] is displayed.
-///
-/// <div class="warning note">
-///
-/// **Note**
-///
-/// To get full utility out of this trait, custom top-level errors should
-/// manually implement [`std::error::Error::source`] and get whatever field or
-/// variants contains the nested errors. In addition, [`GetCode`] should
-/// likewise be implemented manually to retrieve the underlying codes for nested
-/// [`std::io::Error`].
-///
-/// </div>
 pub trait OrFail<T> {
     /// Unwraps the result, writing the error and any information in
     /// [`Error::source`] to stderr.
+    ///
+    /// A raw OS error code is used as the exit code when one is available in
+    /// the source chain; otherwise, the process exits with code `1`.
     fn unwrap_or_fail(self) -> T;
 
     /// Unwraps the result, writing the provided message, the error, and any
     /// information in [`Error::source`] to stderr.
+    ///
+    /// A raw OS error code is used as the exit code when one is available in
+    /// the source chain; otherwise, the process exits with code `1`.
     fn unwrap_or_die(self, msg: &str) -> T;
+
+    /// Unwraps the result, writing the error and any information in
+    /// [`Error::source`] to stderr and exiting with `code` on failure.
+    fn unwrap_or_exit(self, code: i32) -> T;
 }
 
 impl<T, E> OrFail<T> for Result<T, E>
 where
-    E: GetCode + Display + Error + 'static,
+    E: Error + 'static,
 {
     fn unwrap_or_fail(self) -> T {
         match self {
@@ -182,25 +174,24 @@ where
             }
         }
     }
+
+    fn unwrap_or_exit(self, code: i32) -> T {
+        match self {
+            Ok(result) => result,
+            Err(error) => {
+                cold_path();
+                exit_with_error(&error, None, code)
+            }
+        }
+    }
 }
 
 /// A trait for providing more graceful error reporting and aborting. For
 /// similar methods on [`Result`], see [`OrFail`].
 ///
-/// A status code is provided by [`GetCode`], and any context available in
+/// A raw OS error code is used when one is available in the source chain;
+/// otherwise, the process exits with code `1`. Any context available in
 /// [`Error::source`] is displayed.
-///
-/// <div class="warning note">
-///
-/// **Note**
-///
-/// To get full utility out of this trait, custom top-level errors should
-/// manually implement [`std::error::Error::source`] and get whatever field or
-/// variants contains the nested errors. In addition, [`GetCode`] should
-/// likewise be implemented manually to retrieve the underlying codes for nested
-/// [`std::io::Error`].
-///
-/// </div>
 pub trait Fail {
     /// Exits the program, writing the error and any information in
     /// [`Error::source`] to stderr.
@@ -213,30 +204,18 @@ pub trait Fail {
 
 impl<E> Fail for E
 where
-    E: GetCode + Display + Error + 'static,
+    E: Error + 'static,
 {
     #[cold]
     fn fail(self) -> ! {
-        if let Ok(bin) = std::env::current_exe() {
-            eprintln!("Error in {b}", b = bin.display());
-        } else {
-            eprintln!("Error in program");
-        }
-
-        eprint!("{}", self.display_stack());
-        std::process::exit(self.get_code());
+        let code = io_exit_code(&self);
+        exit_with_error(&self, None, code)
     }
 
     #[cold]
     fn die(self, msg: &str) -> ! {
-        if let Ok(bin) = std::env::current_exe() {
-            eprintln!("Error in {b}: {msg}", b = bin.display());
-        } else {
-            eprintln!("Error: {msg}");
-        }
-
-        eprint!("{}", self.display_stack());
-        std::process::exit(self.get_code());
+        let code = io_exit_code(&self);
+        exit_with_error(&self, Some(msg), code)
     }
 }
 
@@ -244,18 +223,25 @@ where
 ///
 /// Specifically, this error can hold up to three things:
 ///
-/// 1. An optional source error message, which this error wraps. Using
-///    [`unwrap_or_fail`] or [`unwrap_or_die`] cause the source error to be
-///    shown in the backtrace. This source is accessible via [`Error::source`].
-/// 2. A line of context describing the error. This appears as one item in the
+/// 1. A line of context describing the error. This appears as one item in the
 ///    [`OrFail`] backtrace.
-/// 3. Any subitems (additional indented lines with more information that appear
+/// 2. Any subitems (additional indented lines with more information that appear
 ///    below the line of context). This is useful for including the values of
 ///    variables or other useful information.
+/// 3. An optional source error, which this error wraps. Using
+///    [`unwrap_or_fail`] or [`unwrap_or_die`] cause the source error to be
+///    shown in the backtrace. This source is accessible via [`Error::source`].
 ///
 /// This can be converted to [`std::io::Error`] with [`Into`]. Hence, in
 /// functions returning [`std::io::Result`], the `?` operator can be used after
 /// adding context.
+///
+/// A [`std::io::Error`] can also be converted into a [`ErrorWithContext`]
+/// without adding additional context via [`From`]. The implementation ensures
+/// that the error does not appear twice in the public source chain. This can be
+/// useful to return `Result<(), ErrorWithContext>` from the `main` function,
+/// which will automatically format any errors and the source chain upon
+/// failure.
 ///
 /// [`with_subitem`]: WithSubitem::with_subitem
 /// [`unwrap_or_fail`]: OrFail::unwrap_or_fail
@@ -336,11 +322,39 @@ struct ErrorWithContextRepr {
     subitem: Option<String>,
 
     /// The source error which the context is added to.
-    source: Option<Box<dyn Error + Send + Sync>>,
+    source: Option<ErrorSource>,
+}
+
+/// The source error contained within an [`ErrorWithContext`].
+#[derive(Debug)]
+enum ErrorSource {
+    /// An ordinary source which appears in the displayed error stack and is
+    /// returned by [`Error::source`].
+    Chained(Box<dyn Error + Send + Sync>),
+
+    /// A source error which should be skipped in the source stack.
+    /// [`Error::source`] skips this source, returning the source of the
+    /// contained error instead.
+    ///
+    /// Errors cannot be directly removed from the stack because
+    /// [`Error::source`] does not include the [`Send`] and [`Sync`] trait
+    /// bounds, so this variant allows them to be skipped when traversing the
+    /// stack.
+    Transparent(Box<dyn Error + Send + Sync>),
+}
+
+impl ErrorSource {
+    /// Returns the contained error regardless of whether it is transparent or
+    /// not. This is used in [`io_exit_code`], which checks codes for all
+    /// errors.
+    fn as_error(&self) -> &(dyn Error + 'static) {
+        match self {
+            Self::Chained(source) | Self::Transparent(source) => source.as_ref(),
+        }
+    }
 }
 
 impl Display for ErrorWithContextRepr {
-    /// Displays the description of the error as well as any subitems.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.description)?;
         if let Some(subitem) = &self.subitem {
@@ -357,18 +371,17 @@ impl Display for ErrorWithContextRepr {
     }
 }
 
-impl std::fmt::Display for ErrorWithContext {
-    #[inline]
+impl Display for ErrorWithContext {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.repr)
     }
 }
 
 impl Error for ErrorWithContext {
-    #[inline]
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match &self.repr.source {
-            Some(source) => Some(source.as_ref()),
+            Some(ErrorSource::Chained(source)) => Some(source.as_ref()),
+            Some(ErrorSource::Transparent(source)) => source.source(),
             None => None,
         }
     }
@@ -400,7 +413,7 @@ impl<E: Error + Send + Sync + 'static> WithErrorContext for E {
             repr: Box::new(ErrorWithContextRepr {
                 description: description.into(),
                 subitem:     None,
-                source:      Some(Box::new(self)),
+                source:      Some(ErrorSource::Chained(Box::new(self))),
             }),
         }
     }
@@ -413,13 +426,7 @@ impl<E: Error + Send + Sync + 'static> WithErrorContext for E {
             name.split('<').next().unwrap_or(name).rsplit("::").next().unwrap_or(name)
         );
 
-        ErrorWithContext {
-            repr: Box::new(ErrorWithContextRepr {
-                description,
-                subitem: None,
-                source: Some(Box::new(self)),
-            }),
-        }
+        Self::with_context(self, description)
     }
 
     // Do not inline, since this is cold code
@@ -688,11 +695,13 @@ pub struct ErrStackDisplay<'a>(&'a (dyn Error + 'static));
 
 impl Display for ErrStackDisplay<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // Wrap the error in Some so that we don't have to write the same logic
-        // twice
         let mut maybe_err = Some(self.0);
 
-        while let Some(err) = maybe_err {
+        for _ in 0..MAX_ERROR_CHAIN_DEPTH {
+            let Some(err) = maybe_err else {
+                return Ok(());
+            };
+
             writeln!(
                 f,
                 "  → {err}",
@@ -705,74 +714,11 @@ impl Display for ErrStackDisplay<'_> {
             maybe_err = err.source();
         }
 
+        if maybe_err.is_some() {
+            writeln!(f, "  → [error source chain truncated]")?;
+        }
+
         Ok(())
-    }
-}
-
-/// A wrapper type around an error which causes it to be skipped when displaying
-/// the error stack.
-///
-/// Specifically, the display implementation forwards to the source error, and
-/// the source implementation returns the source's source.
-///
-/// ## Validity
-///
-/// The wrapped error must have a source returned by [`Error::source`].
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
-struct SkipErrorInStack<E>(E);
-
-impl<E> Display for SkipErrorInStack<E>
-where
-    E: Error,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Some(source) = self.0.source() {
-            write!(f, "{source}")
-        } else {
-            // This should be unreachable
-            Ok(())
-        }
-    }
-}
-
-impl<E> Error for SkipErrorInStack<E>
-where
-    E: Error,
-{
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        self.0.source().and_then(Error::source)
-    }
-}
-
-impl<E> GetCode for SkipErrorInStack<E>
-where
-    E: GetCode,
-{
-    fn get_code(&self) -> i32 {
-        self.0.get_code()
-    }
-}
-
-/// A trait for wrapping an error in an [`ErrorWithContext`] without adding
-/// another line of context.
-trait WrapErr {
-    fn wrap(self) -> ErrorWithContext;
-}
-
-impl<E> WrapErr for E
-where
-    E: Error + Send + Sync + 'static,
-{
-    fn wrap(self) -> ErrorWithContext {
-        // Extract the display impl of the error into a String.
-        let description = format!("{self}");
-
-        if self.source().is_some() {
-            // Validity: We confirmed that self has a source
-            SkipErrorInStack(self).with_context(description)
-        } else {
-            ErrorWithContext::new(description)
-        }
     }
 }
 
@@ -784,7 +730,27 @@ impl From<ErrorWithContext> for std::io::Error {
 }
 
 impl From<std::io::Error> for ErrorWithContext {
-    fn from(value: std::io::Error) -> Self {
-        value.wrap()
+    fn from(error: std::io::Error) -> Self {
+        // This downcast avoids an extra allocation when doing a round-trip
+        // conversion, and prevents the subitems from being squashed into the
+        // description.
+        let error = match error.downcast::<Self>() {
+            Ok(error) => return error,
+            Err(error) => error,
+        };
+
+        ErrorWithContext {
+            repr: Box::new(ErrorWithContextRepr {
+                description: error.to_string(),
+                subitem:     None,
+                source:      Some(ErrorSource::Transparent(Box::new(error))),
+            }),
+        }
+    }
+}
+
+impl From<std::convert::Infallible> for ErrorWithContext {
+    fn from(error: std::convert::Infallible) -> Self {
+        match error {}
     }
 }

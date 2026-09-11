@@ -5,7 +5,7 @@ use crate::{
         state::{PhmmState, PhmmStateOrExit, PhmmStateOrModule},
         traverse::{EndInsert, EndInsertExit, ModuleLocation},
     },
-    data::{ByteIndexMap, err::GetCode},
+    data::ByteIndexMap,
 };
 use rand::seq::WeightError;
 use std::{
@@ -60,8 +60,6 @@ impl Error for ParamWeightError {
         }
     }
 }
-
-impl GetCode for ParamWeightError {}
 
 /// A parameter alongside a label, for use in [`ParamSamplingError`].
 #[derive(Clone, Eq, PartialEq, Debug)]
@@ -210,12 +208,6 @@ where
     }
 }
 
-impl<T, L, const N: usize> GetCode for ParamSamplingError<T, L, N> {
-    fn get_code(&self) -> i32 {
-        self.source.get_code()
-    }
-}
-
 /// An error representing a sampling error where the only non-zero probability
 /// transition is a self-loop, causing an infinite loop during sampling.
 #[derive(Clone, Eq, PartialEq, Debug)]
@@ -276,8 +268,6 @@ where
 {
 }
 
-impl<T, L, const N: usize> GetCode for ParamTrapError<T, L, N> {}
-
 /// A sampling error caused by bad transition parameters.
 ///
 /// In the error stack, this is a transparent enum adding no additional context.
@@ -311,15 +301,6 @@ where
         match self {
             TransitionParamError::InvalidWeights(err) => err.source(),
             TransitionParamError::Trap(err) => err.source(),
-        }
-    }
-}
-
-impl<T, L, const N: usize> GetCode for TransitionParamError<T, L, N> {
-    fn get_code(&self) -> i32 {
-        match self {
-            TransitionParamError::InvalidWeights(err) => err.get_code(),
-            TransitionParamError::Trap(err) => err.get_code(),
         }
     }
 }
@@ -387,17 +368,6 @@ where
     }
 }
 
-impl<T> GetCode for SampleFromStateError<T> {
-    fn get_code(&self) -> i32 {
-        match &self.kind {
-            SampleFromStateErrorKind::State(e) => e.get_code(),
-            SampleFromStateErrorKind::StateOrExit(e) => e.get_code(),
-            SampleFromStateErrorKind::EndOrInsert(e) => e.get_code(),
-            SampleFromStateErrorKind::EndInsertOrExit(e) => e.get_code(),
-        }
-    }
-}
-
 /// An enum unifying the different sampling errors that could occur within a
 /// layer of the core pHMM.
 #[derive(Clone, Eq, PartialEq, Debug)]
@@ -438,15 +408,6 @@ where
     }
 }
 
-impl<T, const S: usize> GetCode for LayerSamplingError<T, S> {
-    fn get_code(&self) -> i32 {
-        match &self.kind {
-            SamplingLayerErrorKind::FromState(e) => e.get_code(),
-            SamplingLayerErrorKind::EmissionMatch(e) | SamplingLayerErrorKind::EmissionInsert(e) => e.get_code(),
-        }
-    }
-}
-
 /// A sampling error that occurred when choosing whether to enter the insert
 /// state of a [`DomainModule`] or skip to the end.
 ///
@@ -472,12 +433,6 @@ where
     }
 }
 
-impl<T> GetCode for DomainEnterInsertError<T> {
-    fn get_code(&self) -> i32 {
-        self.0.get_code()
-    }
-}
-
 /// A sampling error that occurred when choosing whether to remain in the insert
 /// state of a [`DomainModule`] or exit to the end.
 ///
@@ -500,12 +455,6 @@ where
 {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         Some(&self.0)
-    }
-}
-
-impl<T> GetCode for DomainExitInsertError<T> {
-    fn get_code(&self) -> i32 {
-        self.0.get_code()
     }
 }
 
@@ -541,12 +490,6 @@ where
 {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         Some(&self.source)
-    }
-}
-
-impl<T> GetCode for SemiLocalEnterCoreError<T> {
-    fn get_code(&self) -> i32 {
-        self.source.get_code()
     }
 }
 
@@ -608,17 +551,6 @@ where
             ModuleSamplingErrorKind::DomainExitInsert(err) => Some(err),
             ModuleSamplingErrorKind::DomainSampleEmissionsError(err) => Some(err),
             ModuleSamplingErrorKind::SemiLocalEnterCore(err) => Some(err),
-        }
-    }
-}
-
-impl<T, const S: usize> GetCode for ModuleSamplingError<T, S> {
-    fn get_code(&self) -> i32 {
-        match &self.kind {
-            ModuleSamplingErrorKind::DomainEnterInsert(err) => err.get_code(),
-            ModuleSamplingErrorKind::DomainExitInsert(err) => err.get_code(),
-            ModuleSamplingErrorKind::DomainSampleEmissionsError(err) => err.get_code(),
-            ModuleSamplingErrorKind::SemiLocalEnterCore(err) => err.get_code(),
         }
     }
 }

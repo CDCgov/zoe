@@ -16,10 +16,7 @@
 //!
 //! [`BamWriter`]: crate::data::records::bam::writer::BamWriter
 
-use crate::data::{
-    cigar::CigarError,
-    err::{ErrorWithContext, GetCode},
-};
+use crate::data::{cigar::CigarError, err::ErrorWithContext};
 use std::{error::Error, fmt};
 
 /// Error returned when writing BAM output or converting SAM records to BAM.
@@ -267,44 +264,6 @@ impl Error for BamEncodingError {
                 source.as_ref().map(|source| source.as_ref() as &(dyn Error + 'static))
             }
             BamEncodingError::SizeOverflow { .. } => None,
-        }
-    }
-}
-
-impl GetCode for BamError {
-    fn get_code(&self) -> i32 {
-        match self {
-            BamError::Io { source } => source.get_code(),
-            BamError::Header { source } => source.get_code(),
-            BamError::HeaderAlreadyWritten | BamError::WriterFinalized => 1,
-            BamError::Record { source, .. } => source.get_code(),
-        }
-    }
-}
-
-impl GetCode for BamHeaderError {
-    fn get_code(&self) -> i32 {
-        match self {
-            BamHeaderError::Encoding { source } => source.get_code(),
-            BamHeaderError::DuplicateReference { .. } => 1,
-        }
-    }
-}
-
-impl GetCode for BamRecordError {
-    fn get_code(&self) -> i32 {
-        match self {
-            BamRecordError::InvalidCigar { source } => source.get_code(),
-            BamRecordError::Encoding { source } => source.get_code(),
-            BamRecordError::ReferenceNotFound { .. } | BamRecordError::BinningOutOfRange => 1,
-        }
-    }
-}
-
-impl GetCode for BamEncodingError {
-    fn get_code(&self) -> i32 {
-        match self {
-            BamEncodingError::SizeOverflow { .. } | BamEncodingError::Other { .. } => 1,
         }
     }
 }

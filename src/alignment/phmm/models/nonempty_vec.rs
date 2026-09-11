@@ -2,7 +2,6 @@
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::missing_panics_doc)]
 
-use crate::data::err::GetCode;
 use std::{
     borrow::{Borrow, BorrowMut},
     collections::TryReserveError,
@@ -272,4 +271,3 @@ impl Display for EmptyElements {
 }
 
 impl Error for EmptyElements {}
-impl GetCode for EmptyElements {}

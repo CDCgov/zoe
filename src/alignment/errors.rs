@@ -1,4 +1,3 @@
-use crate::data::err::GetCode;
 use std::{error::Error, fmt};
 
 /// Errors that can occur when constructing a profile for alignment.
@@ -39,7 +38,6 @@ impl fmt::Display for ProfileError {
 }
 
 impl Error for ProfileError {}
-impl GetCode for ProfileError {}
 
 /// An enum representing errors that can happen when calculating an alignment
 /// score for a particular CIGAR string.
@@ -92,4 +90,3 @@ impl fmt::Debug for ScoringError {
 }
 
 impl Error for ScoringError {}
-impl GetCode for ScoringError {}

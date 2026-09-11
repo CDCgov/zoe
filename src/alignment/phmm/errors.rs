@@ -1,4 +1,3 @@
-use crate::data::err::GetCode;
 use std::{error::Error, fmt};
 
 /// An enum representing errors that can happen when working with pHMMs.
@@ -49,8 +48,6 @@ impl Error for PhmmError {
     }
 }
 
-impl GetCode for PhmmError {}
-
 impl From<InvalidModelError> for PhmmError {
     #[inline]
     fn from(value: InvalidModelError) -> Self {
@@ -93,4 +90,3 @@ impl fmt::Debug for InvalidModelError {
 }
 
 impl Error for InvalidModelError {}
-impl GetCode for InvalidModelError {}

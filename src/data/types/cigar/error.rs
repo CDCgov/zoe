@@ -1,6 +1,5 @@
 //! Error types for CIGAR strings.
 
-use crate::data::err::GetCode;
 use std::{error::Error, fmt};
 
 #[non_exhaustive]
@@ -48,4 +47,3 @@ impl fmt::Debug for CigarError {
 }
 
 impl Error for CigarError {}
-impl GetCode for CigarError {}
