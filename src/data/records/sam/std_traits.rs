@@ -53,7 +53,7 @@ impl std::fmt::Display for SamDataView<'_> {
             "{qname}\t{flag}\t{rname}\t{pos}\t{mapq}\t{cigar}\t{rnext}\t{pnext}\t{tlen}\t{seq}\t{qual}"
         )?;
 
-        for opt_field in opt_fields.0 {
+        for opt_field in opt_fields.iter_raw() {
             write!(f, "\t{opt_field}")?;
         }
         Ok(())
