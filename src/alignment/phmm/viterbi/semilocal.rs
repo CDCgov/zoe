@@ -4,8 +4,8 @@ use crate::alignment::{
         InvalidModelError, PhmmError, PhmmNumber, SemiLocalPhmm,
         components::LayerParams,
         indexing::{
-            Begin, DpIndex, End, GetLayer, GetModule, IndexRangeInner, LastMatch, NoBases, PhmmIndex, PhmmIndexRange,
-            PhmmIndexable, QueryIndexable,
+            AlnIndex, AlnIndexRange, AlnIndexable, Begin, DpIndex, End, GetLayer, GetModule, IndexRangeInner, LastResidue,
+            PhmmLen,
         },
         state::{
             PhmmBacktrackFlags,
@@ -29,11 +29,11 @@ struct SemiLocalBestScore<T> {
 
 impl<T: PhmmNumber> SemiLocalBestScore<T> {
     #[inline]
-    fn update_seq_end<const S: usize>(&mut self, match_val: T, j: impl PhmmIndex, phmm: &SemiLocalPhmm<T, S>) {
-        let score = match_val + phmm.end().get_score(j);
+    fn update_seq_end<const S: usize>(&mut self, match_val: T, phmm_idx: impl AlnIndex, phmm: &SemiLocalPhmm<T, S>) {
+        let score = match_val + phmm.end().get_score(phmm_idx);
         if score < self.score {
             self.score = score;
-            self.loc = match j.to_seq_index(phmm) {
+            self.loc = match phmm_idx.to_seq_index(phmm) {
                 Some(loc) => ExitLocation::Match(loc),
                 None => ExitLocation::Begin,
             }
@@ -48,7 +48,7 @@ impl<T: PhmmNumber> SemiLocalBestScore<T> {
         use crate::alignment::phmm::state::PhmmState::*;
 
         // Option 1: Early exit from this layer
-        self.update_seq_end(match_val, LastMatch, phmm);
+        self.update_seq_end(match_val, LastResidue, phmm);
 
         // Option 2: Go through END state
         match_val += layer.transition[(Match, Match)];
@@ -143,7 +143,7 @@ impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
                     // consume all bases up to i in the begin module, then the (i+1)st is
                     // consumed in this match state. The emission parameter is added within
                     // `update_match`.
-                    if i == seq.get_dp_index(NoBases) {
+                    if i == Begin.to_dp_index().0 {
                         let next_layer_idx = DpIndex(j).next_index(self);
 
                         let (state, best) = best_state_or_enter(
@@ -233,7 +233,7 @@ impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
                         query_len: seq.len(),
                     });
                 };
-                (ptr, LastMatch.to_dp_index(self).0)
+                (ptr, LastResidue.to_dp_index(self).0)
             }
         };
         let end_i = seq.len();
@@ -282,7 +282,7 @@ impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
         Ok(Alignment {
             score,
             ref_range: (start_j, end_j).saturating_to_seq_range(self).into_inner(),
-            query_range: seq.get_seq_range(start_i, end_i),
+            query_range: (start_i, end_i).saturating_to_seq_range(&seq).into_inner(),
             states,
             ref_len: self.seq_len(),
             query_len: seq.len(),

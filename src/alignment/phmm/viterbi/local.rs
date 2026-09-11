@@ -4,8 +4,8 @@ use crate::alignment::{
         InvalidModelError, LocalPhmm, PhmmError, PhmmNumber,
         components::LayerParams,
         indexing::{
-            Begin, DpIndex, End, GetLayer, GetModule, IndexRangeInner, LastBase, LastMatch, PhmmIndex, PhmmIndexRange,
-            PhmmIndexable, QueryIndex, QueryIndexable,
+            AlnIndex, AlnIndexRange, AlnIndexable, Begin, DpIndex, End, GetLayer, GetModule, IndexRangeInner, LastResidue,
+            PhmmLen,
         },
         modules::PrecomputedLocalModule,
         state::{
@@ -21,27 +21,28 @@ use std::ops::Bound::{Excluded, Included};
 /// A tracker for the best score for the local Viterbi algorithm.
 struct LocalBestScore<T> {
     /// The best score found at the end of the model
-    score: T,
+    score:     T,
     /// The last query index consumed by the [`CorePhmm`]
     ///
     /// [`CorePhmm`]: crate::alignment::phmm::components::CorePhmm
-    i:     DpIndex,
+    query_idx: DpIndex,
     /// The location from which the alignment exits the [`CorePhmm`]
     ///
     /// [`CorePhmm`]: crate::alignment::phmm::components::CorePhmm
-    loc:   ExitLocation,
+    loc:       ExitLocation,
 }
 
 impl<T: PhmmNumber> LocalBestScore<T> {
     #[inline]
     fn update<const S: usize>(
-        &mut self, match_val: T, i: impl QueryIndex, j: impl PhmmIndex, seq: &[u8], end: &PrecomputedLocalModule<T, S>,
+        &mut self, match_val: T, query_idx: impl AlnIndex, phmm_idx: impl AlnIndex, seq: &[u8],
+        end: &PrecomputedLocalModule<T, S>,
     ) {
-        let score = match_val + end.get_score(i, j);
+        let score = match_val + end.get_score(query_idx, phmm_idx);
         if score < self.score {
             self.score = score;
-            self.i = seq.to_dp_index(i);
-            self.loc = match j.to_seq_index(end) {
+            self.query_idx = query_idx.to_dp_index(seq);
+            self.loc = match phmm_idx.to_seq_index(end) {
                 Some(loc) => ExitLocation::Match(loc),
                 None => ExitLocation::Begin,
             }
@@ -50,26 +51,26 @@ impl<T: PhmmNumber> LocalBestScore<T> {
 
     #[allow(clippy::too_many_arguments)]
     fn update_last_layer<const S: usize>(
-        &mut self, layer: &LayerParams<T, S>, mut match_val: T, mut delete_val: T, mut insert_val: T, i: impl QueryIndex,
-        seq: &[u8], begin: &PrecomputedLocalModule<T, S>, end: &PrecomputedLocalModule<T, S>,
+        &mut self, layer: &LayerParams<T, S>, mut match_val: T, mut delete_val: T, mut insert_val: T,
+        query_idx: impl AlnIndex, seq: &[u8], begin: &PrecomputedLocalModule<T, S>, end: &PrecomputedLocalModule<T, S>,
     ) {
         use crate::alignment::phmm::state::PhmmState::*;
 
         // Option 1: Early exit from this layer
-        self.update(match_val, i, LastMatch, seq, end);
+        self.update(match_val, query_idx, LastResidue, seq, end);
 
         // Option 2: Go through END state
         match_val += layer.transition[(Match, Match)];
         delete_val += layer.transition[(Delete, Match)];
         insert_val += layer.transition[(Insert, Match)];
-        let enter_val = begin.get_score(i, End);
+        let enter_val = begin.get_score(query_idx, End);
 
         let (state, mut score) = best_state_or_enter(match_val, delete_val, insert_val, enter_val);
-        score += end.get_score(i, End);
+        score += end.get_score(query_idx, End);
 
         if score < self.score {
             self.score = score;
-            self.i = seq.to_dp_index(i);
+            self.query_idx = query_idx.to_dp_index(seq);
             self.loc = ExitLocation::End(state);
         }
     }
@@ -79,9 +80,9 @@ impl<T: PhmmNumber> Default for LocalBestScore<T> {
     #[inline]
     fn default() -> Self {
         Self {
-            score: T::INFINITY,
-            i:     DpIndex(0),
-            loc:   ExitLocation::End(PhmmStateOrModule::Match),
+            score:     T::INFINITY,
+            query_idx: DpIndex(0),
+            loc:       ExitLocation::End(PhmmStateOrModule::Match),
         }
     }
 }
@@ -185,7 +186,7 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
             }
 
             let i = seq.len();
-            best_score.update(cur_m, LastBase, DpIndex(j), seq, &end_mod);
+            best_score.update(cur_m, LastResidue, DpIndex(j), seq, &end_mod);
 
             let (state_d, delete_score) = update_delete(layer, cur_m, v_d[i], v_i[i]);
             traceback_next_row[i].set_delete(state_d);
@@ -210,7 +211,7 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
         }
 
         let i = seq.len();
-        best_score.update_last_layer(end, v_m[i], v_d[i], v_i[i], LastBase, seq, &begin_mod, &end_mod);
+        best_score.update_last_layer(end, v_m[i], v_d[i], v_i[i], LastResidue, seq, &begin_mod, &end_mod);
 
         // This is a necessary check, otherwise the traceback may panic
         if best_score.score == T::INFINITY {
@@ -219,7 +220,7 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
 
         let LocalBestScore {
             score,
-            i: DpIndex(end_i),
+            query_idx: DpIndex(end_i),
             loc,
         } = best_score;
         let (state, end_j) = match loc {
@@ -249,7 +250,7 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
                         query_len: seq.len(),
                     });
                 };
-                (state, LastMatch.to_dp_index(self).0)
+                (state, LastResidue.to_dp_index(self).0)
             }
         };
 
@@ -297,7 +298,7 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
         Ok(Alignment {
             score,
             ref_range: (start_j, end_j).saturating_to_seq_range(self).into_inner(),
-            query_range: seq.get_seq_range(start_i, end_i),
+            query_range: (start_i, end_i).saturating_to_seq_range(&seq).into_inner(),
             states,
             ref_len: self.seq_len(),
             query_len: seq.len(),

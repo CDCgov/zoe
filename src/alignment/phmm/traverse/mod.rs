@@ -6,9 +6,8 @@
 //!
 //! To use this API, pick or define a "visitor" which makes decisions about
 //! which transitions/emissions to make within a pHMM, and is also able to track
-//! any state or perform any side-effects needed by the user. Then, call one of
-//! the traverse functions, such as [`traverse_global_phmm`],
-//! [`traverse_local_phmm`], and so on.
+//! any state or perform any side-effects needed by the user. Then, call the
+//! [`traverse`] method on the pHMM.
 //!
 //! Traversing a pHMM is complicated due to complex indexing, edge-cases at the
 //! beginning and end, and the potential need to handle modules. The traversal
@@ -42,6 +41,7 @@
 //! - [`ScoreVisitor`] is a wrapper around an existing visitor that also
 //!   computes the score during traversal.
 //!
+//! [`traverse`]: GlobalPhmm::traverse
 //! [`GlobalAlignmentVisitor`]:
 //!     crate::alignment::phmm::traverse::alignment::GlobalAlignmentVisitor
 //! [`LocalAlignmentVisitor`]:
@@ -62,7 +62,7 @@ use crate::{
     alignment::phmm::{
         DomainPhmm, GlobalPhmm, LocalPhmm, PhmmNumber, SemiLocalPhmm,
         components::{EmissionParams, TransitionParams},
-        indexing::{DpIndex, GetMapping, GetModule, PhmmIndex},
+        indexing::{AlnIndex, DpIndex, GetMapping, GetModule},
         modules::{DomainModule, LocalModule},
         state::{PhmmState, PhmmStateOrModule},
     },
@@ -577,8 +577,8 @@ where
     }
 
     #[inline]
-    fn get_begin_semilocal_score(&self, index: impl PhmmIndex) -> T {
-        self.begin().semilocal_params.get_score(index)
+    fn get_begin_semilocal_score(&self, phmm_idx: impl AlnIndex) -> T {
+        self.begin().semilocal_params.get_score(phmm_idx)
     }
 
     #[inline]
@@ -587,18 +587,18 @@ where
     }
 
     #[inline]
-    fn get_end_semilocal_score(&self, index: impl PhmmIndex) -> T {
-        self.end().semilocal_params.get_score(index)
+    fn get_end_semilocal_score(&self, phmm_idx: impl AlnIndex) -> T {
+        self.end().semilocal_params.get_score(phmm_idx)
     }
 
     #[inline]
-    fn get_begin_score(&self, inserted: &[u8], index: impl PhmmIndex) -> T {
-        self.get_begin_domain_score(inserted) + self.get_begin_semilocal_score(index)
+    fn get_begin_score(&self, inserted: &[u8], phmm_idx: impl AlnIndex) -> T {
+        self.get_begin_domain_score(inserted) + self.get_begin_semilocal_score(phmm_idx)
     }
 
     #[inline]
-    fn get_end_score(&self, inserted: &[u8], index: impl PhmmIndex) -> T {
-        self.get_end_domain_score(inserted) + self.get_end_semilocal_score(index)
+    fn get_end_score(&self, inserted: &[u8], phmm_idx: impl AlnIndex) -> T {
+        self.get_end_domain_score(inserted) + self.get_end_semilocal_score(phmm_idx)
     }
 }
 

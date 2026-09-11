@@ -1,190 +1,111 @@
 //! Structs and traits to enable more readable/correct indexing into
 //! pHMM-related data structures.
 
-use crate::{
-    alignment::phmm::{
-        DomainPhmm, GlobalPhmm, LocalPhmm, SemiLocalPhmm,
-        components::CorePhmm,
-        indexing::{GetCore, GetLayer},
-        modules::{PrecomputedDomainModule, PrecomputedLocalModule, SemiLocalModule},
-    },
-    data::views::IndexAdjustable,
+use crate::alignment::phmm::{
+    DomainPhmm, GlobalPhmm, LocalPhmm, SemiLocalPhmm,
+    components::CorePhmm,
+    indexing::{GetCore, GetLayer},
+    modules::{PrecomputedDomainModule, PrecomputedLocalModule, SemiLocalModule},
 };
 use std::{
     cmp::Ordering,
-    ops::{Add, AddAssign, Bound, Range},
+    ops::{Add, AddAssign, Range},
 };
 
-/// A trait for structures that can be indexed via a [`PhmmIndex`], such as
-/// pHMMs and modules.
-pub trait PhmmIndexable: Sized {
-    /// Returns the number of pseudomatch states in the pHMM-related structure
-    /// (either a match state for the reference, or BEGIN or END).
-    ///
-    /// ## Validity
-    ///
-    /// This must return at least 2.
-    #[must_use]
-    fn num_pseudomatch(&self) -> usize;
-
-    /// Returns the length of the reference which the pHMM-related structure
-    /// represents.
-    ///
-    /// This is also the number of match states in the pHMM-related structure,
-    /// excluding BEGIN and END.
-    #[inline]
-    #[must_use]
-    fn seq_len(&self) -> usize {
-        // Validity: num_pseudomatch returns at least 2
-        self.num_pseudomatch() - 2
-    }
-}
-
-impl<P: PhmmIndexable> PhmmIndexable for &P {
-    fn num_pseudomatch(&self) -> usize {
-        P::num_pseudomatch(self)
-    }
-}
-
-impl<P: PhmmIndexable> PhmmIndexable for &mut P {
-    fn num_pseudomatch(&self) -> usize {
-        P::num_pseudomatch(self)
-    }
-}
-
-/// A trait for structures that can be indexed via a [`QueryIndex`], such as
-/// query sequence.
-pub trait QueryIndexable: Sized {
-    /// Returns the length of the query sequence.
+/// A trait for structures that can be indexed via a [`AlnIndex`], such as byte
+/// sequences, pHMMs, and modules.
+///
+/// [`AlnIndex`]: crate::alignment::phmm::indexing::AlnIndex
+pub trait AlnIndexable {
+    /// Returns the length of the query or reference sequence corresponding to
+    /// the structure.
     #[must_use]
     fn seq_len(&self) -> usize;
+}
 
-    /// Returns the number of possible states that could be in when traversing
-    /// the query.
-    ///
-    /// Either none of the bases are consumed, or up to and including
-    /// `query_len` bases could be consumed.
+impl<P: AlnIndexable> AlnIndexable for &P {
     #[inline]
-    #[must_use]
-    fn dp_len(&self) -> usize {
-        self.seq_len() + 1
-    }
-
-    /// Returns the [`QueryIndex`] as a dynamic programming index.
-    #[inline]
-    #[must_use]
-    fn get_dp_index(&self, i: impl QueryIndex) -> usize {
-        i.get_query_dp_index(self)
-    }
-
-    /// Converts the [`QueryIndex`] to a dynamic programming index.
-    #[inline]
-    #[must_use]
-    fn to_dp_index(&self, i: impl QueryIndex) -> DpIndex {
-        DpIndex(self.get_dp_index(i))
-    }
-
-    /// Returns a range of dynamic programming indices from a start and end
-    /// [`QueryIndex`].
-    #[inline]
-    #[must_use]
-    fn get_dp_range(&self, start: Bound<impl QueryIndex>, end: Bound<impl QueryIndex>) -> Range<usize> {
-        let start = match start {
-            Bound::Included(start) => self.get_dp_index(start),
-            Bound::Excluded(start) => self.get_dp_index(start) + 1,
-            Bound::Unbounded => 0,
-        };
-        let end = match end {
-            Bound::Included(end) => self.get_dp_index(end) + 1,
-            Bound::Excluded(end) => self.get_dp_index(end),
-            Bound::Unbounded => self.seq_len(),
-        };
-
-        start..end
-    }
-
-    /// Returns a range of sequence indices from a start and end [`QueryIndex`].
-    ///
-    /// If either index corresponds [`NoBases`], then this will be mapped to 0
-    /// (the same sequence index that [`FirstBase`] corresponds to).
-    #[inline]
-    #[must_use]
-    fn get_seq_range(&self, start: Bound<impl QueryIndex>, end: Bound<impl QueryIndex>) -> Range<usize> {
-        // -1 for converting dynamic programming index to sequence index
-        self.get_dp_range(start, end).saturating_sub(1)
+    fn seq_len(&self) -> usize {
+        P::seq_len(self)
     }
 }
 
-/// A trait representing different ways to index into a pHMM-related data
-/// structure.
-///
-/// By indexing data structures with a [`PhmmIndex`], it allows for better
-/// readability and correctness by requiring specification of the type of index
-/// (such as a dynamic programming index with [`DpIndex`] or a sequence index
-/// with [`SeqIndex`]). It also allows special elements to be accessed with
-/// [`Begin`], [`FirstMatch`], [`LastMatch`], and [`End`].
-pub trait PhmmIndex: Copy {
-    /// Helper function for [`PhmmIndexable::get_dp_index`], allowing each index
-    /// type to control how it gets coverted to a dynamic programming index
+impl<P: AlnIndexable> AlnIndexable for &mut P {
+    #[inline]
+    fn seq_len(&self) -> usize {
+        P::seq_len(self)
+    }
+}
+
+/// A trait representing different ways to index into sequence data associated
+/// with a dynamic programming alignment algorithm.
+pub trait AlnIndex: Copy {
+    /// Returns the index as a [`DpIndex`].
+    ///
+    /// It is not checked whether the index is past the end of `seq`.
     #[must_use]
-    fn to_dp_index<Q>(self, phmm: &Q) -> DpIndex
+    fn to_dp_index<Q>(self, seq: &Q) -> DpIndex
     where
-        Q: PhmmIndexable;
+        Q: AlnIndexable + ?Sized;
 
     /// Returns the index as a [`SeqIndex`].
     ///
     /// If the index corresponds to [`Begin`], then `None` is returned since
-    /// this does not correspond to a position in the pHMM. It is not checked
-    /// whether the index is past the end of `phmm`.
+    /// this does not correspond to a position in the sequence. It is not
+    /// checked whether the index is past the end of `seq`.
     #[inline]
     #[must_use]
-    fn to_seq_index<Q>(&self, phmm: &Q) -> Option<SeqIndex>
+    fn to_seq_index<Q>(&self, seq: &Q) -> Option<SeqIndex>
     where
-        Q: PhmmIndexable, {
-        self.to_dp_index(phmm).0.checked_sub(1).map(SeqIndex)
+        Q: AlnIndexable + ?Sized, {
+        self.to_dp_index(seq).0.checked_sub(1).map(SeqIndex)
     }
 
     /// Gets the index before the current one, as a [`DpIndex`].
     ///
-    /// ## Panics
-    ///
-    /// If the previous index is out of bounds (e.g., for [`Begin`] or
-    /// `DpIndex(0)`), then this will panic.
+    /// If the index is equivalent to [`Begin`], then `None` is returned.
     #[inline]
     #[must_use]
-    #[allow(dead_code)]
-    fn prev_index(self, phmm: &impl PhmmIndexable) -> DpIndex {
-        DpIndex(self.to_dp_index(phmm).0 - 1)
+    fn prev_index<Q>(self, seq: &Q) -> Option<DpIndex>
+    where
+        Q: AlnIndexable + ?Sized, {
+        self.to_dp_index(seq).0.checked_sub(1).map(DpIndex)
     }
 
     /// Gets the index after the current one, as a [`DpIndex`].
     ///
     /// No check is performed for whether this index is in bounds for the given
-    /// `phmm`.
+    /// `seq`.
     #[inline]
     #[must_use]
-    fn next_index(self, phmm: &impl PhmmIndexable) -> DpIndex {
-        DpIndex(self.to_dp_index(phmm).0 + 1)
+    fn next_index<Q>(self, seq: &Q) -> DpIndex
+    where
+        Q: AlnIndexable + ?Sized, {
+        DpIndex(self.to_dp_index(seq).0 + 1)
     }
 
-    /// Gets the minimum of two [`PhmmIndex`] structs as a [`DpIndex`] (the
-    /// leftmost in the pHMM).
+    /// Gets the minimum of two [`AlnIndex`] structs as a [`DpIndex`] (the
+    /// leftmost in `seq`).
     ///
     /// No bounds checking is performed.
     #[inline]
     #[must_use]
-    fn min_index(self, other: impl PhmmIndex, phmm: &impl PhmmIndexable) -> DpIndex {
-        self.to_dp_index(phmm).min(other.to_dp_index(phmm))
+    fn min_index<Q>(self, other: impl AlnIndex, seq: &Q) -> DpIndex
+    where
+        Q: AlnIndexable + ?Sized, {
+        self.to_dp_index(seq).min(other.to_dp_index(seq))
     }
 
-    /// Gets the maximum of two [`PhmmIndex`] structs as a [`DpIndex`] (the
-    /// rightmost in the pHMM).
+    /// Gets the maximum of two [`AlnIndex`] structs as a [`DpIndex`] (the
+    /// rightmost in `seq`).
     ///
     /// No bounds checking is performed.
     #[inline]
     #[must_use]
-    fn max_index(self, other: impl PhmmIndex, phmm: &impl PhmmIndexable) -> DpIndex {
-        self.to_dp_index(phmm).max(other.to_dp_index(phmm))
+    fn max_index<Q>(self, other: impl AlnIndex, seq: &Q) -> DpIndex
+    where
+        Q: AlnIndexable + ?Sized, {
+        self.to_dp_index(seq).max(other.to_dp_index(seq))
     }
 
     /// Tests two indices for equality by converting them both to [`DpIndex`].
@@ -192,231 +113,171 @@ pub trait PhmmIndex: Copy {
     /// No bounds checking is performed.
     #[inline]
     #[must_use]
-    fn eq_index(self, other: impl PhmmIndex, phmm: &impl PhmmIndexable) -> bool {
-        self.to_dp_index(phmm) == other.to_dp_index(phmm)
+    fn eq_index<Q>(self, other: impl AlnIndex, seq: &Q) -> bool
+    where
+        Q: AlnIndexable + ?Sized, {
+        self.to_dp_index(seq) == other.to_dp_index(seq)
     }
 }
 
-/// A trait representing different ways to index into a query-related data
-/// structure.
+/// An [`AlnIndex`] with respect to a dynamic programming table.
 ///
-/// By indexing data structures with a [`QueryIndex`], it allows for better
-/// readability and correctness by requiring specification of the type of index
-/// (such as a dynamic programming index with [`DpIndex`] or a sequence index
-/// with [`SeqIndex`]). It also allows special elements to be accessed with
-/// [`NoBases`], [`FirstBase`], and [`LastBase`].
-pub trait QueryIndex: Copy {
-    /// Helper function for [`QueryIndexable::get_dp_index`], allowing each
-    /// index type to control how it gets converted to a dynamic programming
-    /// index.
-    #[must_use]
-    fn get_query_dp_index(self, v: &impl QueryIndexable) -> usize;
-}
-
-/// A [`PhmmIndex`] or [`QueryIndex`] representing an index with respect to the
-/// sequence, rather than with respect to the dynamic programming tables.
-///
-/// 0 represents the first position in the sequence (reference or query).
+/// For sequences, 0 represents no residues aligned and 1 represents the first
+/// residue. For pHMMs, 0 represents the BEGIN state and 1 represents the first
+/// match state with emissions.
 #[repr(transparent)]
-#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Debug)]
-pub struct SeqIndex(pub usize);
-
-/// A [`PhmmIndex`] or [`QueryIndex`] representing an index with respect to the
-/// dynamic programming tables, rather than with respect to the sequence itself.
-///
-/// 1 represents the first position in the sequence (reference or query), while
-/// 0 represents matching no bases or the BEGIN state of the pHMM.
-#[repr(transparent)]
-#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
 pub struct DpIndex(pub usize);
 
-/// A [`PhmmIndex`] representing the BEGIN state of the pHMM, as well as the
-/// first layer (which holds the transition probabilities out of the BEGIN
-/// state).
-#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Debug)]
+/// An [`AlnIndex`] with respect to the sequence coordinates.
+///
+/// For sequences, 0 represents the first residue. For pHMMs, 0 represents the
+/// first match state with emissions (the first reference coordinate position).
+#[repr(transparent)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
+pub struct SeqIndex(pub usize);
+
+/// An [`AlnIndex`] representing no residues aligned or the BEGIN state of a
+/// pHMM, equivalent to `DpIndex(0)`.
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
 pub struct Begin;
 
-/// A [`PhmmIndex`] representing the first match state of the pHMM after BEGIN.
-///
-/// This corresponds to the first residue in the reference sequences.
-#[allow(dead_code)]
-#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Debug)]
-pub struct FirstMatch;
+/// An [`AlnIndex`] representing the first residue or the first match state with
+/// emissions, equivalent to `DpIndex(1)` or `SeqIndex(0)`.
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
+pub struct FirstResidue;
 
-/// A [`PhmmIndex`] representing the last match state of the pHMM before END.
-///
-/// This corresponds to the last residue in the reference sequences.
-#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Debug)]
-pub struct LastMatch;
+/// An [`AlnIndex`] representing the last residue or the last match state with
+/// emissions, whose value depends on the length of the sequence/pHMM.
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
+pub struct LastResidue;
 
-// TODO: Doc link
-/// A [`PhmmIndex`] representing the END state of the pHMM.
-///
-/// When used to get a layer from a pHMM with `get_layer`, this is treated as
-/// the same thing as [`LastMatch`] since the END state does not have its own
-/// layer.
-#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Debug)]
+/// An [`AlnIndex`] after [`LastResidue`]. This represents the END state of a
+/// pHMM, and also occurs as an exclusive end bound on ranges.
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
 pub struct End;
 
-/// A [`QueryIndex`] representing not matching any bases from the sequence
-/// (dynamic programming index 0).
-#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Debug)]
-#[allow(dead_code)]
-pub struct NoBases;
-
-/// A [`QueryIndex`] representing the first base in the sequence.
-#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Debug)]
-#[allow(dead_code)]
-pub struct FirstBase;
-
-/// A [`QueryIndex`] representing the last base in the sequence.
-#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Debug)]
-pub struct LastBase;
-
-impl<T, const S: usize> PhmmIndexable for CorePhmm<T, S> {
+impl<T, const S: usize> AlnIndexable for CorePhmm<T, S> {
     #[inline]
-    fn num_pseudomatch(&self) -> usize {
-        // The END state does not have an index in the CorePhmm, so we add 1
-        self.layers().len() + 1
-    }
-}
-
-impl<T, const S: usize> PhmmIndexable for GlobalPhmm<T, S> {
-    #[inline]
-    fn num_pseudomatch(&self) -> usize {
-        self.core().num_pseudomatch()
-    }
-}
-
-impl<T, const S: usize> PhmmIndexable for LocalPhmm<T, S> {
-    #[inline]
-    fn num_pseudomatch(&self) -> usize {
-        self.core().num_pseudomatch()
-    }
-}
-
-impl<T, const S: usize> PhmmIndexable for SemiLocalPhmm<T, S> {
-    #[inline]
-    fn num_pseudomatch(&self) -> usize {
-        self.core().num_pseudomatch()
-    }
-}
-
-impl<T, const S: usize> PhmmIndexable for DomainPhmm<T, S> {
-    #[inline]
-    fn num_pseudomatch(&self) -> usize {
-        self.core().num_pseudomatch()
-    }
-}
-
-impl<T> PhmmIndexable for SemiLocalModule<T> {
-    #[inline]
-    fn num_pseudomatch(&self) -> usize {
-        self.0.len()
-    }
-}
-
-impl<T, const S: usize> PhmmIndexable for PrecomputedLocalModule<'_, T, S> {
-    #[inline]
-    fn num_pseudomatch(&self) -> usize {
-        self.semilocal_params.num_pseudomatch()
-    }
-}
-
-impl QueryIndexable for &[u8] {
     fn seq_len(&self) -> usize {
-        self.len()
+        // The END state does not have an index in the CorePhmm, so we subtract
+        // one just for the BEGIN state
+        self.layers().len() - 1
     }
 }
 
-impl<T, const S: usize> QueryIndexable for PrecomputedDomainModule<T, S> {
+impl<T, const S: usize> AlnIndexable for GlobalPhmm<T, S> {
+    #[inline]
+    fn seq_len(&self) -> usize {
+        self.core().seq_len()
+    }
+}
+
+impl<T, const S: usize> AlnIndexable for LocalPhmm<T, S> {
+    #[inline]
+    fn seq_len(&self) -> usize {
+        self.core().seq_len()
+    }
+}
+
+impl<T, const S: usize> AlnIndexable for SemiLocalPhmm<T, S> {
+    #[inline]
+    fn seq_len(&self) -> usize {
+        self.core().seq_len()
+    }
+}
+
+impl<T, const S: usize> AlnIndexable for DomainPhmm<T, S> {
+    #[inline]
+    fn seq_len(&self) -> usize {
+        self.core().seq_len()
+    }
+}
+
+impl<T> AlnIndexable for SemiLocalModule<T> {
+    #[inline]
+    fn seq_len(&self) -> usize {
+        self.0.len() - 2
+    }
+}
+
+impl<T, const S: usize> AlnIndexable for PrecomputedLocalModule<'_, T, S> {
+    #[inline]
+    fn seq_len(&self) -> usize {
+        self.semilocal_params.seq_len()
+    }
+}
+
+impl<T, const S: usize> AlnIndexable for PrecomputedDomainModule<T, S> {
     #[inline]
     fn seq_len(&self) -> usize {
         self.0.len() - 1
     }
 }
 
-impl PhmmIndex for DpIndex {
-    fn to_dp_index<Q>(self, _phmm: &Q) -> DpIndex
+impl AlnIndexable for [u8] {
+    #[inline]
+    fn seq_len(&self) -> usize {
+        self.len()
+    }
+}
+
+impl AlnIndexable for &[u8] {
+    #[inline]
+    fn seq_len(&self) -> usize {
+        self.len()
+    }
+}
+
+impl AlnIndex for DpIndex {
+    fn to_dp_index<Q>(self, _seq: &Q) -> DpIndex
     where
-        Q: PhmmIndexable, {
+        Q: AlnIndexable + ?Sized, {
         self
     }
 }
 
-impl PhmmIndex for SeqIndex {
-    fn to_dp_index<Q>(self, _phmm: &Q) -> DpIndex
+impl AlnIndex for SeqIndex {
+    fn to_dp_index<Q>(self, _seq: &Q) -> DpIndex
     where
-        Q: PhmmIndexable, {
+        Q: AlnIndexable + ?Sized, {
         DpIndex(self.0 + 1)
     }
 }
 
-impl PhmmIndex for Begin {
-    fn to_dp_index<Q>(self, _phmm: &Q) -> DpIndex
+impl AlnIndex for Begin {
+    #[inline]
+    fn to_dp_index<Q>(self, _seq: &Q) -> DpIndex
     where
-        Q: PhmmIndexable, {
+        Q: AlnIndexable + ?Sized, {
         DpIndex(0)
     }
 }
 
-impl PhmmIndex for FirstMatch {
-    fn to_dp_index<Q>(self, _phmm: &Q) -> DpIndex
+impl AlnIndex for FirstResidue {
+    #[inline]
+    fn to_dp_index<Q>(self, _seq: &Q) -> DpIndex
     where
-        Q: PhmmIndexable, {
+        Q: AlnIndexable + ?Sized, {
         DpIndex(1)
     }
 }
 
-impl PhmmIndex for LastMatch {
-    fn to_dp_index<Q>(self, phmm: &Q) -> DpIndex
+impl AlnIndex for LastResidue {
+    #[inline]
+    fn to_dp_index<Q>(self, seq: &Q) -> DpIndex
     where
-        Q: PhmmIndexable, {
-        DpIndex(phmm.seq_len())
+        Q: AlnIndexable + ?Sized, {
+        DpIndex(seq.seq_len())
     }
 }
 
-impl PhmmIndex for End {
-    fn to_dp_index<Q>(self, phmm: &Q) -> DpIndex
+impl AlnIndex for End {
+    #[inline]
+    fn to_dp_index<Q>(self, seq: &Q) -> DpIndex
     where
-        Q: PhmmIndexable, {
-        DpIndex(phmm.seq_len() + 1)
-    }
-}
-
-impl QueryIndex for NoBases {
-    #[inline]
-    fn get_query_dp_index(self, _v: &impl QueryIndexable) -> usize {
-        0
-    }
-}
-
-impl QueryIndex for FirstBase {
-    #[inline]
-    fn get_query_dp_index(self, _v: &impl QueryIndexable) -> usize {
-        1
-    }
-}
-
-impl QueryIndex for SeqIndex {
-    #[inline]
-    fn get_query_dp_index(self, _v: &impl QueryIndexable) -> usize {
-        self.0 + 1
-    }
-}
-
-impl QueryIndex for DpIndex {
-    #[inline]
-    fn get_query_dp_index(self, _v: &impl QueryIndexable) -> usize {
-        self.0
-    }
-}
-
-impl QueryIndex for LastBase {
-    #[inline]
-    fn get_query_dp_index(self, v: &impl QueryIndexable) -> usize {
-        // The last value in a slice of length dp_len
-        v.dp_len() - 1
+        Q: AlnIndexable + ?Sized, {
+        DpIndex(seq.seq_len() + 1)
     }
 }
 
@@ -427,7 +288,7 @@ impl Begin {
     }
 }
 
-impl FirstMatch {
+impl FirstResidue {
     #[must_use]
     pub fn to_dp_index(self) -> DpIndex {
         DpIndex(1)
@@ -454,12 +315,12 @@ impl DpIndex {
 }
 
 impl End {
-    /// An inherent method override for [`PhmmIndex::to_seq_index`] that is
+    /// An inherent method override for [`AlnIndex::to_seq_index`] that is
     /// infallible.
     #[must_use]
     pub fn to_seq_index<Q>(self, seq: &Q) -> SeqIndex
     where
-        Q: PhmmIndexable, {
+        Q: AlnIndexable + ?Sized, {
         SeqIndex(seq.seq_len())
     }
 }
@@ -492,25 +353,25 @@ impl PartialOrd<SeqIndex> for Begin {
     }
 }
 
-impl PartialEq<FirstMatch> for SeqIndex {
-    fn eq(&self, other: &FirstMatch) -> bool {
+impl PartialEq<FirstResidue> for SeqIndex {
+    fn eq(&self, other: &FirstResidue) -> bool {
         *self == (*other).to_seq_index()
     }
 }
 
-impl PartialEq<SeqIndex> for FirstMatch {
+impl PartialEq<SeqIndex> for FirstResidue {
     fn eq(&self, other: &SeqIndex) -> bool {
         (*self).to_seq_index() == *other
     }
 }
 
-impl PartialOrd<FirstMatch> for SeqIndex {
-    fn partial_cmp(&self, other: &FirstMatch) -> Option<Ordering> {
+impl PartialOrd<FirstResidue> for SeqIndex {
+    fn partial_cmp(&self, other: &FirstResidue) -> Option<Ordering> {
         self.partial_cmp(&(*other).to_seq_index())
     }
 }
 
-impl PartialOrd<SeqIndex> for FirstMatch {
+impl PartialOrd<SeqIndex> for FirstResidue {
     fn partial_cmp(&self, other: &SeqIndex) -> Option<Ordering> {
         (*self).to_seq_index().partial_cmp(other)
     }
@@ -540,25 +401,25 @@ impl PartialOrd<DpIndex> for Begin {
     }
 }
 
-impl PartialEq<FirstMatch> for DpIndex {
-    fn eq(&self, other: &FirstMatch) -> bool {
+impl PartialEq<FirstResidue> for DpIndex {
+    fn eq(&self, other: &FirstResidue) -> bool {
         *self == other.to_dp_index()
     }
 }
 
-impl PartialEq<DpIndex> for FirstMatch {
+impl PartialEq<DpIndex> for FirstResidue {
     fn eq(&self, other: &DpIndex) -> bool {
         self.to_dp_index() == *other
     }
 }
 
-impl PartialOrd<FirstMatch> for DpIndex {
-    fn partial_cmp(&self, other: &FirstMatch) -> Option<Ordering> {
+impl PartialOrd<FirstResidue> for DpIndex {
+    fn partial_cmp(&self, other: &FirstResidue) -> Option<Ordering> {
         self.partial_cmp(&other.to_dp_index())
     }
 }
 
-impl PartialOrd<DpIndex> for FirstMatch {
+impl PartialOrd<DpIndex> for FirstResidue {
     fn partial_cmp(&self, other: &DpIndex) -> Option<Ordering> {
         self.to_dp_index().partial_cmp(other)
     }

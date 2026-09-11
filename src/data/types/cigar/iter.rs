@@ -298,6 +298,9 @@ pub trait ToCigletIterator {
     ///
     /// If there is any invalid state, the iterator ends early. For a checked
     /// version that uses [`Result`], use [`to_ciglet_iterator_checked`].
+    ///
+    /// [`to_ciglet_iterator_checked`]:
+    ///     ToCigletIterator::to_ciglet_iterator_checked
     fn to_ciglet_iterator(&self) -> Self::Iter<'_>;
 
     /// Creates an iterator over the [`Ciglet`] values, returning an `Err` on

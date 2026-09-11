@@ -6,7 +6,7 @@ use crate::{
         phmm::{
             DomainPhmm, GlobalPhmm, LocalPhmm, PhmmNumber, SemiLocalPhmm,
             components::{EmissionParams, TransitionParams},
-            indexing::{Begin, DpIndex, End, FirstMatch, GetLayer, GetModule, PhmmIndex, PhmmIndexable, SeqIndex},
+            indexing::{AlnIndex, AlnIndexable, Begin, DpIndex, End, FirstResidue, GetLayer, GetModule, SeqIndex},
             modules::{DomainModule, SemiLocalModule, SemiLocalParams},
             state::{PhmmState, PhmmStateOrModule},
             traverse::{
@@ -197,7 +197,7 @@ where
     /// the pHMM corresponds if the alignment is non-empty.
     fn new<P>(query: &'a [u8], states: &'a [Ciglet], ref_start: usize, phmm: &P, context: C) -> Result<Self, C::Error>
     where
-        P: PhmmIndexable, {
+        P: AlnIndexable, {
         if !states.is_empty() && ref_start >= phmm.seq_len() {
             return Err(context.ref_start_out_of_bounds());
         }
@@ -347,7 +347,7 @@ where
     /// [`no_match_after_enter`]: CoreContextWithExitToErr::no_match_after_enter
     fn enter_core<P, const S: usize>(&mut self, module: &SemiLocalModule<T>, phmm: &P) -> Result<DpIndex, C::Error>
     where
-        P: GetModule<End: SemiLocalParams<T>> + PhmmIndexable + GetLayer<T, S>, {
+        P: GetModule<End: SemiLocalParams<T>> + AlnIndexable + GetLayer<T, S>, {
         let next_op = self.inner.op_iter.peek_op();
 
         let next_op = match next_op {
@@ -392,14 +392,14 @@ where
             PhmmState::Match => {
                 let begin_to_first_match_param = phmm.layer(Begin).transition[(PhmmState::Match, PhmmState::Match)];
 
-                let skip_begin_score = self.inner.score + module.get_score(FirstMatch);
+                let skip_begin_score = self.inner.score + module.get_score(FirstResidue);
                 let through_begin_score = self.inner.score + module.get_score(Begin) + begin_to_first_match_param;
 
                 let layer = if through_begin_score <= skip_begin_score {
                     Begin.to_dp_index()
                 } else {
                     self.inner.op_iter.next();
-                    FirstMatch.to_dp_index()
+                    FirstResidue.to_dp_index()
                 };
 
                 Ok(layer)
@@ -460,7 +460,7 @@ where
     /// Selects the transition within the pHMM to take (what the next
     /// [`PhmmState`] to enter should be).
     ///
-    /// When in the [`LastMatch`] layer, [`choose_end_or_insert`] is called
+    /// When in the [`LastResidue`] layer, [`choose_end_or_insert`] is called
     /// instead.
     ///
     /// ## Errors
@@ -473,7 +473,7 @@ where
     /// [`InvalidCigarOp`]: GlobalTraverseFromAlignError::InvalidCigarOp
     /// [`QueryLenMismatch`]: GlobalTraverseFromAlignError::QueryLenMismatch
     /// [`ModelLenMismatch`]: GlobalTraverseFromAlignError::ModelLenMismatch
-    /// [`LastMatch`]: crate::alignment::phmm::indexing::LastMatch
+    /// [`LastResidue`]: crate::alignment::phmm::indexing::LastResidue
     /// [`choose_end_or_insert`]: GlobalVisitor::choose_end_or_insert
     fn choose_core_transition(
         &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: &GlobalPhmm<T, S>,
@@ -482,8 +482,8 @@ where
     }
 
     /// Selects whether the traversal should enter the [`End`] state from any of
-    /// the states in the [`LastMatch`] layer, or whether the final insert state
-    /// should be entered.
+    /// the states in the [`LastResidue`] layer, or whether the final insert
+    /// state should be entered.
     ///
     /// ## Errors
     ///
@@ -494,7 +494,7 @@ where
     /// [`ModelLenMismatch`]: GlobalTraverseFromAlignError::ModelLenMismatch
     /// [`InvalidCigarOp`]: GlobalTraverseFromAlignError::InvalidCigarOp
     /// [`End`]: crate::alignment::phmm::indexing::End
-    /// [`LastMatch`]: crate::alignment::phmm::indexing::LastMatch
+    /// [`LastResidue`]: crate::alignment::phmm::indexing::LastResidue
     fn choose_end_or_insert(
         &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: &GlobalPhmm<T, S>,
     ) -> Result<EndInsert, GlobalTraverseFromAlignError> {
@@ -593,7 +593,7 @@ where
     /// [`PhmmState`] to enter should be) when in an insert or delete state.
     ///
     /// When in a match state, [`choose_core_transition_or_exit`] is called
-    /// instead. When in the [`LastMatch`] layer, [`choose_end_or_insert`] is
+    /// instead. When in the [`LastResidue`] layer, [`choose_end_or_insert`] is
     /// called instead.
     ///
     /// ## Errors
@@ -603,7 +603,7 @@ where
     ///
     /// [`InvalidEarlyExit`]: SemiLocalTraverseFromAlignError::InvalidEarlyExit
     /// [`InvalidCigarOp`]: SemiLocalTraverseFromAlignError::InvalidCigarOp
-    /// [`LastMatch`]: crate::alignment::phmm::indexing::LastMatch
+    /// [`LastResidue`]: crate::alignment::phmm::indexing::LastResidue
     /// [`choose_core_transition_or_exit`]:
     ///     SemiLocalVisitor::choose_core_transition_or_exit
     /// [`choose_end_or_insert`]: SemiLocalVisitor::choose_end_or_insert
@@ -614,10 +614,10 @@ where
     }
 
     /// Selects whether the traversal should enter the [`End`] state from the
-    /// insert or delete states in the [`LastMatch`] layer, or whether the final
-    /// insert state should be entered.
+    /// insert or delete states in the [`LastResidue`] layer, or whether the
+    /// final insert state should be entered.
     ///
-    /// When in the match state of the [`LastMatch`] layer,
+    /// When in the match state of the [`LastResidue`] layer,
     /// [`choose_end_insert_or_exit`] is called instead.
     ///
     /// ## Errors
@@ -629,7 +629,7 @@ where
     /// [`ModelLenMismatch`]: SemiLocalTraverseFromAlignError::ModelLenMismatch
     /// [`InvalidCigarOp`]: SemiLocalTraverseFromAlignError::InvalidCigarOp
     /// [`End`]: crate::alignment::phmm::indexing::End
-    /// [`LastMatch`]: crate::alignment::phmm::indexing::LastMatch
+    /// [`LastResidue`]: crate::alignment::phmm::indexing::LastResidue
     /// [`choose_end_insert_or_exit`]:
     ///     SemiLocalVisitor::choose_end_insert_or_exit
     fn choose_end_or_insert(
@@ -658,7 +658,7 @@ where
         self.inner.choose_core_transition_or_exit(params, exit_param)
     }
 
-    /// From the match state in the [`LastMatch`] layer, selects whether the
+    /// From the match state in the [`LastResidue`] layer, selects whether the
     /// traversal should enter the [`End`] state, enter the final insert state,
     /// or exit early from the pHMM.
     ///
@@ -671,7 +671,7 @@ where
     /// of [`InvalidCigarOp`], [`QueryLenMismatch`], or [`ModelLenMismatch`] is
     /// returned, depending on the cause.
     ///
-    /// [`LastMatch`]: crate::alignment::phmm::indexing::LastMatch
+    /// [`LastResidue`]: crate::alignment::phmm::indexing::LastResidue
     /// [`InvalidCigarOp`]: SemiLocalTraverseFromAlignError::InvalidCigarOp
     /// [`QueryLenMismatch`]: SemiLocalTraverseFromAlignError::QueryLenMismatch
     /// [`ModelLenMismatch`]: SemiLocalTraverseFromAlignError::ModelLenMismatch
@@ -878,7 +878,7 @@ where
     /// Selects the transition within the pHMM to take (what the next
     /// [`PhmmState`] to enter should be).
     ///
-    /// When in the [`LastMatch`] layer, [`choose_end_or_insert`] is called
+    /// When in the [`LastResidue`] layer, [`choose_end_or_insert`] is called
     /// instead.
     ///
     /// ## Errors
@@ -893,7 +893,7 @@ where
     /// [`DuplicateOp`]: DomainTraverseFromAlignError::DuplicateOp
     /// [`InternalClipping`]: DomainTraverseFromAlignError::InternalClipping
     /// [`QueryLenMismatch`]: DomainTraverseFromAlignError::QueryLenMismatch
-    /// [`LastMatch`]: crate::alignment::phmm::indexing::LastMatch
+    /// [`LastResidue`]: crate::alignment::phmm::indexing::LastResidue
     /// [`choose_end_or_insert`]: DomainVisitor::choose_end_or_insert
     fn choose_core_transition(
         &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: &DomainPhmm<T, S>,
@@ -902,8 +902,8 @@ where
     }
 
     /// Selects whether the traversal should enter the [`End`] state from any of
-    /// the states in the [`LastMatch`] layer, or whether the final insert state
-    /// should be entered.
+    /// the states in the [`LastResidue`] layer, or whether the final insert
+    /// state should be entered.
     ///
     /// ## Errors
     ///
@@ -917,7 +917,7 @@ where
     /// [`QueryLenMismatch`]: DomainTraverseFromAlignError::QueryLenMismatch
     /// [`ModelLenMismatch`]: DomainTraverseFromAlignError::ModelLenMismatch
     /// [`End`]: crate::alignment::phmm::indexing::End
-    /// [`LastMatch`]: crate::alignment::phmm::indexing::LastMatch
+    /// [`LastResidue`]: crate::alignment::phmm::indexing::LastResidue
     fn choose_end_or_insert(
         &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: &DomainPhmm<T, S>,
     ) -> Result<EndInsert, DomainTraverseFromAlignError> {
@@ -1198,7 +1198,7 @@ where
     /// [`PhmmState`] to enter should be) when in an insert or delete state.
     ///
     /// When in a match state, [`choose_core_transition_or_exit`] is called
-    /// instead. When in the [`LastMatch`] layer, [`choose_end_or_insert`] is
+    /// instead. When in the [`LastResidue`] layer, [`choose_end_or_insert`] is
     /// called instead.
     ///
     /// ## Errors
@@ -1214,7 +1214,7 @@ where
     /// [`InternalClipping`]: LocalTraverseFromAlignError::InternalClipping
     /// [`QueryLenMismatch`]: LocalTraverseFromAlignError::QueryLenMismatch
     /// [`ModelLenMismatch`]: LocalTraverseFromAlignError::ModelLenMismatch
-    /// [`LastMatch`]: crate::alignment::phmm::indexing::LastMatch
+    /// [`LastResidue`]: crate::alignment::phmm::indexing::LastResidue
     /// [`choose_core_transition_or_exit`]:
     ///     LocalVisitor::choose_core_transition_or_exit
     /// [`choose_end_or_insert`]: LocalVisitor::choose_end_or_insert
@@ -1225,10 +1225,10 @@ where
     }
 
     /// Selects whether the traversal should enter the [`End`] state from the
-    /// insert or delete states in the [`LastMatch`] layer, or whether the final
-    /// insert state should be entered.
+    /// insert or delete states in the [`LastResidue`] layer, or whether the
+    /// final insert state should be entered.
     ///
-    /// When in the match state of the [`LastMatch`] layer,
+    /// When in the match state of the [`LastResidue`] layer,
     /// [`choose_end_insert_or_exit`] is called instead.
     ///
     /// ## Errors
@@ -1243,7 +1243,7 @@ where
     /// [`QueryLenMismatch`]: LocalTraverseFromAlignError::QueryLenMismatch
     /// [`ModelLenMismatch`]: LocalTraverseFromAlignError::ModelLenMismatch
     /// [`End`]: crate::alignment::phmm::indexing::End
-    /// [`LastMatch`]: crate::alignment::phmm::indexing::LastMatch
+    /// [`LastResidue`]: crate::alignment::phmm::indexing::LastResidue
     /// [`choose_end_insert_or_exit`]: LocalVisitor::choose_end_insert_or_exit
     fn choose_end_or_insert(
         &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: &LocalPhmm<T, S>,
@@ -1285,7 +1285,7 @@ where
         Ok(out)
     }
 
-    /// From the match state in the [`LastMatch`] layer, selects whether the
+    /// From the match state in the [`LastResidue`] layer, selects whether the
     /// traversal should enter the [`End`] state, enter the final insert state,
     /// or exit early from the pHMM.
     ///
@@ -1301,7 +1301,7 @@ where
     /// [`InternalClipping`]: LocalTraverseFromAlignError::InternalClipping
     /// [`QueryLenMismatch`]: LocalTraverseFromAlignError::QueryLenMismatch
     /// [`ModelLenMismatch`]: LocalTraverseFromAlignError::ModelLenMismatch
-    /// [`LastMatch`]: crate::alignment::phmm::indexing::LastMatch
+    /// [`LastResidue`]: crate::alignment::phmm::indexing::LastResidue
     /// [`End`]: crate::alignment::phmm::indexing::End
     fn choose_end_insert_or_exit(
         &mut self, layer: DpIndex, params: &TransitionParams<T>, exit_param: T, exit_from_end_param: T,

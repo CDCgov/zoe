@@ -4,7 +4,7 @@ use crate::{
         phmm::{
             DomainPhmm, GlobalPhmm, LocalPhmm, PhmmNumber, SemiLocalPhmm,
             components::{EmissionParams, TransitionParams},
-            indexing::{DpIndex, IndexRangeInner, PhmmIndexRange, PhmmIndexable, SeqIndex},
+            indexing::{AlnIndexRange, AlnIndexable, DpIndex, IndexRangeInner, SeqIndex},
             modules::{DomainModule, SemiLocalModule},
             sampling::{
                 DomainEnterInsertError, DomainExitInsertError, LayerSamplingError, ModuleSamplingError,

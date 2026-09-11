@@ -3,8 +3,7 @@ use crate::{
         InvalidModelError, PhmmNumber,
         components::{CorePhmm, EmissionParams, LayerParams},
         indexing::{
-            GetCore, GetCoreMut, GetLayer, GetLayerMut, GetMapping, GetModule, GetModuleMut, GetPartsMut, PhmmIndex,
-            PhmmIndexable,
+            AlnIndex, GetCore, GetCoreMut, GetLayer, GetLayerMut, GetMapping, GetModule, GetModuleMut, GetPartsMut, PhmmLen,
         },
         modules::{DomainModule, LocalModule, SemiLocalModule},
         nonempty_vec::NonEmptyVec,
@@ -195,21 +194,21 @@ impl<T, const S: usize> SemiLocalPhmm<T, S> {
 }
 
 impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
-    /// Gets the score for transitioning into a given [`PhmmIndex`] from the
+    /// Gets the score for transitioning into a given [`AlnIndex`] from the
     /// [`SemiLocalModule`] at the beginning of the pHMM.
     #[inline]
     #[must_use]
     #[allow(dead_code)]
-    pub(crate) fn get_begin_score(&self, index: impl PhmmIndex) -> T {
+    pub(crate) fn get_begin_score(&self, index: impl AlnIndex) -> T {
         self.begin.get_score(index)
     }
 
-    /// Gets the score for transitioning out of a given [`PhmmIndex`] into the
+    /// Gets the score for transitioning out of a given [`AlnIndex`] into the
     /// [`SemiLocalModule`] at the end of the pHMM.
     #[inline]
     #[must_use]
     #[allow(dead_code)]
-    pub(crate) fn get_end_score(&self, index: impl PhmmIndex) -> T {
+    pub(crate) fn get_end_score(&self, index: impl AlnIndex) -> T {
         self.end.get_score(index)
     }
 }

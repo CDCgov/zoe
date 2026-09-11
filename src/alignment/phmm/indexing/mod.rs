@@ -1,54 +1,43 @@
-//! Structs and traits for indexing inside of pHMMs and query sequences,
-//! required for internal or advanced operations on pHMMs.
+//! Structs and traits for indexing into pHMMs, useful for diagnostics or
+//! advanced pHMM usage.
 //!
 //! ## Indexing Types
 //!
-//! Indexing into pHMMs is a difficult problem. The $n$th layer of the pHMM can
-//! be ambiguous, depending on whether the BEGIN state is counted. The first
-//! match state with emissions is 0 in some contexts and 1 other times.
-//! Similarly, with query sequences, index 0 in the dynamic programming table
-//! refers to aligning nothing, whereas indexing the sequence at 0 gives the
-//! first character. This module intends to provide an abstraction to prevent
-//! *Zoe* and advanced users from having bugs related to this, and to promote
-//! self-documenting code.
+//! There are nuances when indexing for dynamic programming alignment problems
+//! because the sequence coordinates are not the same as the indices into the DP
+//! table. A dynamic programming table for alignment uses index 0 to hold "no
+//! bases aligned", and index 1 to hold sequence coordinate 0. Indexing from the
+//! end can also be similarly challenging and context-dependent.
 //!
-//! The trait [`PhmmIndex`] represents an index in a pHMM (or something related
-//! to a pHMM, like a [`SemiLocalModule`]). Anything implementing
-//! [`PhmmIndexable`] can be indexed using a [`PhmmIndex`]. The following types
+//! The same problem exists for pHMMs. Indexing the layers of a pHMM can be
+//! ambiguous, depending on whether the BEGIN state is counted. The first match
+//! state with emissions is index 0 in some contexts and index 1 other times.
+//!
+//! This module intends to provide an abstraction to prevent *Zoe* and advanced
+//! users from having bugs related to this, and to promote self-documenting
+//! code.
+//!
+//! The trait [`AlnIndex`] represents an index in a pHMM, something related to a
+//! pHMM like a [`SemiLocalModule`], or a sequence. Anything implementing
+//! [`AlnIndexable`] can be indexed using a [`AlnIndex`]. The following types
 //! can be used as indices:
 //!
-//! - [`DpIndex`]: An index into a pHMM with respect to a dynamic programming
-//!   table, where 0 represents the BEGIN state, 1 represents the first match
-//!   state with emissions, etc.
-//! - [`SeqIndex`]: An index into a pHMM with respect to the reference
-//!   coordinates, where 0 represents the first reference position (or first
-//!   match state with emissions), 1 represents the second, etc.
-//! - [`Begin`]: An index representing the BEGIN state of the pHMM, equivalent
-//!   to `DpIndex(0)`.
-//! - [`FirstMatch`]: An index representing the first match state with emissions
-//!   or the first reference position, equivalent to `DpIndex(1)` or
-//!   `SeqIndex(0)`.
-//! - [`LastMatch`]: An index representing the last match state with emissions
-//!   or the last reference position, whose value depends on the length of the
-//!   pHMM.
-//! - [`End`]: An index representing the END state of the pHMM, whose value
-//!   depends on the length of the pHMM.
-//!
-//! The same principle is also used for the query sequence, where [`QueryIndex`]
-//! can index into a [`QueryIndexable`]:
-//!
-//! - [`DpIndex`]: An index into a query with respect to a dynamic programming
-//!   table, where 0 represents aligning nothing, 1 represents aligning the
-//!   first residue, etc.
-//! - [`SeqIndex`]: An index into a query with respect to the sequence
-//!   coordinates, where 0 represents the first residue, 1 represents the
-//!   second, etc.
-//! - [`NoBases`]: An index representing aligning nothing so far, equivalent to
-//!   `DpIndex(0)`.
-//! - [`FirstBase`]: An index representing the first residue in the sequence,
-//!   equivalent to `DpIndex(1)` or `SeqIndex(0)`.
-//! - [`LastBase`]: An index representing the last residue in the sequence,
-//!   whose value depends on the length of the sequence.
+//! - [`DpIndex`]: An index with respect to a dynamic programming table. For
+//!   sequences, 0 represents no residues aligned and 1 represents the first
+//!   residue. For pHMMs, 0 represents the BEGIN state and 1 represents the
+//!   first match state with emissions.
+//! - [`SeqIndex`]: An index with respect to the sequence coordinates. For
+//!   sequences, 0 represents the first residue. For pHMMs, 0 represents the
+//!   first match state with emissions.
+//! - [`Begin`]: An index representing no residues aligned or the BEGIN state of
+//!   a pHMM, equivalent to `DpIndex(0)`.
+//! - [`FirstResidue`]: An index representing the first residue or the first
+//!   match state with emissions, equivalent to `DpIndex(1)` or `SeqIndex(0)`.
+//! - [`LastResidue`]: An index representing the last residue or the last match
+//!   state with emissions, whose value depends on the length of the
+//!   sequence/pHMM.
+//! - [`End`]: An index after [`LastResidue`]. This represents the END state of
+//!   a pHMM, and also occurs as an exclusive end bound on ranges.
 //!
 //! [`SemiLocalModule`]: crate::alignment::phmm::modules::SemiLocalModule
 

@@ -1,16 +1,15 @@
-use super::ViterbiTraceback;
 use crate::alignment::{
     Alignment, AlignmentStates,
     phmm::{
         GlobalPhmm, PhmmError, PhmmNumber,
         components::LayerParams,
-        indexing::{GetLayer, PhmmIndexable},
+        indexing::{AlnIndexable, GetLayer},
         state::{
             PhmmBacktrackFlags,
             PhmmState::{self, Delete, Insert, Match},
             PhmmTracebackState, best_state,
         },
-        viterbi::{update_delete, update_insert},
+        viterbi::{ViterbiTraceback, update_delete, update_insert},
     },
 };
 

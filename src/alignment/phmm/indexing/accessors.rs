@@ -1,7 +1,9 @@
 use crate::{
     alignment::phmm::{
+        DomainPhmm, GlobalPhmm, LocalPhmm, SemiLocalPhmm,
         components::{CorePhmm, LayerParams},
-        indexing::{Begin, FirstMatch, IndexRangeInner, LastMatch, PhmmIndex, PhmmIndexRange, PhmmIndexable},
+        indexing::{AlnIndex, AlnIndexRange, AlnIndexable, Begin, FirstResidue, IndexRangeInner, LastResidue},
+        modules::{PrecomputedDomainModule, PrecomputedLocalModule, SemiLocalModule},
         nonempty_vec::NonEmptyVec,
     },
     data::ByteIndexMap,
@@ -63,7 +65,7 @@ pub trait GetCoreMut<T, const S: usize> {
 }
 
 /// A trait providing read-only accessors to the layers of a pHMM.
-pub trait GetLayer<T, const S: usize>: PhmmIndexable {
+pub trait GetLayer<T, const S: usize>: AlnIndexable {
     /// Retrieves a slice of the layers contained within the core pHMM.
     ///
     /// This slice will be at least 2 in length.
@@ -76,8 +78,8 @@ pub trait GetLayer<T, const S: usize>: PhmmIndexable {
     #[inline]
     #[must_use]
     #[allow(clippy::type_complexity)]
-    fn split_layers_at(&self, j: impl PhmmIndex) -> Option<(&[LayerParams<T, S>], &[LayerParams<T, S>])> {
-        self.layers().split_at_checked(j.to_dp_index(&self).0)
+    fn split_layers_at(&self, phmm_idx: impl AlnIndex) -> Option<(&[LayerParams<T, S>], &[LayerParams<T, S>])> {
+        self.layers().split_at_checked(phmm_idx.to_dp_index(self).0)
     }
 
     /// Gets a layer from within the core pHMM.
@@ -88,13 +90,13 @@ pub trait GetLayer<T, const S: usize>: PhmmIndexable {
     /// [`End`]: crate::alignment::phmm::indexing::End
     #[inline]
     #[must_use]
-    fn get_layer(&self, j: impl PhmmIndex) -> Option<&LayerParams<T, S>> {
-        self.layers().get(j.to_dp_index(self).0)
+    fn get_layer(&self, phmm_idx: impl AlnIndex) -> Option<&LayerParams<T, S>> {
+        self.layers().get(phmm_idx.to_dp_index(self).0)
     }
 
     /// Returns a reference to the parameters for the specified layer which is
-    /// guaranteed to exist in the pHMM, either [`Begin`], [`FirstMatch`], or
-    /// [`LastMatch`].
+    /// guaranteed to exist in the pHMM, either [`Begin`], [`FirstResidue`], or
+    /// [`LastResidue`].
     #[inline]
     #[must_use]
     fn layer(&self, idx: impl InfallibleLayerIdx) -> &LayerParams<T, S> {
@@ -108,7 +110,7 @@ pub trait GetLayer<T, const S: usize>: PhmmIndexable {
     /// `..=End`), this will return `None`.
     #[inline]
     #[must_use]
-    fn get_layers(&self, range: impl PhmmIndexRange) -> Option<&[LayerParams<T, S>]> {
+    fn get_layers(&self, range: impl AlnIndexRange) -> Option<&[LayerParams<T, S>]> {
         let range = range.to_dp_range(self);
         self.layers().get(range.into_inner())
     }
@@ -134,14 +136,14 @@ pub trait GetLayerMut<T, const S: usize>: GetLayer<T, S> {
     /// [`End`]: crate::alignment::phmm::indexing::End
     #[inline]
     #[must_use]
-    fn get_layer_mut(&mut self, j: impl PhmmIndex) -> Option<&mut LayerParams<T, S>> {
-        let idx = j.to_dp_index(self);
+    fn get_layer_mut(&mut self, query_idx: impl AlnIndex) -> Option<&mut LayerParams<T, S>> {
+        let idx = query_idx.to_dp_index(self);
         self.layers_mut().get_mut(idx.0)
     }
 
     /// Returns a mutable reference to the parameters for the specified layer
     /// which is guaranteed to exist in the pHMM, either [`Begin`],
-    /// [`FirstMatch`], or [`LastMatch`].
+    /// [`FirstResidue`], or [`LastResidue`].
     #[inline]
     #[must_use]
     fn layer_mut(&mut self, idx: impl InfallibleLayerIdx) -> &mut LayerParams<T, S> {
@@ -155,7 +157,7 @@ pub trait GetLayerMut<T, const S: usize>: GetLayer<T, S> {
     /// `..=End`), this will return `None`.
     #[inline]
     #[must_use]
-    fn get_layers_mut(&mut self, range: impl PhmmIndexRange) -> Option<&mut [LayerParams<T, S>]> {
+    fn get_layers_mut(&mut self, range: impl AlnIndexRange) -> Option<&mut [LayerParams<T, S>]> {
         let range = range.to_dp_range(self);
         self.layers_mut().get_mut(range.into_inner())
     }
@@ -173,7 +175,7 @@ pub trait GetLayerMut<T, const S: usize>: GetLayer<T, S> {
     /// [`OverlappingIndices`]: GetDisjointMutError::OverlappingIndices
     #[inline]
     fn get_two_layers_mut(
-        &mut self, j1: impl PhmmIndex, j2: impl PhmmIndex,
+        &mut self, j1: impl AlnIndex, j2: impl AlnIndex,
     ) -> Result<(&mut LayerParams<T, S>, &mut LayerParams<T, S>), GetDisjointMutError> {
         let j1 = j1.to_dp_index(self);
         let j2 = j2.to_dp_index(self);
@@ -224,7 +226,7 @@ impl InfallibleLayerIdx for Begin {
     }
 }
 
-impl InfallibleLayerIdx for FirstMatch {
+impl InfallibleLayerIdx for FirstResidue {
     #[inline]
     fn layer<T, const S: usize>(self, layers: &NonEmptyVec<LayerParams<T, S>>) -> &LayerParams<T, S> {
         &layers[1]
@@ -236,7 +238,7 @@ impl InfallibleLayerIdx for FirstMatch {
     }
 }
 
-impl InfallibleLayerIdx for LastMatch {
+impl InfallibleLayerIdx for LastResidue {
     #[inline]
     fn layer<T, const S: usize>(self, layers: &NonEmptyVec<LayerParams<T, S>>) -> &LayerParams<T, S> {
         layers.last()
@@ -247,3 +249,21 @@ impl InfallibleLayerIdx for LastMatch {
         layers.last_mut()
     }
 }
+
+/// A trait providing an extension of [`AlnIndexable`] specifically for pHMMs.
+pub trait PhmmLen: AlnIndexable {
+    /// Returns the number of pseudo-match states in the pHMM, which includes
+    /// both match states with emissions as well as the BEGIN and END states.
+    fn num_pseudomatch(&self) -> usize {
+        self.seq_len() + 2
+    }
+}
+
+impl<T, const S: usize> PhmmLen for CorePhmm<T, S> {}
+impl<T, const S: usize> PhmmLen for GlobalPhmm<T, S> {}
+impl<T, const S: usize> PhmmLen for LocalPhmm<T, S> {}
+impl<T, const S: usize> PhmmLen for SemiLocalPhmm<T, S> {}
+impl<T, const S: usize> PhmmLen for DomainPhmm<T, S> {}
+impl<T> PhmmLen for SemiLocalModule<T> {}
+impl<T, const S: usize> PhmmLen for PrecomputedLocalModule<'_, T, S> {}
+impl<T, const S: usize> PhmmLen for PrecomputedDomainModule<T, S> {}

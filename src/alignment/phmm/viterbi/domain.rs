@@ -3,10 +3,7 @@ use crate::alignment::{
     phmm::{
         DomainPhmm, PhmmError, PhmmNumber,
         components::LayerParams,
-        indexing::{
-            DpIndex, GetLayer, GetModule, IndexRangeInner, LastBase, LastMatch, PhmmIndex, PhmmIndexRange, PhmmIndexable,
-            QueryIndex, QueryIndexable,
-        },
+        indexing::{AlnIndex, AlnIndexRange, AlnIndexable, DpIndex, GetLayer, GetModule, IndexRangeInner, LastResidue},
         modules::PrecomputedDomainModule,
         state::{
             PhmmBacktrackFlags,
@@ -21,21 +18,21 @@ use std::ops::Bound::{Excluded, Included};
 /// A tracker for the best score for the domain Viterbi algorithm.
 struct DomainBestScore<T> {
     /// The best score found at the end of the model
-    score: T,
+    score:     T,
     /// The last query index consumed by the [`CorePhmm`]
     ///
     /// [`CorePhmm`]: crate::alignment::phmm::components::CorePhmm
-    i:     DpIndex,
+    query_idx: DpIndex,
     /// The state from which the END state was reached
-    state: PhmmState,
+    state:     PhmmState,
 }
 
 impl<T: PhmmNumber> DomainBestScore<T> {
     #[inline]
     #[allow(clippy::too_many_arguments)]
     fn update_last_layer<const S: usize>(
-        &mut self, layer: &LayerParams<T, S>, mut match_val: T, mut delete_val: T, mut insert_val: T, i: impl QueryIndex,
-        seq: &[u8], end: &PrecomputedDomainModule<T, S>,
+        &mut self, layer: &LayerParams<T, S>, mut match_val: T, mut delete_val: T, mut insert_val: T,
+        query_idx: impl AlnIndex, seq: &[u8], end: &PrecomputedDomainModule<T, S>,
     ) {
         use crate::alignment::phmm::state::PhmmState::*;
 
@@ -44,11 +41,11 @@ impl<T: PhmmNumber> DomainBestScore<T> {
         insert_val += layer.transition[(Insert, Match)];
 
         let (state, mut score) = best_state(match_val, delete_val, insert_val);
-        score += end.get_score(i);
+        score += end.get_score(query_idx);
 
         if score < self.score {
             self.score = score;
-            self.i = seq.to_dp_index(i);
+            self.query_idx = query_idx.to_dp_index(seq);
             self.state = state;
         }
     }
@@ -58,9 +55,9 @@ impl<T: PhmmNumber> Default for DomainBestScore<T> {
     #[inline]
     fn default() -> Self {
         Self {
-            score: T::INFINITY,
-            i:     DpIndex(0),
-            state: PhmmState::Match,
+            score:     T::INFINITY,
+            query_idx: DpIndex(0),
+            state:     PhmmState::Match,
         }
     }
 }
@@ -168,7 +165,7 @@ impl<T: PhmmNumber, const S: usize> DomainPhmm<T, S> {
         }
 
         let i = seq.len();
-        best_score.update_last_layer(end, v_m[i], v_d[i], v_i[i], LastBase, seq, &end_mod);
+        best_score.update_last_layer(end, v_m[i], v_d[i], v_i[i], LastResidue, seq, &end_mod);
 
         // This is a necessary check, otherwise the traceback may panic
         if best_score.score == T::INFINITY {
@@ -177,10 +174,10 @@ impl<T: PhmmNumber, const S: usize> DomainPhmm<T, S> {
 
         let DomainBestScore {
             score,
-            i: DpIndex(end_i),
+            query_idx: DpIndex(end_i),
             state,
         } = best_score;
-        let end_j = LastMatch.to_dp_index(self).0;
+        let end_j = LastResidue.to_dp_index(self).0;
 
         let mut state = PhmmTracebackState::from(state);
         let mut i = end_i;
@@ -222,7 +219,7 @@ impl<T: PhmmNumber, const S: usize> DomainPhmm<T, S> {
         Ok(Alignment {
             score,
             ref_range: (start_j, end_j).saturating_to_seq_range(self).into_inner(),
-            query_range: seq.get_seq_range(start_i, end_i),
+            query_range: (start_i, end_i).saturating_to_seq_range(&seq).into_inner(),
             states,
             ref_len: self.seq_len(),
             query_len: seq.len(),

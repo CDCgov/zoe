@@ -57,6 +57,7 @@ use std::{
 /// [`keys_encoded`]: IndexedKmerCounter::keys_encoded
 /// [`keys_decoded`]: IndexedKmerCounter::keys_decoded
 /// [`FindKmers`]: crate::kmer::FindKmers
+/// [`SupportedKmerLen`]: crate::kmer::SupportedKmerLen
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct IndexedKmerCounter<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>> {
     /// The vec, indexed by encoded k-mers, storing their respective counts.

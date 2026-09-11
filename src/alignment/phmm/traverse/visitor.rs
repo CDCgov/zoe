@@ -13,11 +13,10 @@ use crate::{
 };
 use std::ops::{Range, RangeInclusive};
 
-/// A visitor over a [`GlobalPhmm`], for use with [`traverse_global_phmm`].
+/// A visitor over a [`GlobalPhmm`], for use with [`traverse`].
 ///
 /// [`GlobalPhmm`]: crate::alignment::phmm::models::GlobalPhmm
-/// [`traverse_global_phmm`]:
-///     crate::alignment::phmm::traverse::traverse_global_phmm
+/// [`traverse`]: GlobalPhmm::traverse
 pub trait GlobalVisitor<T, const S: usize> {
     /// The type output upon finalization of traversal.
     type Output;
@@ -40,29 +39,29 @@ pub trait GlobalVisitor<T, const S: usize> {
     /// Selects the transition within the pHMM to take (what the next
     /// [`PhmmState`] to enter should be).
     ///
-    /// When in the [`LastMatch`] layer, [`choose_end_or_insert`] is called
+    /// When in the [`LastResidue`] layer, [`choose_end_or_insert`] is called
     /// instead.
     ///
     /// ## Errors
     ///
     /// See the implementor for documentation of possible errors.
     ///
-    /// [`LastMatch`]: crate::alignment::phmm::indexing::LastMatch
+    /// [`LastResidue`]: crate::alignment::phmm::indexing::LastResidue
     /// [`choose_end_or_insert`]: GlobalVisitor::choose_end_or_insert
     fn choose_core_transition(
         &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, phmm: &GlobalPhmm<T, S>,
     ) -> Result<PhmmState, Self::Error>;
 
     /// Selects whether the traversal should enter the [`End`] state from any of
-    /// the states in the [`LastMatch`] layer, or whether the final insert state
-    /// should be entered.
+    /// the states in the [`LastResidue`] layer, or whether the final insert
+    /// state should be entered.
     ///
     /// ## Errors
     ///
     /// See the implementor for documentation of possible errors.
     ///
     /// [`End`]: crate::alignment::phmm::indexing::End
-    /// [`LastMatch`]: crate::alignment::phmm::indexing::LastMatch
+    /// [`LastResidue`]: crate::alignment::phmm::indexing::LastResidue
     fn choose_end_or_insert(
         &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, phmm: &GlobalPhmm<T, S>,
     ) -> Result<EndInsert, Self::Error>;
@@ -75,12 +74,10 @@ pub trait GlobalVisitor<T, const S: usize> {
     fn finalize(self, phmm: &GlobalPhmm<T, S>) -> Result<Self::Output, Self::Error>;
 }
 
-/// A visitor over a [`SemiLocalPhmm`], for use with
-/// [`traverse_semilocal_phmm`].
+/// A visitor over a [`SemiLocalPhmm`], for use with [`traverse`].
 ///
 /// [`SemiLocalPhmm`]: crate::alignment::phmm::SemiLocalPhmm
-/// [`traverse_semilocal_phmm`]:
-///     crate::alignment::phmm::traverse::traverse_semilocal_phmm
+/// [`traverse`]: SemiLocalPhmm::traverse
 pub trait SemiLocalVisitor<T, const S: usize> {
     /// The type output upon finalization of traversal.
     type Output;
@@ -104,14 +101,14 @@ pub trait SemiLocalVisitor<T, const S: usize> {
     /// [`PhmmState`] to enter should be) when in an insert or delete state.
     ///
     /// When in a match state, [`choose_core_transition_or_exit`] is called
-    /// instead. When in the [`LastMatch`] layer, [`choose_end_or_insert`] is
+    /// instead. When in the [`LastResidue`] layer, [`choose_end_or_insert`] is
     /// called instead.
     ///
     /// ## Errors
     ///
     /// See the implementor for documentation of possible errors.
     ///
-    /// [`LastMatch`]: crate::alignment::phmm::indexing::LastMatch
+    /// [`LastResidue`]: crate::alignment::phmm::indexing::LastResidue
     /// [`choose_core_transition_or_exit`]:
     ///     SemiLocalVisitor::choose_core_transition_or_exit
     /// [`choose_end_or_insert`]: SemiLocalVisitor::choose_end_or_insert
@@ -120,10 +117,10 @@ pub trait SemiLocalVisitor<T, const S: usize> {
     ) -> Result<PhmmState, Self::Error>;
 
     /// Selects whether the traversal should enter the [`End`] state from the
-    /// insert or delete states in the [`LastMatch`] layer, or whether the final
-    /// insert state should be entered.
+    /// insert or delete states in the [`LastResidue`] layer, or whether the
+    /// final insert state should be entered.
     ///
-    /// When in the match state of the [`LastMatch`] layer,
+    /// When in the match state of the [`LastResidue`] layer,
     /// [`choose_end_insert_or_exit`] is called instead.
     ///
     /// ## Errors
@@ -131,7 +128,7 @@ pub trait SemiLocalVisitor<T, const S: usize> {
     /// See the implementor for documentation of possible errors.
     ///
     /// [`End`]: crate::alignment::phmm::indexing::End
-    /// [`LastMatch`]: crate::alignment::phmm::indexing::LastMatch
+    /// [`LastResidue`]: crate::alignment::phmm::indexing::LastResidue
     /// [`choose_end_insert_or_exit`]:
     ///     SemiLocalVisitor::choose_end_insert_or_exit
     fn choose_end_or_insert(
@@ -151,7 +148,7 @@ pub trait SemiLocalVisitor<T, const S: usize> {
         &mut self, layer: DpIndex, params: &TransitionParams<T>, exit_param: T, phmm: &SemiLocalPhmm<T, S>,
     ) -> Result<PhmmStateOrModule, Self::Error>;
 
-    /// From the match state in the [`LastMatch`] layer, selects whether the
+    /// From the match state in the [`LastResidue`] layer, selects whether the
     /// traversal should enter the [`End`] state, enter the final insert state,
     /// or exit early from the pHMM.
     ///
@@ -160,7 +157,7 @@ pub trait SemiLocalVisitor<T, const S: usize> {
     /// See the implementor for documentation of possible errors.
     ///
     /// [`End`]: crate::alignment::phmm::indexing::End
-    /// [`LastMatch`]: crate::alignment::phmm::indexing::LastMatch
+    /// [`LastResidue`]: crate::alignment::phmm::indexing::LastResidue
     fn choose_end_insert_or_exit(
         &mut self, layer: DpIndex, params: &TransitionParams<T>, exit_param: T, exit_from_end_param: T,
         phmm: &SemiLocalPhmm<T, S>,
@@ -172,14 +169,13 @@ pub trait SemiLocalVisitor<T, const S: usize> {
     /// ## Validity
     ///
     /// This must return an index that is in-range for the given pHMM, otherwise
-    /// [`traverse_semilocal_phmm`] may panic.
+    /// [`traverse`] may panic.
     ///
     /// ## Errors
     ///
     /// See the implementor for documentation of possible errors.
     ///
-    /// [`traverse_semilocal_phmm`]:
-    ///     crate::alignment::phmm::traverse::traverse_semilocal_phmm
+    /// [`traverse`]: SemiLocalPhmm::traverse
     fn enter_core(&mut self, module: &SemiLocalModule<T>, phmm: &SemiLocalPhmm<T, S>) -> Result<DpIndex, Self::Error>;
 
     /// Performs any behavior necessary given that the traversal is exiting the
@@ -219,11 +215,10 @@ pub trait SemiLocalVisitor<T, const S: usize> {
     ) -> Result<Self::Output, Self::Error>;
 }
 
-/// A visitor over a [`DomainPhmm`], for use with [`traverse_domain_phmm`].
+/// A visitor over a [`DomainPhmm`], for use with [`traverse`].
 ///
 /// [`DomainPhmm`]: crate::alignment::phmm::models::DomainPhmm
-/// [`traverse_domain_phmm`]:
-///     crate::alignment::phmm::traverse::traverse_domain_phmm
+/// [`traverse`]: DomainPhmm::traverse
 pub trait DomainVisitor<T, const S: usize> {
     /// The type output upon finalization of traversal.
     type Output;
@@ -246,29 +241,29 @@ pub trait DomainVisitor<T, const S: usize> {
     /// Selects the transition within the pHMM to take (what the next
     /// [`PhmmState`] to enter should be).
     ///
-    /// When in the [`LastMatch`] layer, [`choose_end_or_insert`] is called
+    /// When in the [`LastResidue`] layer, [`choose_end_or_insert`] is called
     /// instead.
     ///
     /// ## Errors
     ///
     /// See the implementor for documentation of possible errors.
     ///
-    /// [`LastMatch`]: crate::alignment::phmm::indexing::LastMatch
+    /// [`LastResidue`]: crate::alignment::phmm::indexing::LastResidue
     /// [`choose_end_or_insert`]: DomainVisitor::choose_end_or_insert
     fn choose_core_transition(
         &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, phmm: &DomainPhmm<T, S>,
     ) -> Result<PhmmState, Self::Error>;
 
     /// Selects whether the traversal should enter the [`End`] state from any of
-    /// the states in the [`LastMatch`] layer, or whether the final insert state
-    /// should be entered.
+    /// the states in the [`LastResidue`] layer, or whether the final insert
+    /// state should be entered.
     ///
     /// ## Errors
     ///
     /// See the implementor for documentation of possible errors.
     ///
     /// [`End`]: crate::alignment::phmm::indexing::End
-    /// [`LastMatch`]: crate::alignment::phmm::indexing::LastMatch
+    /// [`LastResidue`]: crate::alignment::phmm::indexing::LastResidue
     fn choose_end_or_insert(
         &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, phmm: &DomainPhmm<T, S>,
     ) -> Result<EndInsert, Self::Error>;
@@ -304,15 +299,14 @@ pub trait DomainVisitor<T, const S: usize> {
     ///
     /// ## Validity
     ///
-    /// This function should eventually return `true` to ensure
-    /// [`traverse_domain_phmm`] is not stuck in an infinite loop.
+    /// This function should eventually return `true` to ensure [`traverse`] is
+    /// not stuck in an infinite loop.
     ///
     /// ## Errors
     ///
     /// See the implementor for documentation of possible errors.
     ///
-    /// [`traverse_domain_phmm`]:
-    ///     crate::alignment::phmm::traverse::traverse_domain_phmm
+    /// [`traverse`]: DomainPhmm::traverse
     fn exit_module_insert(
         &mut self, module: &DomainModule<T, S>, loc: ModuleLocation, phmm: &DomainPhmm<T, S>,
     ) -> Result<bool, Self::Error>;
@@ -340,11 +334,10 @@ pub trait DomainVisitor<T, const S: usize> {
     fn finalize(self, phmm: &DomainPhmm<T, S>, query_range: Range<SeqIndex>) -> Result<Self::Output, Self::Error>;
 }
 
-/// A visitor over a [`LocalPhmm`], for use with [`traverse_local_phmm`].
+/// A visitor over a [`LocalPhmm`], for use with [`traverse`].
 ///
 /// [`LocalPhmm`]: crate::alignment::phmm::models::LocalPhmm
-/// [`traverse_local_phmm`]:
-///     crate::alignment::phmm::traverse::traverse_local_phmm
+/// [`traverse`]: LocalPhmm::traverse
 pub trait LocalVisitor<T, const S: usize> {
     /// The type output upon finalization of traversal.
     type Output;
@@ -368,14 +361,14 @@ pub trait LocalVisitor<T, const S: usize> {
     /// [`PhmmState`] to enter should be) when in an insert or delete state.
     ///
     /// When in a match state, [`choose_core_transition_or_exit`] is called
-    /// instead. When in the [`LastMatch`] layer, [`choose_end_or_insert`] is
+    /// instead. When in the [`LastResidue`] layer, [`choose_end_or_insert`] is
     /// called instead.
     ///
     /// ## Errors
     ///
     /// See the implementor for documentation of possible errors.
     ///
-    /// [`LastMatch`]: crate::alignment::phmm::indexing::LastMatch
+    /// [`LastResidue`]: crate::alignment::phmm::indexing::LastResidue
     /// [`choose_core_transition_or_exit`]:
     ///     LocalVisitor::choose_core_transition_or_exit
     /// [`choose_end_or_insert`]: LocalVisitor::choose_end_or_insert
@@ -384,10 +377,10 @@ pub trait LocalVisitor<T, const S: usize> {
     ) -> Result<PhmmState, Self::Error>;
 
     /// Selects whether the traversal should enter the [`End`] state from the
-    /// insert or delete states in the [`LastMatch`] layer, or whether the final
-    /// insert state should be entered.
+    /// insert or delete states in the [`LastResidue`] layer, or whether the
+    /// final insert state should be entered.
     ///
-    /// When in the match state of the [`LastMatch`] layer,
+    /// When in the match state of the [`LastResidue`] layer,
     /// [`choose_end_insert_or_exit`] is called instead.
     ///
     /// ## Errors
@@ -395,7 +388,7 @@ pub trait LocalVisitor<T, const S: usize> {
     /// See the implementor for documentation of possible errors.
     ///
     /// [`End`]: crate::alignment::phmm::indexing::End
-    /// [`LastMatch`]: crate::alignment::phmm::indexing::LastMatch
+    /// [`LastResidue`]: crate::alignment::phmm::indexing::LastResidue
     /// [`choose_end_insert_or_exit`]: LocalVisitor::choose_end_insert_or_exit
     fn choose_end_or_insert(
         &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, phmm: &LocalPhmm<T, S>,
@@ -414,7 +407,7 @@ pub trait LocalVisitor<T, const S: usize> {
         &mut self, layer: DpIndex, params: &TransitionParams<T>, exit_param: T, phmm: &LocalPhmm<T, S>,
     ) -> Result<PhmmStateOrModule, Self::Error>;
 
-    /// From the match state in the [`LastMatch`] layer, selects whether the
+    /// From the match state in the [`LastResidue`] layer, selects whether the
     /// traversal should enter the [`End`] state, enter the final insert state,
     /// or exit early from the pHMM.
     ///
@@ -422,7 +415,7 @@ pub trait LocalVisitor<T, const S: usize> {
     ///
     /// See the implementor for documentation of possible errors.
     ///
-    /// [`LastMatch`]: crate::alignment::phmm::indexing::LastMatch
+    /// [`LastResidue`]: crate::alignment::phmm::indexing::LastResidue
     /// [`End`]: crate::alignment::phmm::indexing::End
     fn choose_end_insert_or_exit(
         &mut self, layer: DpIndex, params: &TransitionParams<T>, exit_param: T, exit_from_end_param: T,
@@ -435,14 +428,13 @@ pub trait LocalVisitor<T, const S: usize> {
     /// ## Validity
     ///
     /// This must return an index that is in-range for the given pHMM, otherwise
-    /// [`traverse_local_phmm`] may panic.
+    /// [`traverse`] may panic.
     ///
     /// ## Errors
     ///
     /// See the implementor for documentation of possible errors.
     ///
-    /// [`traverse_local_phmm`]:
-    ///     crate::alignment::phmm::traverse::traverse_local_phmm
+    /// [`traverse`]: LocalPhmm::traverse
     fn enter_core(&mut self, module: &SemiLocalModule<T>, phmm: &LocalPhmm<T, S>) -> Result<DpIndex, Self::Error>;
 
     /// Performs any behavior necessary given that the traversal is exiting the
@@ -487,16 +479,15 @@ pub trait LocalVisitor<T, const S: usize> {
     ///
     /// ## Validity
     ///
-    /// This function should eventually return `true` to ensure
-    /// [`traverse_local_phmm`] is not stuck in an infinite loop.
+    /// This function should eventually return `true` to ensure [`traverse`] is
+    /// not stuck in an infinite loop.
     ///
     /// ## Errors
     ///
     /// See the implementor for documentation of possible errors.
     ///
     /// [`LocalModule`]: crate::alignment::phmm::modules::LocalModule
-    /// [`traverse_local_phmm`]:
-    ///     crate::alignment::phmm::traverse::traverse_local_phmm
+    /// [`traverse`]: LocalPhmm::traverse
     fn exit_module_insert(
         &mut self, module: &DomainModule<T, S>, loc: ModuleLocation, phmm: &LocalPhmm<T, S>,
     ) -> Result<bool, Self::Error>;

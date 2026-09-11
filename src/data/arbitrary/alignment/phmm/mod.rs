@@ -5,7 +5,7 @@ use crate::{
     alignment::phmm::{
         DomainPhmm, GlobalPhmm, LocalPhmm, PhmmNumber, SemiLocalPhmm,
         components::EmissionParams,
-        indexing::PhmmIndexable,
+        indexing::PhmmLen,
         modules::{DomainModule, LocalModule, SemiLocalModule},
     },
     data::{

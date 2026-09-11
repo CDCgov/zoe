@@ -19,7 +19,7 @@ use crate::{
     alignment::phmm::{
         PhmmNumber,
         components::{CorePhmm, EmissionParams},
-        indexing::{PhmmIndex, PhmmIndexable, QueryIndex, QueryIndexable},
+        indexing::{AlnIndex, PhmmLen},
     },
     data::mappings::ByteIndexMap,
 };
@@ -66,13 +66,14 @@ impl<T: PhmmNumber> SemiLocalModule<T> {
         Self(vec![T::ZERO; core.num_pseudomatch()])
     }
 
-    /// Gets the score for entering directly into layer `j` (when this module is
-    /// placed at the beginning of the [`CorePhmm`] or exiting early from layer
-    /// `j` (when this module is placed at the end of the [`CorePhmm`]).
+    /// Gets the score for entering directly into layer `phmm_idx` (when this
+    /// module is placed at the beginning of the [`CorePhmm`] or exiting early
+    /// from layer `phmm_idx` (when this module is placed at the end of the
+    /// [`CorePhmm`]).
     #[inline]
     #[must_use]
-    pub fn get_score(&self, j: impl PhmmIndex) -> T {
-        self.0[j.to_dp_index(self).0]
+    pub fn get_score(&self, phmm_idx: impl AlnIndex) -> T {
+        self.0[phmm_idx.to_dp_index(self).0]
     }
 }
 
@@ -169,12 +170,12 @@ impl<T: PhmmNumber, const S: usize> DomainModule<T, S> {
 pub(crate) struct PrecomputedDomainModule<T, const S: usize>(pub(crate) Vec<T>);
 
 impl<T: Copy, const S: usize> PrecomputedDomainModule<T, S> {
-    /// Gets the score for skipping the first `i` residues in the query (when
-    /// this module is placed at the beginning of the [`CorePhmm`]) or skipping
-    /// the last `i` residues in the query (when this module is placed at the
-    /// end of the [`CorePhmm`]).
-    pub(crate) fn get_score(&self, i: impl QueryIndex) -> T {
-        self.0[self.get_dp_index(i)]
+    /// Gets the score for skipping the first `query_idx` residues in the query
+    /// (when this module is placed at the beginning of the [`CorePhmm`]) or
+    /// skipping the last `query_idx` residues in the query (when this module is
+    /// placed at the end of the [`CorePhmm`]).
+    pub(crate) fn get_score(&self, query_idx: impl AlnIndex) -> T {
+        self.0[query_idx.to_dp_index(self).0]
     }
 }
 
@@ -266,18 +267,19 @@ impl<T: PhmmNumber, const S: usize> LocalModule<T, S> {
 }
 
 impl<T: PhmmNumber, const S: usize> PrecomputedLocalModule<'_, T, S> {
-    /// Gets the score for skipping `i` residues in the query and
-    /// entering/exiting layer `j`.
+    /// Gets the score for skipping `query_idx` residues in the query and
+    /// entering/exiting layer `phmm_idx`.
     ///
     /// Specifically, the score is for:
     ///
-    /// - Skipping the first `i` residues in the query and then entering
-    ///   directly into layer `j` (when this module is placed at the beginning
-    ///   of the [`CorePhmm`])
-    /// - Exiting early from layer `j` then skipping the last `i` residues in
-    ///   the query (when this module is placed at the end of the [`CorePhmm`])
-    pub(crate) fn get_score(&self, i: impl QueryIndex, j: impl PhmmIndex) -> T {
-        self.domain_params.get_score(i) + self.semilocal_params.get_score(j)
+    /// - Skipping the first `query_idx` residues in the query and then entering
+    ///   directly into layer `phmm_idx` (when this module is placed at the
+    ///   beginning of the [`CorePhmm`])
+    /// - Exiting early from layer `phmm_idx` then skipping the last `query_idx`
+    ///   residues in the query (when this module is placed at the end of the
+    ///   [`CorePhmm`])
+    pub(crate) fn get_score(&self, query_idx: impl AlnIndex, phmm_idx: impl AlnIndex) -> T {
+        self.domain_params.get_score(query_idx) + self.semilocal_params.get_score(phmm_idx)
     }
 }
 

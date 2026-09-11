@@ -2,7 +2,7 @@
 
 use crate::alignment::phmm::{
     DomainPhmm, GlobalPhmm, LocalPhmm, PhmmNumber, SemiLocalPhmm,
-    indexing::{Begin, DpIndex, End, GetLayer, GetMapping, GetModule, PhmmIndex, PhmmIndexable, SeqIndex},
+    indexing::{AlnIndex, AlnIndexable, Begin, DpIndex, End, GetLayer, GetMapping, GetModule, SeqIndex},
     modules::{DomainParams, SemiLocalParams},
     state::PhmmState,
     traverse::{
@@ -107,7 +107,7 @@ fn traverse_core_phmm_or_exit<P, T, V, const S: usize>(
     phmm: &P, enter_layer: DpIndex, num_emitted_begin_module: usize, visitor: &mut V,
 ) -> Result<TraverseCorePhmmOrExitOutput<T>, P::Error>
 where
-    P: PhmmIndexable + GetLayer<T, S> + GetMapping<S> + GetModule<End: SemiLocalParams<T>> + VisitCoreOrExit<V, T, S>,
+    P: AlnIndexable + GetLayer<T, S> + GetMapping<S> + GetModule<End: SemiLocalParams<T>> + VisitCoreOrExit<V, T, S>,
     T: PhmmNumber + 'static, {
     let mut layer_idx = enter_layer;
     let mut num_emitted = num_emitted_begin_module;

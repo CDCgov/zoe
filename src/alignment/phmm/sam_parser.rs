@@ -6,7 +6,7 @@ use crate::{
     alignment::phmm::{
         GlobalPhmm, PhmmNumber,
         components::{CorePhmm, EmissionParams, LayerParams, TransitionParams},
-        indexing::{GetLayer, PhmmIndexable},
+        indexing::{AlnIndexable, GetLayer},
         state::PhmmState::{self, *},
     },
     data::mappings::{AA_UNAMBIG_PROFILE_MAP, ByteIndexMap, DNA_UNAMBIG_PROFILE_MAP},
