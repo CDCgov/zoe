@@ -146,6 +146,10 @@ impl FastaNT {
 
 /// A struct for containing an [`FastaNT`] + owned `taxon` [`String`].
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
+#[deprecated(
+    since = "0.0.33",
+    note = "consider using the GetAnnotation or GetAnnotationOwned trait instead. This struct will be removed in v0.0.35. Open an issue with a use-case if the extension trait has insufficient functionality"
+)]
 pub struct FastaNTAnnot {
     pub name:     String,
     pub sequence: Nucleotides,
@@ -154,6 +158,7 @@ pub struct FastaNTAnnot {
 
 /// Fallibly converts from a generic [`FastaSeq`] to a [`FastaNTAnnot`], failing
 /// if no annotation is found. DNA is filtered in the process.
+#[allow(deprecated)]
 impl TryFrom<FastaSeq> for FastaNTAnnot {
     type Error = std::io::Error;
     fn try_from(fa: FastaSeq) -> Result<Self, Self::Error> {

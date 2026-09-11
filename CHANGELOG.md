@@ -46,6 +46,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Removed deprecated `SAMReader` constructors
 - Deprecated `SamDataViewMut`
 - Removed the `GetCode` trait
+- Deprecated `FastaNTAnnot`
 
 ## Fixed
 

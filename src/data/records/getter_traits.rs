@@ -1,8 +1,7 @@
 //! Getter traits for fields in record types, such as headers, annotations, and
 //! sequences.
 
-use std::ops::Bound;
-
+#[allow(deprecated)]
 use crate::{
     alignment::{LocalProfiles, SharedProfiles},
     data::{
@@ -13,6 +12,7 @@ use crate::{
     },
     search::ToStrRangeSearch,
 };
+use std::ops::Bound;
 
 /// Getter trait for structures providing read access to a header/name.
 pub trait HeaderReadable {
@@ -63,6 +63,7 @@ impl HeaderReadable for FastaAA {
     }
 }
 
+#[allow(deprecated)]
 impl HeaderReadable for FastaNTAnnot {
     #[inline]
     fn header(&self) -> &str {
@@ -112,6 +113,7 @@ impl HeaderMutable for FastaAA {
     }
 }
 
+#[allow(deprecated)]
 impl HeaderMutable for FastaNTAnnot {
     #[inline]
     fn header_mut(&mut self) -> &mut String {
@@ -213,6 +215,7 @@ impl SequenceReadable for FastaNT {
     }
 }
 
+#[allow(deprecated)]
 impl SequenceReadable for FastaNTAnnot {
     #[inline]
     fn sequence_bytes(&self) -> &[u8] {
