@@ -2,9 +2,7 @@ use crate::{
     alignment::phmm::{
         InvalidModelError, PhmmNumber,
         components::{CorePhmm, EmissionParams, LayerParams},
-        indexing::{
-            AlnIndex, GetCore, GetCoreMut, GetLayer, GetLayerMut, GetMapping, GetModule, GetModuleMut, GetPartsMut, PhmmLen,
-        },
+        indexing::{AlnIndex, GetCore, GetCoreMut, GetLayer, GetLayerMut, GetMapping, GetModule, GetModuleMut, PhmmLen},
         modules::{DomainModule, LocalModule, SemiLocalModule},
         nonempty_vec::NonEmptyVec,
     },
@@ -507,27 +505,6 @@ impl<T, const S: usize> GetLayerMut<T, S> for LocalPhmm<T, S> {
     #[inline]
     fn layers_mut(&mut self) -> &mut NonEmptyVec<LayerParams<T, S>> {
         self.core.layers_mut()
-    }
-}
-
-impl<T, const S: usize> GetPartsMut<T, S> for DomainPhmm<T, S> {
-    #[inline]
-    fn parts_mut(&mut self) -> (&mut CorePhmm<T, S>, &mut Self::Begin, &mut Self::End) {
-        (&mut self.core, &mut self.begin, &mut self.end)
-    }
-}
-
-impl<T, const S: usize> GetPartsMut<T, S> for SemiLocalPhmm<T, S> {
-    #[inline]
-    fn parts_mut(&mut self) -> (&mut CorePhmm<T, S>, &mut Self::Begin, &mut Self::End) {
-        (&mut self.core, &mut self.begin, &mut self.end)
-    }
-}
-
-impl<T, const S: usize> GetPartsMut<T, S> for LocalPhmm<T, S> {
-    #[inline]
-    fn parts_mut(&mut self) -> (&mut CorePhmm<T, S>, &mut Self::Begin, &mut Self::End) {
-        (&mut self.core, &mut self.begin, &mut self.end)
     }
 }
 

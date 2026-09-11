@@ -27,7 +27,6 @@ pub trait GetModule {
 
 /// A trait providing mutable access to the modules at the beginning and end of
 /// a pHMM.
-#[allow(dead_code)]
 pub trait GetModuleMut: GetModule {
     /// Returns a mutable reference to the module at the start of the pHMM.
     #[must_use]
@@ -58,15 +57,14 @@ pub trait GetCoreMut<T, const S: usize> {
     /// Returns a mutable reference to the [`CorePhmm`] holding the core
     /// parameters.
     #[must_use]
-    #[allow(dead_code)]
     fn core_mut(&mut self) -> &mut CorePhmm<T, S>;
 }
 
 /// A trait providing read-only accessors to the layers of a pHMM.
 pub trait GetLayer<T, const S: usize>: AlnIndexable {
-    /// Retrieves a slice of the layers contained within the core pHMM.
+    /// Retrieves a vector of the layers contained within the core pHMM.
     ///
-    /// This slice will be at least 2 in length.
+    /// This vector will be at least 2 in length.
     #[must_use]
     fn layers(&self) -> &NonEmptyVec<LayerParams<T, S>>;
 
@@ -122,7 +120,9 @@ impl<P: GetLayer<T, S>, T, const S: usize> GetLayer<T, S> for &P {
 
 /// A trait providing mutable accessors to the layers of a pHMM.
 pub trait GetLayerMut<T, const S: usize>: GetLayer<T, S> {
-    /// Retrieves a mutable slice of the layers contained within the core pHMM.
+    /// Retrieves a mutable vector of the layers contained within the core pHMM.
+    ///
+    /// This vector will be at least 2 in length.
     #[must_use]
     fn layers_mut(&mut self) -> &mut NonEmptyVec<LayerParams<T, S>>;
 
@@ -182,17 +182,6 @@ pub trait GetLayerMut<T, const S: usize>: GetLayer<T, S> {
 
         Ok((l1, l2))
     }
-}
-
-/// A trait providing simultaneous mutable accessors to the parts of a pHMM.
-pub trait GetPartsMut<T, const S: usize>: GetModule + GetLayer<T, S> {
-    /// Returns simultaneous mutable references to the core pHMM, the begin
-    /// module, and the end module.
-    ///
-    /// Calling the individual mutable accessors and simultaneously using them
-    /// is not allowed by the borrow checker, hence this function.
-    #[must_use]
-    fn parts_mut(&mut self) -> (&mut CorePhmm<T, S>, &mut Self::Begin, &mut Self::End);
 }
 
 /// A trait providing access to the underlying alphabet of a pHMM.
