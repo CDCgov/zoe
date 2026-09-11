@@ -39,7 +39,7 @@ where
         match next_state {
             PhmmState::Match => {
                 let emit_params = &layer.emission_match;
-                layer_idx = layer_idx.next_index(&phmm);
+                layer_idx += 1;
                 layer = next_layer;
                 remaining_layers = rest;
 
@@ -47,7 +47,7 @@ where
                 num_emitted += 1;
             }
             PhmmState::Delete => {
-                layer_idx = layer_idx.next_index(&phmm);
+                layer_idx += 1;
                 layer = next_layer;
                 remaining_layers = rest;
             }
@@ -165,7 +165,7 @@ where
             match next_state {
                 PhmmState::Match => {
                     let emit_params = &layer.emission_match;
-                    layer_idx = layer_idx.next_index(&phmm);
+                    layer_idx += 1;
                     layer = next_layer;
                     remaining_layers = rest;
 
@@ -173,7 +173,7 @@ where
                     num_emitted += 1;
                 }
                 PhmmState::Delete => {
-                    layer_idx = layer_idx.next_index(&phmm);
+                    layer_idx += 1;
                     layer = next_layer;
                     remaining_layers = rest;
                 }

@@ -126,6 +126,7 @@ pub struct LastResidue;
 pub struct End;
 
 impl AlnIndex for DpIndex {
+    #[inline]
     fn to_dp_index<Q>(self, _seq: &Q) -> DpIndex
     where
         Q: AlnIndexable + ?Sized, {
@@ -134,6 +135,7 @@ impl AlnIndex for DpIndex {
 }
 
 impl AlnIndex for SeqIndex {
+    #[inline]
     fn to_dp_index<Q>(self, _seq: &Q) -> DpIndex
     where
         Q: AlnIndexable + ?Sized, {
@@ -178,6 +180,9 @@ impl AlnIndex for End {
 }
 
 impl Begin {
+    /// An inherent method override for [`AlnIndex::to_dp_index`] that doesn't
+    /// require the sequence to be passed.
+    #[inline]
     #[must_use]
     pub fn to_dp_index(self) -> DpIndex {
         DpIndex(0)
@@ -185,11 +190,17 @@ impl Begin {
 }
 
 impl FirstResidue {
+    /// An inherent method override for [`AlnIndex::to_dp_index`] that doesn't
+    /// require the sequence to be passed.
+    #[inline]
     #[must_use]
     pub fn to_dp_index(self) -> DpIndex {
         DpIndex(1)
     }
 
+    /// An inherent method override for [`AlnIndex::to_seq_index`] that doesn't
+    /// require the sequence to be passed and is infallible.
+    #[inline]
     #[must_use]
     pub fn to_seq_index(self) -> SeqIndex {
         SeqIndex(0)
@@ -197,6 +208,9 @@ impl FirstResidue {
 }
 
 impl SeqIndex {
+    /// An inherent method override for [`AlnIndex::to_dp_index`] that doesn't
+    /// require the sequence to be passed.
+    #[inline]
     #[must_use]
     pub fn to_dp_index(self) -> DpIndex {
         DpIndex(self.0 + 1)
@@ -204,6 +218,9 @@ impl SeqIndex {
 }
 
 impl DpIndex {
+    /// An inherent method override for [`AlnIndex::to_seq_index`] that doesn't
+    /// require the sequence to be passed.
+    #[inline]
     #[must_use]
     pub fn to_seq_index(self) -> Option<SeqIndex> {
         self.0.checked_sub(1).map(SeqIndex)
@@ -213,6 +230,7 @@ impl DpIndex {
 impl End {
     /// An inherent method override for [`AlnIndex::to_seq_index`] that is
     /// infallible.
+    #[inline]
     #[must_use]
     pub fn to_seq_index<Q>(self, seq: &Q) -> SeqIndex
     where
@@ -222,6 +240,7 @@ impl End {
 }
 
 impl PartialEq<Begin> for SeqIndex {
+    #[inline]
     fn eq(&self, _other: &Begin) -> bool {
         // Begin has DpIndex 0, and SeqIndex has DpIndex >= 1
         false
@@ -229,6 +248,7 @@ impl PartialEq<Begin> for SeqIndex {
 }
 
 impl PartialEq<SeqIndex> for Begin {
+    #[inline]
     fn eq(&self, _other: &SeqIndex) -> bool {
         // Begin is DpIndex(0), and SeqIndex has DpIndex >= 1
         false
@@ -236,6 +256,7 @@ impl PartialEq<SeqIndex> for Begin {
 }
 
 impl PartialOrd<Begin> for SeqIndex {
+    #[inline]
     fn partial_cmp(&self, _other: &Begin) -> Option<Ordering> {
         // Begin is DpIndex(0), and SeqIndex has DpIndex >= 1
         Some(Ordering::Greater)
@@ -243,6 +264,7 @@ impl PartialOrd<Begin> for SeqIndex {
 }
 
 impl PartialOrd<SeqIndex> for Begin {
+    #[inline]
     fn partial_cmp(&self, _other: &SeqIndex) -> Option<Ordering> {
         // Begin is DpIndex(0), and SeqIndex has DpIndex >= 1
         Some(Ordering::Less)
@@ -250,96 +272,112 @@ impl PartialOrd<SeqIndex> for Begin {
 }
 
 impl PartialEq<FirstResidue> for SeqIndex {
+    #[inline]
     fn eq(&self, other: &FirstResidue) -> bool {
         *self == (*other).to_seq_index()
     }
 }
 
 impl PartialEq<SeqIndex> for FirstResidue {
+    #[inline]
     fn eq(&self, other: &SeqIndex) -> bool {
         (*self).to_seq_index() == *other
     }
 }
 
 impl PartialOrd<FirstResidue> for SeqIndex {
+    #[inline]
     fn partial_cmp(&self, other: &FirstResidue) -> Option<Ordering> {
         self.partial_cmp(&(*other).to_seq_index())
     }
 }
 
 impl PartialOrd<SeqIndex> for FirstResidue {
+    #[inline]
     fn partial_cmp(&self, other: &SeqIndex) -> Option<Ordering> {
         (*self).to_seq_index().partial_cmp(other)
     }
 }
 
 impl PartialEq<Begin> for DpIndex {
+    #[inline]
     fn eq(&self, other: &Begin) -> bool {
         *self == other.to_dp_index()
     }
 }
 
 impl PartialEq<DpIndex> for Begin {
+    #[inline]
     fn eq(&self, other: &DpIndex) -> bool {
         self.to_dp_index() == *other
     }
 }
 
 impl PartialOrd<Begin> for DpIndex {
+    #[inline]
     fn partial_cmp(&self, other: &Begin) -> Option<Ordering> {
         self.partial_cmp(&other.to_dp_index())
     }
 }
 
 impl PartialOrd<DpIndex> for Begin {
+    #[inline]
     fn partial_cmp(&self, other: &DpIndex) -> Option<Ordering> {
         self.to_dp_index().partial_cmp(other)
     }
 }
 
 impl PartialEq<FirstResidue> for DpIndex {
+    #[inline]
     fn eq(&self, other: &FirstResidue) -> bool {
         *self == other.to_dp_index()
     }
 }
 
 impl PartialEq<DpIndex> for FirstResidue {
+    #[inline]
     fn eq(&self, other: &DpIndex) -> bool {
         self.to_dp_index() == *other
     }
 }
 
 impl PartialOrd<FirstResidue> for DpIndex {
+    #[inline]
     fn partial_cmp(&self, other: &FirstResidue) -> Option<Ordering> {
         self.partial_cmp(&other.to_dp_index())
     }
 }
 
 impl PartialOrd<DpIndex> for FirstResidue {
+    #[inline]
     fn partial_cmp(&self, other: &DpIndex) -> Option<Ordering> {
         self.to_dp_index().partial_cmp(other)
     }
 }
 
 impl PartialEq<DpIndex> for SeqIndex {
+    #[inline]
     fn eq(&self, other: &DpIndex) -> bool {
         self.to_dp_index() == *other
     }
 }
 
 impl PartialEq<SeqIndex> for DpIndex {
+    #[inline]
     fn eq(&self, other: &SeqIndex) -> bool {
         *self == other.to_dp_index()
     }
 }
 
 impl PartialOrd<DpIndex> for SeqIndex {
+    #[inline]
     fn partial_cmp(&self, other: &DpIndex) -> Option<Ordering> {
         self.to_dp_index().partial_cmp(other)
     }
 }
 
 impl PartialOrd<SeqIndex> for DpIndex {
+    #[inline]
     fn partial_cmp(&self, other: &SeqIndex) -> Option<Ordering> {
         self.partial_cmp(&other.to_dp_index())
     }
@@ -348,6 +386,7 @@ impl PartialOrd<SeqIndex> for DpIndex {
 impl Add<usize> for DpIndex {
     type Output = DpIndex;
 
+    #[inline]
     fn add(mut self, rhs: usize) -> Self::Output {
         self.0 += rhs;
         self
@@ -357,6 +396,7 @@ impl Add<usize> for DpIndex {
 impl Add<usize> for SeqIndex {
     type Output = SeqIndex;
 
+    #[inline]
     fn add(mut self, rhs: usize) -> Self::Output {
         self.0 += rhs;
         self
@@ -364,12 +404,14 @@ impl Add<usize> for SeqIndex {
 }
 
 impl AddAssign<usize> for DpIndex {
+    #[inline]
     fn add_assign(&mut self, rhs: usize) {
         self.0 += rhs;
     }
 }
 
 impl AddAssign<usize> for SeqIndex {
+    #[inline]
     fn add_assign(&mut self, rhs: usize) {
         self.0 += rhs;
     }

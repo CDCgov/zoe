@@ -2,7 +2,9 @@ use crate::{
     alignment::phmm::{
         InvalidModelError, PhmmNumber,
         components::{CorePhmm, EmissionParams, LayerParams},
-        indexing::{AlnIndex, GetCore, GetCoreMut, GetLayer, GetLayerMut, GetMapping, GetModule, GetModuleMut, PhmmLen},
+        indexing::{
+            AlnIndex, AlnIndexable, GetCore, GetCoreMut, GetLayer, GetLayerMut, GetMapping, GetModule, GetModuleMut,
+        },
         modules::{DomainModule, LocalModule, SemiLocalModule},
         nonempty_vec::NonEmptyVec,
     },
@@ -73,9 +75,7 @@ impl<T, const S: usize> LocalPhmm<T, S> {
     pub fn from_parts(
         mapping: &'static ByteIndexMap<S>, core: CorePhmm<T, S>, begin: LocalModule<T, S>, end: LocalModule<T, S>,
     ) -> Result<LocalPhmm<T, S>, InvalidModelError> {
-        if core.num_pseudomatch() != begin.semilocal_params.num_pseudomatch()
-            || core.num_pseudomatch() != end.semilocal_params.num_pseudomatch()
-        {
+        if core.seq_len() != begin.semilocal_params.seq_len() || core.seq_len() != end.semilocal_params.seq_len() {
             return Err(InvalidModelError::IncompatibleModule);
         }
 
@@ -171,7 +171,7 @@ impl<T, const S: usize> SemiLocalPhmm<T, S> {
     pub fn from_parts(
         mapping: &'static ByteIndexMap<S>, core: CorePhmm<T, S>, begin: SemiLocalModule<T>, end: SemiLocalModule<T>,
     ) -> Result<Self, InvalidModelError> {
-        if core.num_pseudomatch() != begin.num_pseudomatch() || core.num_pseudomatch() != end.num_pseudomatch() {
+        if core.seq_len() != begin.seq_len() || core.seq_len() != end.seq_len() {
             return Err(InvalidModelError::IncompatibleModule);
         }
 

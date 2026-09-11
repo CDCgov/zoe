@@ -144,7 +144,7 @@ impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
                     // consumed in this match state. The emission parameter is added within
                     // `update_match`.
                     if i == Begin.to_dp_index().0 {
-                        let next_layer_idx = DpIndex(j).next_index(self);
+                        let next_layer_idx = DpIndex(j) + 1;
 
                         let (state, best) = best_state_or_enter(
                             match_val + layer.transition[(Match, Match)],

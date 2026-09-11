@@ -1,3 +1,5 @@
+//! Internal components of a profile Hidden Markov Model, specifically
+//! [`TransitionParams`], [`EmissionParams`], [`LayerParams`], and [`CorePhmm`].
 use crate::alignment::phmm::{
     InvalidModelError, PhmmError, PhmmNumber,
     indexing::{GetLayer, GetLayerMut},

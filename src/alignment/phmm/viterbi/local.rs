@@ -161,7 +161,7 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
                     // via entering, one must consume all bases up to i in the
                     // begin module, then the (i+1)st is consumed in this match
                     // state.
-                    let next_layer_idx = j.next_index(self);
+                    let next_layer_idx = j + 1;
 
                     let (state, best) = best_state_or_enter(
                         match_val + layer.transition[(Match, Match)],

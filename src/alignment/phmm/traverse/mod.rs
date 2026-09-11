@@ -417,6 +417,7 @@ where
     }
 }
 
+/// An enum for picking between the END state and the final insert state.
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum EndInsert {
     End,
@@ -432,6 +433,8 @@ impl Display for EndInsert {
     }
 }
 
+/// An enum for picking between the END state, the final insert state, or
+/// exiting the pHMM.
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum EndInsertExit {
     End,

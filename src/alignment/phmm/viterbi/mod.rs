@@ -1,3 +1,5 @@
+//! Implementations of the Viterbi algorithm on pHMMs for sequence alignment.
+
 use crate::alignment::phmm::{
     PhmmNumber,
     components::LayerParams,
@@ -63,13 +65,12 @@ impl<T: Clone> ViterbiTraceback<T> {
     /// Creates a new [`ViterbiTraceback`] from the given dimensions.
     ///
     /// `query_dim` should be the length of the query plus one, since the
-    /// traceback stores a column for [`NoBases`] as well as all [`SeqIndex`]
+    /// traceback stores a column for [`Begin`] as well as all [`SeqIndex`]
     /// values. `phmm_dim` should be the [`seq_len`] of the pHMM plus one, since
     /// the traceback stores a row for [`Begin`] as well as all [`SeqIndex`]
     /// values (but not for [`End`]).
     ///
-    /// [`NoBases`]: super::indexing::NoBases
-    /// [`seq_len`]: super::indexing::PhmmIndexable::seq_len
+    /// [`seq_len`]: super::indexing::AlnIndexable::seq_len
     /// [`Begin`]: super::indexing::Begin
     /// [`End`]: super::indexing::End
     #[inline]

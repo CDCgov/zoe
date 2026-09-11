@@ -139,17 +139,22 @@ impl<I: AlnIndex> AlnIndexRange for RangeToInclusive<I> {
     }
 }
 
+/// An extension trait for `Range<DpIndex>` and `Range<SeqIndex>` to convert
+/// them into `Range<usize>`.
 pub trait IndexRangeInner {
+    /// Extracts the contained `usize` indices within the range.
     fn into_inner(self) -> Range<usize>;
 }
 
 impl IndexRangeInner for Range<DpIndex> {
+    #[inline]
     fn into_inner(self) -> Range<usize> {
         self.start.0..self.end.0
     }
 }
 
 impl IndexRangeInner for Range<SeqIndex> {
+    #[inline]
     fn into_inner(self) -> Range<usize> {
         self.start.0..self.end.0
     }

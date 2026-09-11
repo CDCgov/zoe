@@ -260,6 +260,8 @@ impl<T> TryFrom<Vec<T>> for NonEmptyVec<T> {
     }
 }
 
+/// An error arising when attempting to construct a [`NonEmptyVec`] with no
+/// elements.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default)]
 pub struct EmptyElements;
 
