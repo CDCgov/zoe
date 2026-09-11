@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::{data::err::ResultWithErrorContext, iter_utils::ProcessResultsExt, math::AnyInt, prelude::*};
 
 /// Any optional fields stored in a SAM record, lazily parsed on an as-needed
@@ -218,6 +220,28 @@ impl FromIterator<String> for SamOptRaw {
     #[inline]
     fn from_iter<T: IntoIterator<Item = String>>(iter: T) -> Self {
         SamOptRaw(Vec::from_iter(iter))
+    }
+}
+
+impl Display for SamOptRaw {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_view())
+    }
+}
+
+impl Display for SamOptRawView<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Some((first, rest)) = self.0.split_first() else {
+            return Ok(());
+        };
+
+        write!(f, "{first}")?;
+
+        for opt_field in rest {
+            write!(f, "\t{opt_field}")?;
+        }
+
+        Ok(())
     }
 }
 

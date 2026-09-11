@@ -12,7 +12,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `sample_one_weighted` function for weighted sampling without allocation (behind `rand` feature gate)
 - Added `IndexedKmerCounter` and `IndexedKmerSet` structs
 - Added `process_results_many` for simultaneously handling multiple fallible iterators
-- `SamOptField` now implements `Display`
+- `SamOptField` and `SamOptRaw` now implement `Display`
 - The raw tags are now exposed in `SamOptRaw` via `iter_raw`
 - `SamDataView` now contains a view of the optional fields
 - Added `CigletIteratorChecked` to provide a fallible iterator over `Cigar`
