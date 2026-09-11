@@ -15,7 +15,6 @@
 //!     https://en.wikipedia.org/wiki/Needleman%E2%80%93Wunsch_algorithm
 
 pub mod nw;
-#[cfg(feature = "dev-phmm")]
 pub mod phmm;
 pub mod sw;
 

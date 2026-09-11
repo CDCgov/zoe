@@ -72,14 +72,13 @@ pub(crate) use crate::data::extension::simd;
 
 #[allow(deprecated)]
 mod private {
-    #[cfg(feature = "dev-phmm")]
-    use crate::alignment::phmm::{
-        DomainPhmm, GlobalPhmm, LocalPhmm, SemiLocalPhmm,
-        components::CorePhmm,
-        indexing::{Begin, DpIndex, End, FirstResidue, LastResidue, SeqIndex},
-        modules::{PrecomputedDomainModule, PrecomputedLocalModule, SemiLocalModule},
-    };
     use crate::{
+        alignment::phmm::{
+            DomainPhmm, GlobalPhmm, LocalPhmm, SemiLocalPhmm,
+            components::CorePhmm,
+            indexing::{Begin, DpIndex, End, FirstResidue, LastResidue, SeqIndex},
+            modules::{PrecomputedDomainModule, PrecomputedLocalModule, SemiLocalModule},
+        },
         data::{
             cigar::{Cigar, CigarView, CigarViewMut},
             sam::{SamData, SamDataView, SamDataViewMut, SamOptRaw, SamOptRawView},
@@ -151,35 +150,6 @@ mod private {
     #[cfg(feature = "dev-generic-fasta")]
     impl<M: AssocViewMutType, S: AssocViewMutType> Sealed for crate::data::fasta::generic::FastaAnnotViewMut<'_, M, S> {}
 
-    #[cfg(feature = "dev-phmm")]
-    impl<T, const S: usize> Sealed for CorePhmm<T, S> {}
-    #[cfg(feature = "dev-phmm")]
-    impl<T, const S: usize> Sealed for GlobalPhmm<'_, T, S> {}
-    #[cfg(feature = "dev-phmm")]
-    impl<T, const S: usize> Sealed for LocalPhmm<'_, T, S> {}
-    #[cfg(feature = "dev-phmm")]
-    impl<T, const S: usize> Sealed for SemiLocalPhmm<'_, T, S> {}
-    #[cfg(feature = "dev-phmm")]
-    impl<T, const S: usize> Sealed for DomainPhmm<'_, T, S> {}
-    #[cfg(feature = "dev-phmm")]
-    impl<T> Sealed for SemiLocalModule<T> {}
-    #[cfg(feature = "dev-phmm")]
-    impl<T, const S: usize> Sealed for PrecomputedLocalModule<'_, T, S> {}
-    #[cfg(feature = "dev-phmm")]
-    impl<T, const S: usize> Sealed for PrecomputedDomainModule<T, S> {}
-    #[cfg(feature = "dev-phmm")]
-    impl Sealed for Begin {}
-    #[cfg(feature = "dev-phmm")]
-    impl Sealed for FirstResidue {}
-    #[cfg(feature = "dev-phmm")]
-    impl Sealed for LastResidue {}
-    #[cfg(feature = "dev-phmm")]
-    impl Sealed for End {}
-    #[cfg(feature = "dev-phmm")]
-    impl Sealed for DpIndex {}
-    #[cfg(feature = "dev-phmm")]
-    impl Sealed for SeqIndex {}
-
     sealed!(
         AminoAcids,
         AminoAcidsView<'_>,
@@ -203,6 +173,16 @@ mod private {
         SamOptRawView<'_>,
     );
     sealed!(f32, f64, u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize);
+
+    impl<T, const S: usize> Sealed for CorePhmm<T, S> {}
+    impl<T, const S: usize> Sealed for GlobalPhmm<'_, T, S> {}
+    impl<T, const S: usize> Sealed for LocalPhmm<'_, T, S> {}
+    impl<T, const S: usize> Sealed for SemiLocalPhmm<'_, T, S> {}
+    impl<T, const S: usize> Sealed for DomainPhmm<'_, T, S> {}
+    impl<T> Sealed for SemiLocalModule<T> {}
+    impl<T, const S: usize> Sealed for PrecomputedLocalModule<'_, T, S> {}
+    impl<T, const S: usize> Sealed for PrecomputedDomainModule<T, S> {}
+    sealed!(Begin, FirstResidue, LastResidue, End, DpIndex, SeqIndex);
 }
 
 /// The default SIMD lanes for *Zoe*.

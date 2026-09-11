@@ -100,6 +100,7 @@ impl<P: GetLayer<T, S>, T, const S: usize> GetLayer<T, S> for &P {
 }
 
 /// A trait providing mutable accessors to the layers of a pHMM.
+#[allow(dead_code, reason = "used by fuzzing only currently")]
 pub(crate) trait GetLayerMut<T, const S: usize>: GetLayer<T, S> {
     /// Retrieves a mutable vector of the layers contained within the core pHMM.
     #[must_use]

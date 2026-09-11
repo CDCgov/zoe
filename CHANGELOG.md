@@ -8,6 +8,10 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ### Added
 
+- Stabilized the `phmm` module, offering global, local, semilocal, and domain
+  modules; alignment via the Viterbi algorithm; parsing and writing models in
+  the [SAM][sam phmm] format; sampling sequences/alignments probabilistically; and
+  traversing models.
 - Added `GetSamFields` trait, which provides a way of unifying generic SAM data
   (like `SamData`, `SamDataView`, and custom application structs)
 - The `Float` trait has been made public for unifying `f32` and `f64`
@@ -741,3 +745,4 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 <!-- Links -->
 [keep a changelog]: https://keepachangelog.com/en/1.0.0/
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
+[sam phmm]: https://tr.soe.ucsc.edu/research/technical-reports/UCSC-CRL-96-22

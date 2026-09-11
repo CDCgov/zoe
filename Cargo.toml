@@ -51,10 +51,6 @@ alignment-diagnostics = []
 
 # Note: development features may be removed at any time.
 
-# An optional feature enabling pHMM functionality which is currently in
-# development
-dev-phmm = []
-
 # An optional feature enabling the max_score_for_int_type diagnostic function
 dev-max-score-for-type = []
 
