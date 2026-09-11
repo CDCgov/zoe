@@ -42,9 +42,11 @@
 //! [`SemiLocalModule`]: crate::alignment::phmm::modules::SemiLocalModule
 
 mod accessors;
-mod indices;
+mod aln_index;
+mod aln_indexable;
 mod ranges;
 
 pub use accessors::*;
-pub use indices::*;
+pub use aln_index::*;
+pub use aln_indexable::*;
 pub use ranges::*;

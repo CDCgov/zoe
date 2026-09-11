@@ -1,9 +1,7 @@
 use crate::{
     alignment::phmm::{
-        DomainPhmm, GlobalPhmm, LocalPhmm, SemiLocalPhmm,
         components::{CorePhmm, LayerParams},
         indexing::{AlnIndex, AlnIndexRange, AlnIndexable, Begin, FirstResidue, IndexRangeInner, LastResidue},
-        modules::{PrecomputedDomainModule, PrecomputedLocalModule, SemiLocalModule},
         nonempty_vec::NonEmptyVec,
     },
     data::ByteIndexMap,
@@ -249,21 +247,3 @@ impl InfallibleLayerIdx for LastResidue {
         layers.last_mut()
     }
 }
-
-/// A trait providing an extension of [`AlnIndexable`] specifically for pHMMs.
-pub trait PhmmLen: AlnIndexable {
-    /// Returns the number of pseudo-match states in the pHMM, which includes
-    /// both match states with emissions as well as the BEGIN and END states.
-    fn num_pseudomatch(&self) -> usize {
-        self.seq_len() + 2
-    }
-}
-
-impl<T, const S: usize> PhmmLen for CorePhmm<T, S> {}
-impl<T, const S: usize> PhmmLen for GlobalPhmm<T, S> {}
-impl<T, const S: usize> PhmmLen for LocalPhmm<T, S> {}
-impl<T, const S: usize> PhmmLen for SemiLocalPhmm<T, S> {}
-impl<T, const S: usize> PhmmLen for DomainPhmm<T, S> {}
-impl<T> PhmmLen for SemiLocalModule<T> {}
-impl<T, const S: usize> PhmmLen for PrecomputedLocalModule<'_, T, S> {}
-impl<T, const S: usize> PhmmLen for PrecomputedDomainModule<T, S> {}

@@ -1,41 +1,9 @@
-//! Structs and traits to enable more readable/correct indexing into
-//! pHMM-related data structures.
-
-use crate::alignment::phmm::{
-    DomainPhmm, GlobalPhmm, LocalPhmm, SemiLocalPhmm,
-    components::CorePhmm,
-    indexing::{GetCore, GetLayer},
-    modules::{PrecomputedDomainModule, PrecomputedLocalModule, SemiLocalModule},
-};
 use std::{
     cmp::Ordering,
-    ops::{Add, AddAssign, Range},
+    ops::{Add, AddAssign},
 };
 
-/// A trait for structures that can be indexed via a [`AlnIndex`], such as byte
-/// sequences, pHMMs, and modules.
-///
-/// [`AlnIndex`]: crate::alignment::phmm::indexing::AlnIndex
-pub trait AlnIndexable {
-    /// Returns the length of the query or reference sequence corresponding to
-    /// the structure.
-    #[must_use]
-    fn seq_len(&self) -> usize;
-}
-
-impl<P: AlnIndexable> AlnIndexable for &P {
-    #[inline]
-    fn seq_len(&self) -> usize {
-        P::seq_len(self)
-    }
-}
-
-impl<P: AlnIndexable> AlnIndexable for &mut P {
-    #[inline]
-    fn seq_len(&self) -> usize {
-        P::seq_len(self)
-    }
-}
+use crate::alignment::phmm::indexing::AlnIndexable;
 
 /// A trait representing different ways to index into sequence data associated
 /// with a dynamic programming alignment algorithm.
@@ -156,78 +124,6 @@ pub struct LastResidue;
 /// pHMM, and also occurs as an exclusive end bound on ranges.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
 pub struct End;
-
-impl<T, const S: usize> AlnIndexable for CorePhmm<T, S> {
-    #[inline]
-    fn seq_len(&self) -> usize {
-        // The END state does not have an index in the CorePhmm, so we subtract
-        // one just for the BEGIN state
-        self.layers().len() - 1
-    }
-}
-
-impl<T, const S: usize> AlnIndexable for GlobalPhmm<T, S> {
-    #[inline]
-    fn seq_len(&self) -> usize {
-        self.core().seq_len()
-    }
-}
-
-impl<T, const S: usize> AlnIndexable for LocalPhmm<T, S> {
-    #[inline]
-    fn seq_len(&self) -> usize {
-        self.core().seq_len()
-    }
-}
-
-impl<T, const S: usize> AlnIndexable for SemiLocalPhmm<T, S> {
-    #[inline]
-    fn seq_len(&self) -> usize {
-        self.core().seq_len()
-    }
-}
-
-impl<T, const S: usize> AlnIndexable for DomainPhmm<T, S> {
-    #[inline]
-    fn seq_len(&self) -> usize {
-        self.core().seq_len()
-    }
-}
-
-impl<T> AlnIndexable for SemiLocalModule<T> {
-    #[inline]
-    fn seq_len(&self) -> usize {
-        self.0.len() - 2
-    }
-}
-
-impl<T, const S: usize> AlnIndexable for PrecomputedLocalModule<'_, T, S> {
-    #[inline]
-    fn seq_len(&self) -> usize {
-        self.semilocal_params.seq_len()
-    }
-}
-
-impl<T, const S: usize> AlnIndexable for PrecomputedDomainModule<T, S> {
-    #[inline]
-    fn seq_len(&self) -> usize {
-        self.0.len() - 1
-    }
-}
-
-impl AlnIndexable for [u8] {
-    #[inline]
-    fn seq_len(&self) -> usize {
-        self.len()
-    }
-}
-
-impl AlnIndexable for &[u8] {
-    #[inline]
-    fn seq_len(&self) -> usize {
-        self.len()
-    }
-}
 
 impl AlnIndex for DpIndex {
     fn to_dp_index<Q>(self, _seq: &Q) -> DpIndex
@@ -476,15 +372,5 @@ impl AddAssign<usize> for DpIndex {
 impl AddAssign<usize> for SeqIndex {
     fn add_assign(&mut self, rhs: usize) {
         self.0 += rhs;
-    }
-}
-
-pub struct DpIndexRange(Range<usize>);
-
-impl Iterator for DpIndexRange {
-    type Item = DpIndex;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(DpIndex)
     }
 }
