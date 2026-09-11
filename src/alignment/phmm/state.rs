@@ -7,7 +7,10 @@
 //!     crate::alignment::phmm::models::components::TransitionParams
 
 use crate::alignment::phmm::PhmmNumber;
-use std::fmt::Display;
+use std::{
+    fmt::Display,
+    ops::{Index, IndexMut},
+};
 
 /// An enum representing the three states within each layer of a pHMM.
 ///
@@ -303,4 +306,92 @@ pub(crate) fn best_state_or_enter<T: PhmmNumber>(
     }
 
     (argmin, min)
+}
+
+/// An array of three values corresponding to the variants of [`PhmmState`],
+/// indexed by [`PhmmState`].
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub struct PhmmStateArr<T>(pub(crate) [T; 3]);
+
+impl<T> PhmmStateArr<T> {
+    /// Returns the values zipped with their corresponding [`PhmmState`].
+    pub fn zip_states(self) -> [(PhmmState, T); 3] {
+        let [match_val, delete_val, insert_val] = self.0;
+
+        [
+            (PhmmState::Match, match_val),
+            (PhmmState::Delete, delete_val),
+            (PhmmState::Insert, insert_val),
+        ]
+    }
+
+    /// Maps the values in the array using `f`.
+    pub fn map<F, U>(self, f: F) -> PhmmStateArr<U>
+    where
+        F: FnMut(T) -> U, {
+        PhmmStateArr(self.0.map(f))
+    }
+
+    /// Adds a value corresponding to a module (or entering/exiting the core
+    /// pHMM).
+    pub fn with_module_val(self, module_val: T) -> PhmmStateOrModuleArr<T> {
+        let [into_match, into_delete, into_insert] = self.0;
+        let vals = [into_match, into_delete, into_insert, module_val];
+        PhmmStateOrModuleArr(vals)
+    }
+}
+
+impl<T> Index<PhmmState> for PhmmStateArr<T> {
+    type Output = T;
+
+    fn index(&self, index: PhmmState) -> &Self::Output {
+        &self.0[index as usize]
+    }
+}
+
+impl<T> IndexMut<PhmmState> for PhmmStateArr<T> {
+    fn index_mut(&mut self, index: PhmmState) -> &mut Self::Output {
+        &mut self.0[index as usize]
+    }
+}
+
+/// An array of four values corresponding to the variants of
+/// [`PhmmStateOrModule`], indexed by [`PhmmStateOrModule`].
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+pub struct PhmmStateOrModuleArr<T>(pub(crate) [T; 4]);
+
+impl<T> PhmmStateOrModuleArr<T> {
+    /// Returns the values zipped with their corresponding
+    /// [`PhmmStateOrModule`].
+    pub fn zip_states(self) -> [(PhmmStateOrModule, T); 4] {
+        let [match_val, delete_val, insert_val, module_val] = self.0;
+
+        [
+            (PhmmStateOrModule::Match, match_val),
+            (PhmmStateOrModule::Delete, delete_val),
+            (PhmmStateOrModule::Insert, insert_val),
+            (PhmmStateOrModule::Module, module_val),
+        ]
+    }
+
+    /// Maps the values in the array using `f`.
+    pub fn map<F, U>(self, f: F) -> PhmmStateOrModuleArr<U>
+    where
+        F: FnMut(T) -> U, {
+        PhmmStateOrModuleArr(self.0.map(f))
+    }
+}
+
+impl<T> Index<PhmmStateOrModule> for PhmmStateOrModuleArr<T> {
+    type Output = T;
+
+    fn index(&self, index: PhmmStateOrModule) -> &Self::Output {
+        &self.0[index as usize]
+    }
+}
+
+impl<T> IndexMut<PhmmStateOrModule> for PhmmStateOrModuleArr<T> {
+    fn index_mut(&mut self, index: PhmmStateOrModule) -> &mut Self::Output {
+        &mut self.0[index as usize]
+    }
 }

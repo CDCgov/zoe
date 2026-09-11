@@ -2,7 +2,7 @@ use crate::{
     alignment::phmm::{
         InvalidModelError, PhmmNumber,
         indexing::DpIndex,
-        state::{PhmmState, PhmmStateOrExit, PhmmStateOrModule},
+        state::{PhmmState, PhmmStateArr, PhmmStateOrExit, PhmmStateOrModuleArr},
         traverse::{EndInsert, EndInsertExit, ModuleLocation},
     },
     data::ByteIndexMap,
@@ -97,11 +97,8 @@ where
     L: Copy,
 {
     /// A helper function to build an array of [`LabeledParam`]
-    fn new_arr<const N: usize>(labels: [L; N], params: [T; N]) -> [LabeledParam<T, L>; N] {
-        std::array::from_fn(|i| LabeledParam {
-            label: labels[i],
-            param: params[i],
-        })
+    fn new_arr<const N: usize>(vals: [(L, T); N]) -> [LabeledParam<T, L>; N] {
+        vals.map(|(label, param)| LabeledParam { label, param })
     }
 }
 
@@ -112,9 +109,9 @@ where
     /// Creates a new [`ParamSamplingError`] for sampling a [`PhmmState`].
     ///
     /// The parameters should be in the same order as [`PhmmState::VARIANTS`].
-    pub(crate) fn new_state(e: WeightError, params: [T; 3]) -> Self {
+    pub(crate) fn new_state(e: WeightError, params: PhmmStateArr<T>) -> Self {
         let source = ParamWeightError::from(e);
-        let params = LabeledParam::new_arr(PhmmState::VARIANTS, params);
+        let params = LabeledParam::new_arr(params.zip_states());
         Self { source, params }
     }
 }
@@ -129,9 +126,9 @@ where
     /// The parameters should be in the same order as
     /// [`PhmmStateOrModule::VARIANTS`], with exiting to the module being the
     /// last parameter.
-    pub(crate) fn new_state_or_exit(e: WeightError, params: [T; 4]) -> Self {
+    pub(crate) fn new_state_or_exit(e: WeightError, params: PhmmStateOrModuleArr<T>) -> Self {
         let source = ParamWeightError::from(e);
-        let params = LabeledParam::new_arr(PhmmStateOrModule::VARIANTS.map(PhmmStateOrModule::display_exit), params);
+        let params = LabeledParam::new_arr(params.zip_states().map(|(label, param)| (label.display_exit(), param)));
         Self { source, params }
     }
 }
@@ -144,7 +141,7 @@ where
     /// END state or the final insert state from the last layer.
     pub(crate) fn new_end_or_insert(e: WeightError, end_param: T, insert_param: T) -> Self {
         let source = ParamWeightError::from(e);
-        let params = LabeledParam::new_arr([EndInsert::End, EndInsert::Insert], [end_param, insert_param]);
+        let params = LabeledParam::new_arr([(EndInsert::End, end_param), (EndInsert::Insert, insert_param)]);
         Self { source, params }
     }
 }
@@ -158,10 +155,11 @@ where
     /// state.
     pub(crate) fn new_end_insert_or_exit(e: WeightError, end_param: T, insert_param: T, exit_param: T) -> Self {
         let source = ParamWeightError::from(e);
-        let params = LabeledParam::new_arr(
-            [EndInsertExit::End, EndInsertExit::Insert, EndInsertExit::Exit],
-            [end_param, insert_param, exit_param],
-        );
+        let params = LabeledParam::new_arr([
+            (EndInsertExit::End, end_param),
+            (EndInsertExit::Insert, insert_param),
+            (EndInsertExit::Exit, exit_param),
+        ]);
         Self { source, params }
     }
 }
@@ -176,7 +174,7 @@ where
     /// The parameters should be in the same order as `map.byte_keys()`.
     pub(crate) fn new_emission(e: WeightError, params: &[T; S], map: &ByteIndexMap<S>) -> Self {
         let source = ParamWeightError::from(e);
-        let params = LabeledParam::new_arr(map.byte_keys().map(|byte| byte as char), *params);
+        let params = LabeledParam::new_arr(std::array::from_fn(|i| (map.byte_keys()[i] as char, params[i])));
         Self { source, params }
     }
 }
@@ -223,8 +221,8 @@ where
     /// Creates a new [`ParamTrapError`] for sampling a [`PhmmState`].
     ///
     /// The parameters should be in the same order as [`PhmmState::VARIANTS`].
-    pub(crate) fn new_state(params: [T; 3]) -> Self {
-        let params = LabeledParam::new_arr(PhmmState::VARIANTS, params);
+    pub(crate) fn new_state(params: PhmmStateArr<T>) -> Self {
+        let params = LabeledParam::new_arr(params.zip_states());
         Self { params }
     }
 }
@@ -236,7 +234,7 @@ where
     /// Creates a new [`ParamTrapError`] for sampling whether to enter an INSERT
     /// state or END state.
     pub(crate) fn new_end_or_insert(end_param: T, insert_param: T) -> Self {
-        let params = LabeledParam::new_arr([EndInsert::End, EndInsert::Insert], [end_param, insert_param]);
+        let params = LabeledParam::new_arr([(EndInsert::End, end_param), (EndInsert::Insert, insert_param)]);
         Self { params }
     }
 }

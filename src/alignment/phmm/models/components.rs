@@ -4,7 +4,7 @@ use crate::alignment::phmm::{
     InvalidModelError, PhmmNumber,
     indexing::{GetLayer, GetLayerMut},
     nonempty_vec::NonEmptyVec,
-    state::PhmmState,
+    state::{PhmmState, PhmmStateArr},
 };
 use std::ops::{Index, IndexMut};
 
@@ -32,42 +32,20 @@ impl<T: Copy> TransitionParams<T> {
     /// and moving to the next layer.
     #[inline]
     #[must_use]
-    #[allow(dead_code)]
-    pub fn exiting_params(&self, state: PhmmState) -> [T; 3] {
-        [
+    pub fn exiting_params(&self, state: PhmmState) -> PhmmStateArr<T> {
+        PhmmStateArr([
             self[(state, PhmmState::Match)],
             self[(state, PhmmState::Delete)],
             self[(state, PhmmState::Insert)],
-        ]
+        ])
     }
 
     /// Retrieves an array containing the three parameters for entering `state`
     /// from the previous layer.
     #[inline]
     #[must_use]
-    #[allow(dead_code)]
-    pub fn entering_params(&self, state: PhmmState) -> [T; 3] {
-        self[state]
-    }
-
-    /// Retrieves the inner array from the [`TransitionParams`]. The layout of
-    /// this array is subject to change. Consider indexing directly into the
-    /// [`TransitionParams`] instead.
-    #[inline]
-    #[must_use]
-    #[cfg(feature = "dev-phmm-regression")]
-    pub fn as_array(&self) -> &[[T; 3]; 3] {
-        &self.0
-    }
-
-    /// Constructs a [`TransitionParams`] from an array. The interpretation of
-    /// this array is subject to change. Consider using [`Default`] and then
-    /// mutating each entry.
-    #[inline]
-    #[must_use]
-    #[cfg(feature = "dev-phmm-regression")]
-    pub fn from_array(arr: [[T; 3]; 3]) -> Self {
-        Self(arr)
+    pub fn entering_params(&self, state: PhmmState) -> PhmmStateArr<T> {
+        PhmmStateArr(self.0[state as usize])
     }
 }
 
@@ -98,27 +76,6 @@ impl<T> IndexMut<(PhmmState, PhmmState)> for TransitionParams<T> {
     #[inline]
     fn index_mut(&mut self, index: (PhmmState, PhmmState)) -> &mut Self::Output {
         &mut self.0[index.1 as usize][index.0 as usize]
-    }
-}
-
-impl<T> Index<PhmmState> for TransitionParams<T> {
-    type Output = [T; 3];
-
-    /// Retrieves the transition parameters for moving into state `index` from
-    /// the match, delete, and insert states respectively.
-    #[inline]
-    fn index(&self, index: PhmmState) -> &Self::Output {
-        &self.0[index as usize]
-    }
-}
-
-impl<T> IndexMut<PhmmState> for TransitionParams<T> {
-    /// Retrieves a mutable reference to the transition parameters for moving
-    /// into state `index` from the match, delete, and insert states
-    /// respectively.
-    #[inline]
-    fn index_mut(&mut self, index: PhmmState) -> &mut Self::Output {
-        &mut self.0[index as usize]
     }
 }
 

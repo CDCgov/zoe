@@ -101,11 +101,7 @@ where
         let params = params.exiting_params(exiting);
 
         // Check for ParamTrapError
-        if exiting == Insert
-            && params[Match as usize] == T::INFINITY
-            && params[Delete as usize] == T::INFINITY
-            && params[Insert as usize] > T::ZERO
-        {
+        if exiting == Insert && params[Match] == T::INFINITY && params[Delete] == T::INFINITY && params[Insert] > T::ZERO {
             return Err(LayerSamplingError {
                 kind: SamplingLayerErrorKind::FromState(SampleFromStateError {
                     kind: SampleFromStateErrorKind::State(ParamTrapError::new_state(params).into()),
@@ -120,18 +116,16 @@ where
 
         // If needed, disallow transition into the INSERT state
         if self.ins_len == MAX_INS_LEN {
-            probs[Insert as usize] = 0.0;
+            probs[Insert] = 0.0;
         }
 
-        let idx = sample_one_weighted(self.rng, &probs).map_err(|e| LayerSamplingError {
+        let state = probs.sample(self.rng).map_err(|e| LayerSamplingError {
             kind: SamplingLayerErrorKind::FromState(SampleFromStateError {
                 kind: SampleFromStateErrorKind::State(ParamSamplingError::new_state(e, params).into()),
                 exiting,
             }),
             layer,
         })?;
-
-        let state = PhmmState::VARIANTS[idx];
 
         // Update ins_len
         if state == PhmmState::Insert {
@@ -210,10 +204,9 @@ where
     ) -> Result<PhmmStateOrModule, SamplingError<T, S>>
     where
         T: PhmmNumber, {
-        let [into_match, into_delete, into_insert] = params.exiting_params(PhmmState::Match);
-        let params = [into_match, into_delete, into_insert, exit_param];
+        let params = params.exiting_params(PhmmState::Match).with_module_val(exit_param);
         let probs = params.map(PhmmNumber::to_prob::<f64>);
-        let idx = sample_one_weighted(self.rng, &probs).map_err(|e| {
+        let state = probs.sample(self.rng).map_err(|e| {
             SamplingError::Layer(LayerSamplingError {
                 kind: SamplingLayerErrorKind::FromState(SampleFromStateError {
                     kind:    SampleFromStateErrorKind::StateOrExit(ParamSamplingError::new_state_or_exit(e, params)),
@@ -222,8 +215,6 @@ where
                 layer,
             })
         })?;
-
-        let state = PhmmStateOrModule::VARIANTS[idx];
 
         match state {
             PhmmStateOrModule::Match => self.states.add_state(b'M'),

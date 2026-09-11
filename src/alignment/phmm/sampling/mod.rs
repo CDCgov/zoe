@@ -1,20 +1,61 @@
 //! Implementations for sampling sequences/alignments probabilistically from
 //! pHMMs.
 
-use crate::alignment::{
-    Alignment,
-    phmm::{
-        DomainPhmm, GlobalPhmm, LocalPhmm, PhmmNumber, SemiLocalPhmm,
-        traverse::score_from_path::{ScoreVisitor, WithScore},
+use crate::{
+    alignment::{
+        Alignment,
+        phmm::{
+            DomainPhmm, GlobalPhmm, LocalPhmm, PhmmNumber, SemiLocalPhmm,
+            state::{PhmmState, PhmmStateArr, PhmmStateOrModule, PhmmStateOrModuleArr},
+            traverse::score_from_path::{ScoreVisitor, WithScore},
+        },
+    },
+    math::sample_one_weighted,
+};
+use rand::{
+    Rng,
+    distr::{
+        uniform::SampleUniform,
+        weighted::{Error, Weight},
     },
 };
-use rand::Rng;
 
 mod error;
 mod visitor;
 
 pub use error::*;
 pub use visitor::*;
+
+impl<X> PhmmStateArr<X> {
+    /// Samples a state from the [`PhmmStateArr`], using the values as weights.
+    ///
+    /// ## Errors
+    ///
+    /// See [`sample_one_weighted`].
+    pub fn sample<R>(&self, rng: &mut R) -> Result<PhmmState, Error>
+    where
+        X: Weight + SampleUniform + PartialOrd,
+        R: Rng + ?Sized, {
+        let idx = sample_one_weighted(rng, &self.0)?;
+        Ok(PhmmState::VARIANTS[idx])
+    }
+}
+
+impl<X> PhmmStateOrModuleArr<X> {
+    /// Samples a state from the [`PhmmStateOrModuleArr`], using the values as
+    /// weights.
+    ///
+    /// ## Errors
+    ///
+    /// See [`sample_one_weighted`].
+    pub fn sample<R>(&self, rng: &mut R) -> Result<PhmmStateOrModule, Error>
+    where
+        X: Weight + SampleUniform + PartialOrd,
+        R: Rng + ?Sized, {
+        let idx = sample_one_weighted(rng, &self.0)?;
+        Ok(PhmmStateOrModule::VARIANTS[idx])
+    }
+}
 
 /// A pHMM-sampled sequence alongside its alignment information.
 #[derive(Debug)]

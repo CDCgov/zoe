@@ -298,14 +298,16 @@ trait SamHmmConfig<const S: usize, const L: usize> {
         let mut current_layer = LayerParams::<T, S>::default();
 
         write!(writer, "0 ")?;
-        current_layer.transition[Insert] = first_layer.transition[Insert];
+        // Copy all parameters entering Insert state, via a concise/efficient
+        // method
+        current_layer.transition.0[Insert as usize] = first_layer.transition.0[Insert as usize];
         current_layer.emission_insert = first_layer.emission_insert.clone();
         print_params(&mut writer, Self::ungroup_params(&current_layer))?;
         current_layer = first_layer.clone();
 
         for (i, layer) in (1..).zip(rest.iter()) {
             write!(writer, "{i} ")?;
-            current_layer.transition[Insert] = layer.transition[Insert];
+            current_layer.transition.0[Insert as usize] = layer.transition.0[Insert as usize];
             current_layer.emission_insert = layer.emission_insert.clone();
             print_params(&mut writer, Self::ungroup_params(&current_layer))?;
             current_layer = layer.clone();
@@ -315,7 +317,7 @@ trait SamHmmConfig<const S: usize, const L: usize> {
 
         // Clear the parameters that were taken from layer in the above loop, so
         // that they are 0 (and do not appear duplicated in the file output)
-        current_layer.transition[Insert] = [T::INFINITY; 3];
+        current_layer.transition.0[Insert as usize] = [T::INFINITY; 3];
         current_layer.emission_insert = EmissionParams::default();
 
         print_params(&mut writer, Self::ungroup_params(&current_layer))?;

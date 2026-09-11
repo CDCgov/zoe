@@ -59,10 +59,6 @@ dev-phmm = []
 # An optional feature enabling the max_score_for_int_type diagnostic function
 dev-max-score-for-type = []
 
-# An optional feature exposing additional accessors and constructors to support
-# regression testing of pHMMs
-dev-phmm-regression = []
-
 # An optional feature enabling a FASTA record generic over the sequence type
 dev-generic-fasta = []
 
