@@ -1,13 +1,15 @@
 use super::*;
+use crate::data::err::ResultWithErrorContext;
+use std::str::FromStr;
 
-impl std::fmt::Display for SamData {
+impl Display for SamData {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         self.as_view().fmt(f)
     }
 }
 
-impl std::fmt::Display for SamDataView<'_> {
+impl Display for SamDataView<'_> {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let SamDataView {
@@ -56,7 +58,7 @@ impl std::fmt::Display for SamDataView<'_> {
 }
 
 #[allow(deprecated)]
-impl std::fmt::Display for SamDataViewMut<'_> {
+impl Display for SamDataViewMut<'_> {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         self.as_view().fmt(f)
@@ -100,5 +102,23 @@ impl OptArray {
         }
 
         Ok(())
+    }
+}
+
+impl FromStr for SamOptField {
+    type Err = std::io::Error;
+
+    fn from_str(field: &str) -> Result<Self, Self::Err> {
+        let inv_opt_err_msg = || std::io::Error::other(format!("Invalid optional field {field}"));
+
+        let (tag_text, rest) = field.split_once(':').ok_or_else(inv_opt_err_msg)?;
+        let (type_text, string_value) = rest.split_once(':').ok_or_else(inv_opt_err_msg)?;
+
+        let tag = SamOptField::parse_tag(tag_text)?;
+        let type_code = SamOptField::parse_type(type_text)?;
+        let opt_field = SamOptField::parse_value(tag, type_code, string_value)
+            .with_context(format!("Failed to parse field '{field}'"))?;
+
+        Ok(opt_field)
     }
 }

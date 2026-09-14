@@ -22,6 +22,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added traits for retrieving or splitting off annotations from record headers
 - Added `OrFail::unwrap_or_exit` for exiting with an explicit application-selected
   error code
+- `SamOptField` now implements `FromStr`
 
 ### Changed
 

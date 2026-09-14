@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, str::FromStr};
 
 use crate::{data::err::ResultWithErrorContext, iter_utils::ProcessResultsExt, math::AnyInt, prelude::*};
 
@@ -144,18 +144,7 @@ impl SamOptRawView<'_> {
     /// or `B`. `VALUE` must successfully parse into the corresponding type.
     #[inline]
     pub fn iter(self) -> impl Iterator<Item = std::io::Result<SamOptField>> {
-        self.0.iter().map(|field| {
-            let inv_opt_err_msg = || std::io::Error::other(format!("Invalid optional field {field}"));
-
-            let (tag_text, rest) = field.split_once(':').ok_or_else(inv_opt_err_msg)?;
-            let (type_text, string_value) = rest.split_once(':').ok_or_else(inv_opt_err_msg)?;
-
-            let tag = SamOptField::parse_tag(tag_text)?;
-            let type_code = SamOptField::parse_type(type_text)?;
-            let opt_field = SamOptField::parse_value(tag, type_code, string_value)
-                .with_context(format!("Failed to parse field '{field}'"))?;
-            Ok(opt_field)
-        })
+        self.0.iter().map(|f| SamOptField::from_str(f))
     }
 
     /// Provides an iterator over the raw, unparsed optional fields present.
@@ -256,7 +245,7 @@ pub struct SamOptField {
 
 impl SamOptField {
     /// Parses the tag for the optional SAM field from a string slice.
-    fn parse_tag(tag: &str) -> std::io::Result<[u8; 2]> {
+    pub(super) fn parse_tag(tag: &str) -> std::io::Result<[u8; 2]> {
         let bytes = tag.as_bytes();
         if bytes.len() != 2 || !bytes[0].is_ascii_alphabetic() || !bytes[1].is_ascii_alphanumeric() {
             return Err(std::io::Error::other(format!("Invalid SAM optional tag: {tag}")));
@@ -265,7 +254,7 @@ impl SamOptField {
     }
 
     /// Parses the type for the optional SAM field from a string slice.
-    fn parse_type(type_text: &str) -> std::io::Result<char> {
+    pub(super) fn parse_type(type_text: &str) -> std::io::Result<char> {
         let mut type_chars = type_text.chars();
         let Some(typ) = type_chars.next() else {
             return Err(std::io::Error::other("Missing optional field type"));
@@ -284,7 +273,7 @@ impl SamOptField {
     /// `type_code` must contain a valid character (`A`, `i`, `f`, `Z`, `H`, or
     /// `B`). The `string_value` must successfully parse into the corresponding
     /// type.
-    fn parse_value(tag: [u8; 2], type_code: char, string_value: &str) -> std::io::Result<SamOptField> {
+    pub(super) fn parse_value(tag: [u8; 2], type_code: char, string_value: &str) -> std::io::Result<SamOptField> {
         match type_code {
             'A' => {
                 let mut chars = string_value.chars();
