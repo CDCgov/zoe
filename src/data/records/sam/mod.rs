@@ -13,12 +13,14 @@ use crate::{
 };
 use std::hash::Hash;
 
+mod get_sam_fields;
 mod optional_fields;
 mod reader;
 mod sort_traits;
 mod std_traits;
 mod view_traits;
 
+pub use get_sam_fields::*;
 pub use optional_fields::*;
 pub use reader::*;
 pub use sort_traits::SamDataSort;

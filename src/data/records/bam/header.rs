@@ -74,13 +74,17 @@ impl Header {
 
     /// Returns the BAM reference ID associated with a SAM reference name.
     ///
-    /// The SAM sentinel `*` is translated to BAM's `-1` unmapped reference ID.
-    /// An empty `rname` returns an error.
-    pub(super) fn get_ref_id(&self, rname: &str) -> Result<i32, BamRecordError> {
+    /// The SAM sentinel `*` (or `None`) is translated to BAM's `-1` unmapped
+    /// reference ID. An empty `rname` returns an error.
+    pub(super) fn get_ref_id(&self, mut rname: Option<&str>) -> Result<i32, BamRecordError> {
+        rname = rname.filter(|&rname| rname != "*");
+
+        let Some(rname) = rname else {
+            return Ok(-1);
+        };
+
         if rname.is_empty() {
             return Err(BamEncodingError::other("RNAME cannot be empty").into());
-        } else if rname == "*" {
-            return Ok(-1);
         }
 
         self.ref_to_id

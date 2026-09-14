@@ -9,18 +9,21 @@ use crate::{
             error::{BamEncodingError, BamRecordError, NumberSizeTarget},
         },
         cigar::{CigarError, ToCigletIterator},
-        nucleotides::Nucleotides,
-        phred::{QScoreInt, QualityScores, QualityScoresView},
-        sam::{OptArray, SamOptField, SamOptRaw, SamOptValue},
+        nucleotides::NucleotidesView,
+        phred::{QScoreInt, QualityScoresView},
+        sam::{OptArray, SamOptField, SamOptValue, ToOptFieldsIterator},
         validation::CheckSequence,
         views::Len,
     },
+    iter_utils::ProcessResultsExt,
     search::ByteSubstring,
 };
-use std::collections::{HashMap, hash_map::Entry};
+use std::collections::{HashMap, HashSet, hash_map::Entry};
 
 /// Encodes a SAM `QNAME` as BAM's NUL-terminated read name field.
-pub(super) fn encode_read_name(qname: &str) -> Result<Vec<u8>, BamRecordError> {
+pub(super) fn encode_read_name(qname: Option<&str>) -> Result<Vec<u8>, BamRecordError> {
+    let qname = qname.unwrap_or("*");
+
     let qname_bytes = qname.as_bytes();
     if qname_bytes.is_empty()
         || !qname_bytes.is_graphic_simd::<{ DEFAULT_SIMD_LANES }>()
@@ -51,7 +54,7 @@ pub(super) fn encode_read_name(qname: &str) -> Result<Vec<u8>, BamRecordError> {
 /// encoded as `N`. Treating `U` as `T` is an intentional *Zoe* choice that
 /// deviates from the SAM/BAM spec; the spec's BAM sequence alphabet does not
 /// include a `U` code.
-pub(super) fn encode_seq(seq: Option<&Nucleotides>) -> Vec<u8> {
+pub(super) fn encode_seq(seq: Option<NucleotidesView>) -> Vec<u8> {
     /// Sequence byte index map: `=ACMGRSVTWYHKDBN` are mapped to `[0, 15]`. `N`
     /// is used as a catch-all for all other characters, and `U` is encoded as
     /// `T` as an intentional deviation from the BAM sequence alphabet. `=` is
@@ -78,9 +81,9 @@ pub(super) fn encode_seq(seq: Option<&Nucleotides>) -> Vec<u8> {
 /// Missing quality scores and nucleotides (`*` or empty) should be passed as
 /// `None`. Missing quality scores become `0xFF` repeated once per sequence
 /// base. BAM stores raw Phred scores, so the ASCII `+33` offset is removed.
-pub(super) fn encode_qual(qual: Option<&QualityScores>, seq: Option<&Nucleotides>) -> Result<Vec<u8>, BamRecordError> {
+pub(super) fn encode_qual(qual: Option<QualityScoresView>, seq: Option<NucleotidesView>) -> Result<Vec<u8>, BamRecordError> {
     let Some(qual) = qual else {
-        let len = seq.map_or(0, Len::len);
+        let len = seq.map_or(0, |s| s.len());
         return Ok(vec![0xFF; len]);
     };
 
@@ -191,22 +194,84 @@ pub(super) fn encode_cigar(
 /// When `cg_field` is present, the encoded output is extended with a `CG:B:I`
 /// field containing the full CIGAR for records that overflow BAM's inline
 /// `n_cigar_op` limit. The `CG` tag is reserved for long CIGARs.
-pub(super) fn encode_aux_fields(aux_fields: &SamOptRaw, cg_field: Option<&[u32]>) -> Result<Vec<u8>, BamRecordError> {
+///
+/// This function is optimized for the case where duplicate tags are not
+/// present, which is expected for a well-formed BAM file. If a duplicate tag is
+/// detected, the encoding restarts with the more-expensive
+/// [`encode_aux_fields_duplicates`] which must allocate all the values for the
+/// tags at once.
+pub(super) fn encode_aux_fields(
+    opt_fields: Option<impl ToOptFieldsIterator>, cg_field: Option<&[u32]>,
+) -> Result<Vec<u8>, BamRecordError> {
+    let mut seen_tags = HashSet::new();
     let mut out = Vec::new();
-    let mut seen_tags: HashMap<[u8; 2], usize> = HashMap::with_capacity(aux_fields.len());
-    let mut unique_fields: Vec<SamOptField> = Vec::with_capacity(aux_fields.len());
-    for field in aux_fields.iter() {
-        let field = field
-            .map_err(|source| BamEncodingError::other_with_source("SAM optional field cannot be encoded as BAM", source))?;
+
+    if let Some(opt_fields) = opt_fields {
+        for field in opt_fields.to_field_iter() {
+            let field = field
+                .map_err(|err| BamEncodingError::other_with_source("SAM optional field cannot be encoded as BAM", err))?;
+            let field = field.as_ref();
+
+            if &field.tag == b"CG" {
+                return Err(
+                    BamEncodingError::other("Auxiliary tag CG is reserved for encoder-generated long-CIGAR data").into(),
+                );
+            }
+
+            let is_unique_tag = seen_tags.insert(field.tag);
+            if !is_unique_tag {
+                return encode_aux_fields_duplicates(&opt_fields, cg_field);
+            }
+
+            encode_single_aux(field, &mut out)?;
+        }
+    }
+
+    if let Some(cigar) = cg_field {
+        out.extend_from_slice(b"CG");
+        out.push(b'B');
+        out.push(b'I');
+        out.extend_from_slice(
+            &u32::try_from(cigar.len())
+                .map_err(|_| BamEncodingError::SizeOverflow {
+                    field:  "CG array",
+                    target: NumberSizeTarget::MaxInclusive(u32::MAX as usize),
+                })?
+                .to_le_bytes(),
+        );
+        for cig in cigar {
+            out.extend_from_slice(&cig.to_le_bytes());
+        }
+    }
+
+    Ok(out)
+}
+
+fn encode_aux_fields_duplicates(
+    opt_fields: &impl ToOptFieldsIterator, cg_field: Option<&[u32]>,
+) -> Result<Vec<u8>, BamRecordError> {
+    // Collect, which involves a potentially unnecessary clone, hence why
+    // this is a fallback and not the default behavior
+    let mut aux_fields = opt_fields
+        .to_field_iter()
+        .process_results(|iter| iter.map(|f| f.as_ref().clone()).collect::<Vec<_>>())
+        .map_err(|err| BamEncodingError::other_with_source("SAM optional field cannot be encoded as BAM", err))?;
+
+    let mut out = Vec::new();
+
+    let mut first_idx_by_tag: HashMap<[u8; 2], usize> = HashMap::with_capacity(aux_fields.len());
+
+    for (idx, field) in aux_fields.iter().enumerate() {
         if &field.tag == b"CG" {
             return Err(
                 BamEncodingError::other("Auxiliary tag CG is reserved for encoder-generated long-CIGAR data").into(),
             );
         }
-        match seen_tags.entry(field.tag) {
+
+        match first_idx_by_tag.entry(field.tag) {
             Entry::Occupied(entry) => {
                 let field_idx = *entry.get();
-                if unique_fields[field_idx].value != field.value {
+                if aux_fields[field_idx].value != field.value {
                     return Err(BamEncodingError::other(format!(
                         "Conflicting duplicate auxiliary tag {}{}",
                         field.tag[0] as char, field.tag[1] as char
@@ -215,14 +280,21 @@ pub(super) fn encode_aux_fields(aux_fields: &SamOptRaw, cg_field: Option<&[u32]>
                 }
             }
             Entry::Vacant(entry) => {
-                entry.insert(unique_fields.len());
-                unique_fields.push(field);
+                entry.insert(idx);
             }
         }
     }
 
-    for field in &unique_fields {
-        encode_single_aux(field, &mut out)?;
+    let mut idx = 0;
+
+    aux_fields.retain(|field| {
+        let keep = first_idx_by_tag[&field.tag] == idx;
+        idx += 1;
+        keep
+    });
+
+    for field in aux_fields {
+        encode_single_aux(&field, &mut out)?;
     }
 
     if let Some(cigar) = cg_field {

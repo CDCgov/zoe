@@ -587,3 +587,62 @@ impl IntoIterator for SamOptRaw {
         }
     }
 }
+
+/// A trait unifying the different methods of storing optional SAM fields,
+/// providing a method for iterating over the fields.
+pub trait ToOptFieldsIterator {
+    /// Returns an iterator over the optional SAM fields.
+    ///
+    /// This can be implemented on infallible iterators by using `.map(Ok)`. The
+    /// iterator may return owned [`SamOptField`] or references.
+    fn to_field_iter(&self) -> impl Iterator<Item = std::io::Result<impl AsRef<SamOptField>>>;
+}
+
+impl ToOptFieldsIterator for SamOptRaw {
+    #[inline]
+    fn to_field_iter(&self) -> impl Iterator<Item = std::io::Result<impl AsRef<SamOptField>>> {
+        self.iter()
+    }
+}
+
+impl ToOptFieldsIterator for &SamOptRaw {
+    #[inline]
+    fn to_field_iter(&self) -> impl Iterator<Item = std::io::Result<impl AsRef<SamOptField>>> {
+        self.iter()
+    }
+}
+
+impl ToOptFieldsIterator for SamOptRawView<'_> {
+    #[inline]
+    fn to_field_iter(&self) -> impl Iterator<Item = std::io::Result<impl AsRef<SamOptField>>> {
+        self.iter()
+    }
+}
+
+impl ToOptFieldsIterator for Vec<SamOptField> {
+    #[inline]
+    fn to_field_iter(&self) -> impl Iterator<Item = std::io::Result<impl AsRef<SamOptField>>> {
+        self.iter().map(Ok)
+    }
+}
+
+impl ToOptFieldsIterator for &Vec<SamOptField> {
+    #[inline]
+    fn to_field_iter(&self) -> impl Iterator<Item = std::io::Result<impl AsRef<SamOptField>>> {
+        self.iter().map(Ok)
+    }
+}
+
+impl ToOptFieldsIterator for &[SamOptField] {
+    #[inline]
+    fn to_field_iter(&self) -> impl Iterator<Item = std::io::Result<impl AsRef<SamOptField>>> {
+        self.iter().map(Ok)
+    }
+}
+
+impl<const N: usize> ToOptFieldsIterator for [SamOptField; N] {
+    #[inline]
+    fn to_field_iter(&self) -> impl Iterator<Item = std::io::Result<impl AsRef<SamOptField>>> {
+        self.iter().map(Ok)
+    }
+}

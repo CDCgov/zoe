@@ -7,7 +7,7 @@
 use crate::data::{
     bam::{encoder::PreparedBamRecord, error::BamError, header::Header, writer::bgzf::BgzfWriter},
     err::ResultWithErrorContext,
-    sam::SamData,
+    sam::GetSamFields,
 };
 use std::{
     io::Write,
@@ -214,14 +214,14 @@ impl<W: Write, C: BlockCompressor> BamWriter<W, C> {
     ///   BAM file format specs.
     ///
     /// [`write_header_line`]: BamWriter::write_header_line
-    pub fn write_record(&mut self, record: &SamData) -> Result<(), BamError> {
+    pub fn write_record(&mut self, record: impl GetSamFields) -> Result<(), BamError> {
         if self.bgzf.is_none() {
             return Err(BamError::WriterFinalized);
         }
 
-        let prepared_record = PreparedBamRecord::new(&self.header, record)
-            .map_err(|source| BamError::record(record.qname.as_str(), source))?;
-        let encoded_record = prepared_record.encode(&record.qname)?;
+        let prepared_record =
+            PreparedBamRecord::new(&self.header, &record).map_err(|source| BamError::record(record.qname(), source))?;
+        let encoded_record = prepared_record.encode(record.qname())?;
 
         let mut bgzf = self.bgzf.take().ok_or(BamError::WriterFinalized)?;
         self.write_header_if_pending(&mut bgzf)?;

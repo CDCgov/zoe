@@ -138,3 +138,9 @@ impl FromStr for SamOptField {
         Ok(opt_field)
     }
 }
+
+impl AsRef<SamOptField> for SamOptField {
+    fn as_ref(&self) -> &SamOptField {
+        self
+    }
+}

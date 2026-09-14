@@ -14,7 +14,8 @@ use crate::data::{
         error::{BamEncodingError, BamError, BamRecordError, NumberSizeTarget},
         header::Header,
     },
-    sam::{SamData, is_missing_sam_field},
+    cigar::ToCigletIterator,
+    sam::{GetSamFields, is_missing_sam_field},
     views::Len,
 };
 
@@ -67,19 +68,21 @@ impl PreparedBamRecord {
     /// CIGAR or auxiliary fields cannot be parsed, if an option field contains
     /// the reserved long CIGAR `CG` tag, or if any encoded field would overflow
     /// BAM's size limits.
-    pub(super) fn new(header: &Header, data: &SamData) -> Result<Self, BamRecordError> {
+    pub(super) fn new(header: &Header, data: impl GetSamFields) -> Result<Self, BamRecordError> {
         /// The maximum inclusive position allowed by the SAM file format.
         const MAX_SAM_POS: usize = i32::MAX as usize;
 
-        let seq = Some(&data.seq).filter(|s| !is_missing_sam_field(s));
-        let qual = Some(&data.qual).filter(|q| !is_missing_sam_field(q));
-        let cigar = Some(&data.cigar).filter(|c| !is_missing_sam_field(c.as_bytes()));
+        let seq = data.seq().filter(|s| !is_missing_sam_field(s));
+        let qual = data.qual().filter(|q| !is_missing_sam_field(q));
+        let cigar = data.cigar().filter(|c| c.to_ciglet_iterator_checked().next().is_some());
 
-        let ref_id = header.get_ref_id(&data.rname)?;
+        let ref_id = header.get_ref_id(data.rname())?;
+        let pos = data.pos().unwrap_or(0);
+
         // 0-indexed
-        let pos0 = match data.pos {
+        let pos0 = match pos {
             0 => -1,
-            1..=MAX_SAM_POS => i32::try_from(data.pos - 1).expect("range validated"),
+            1..=MAX_SAM_POS => i32::try_from(pos - 1).expect("range validated"),
             _ => {
                 return Err(BamEncodingError::SizeOverflow {
                     field:  "SAM POS",
@@ -89,10 +92,10 @@ impl PreparedBamRecord {
             }
         };
 
-        let read_name = encode_read_name(&data.qname)?;
+        let read_name = encode_read_name(data.qname())?;
         let encoded_seq = encode_seq(seq);
         let encoded_qual = encode_qual(qual, seq)?;
-        let (encoded_cigar, spans) = encode_cigar(cigar)?;
+        let (encoded_cigar, spans) = encode_cigar(cigar.as_ref())?;
 
         if let Some(spans) = &spans
             && let Some(seq) = seq
@@ -106,7 +109,7 @@ impl PreparedBamRecord {
             .into());
         }
 
-        let flag = normalize_flags(data.flag, cigar.is_none());
+        let flag = normalize_flags(data.flag(), cigar.is_none());
 
         let l_seq = seq.map_or(Ok(0), |seq| {
             u32::try_from(seq.len()).map_err(|_| BamEncodingError::SizeOverflow {
@@ -136,13 +139,13 @@ impl PreparedBamRecord {
                 .into());
             }
 
-            let aux = encode_aux_fields(&data.opt_fields, Some(&encoded_cigar))?;
+            let aux = encode_aux_fields(data.opt_fields(), Some(&encoded_cigar))?;
             let cigar_field = vec![(l_seq << 4) | 4, (spans.ref_span << 4) | 3];
             let n_cigar_op = 2;
 
             (aux, cigar_field, n_cigar_op)
         } else {
-            let aux = encode_aux_fields(&data.opt_fields, None)?;
+            let aux = encode_aux_fields(data.opt_fields(), None)?;
             let n_cigar_op = u16::try_from(encoded_cigar.len()).map_err(|_| BamEncodingError::SizeOverflow {
                 field:  "number of CIGAR ops",
                 target: NumberSizeTarget::MaxInclusive(u16::MAX as usize),
@@ -156,7 +159,7 @@ impl PreparedBamRecord {
         Ok(Self {
             ref_id,
             pos0,
-            mapq: data.mapq,
+            mapq: data.mapq().unwrap_or(255),
             bin,
             n_cigar_op,
             flag,
@@ -178,7 +181,7 @@ impl PreparedBamRecord {
     ///
     /// Returns an error if the total block size overflows BAM's representable
     /// limits.
-    pub(super) fn encode(&self, qname: &str) -> Result<Vec<u8>, BamError> {
+    pub(super) fn encode(&self, qname: Option<&str>) -> Result<Vec<u8>, BamError> {
         /// Placeholder mate reference ID written because *Zoe* does not
         /// currently preserve SAM `RNEXT`.
         const RNEXT: i32 = -1;
@@ -272,8 +275,10 @@ impl PreparedBamRecord {
 /// Unsupported or mate-dependent bits are cleared, and records with an empty
 /// CIGAR are marked as unmapped so the serialized BAM flag is consistent with
 /// *Zoe*'s treatment of empty-CIGAR records.
-fn normalize_flags(flag: u16, cigar_is_missing: bool) -> u16 {
-    let mut flag = filter_unsupported_flags(flag);
+fn normalize_flags(flag: Option<u16>, cigar_is_missing: bool) -> u16 {
+    let mut flag = flag.unwrap_or_default();
+
+    flag = filter_unsupported_flags(flag);
 
     if cigar_is_missing {
         flag |= READ_UNMAPPED;

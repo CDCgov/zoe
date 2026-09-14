@@ -143,7 +143,7 @@ impl<'a> TryFrom<&'a [u8]> for CigarView<'a> {
 
     fn try_from(bytes: &'a [u8]) -> Result<Self, Self::Error> {
         Cigar::check_for_err(bytes)?;
-        Ok(CigarView(bytes))
+        Ok(CigarView::from_slice_unchecked(bytes))
     }
 }
 
@@ -151,8 +151,7 @@ impl<'a> TryFrom<&'a mut [u8]> for CigarView<'a> {
     type Error = CigarError;
 
     fn try_from(bytes: &'a mut [u8]) -> Result<Self, Self::Error> {
-        Cigar::check_for_err(bytes)?;
-        Ok(CigarView(bytes))
+        CigarView::try_from(&*bytes)
     }
 }
 
@@ -161,7 +160,7 @@ impl<'a> TryFrom<&'a mut [u8]> for CigarViewMut<'a> {
 
     fn try_from(bytes: &'a mut [u8]) -> Result<Self, Self::Error> {
         Cigar::check_for_err(bytes)?;
-        Ok(CigarViewMut(bytes))
+        Ok(CigarViewMut::from_slice_unchecked(bytes))
     }
 }
 
@@ -169,8 +168,7 @@ impl<'a, const N: usize> TryFrom<&'a [u8; N]> for CigarView<'a> {
     type Error = CigarError;
 
     fn try_from(bytes: &'a [u8; N]) -> Result<Self, Self::Error> {
-        Cigar::check_for_err(bytes)?;
-        Ok(CigarView(bytes))
+        CigarView::try_from(bytes.as_slice())
     }
 }
 
@@ -178,8 +176,7 @@ impl<'a, const N: usize> TryFrom<&'a mut [u8; N]> for CigarView<'a> {
     type Error = CigarError;
 
     fn try_from(bytes: &'a mut [u8; N]) -> Result<Self, Self::Error> {
-        Cigar::check_for_err(bytes)?;
-        Ok(CigarView(bytes))
+        CigarView::try_from(bytes.as_slice())
     }
 }
 
@@ -187,8 +184,7 @@ impl<'a, const N: usize> TryFrom<&'a mut [u8; N]> for CigarViewMut<'a> {
     type Error = CigarError;
 
     fn try_from(bytes: &'a mut [u8; N]) -> Result<Self, Self::Error> {
-        Cigar::check_for_err(bytes)?;
-        Ok(CigarViewMut(bytes))
+        CigarViewMut::try_from(bytes.as_mut_slice())
     }
 }
 

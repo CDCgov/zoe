@@ -40,8 +40,8 @@ pub enum BamError {
     WriterFinalized,
     /// A SAM alignment record could not be represented as BAM.
     Record {
-        /// Record name context.
-        qname:  String,
+        /// Record name context if available.
+        qname:  Option<String>,
         /// The record-specific error.
         source: BamRecordError,
     },
@@ -54,9 +54,9 @@ impl BamError {
     }
 
     /// Wraps a record-domain error with the record name that failed.
-    pub fn record(qname: impl Into<String>, source: impl Into<BamRecordError>) -> Self {
+    pub fn record(qname: Option<&str>, source: impl Into<BamRecordError>) -> Self {
         BamError::Record {
-            qname:  qname.into(),
+            qname:  qname.map(ToString::to_string),
             source: source.into(),
         }
     }
@@ -182,7 +182,8 @@ impl fmt::Display for BamError {
                 f.write_str("Cannot add BAM header lines after the BAM header has been written")
             }
             BamError::WriterFinalized => f.write_str("Cannot write to BAM stream after finalization"),
-            BamError::Record { qname, .. } => write!(f, "BAM record error while processing {qname}"),
+            BamError::Record { qname: Some(qname), .. } => write!(f, "BAM record error while processing {qname}"),
+            BamError::Record { qname: None, source } => write!(f, "{source}"),
         }
     }
 }
@@ -232,7 +233,8 @@ impl Error for BamError {
         match self {
             BamError::Io { source } => Some(source),
             BamError::Header { source, .. } => Some(source),
-            BamError::Record { source, .. } => Some(source),
+            BamError::Record { source, qname: Some(_) } => Some(source),
+            BamError::Record { source, qname: None } => source.source(),
             BamError::HeaderAlreadyWritten | BamError::WriterFinalized => None,
         }
     }
