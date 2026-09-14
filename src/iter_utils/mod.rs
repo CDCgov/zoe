@@ -3,6 +3,7 @@
 //! This module provides miscellaneous iterators and tools for working with
 //! iterators.
 
+use crate::impl_traits;
 use std::{cell::OnceCell, iter::FusedIterator, ops::ControlFlow};
 
 #[cfg(feature = "rand")]
@@ -20,27 +21,54 @@ mod stepped_windows;
 #[cfg(feature = "fuzzing")]
 pub use stepped_windows::*;
 
-/// An iterator that extracts the `Ok` variants from an input iterator of
-/// results, ending upon the first encountered `Err` variant and storing that
-/// error.
+/// A trait unifying the different internal representation for tracking an error
+/// in fallible-to-infallible iterator conversions.
 ///
-/// ## Acknowledgements
-///
-/// This is inspired by similar iterators in
-/// [Itertools](https://docs.rs/itertools/latest/itertools/) and
-/// [`iterr`](https://docs.rs/iterr/latest/iterr/).
+/// Specifically, [`process_results`] tracks the first error encountered using
+/// `&mut Result<(), E>`, whereas [`process_results_many`] tracks the first
+/// error encountered using [`OnceCell`]. The former implements
+/// [`Send`]/[`Sync`] and is hence compatible with `rayon` (and has less
+/// overhead), but the latter allows reuse by multiple locations in the code
+/// without conflicting mutable borrows.
+trait ProcessResultsTracker<E> {
+    /// Records an error.
+    ///
+    /// If the tracker already holds an error, it depends on the implementation
+    /// whether this is overwritten or kept. The implementation for `&mut
+    /// Result<(), E>` overwrites, but the iterator definition should prevent
+    /// this from ever being called twice. The implementation for [`OnceCell`]
+    /// ignores subsequent attempts to set the error.
+    fn set(&mut self, err: E);
+}
+
+impl<E> ProcessResultsTracker<E> for &mut Result<(), E> {
+    fn set(&mut self, err: E) {
+        **self = Err(err);
+    }
+}
+
+impl<E> ProcessResultsTracker<E> for &OnceCell<E> {
+    fn set(&mut self, err: E) {
+        let _ = (*self).set(err);
+    }
+}
+
+/// The core logic for converting a fallible iterator into an infallible one,
+/// recording the first encountered error to `error` (anything implementing
+/// [`ProcessResultsTracker`]).
 #[derive(Debug)]
-pub struct ProcessResults<'a, I, E: 'a> {
+struct ProcessResultsInner<I, K> {
     /// The first encountered error, if any.
-    error: &'a OnceCell<E>,
+    error: K,
     /// The fallible iterator, or `None` if an error has occurred and been
     /// stored.
     iter:  Option<I>,
 }
 
-impl<I, T, E> Iterator for ProcessResults<'_, I, E>
+impl<I, T, E, K> Iterator for ProcessResultsInner<I, K>
 where
     I: Iterator<Item = Result<T, E>>,
+    K: ProcessResultsTracker<E>,
 {
     type Item = T;
 
@@ -51,7 +79,7 @@ where
             Ok(val) => Some(val),
             Err(e) => {
                 self.iter = None;
-                let _ = self.error.set(e);
+                self.error.set(e);
                 None
             }
         }
@@ -76,7 +104,7 @@ where
         let res = iter.try_fold(init, |acc, res| match res {
             Ok(val) => ControlFlow::Continue(f(acc, val)),
             Err(e) => {
-                let _ = self.error.set(e);
+                self.error.set(e);
                 ControlFlow::Break(acc)
             }
         });
@@ -106,7 +134,7 @@ where
             // issuing a Break, but we wrap the value in Ok to indicate that the
             // outer `try_fold` should not return an error
             Err(e) => {
-                let _ = self.error.set(e);
+                self.error.set(e);
                 ControlFlow::Break(Ok(acc))
             }
         });
@@ -125,9 +153,10 @@ where
     }
 }
 
-impl<I, T, E> DoubleEndedIterator for ProcessResults<'_, I, E>
+impl<I, T, E, K> DoubleEndedIterator for ProcessResultsInner<I, K>
 where
     I: DoubleEndedIterator<Item = Result<T, E>>,
+    K: ProcessResultsTracker<E>,
 {
     fn next_back(&mut self) -> Option<Self::Item> {
         // Return None if an error already occurred or the fallible iterator
@@ -136,7 +165,7 @@ where
             Ok(val) => Some(val),
             Err(e) => {
                 self.iter = None;
-                let _ = self.error.set(e);
+                self.error.set(e);
                 None
             }
         }
@@ -152,7 +181,7 @@ where
         let res = iter.try_rfold(init, |acc, res| match res {
             Ok(val) => ControlFlow::Continue(f(acc, val)),
             Err(e) => {
-                let _ = self.error.set(e);
+                self.error.set(e);
                 ControlFlow::Break(acc)
             }
         });
@@ -182,7 +211,7 @@ where
             // issuing a Break, but we wrap the value in Ok to indicate that the
             // outer `try_fold` should not return an error
             Err(e) => {
-                let _ = self.error.set(e);
+                self.error.set(e);
                 ControlFlow::Break(Ok(acc))
             }
         });
@@ -201,7 +230,54 @@ where
     }
 }
 
-impl<T, I, E> FusedIterator for ProcessResults<'_, I, E> where I: FusedIterator<Item = Result<T, E>> {}
+impl<I, T, E, K> FusedIterator for ProcessResultsInner<I, K>
+where
+    I: FusedIterator<Item = Result<T, E>>,
+    K: ProcessResultsTracker<E>,
+{
+}
+
+/// An iterator that extracts the `Ok` variants from an input iterator of
+/// results, ending upon the first encountered `Err` variant and storing that
+/// error.
+///
+/// This is used with [`process_results`]. It implements [`Send`] and [`Sync`],
+/// and hence supports rayon's `par_bridge`.
+///
+/// ## Acknowledgements
+///
+/// This is inspired by similar iterators in
+/// [Itertools](https://docs.rs/itertools/latest/itertools/) and
+/// [`iterr`](https://docs.rs/iterr/latest/iterr/).
+#[derive(Debug)]
+pub struct ProcessResults<'a, I, E: 'a>(ProcessResultsInner<I, &'a mut Result<(), E>>);
+
+impl_traits! {
+    impl<'a, I, T, E> Iterator for ProcessResults<'a, I, E> where I: Iterator<Item = Result<T, E>> {
+        type Item = T;
+    }
+}
+
+/// An iterator that extracts the `Ok` variants from an input iterator of
+/// results, ending upon the first encountered `Err` variant and storing that
+/// error.
+///
+/// This is used with [`process_results_many`]. It allows multiple iterators to
+/// write to the same context, but it does not implement [`Send`] or [`Sync`].
+///
+/// ## Acknowledgements
+///
+/// This is inspired by similar iterators in
+/// [Itertools](https://docs.rs/itertools/latest/itertools/) and
+/// [`iterr`](https://docs.rs/iterr/latest/iterr/).
+#[derive(Debug)]
+pub struct OrStop<'a, I, E: 'a>(ProcessResultsInner<I, &'a OnceCell<E>>);
+
+impl_traits! {
+    impl<'a, I, T, E> Iterator for OrStop<'a, I, E> where I: Iterator<Item = Result<T, E>> {
+        type Item = T;
+    }
+}
 
 /// An extension trait providing [`process_results`], a method for robustly
 /// handling iterators of results in a concise and ergonomic manner.
@@ -234,26 +310,26 @@ pub trait ProcessResultsExt<T, E>: Iterator<Item = Result<T, E>> + Sized {
     fn process_results<F, R>(self, f: F) -> Result<R, E>
     where
         F: FnOnce(ProcessResults<Self, E>) -> R, {
-        let error = OnceCell::new();
+        let mut error = Ok(());
 
-        let value = f(ProcessResults {
-            error: &error,
+        let value = f(ProcessResults(ProcessResultsInner {
+            error: &mut error,
             iter:  Some(self),
-        });
+        }));
 
-        match error.into_inner() {
-            Some(err) => Err(err),
-            None => Ok(value),
+        match error {
+            Ok(()) => Ok(value),
+            Err(err) => Err(err),
         }
     }
 
     /// A method called within [`process_results_many`] to turn a fallible
     /// iterator into an infallible iterator.
-    fn or_stop(self, cx: &FallibleContext<E>) -> ProcessResults<'_, Self, E> {
-        ProcessResults {
+    fn or_stop(self, cx: &FallibleContext<E>) -> OrStop<'_, Self, E> {
+        OrStop(ProcessResultsInner {
             error: &cx.error,
             iter:  Some(self),
-        }
+        })
     }
 }
 
