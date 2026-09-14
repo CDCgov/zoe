@@ -199,6 +199,7 @@ impl<W: Write, C: BlockCompressor> BamWriter<W, C> {
     /// a record cannot be represented include:
     ///
     /// - `QNAME` does not match SAM/BAM's `[!-?A-~]{1,254}` rule
+    /// - `RNAME` is an empty string
     /// - Non-empty `SEQ` length does not match the query-consuming length of a
     ///   non-empty CIGAR
     /// - `QUAL` is not missing when `SEQ` is missing
