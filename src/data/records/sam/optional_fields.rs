@@ -528,3 +528,61 @@ impl OptArray {
         }
     }
 }
+
+/// An iterator over the fields in [`SamOptRaw`], lazily parsed and validated.
+pub struct SamOptRawIter<'a> {
+    /// An iterator over the unparsed fields, by reference.
+    fields: std::slice::Iter<'a, String>,
+}
+
+impl Iterator for SamOptRawIter<'_> {
+    type Item = std::io::Result<SamOptField>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.fields.next().map(|s| s.parse())
+    }
+}
+
+/// An iterator over the fields in [`SamOptRaw`], lazily parsed and validated,
+/// and stored/consumed by this iterator.
+pub struct SamOptRawIntoIter {
+    /// An iterator over the unparsed fields, by value.
+    fields: std::vec::IntoIter<String>,
+}
+
+impl Iterator for SamOptRawIntoIter {
+    type Item = std::io::Result<SamOptField>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.fields.next().map(|s| s.parse())
+    }
+}
+
+impl<'a> IntoIterator for &'a SamOptRaw {
+    type Item = std::io::Result<SamOptField>;
+    type IntoIter = SamOptRawIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        SamOptRawIter { fields: self.0.iter() }
+    }
+}
+
+impl<'a> IntoIterator for SamOptRawView<'a> {
+    type Item = std::io::Result<SamOptField>;
+    type IntoIter = SamOptRawIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        SamOptRawIter { fields: self.0.iter() }
+    }
+}
+
+impl IntoIterator for SamOptRaw {
+    type Item = std::io::Result<SamOptField>;
+    type IntoIter = SamOptRawIntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        SamOptRawIntoIter {
+            fields: self.0.into_iter(),
+        }
+    }
+}
