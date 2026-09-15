@@ -5,7 +5,9 @@
 
 use crate::{
     data::mappings::TWO_BIT_MAPPING,
-    kmer::{Kmer, KmerCounter, KmerEncoder, KmerError, KmerIndex, KmerLen, KmerSet, MaxLenToType, SupportedKmerLen},
+    kmer::{
+        AsUsize, Kmer, KmerCounter, KmerEncoder, KmerError, KmerIndex, KmerLen, KmerSet, MaxLenToType, SupportedKmerLen,
+    },
     math::{AnyInt, Uint},
 };
 use std::hash::{Hash, Hasher, RandomState};
@@ -754,13 +756,11 @@ where
 
 impl<const MAX_LEN: usize> KmerIndex for TwoBitEncodedKmer<MAX_LEN>
 where
-    TwoBitKmerLen<MAX_LEN>: SupportedKmerLen,
-    TwoBitMaxLenToType<MAX_LEN>: Into<usize>,
-    TwoBitMaxLenToType<MAX_LEN>: TryFrom<usize>,
+    TwoBitKmerLen<MAX_LEN>: SupportedKmerLen<T: AsUsize + TryFrom<usize>>,
 {
     #[inline]
     fn as_usize(&self) -> usize {
-        self.0.into()
+        self.0.as_usize()
     }
 
     /// Creates a [`KmerIndex`] from a usize

@@ -32,8 +32,8 @@ use std::iter::Enumerate;
 /// After an indexed k-mer set is populated, it can be used in multiple ways:
 ///
 /// - Check for a k-mer with [`contains`]
-/// - Iteration: [`iter_encoded`] and [`iter_decoded`] provide the k-mers in the
-///   set without duplicates
+/// - Iteration: [`iter_encoded`] and [`iter_decoded`] provide an iterator of
+///   seen k-mers (see [limitations](IndexedKmerSet#limitations))
 /// - Set operations: encoded and decoded iterators for set operations between
 ///   two indexed k-mer sets are implemented, including difference,
 ///   intersection, symmetric difference, and union
@@ -47,6 +47,12 @@ use std::iter::Enumerate;
 /// For guidance on picking the appropriate `MAX_LEN`, see [`SupportedKmerLen`].
 ///
 /// </div>
+///
+/// ## Limitations
+///
+/// Iteration on an [`IndexedKmerSet`] will be much slower than with a
+/// [`KmerSet`], as it will be necessary to iterate over every possible k-mer
+/// with the given k-mer length.
 ///
 /// [`insert_kmer`]: IndexedKmerSet::insert_kmer
 /// [`HashSet`]: std::collections::HashSet
@@ -182,6 +188,15 @@ where
     }
 
     /// Returns an iterator over the encoded k-mers in the indexed set.
+    /// <div class="warning">
+    ///
+    /// **Warning**
+    ///
+    /// Iteration on an [`IndexedKmerSet`] will be much slower than its non-indexed
+    /// counterpart, as it will be necessary to iterate over every possible k-mer
+    /// with the given k-mer length.
+    ///
+    /// </div>
     #[inline]
     pub fn iter_encoded(&self) -> impl Iterator<Item = E::EncodedKmer> {
         self.vec
@@ -192,6 +207,18 @@ where
     }
 
     /// Returns an iterator over the decoded k-mers in the indexed set.
+    ///
+    /// <div class="warning">
+    ///
+    /// **Warning**
+    ///
+    /// Iteration on an [`IndexedKmerSet`] will be much slower than a
+    /// [`KmerSet`], as it will be necessary to iterate over every possible
+    /// k-mer with the given k-mer length.
+    ///
+    /// </div>
+    ///
+    /// [`KmerSet`]: crate::kmer::collections::KmerSet
     #[inline]
     pub fn iter_decoded(&self) -> impl Iterator<Item = Kmer<MAX_LEN>> {
         self.iter_encoded().map(|encoded_kmer| self.encoder.decode_kmer(encoded_kmer))

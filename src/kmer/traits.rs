@@ -331,9 +331,20 @@ pub trait FindKmers<const MAX_LEN: usize>: AsRef<[u8]> {
 
 impl<const MAX_LEN: usize, Q: AsRef<[u8]>> FindKmers<MAX_LEN> for Q {}
 
+/// Converts a value to a `usize` when it is representable on the target.
+///
+/// This is implemented for the integer types which can be losslessly used as
+/// collection indices on the current target architecture.
+pub trait AsUsize {
+    /// Returns this value as a `usize`.
+    #[must_use]
+    fn as_usize(&self) -> usize;
+}
+
 /// A trait for encoded k-mers which can serve as indices into a data structure.
 pub trait KmerIndex: Sized {
     /// Returns the `usize` index corresponding to the encoded k-mer.
+    #[must_use]
     fn as_usize(&self) -> usize;
 
     /// Converts an index back into an encoded k-mer.
@@ -342,4 +353,31 @@ pub trait KmerIndex: Sized {
     /// Returns the maximum index (maximum encoded k-mer) possible for a given
     /// length.
     fn max_index_for_length(kmer_length: usize) -> usize;
+}
+
+impl AsUsize for u8 {
+    fn as_usize(&self) -> usize {
+        usize::from(*self)
+    }
+}
+
+impl AsUsize for u16 {
+    fn as_usize(&self) -> usize {
+        usize::from(*self)
+    }
+}
+
+#[cfg(any(target_pointer_width = "32", target_pointer_width = "64"))]
+impl AsUsize for u32 {
+    fn as_usize(&self) -> usize {
+        *self as usize
+    }
+}
+
+#[cfg(target_pointer_width = "64")]
+impl AsUsize for u64 {
+    #[allow(clippy::cast_possible_truncation, reason = "usize is 64 bits on this target")]
+    fn as_usize(&self) -> usize {
+        *self as usize
+    }
 }

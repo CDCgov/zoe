@@ -30,7 +30,7 @@ use std::{
 /// - Check for k-mer with [`contains`], or get its count with [`get`]
 /// - Iteration: [`iter_encoded`] and [`iter_decoded`] provide the k-mers and
 ///   counts, while [`keys_encoded`] and [`keys_decoded`] provide just the
-///   k-mers
+///   k-mers (see [limitations](IndexedKmerCounter#limitations))
 /// - Search for the k-mers within a sequence using [`FindKmersInSeq`] (or the
 ///   related trait [`FindKmers`])
 ///
@@ -41,6 +41,12 @@ use std::{
 /// For guidance on picking the appropriate `MAX_LEN`, see [`SupportedKmerLen`].
 ///
 /// </div>
+///
+/// ## Limitations
+///
+/// Iteration on an [`IndexedKmerCounter`] will be much slower than with a
+/// [`KmerCounter`], as it will be necessary to iterate over every possible
+/// k-mer with the given k-mer length.
 ///
 /// [`KmerCounter`]: crate::kmer::KmerCounter
 /// [`HashMap`]: std::collections::HashMap
@@ -195,6 +201,18 @@ where
     /// Returns an iterator over the encoded k-mers and their counts.
     ///
     /// K-mers must have a nonzero count to be included.
+    ///
+    /// <div class="warning">
+    ///
+    /// **Warning**
+    ///
+    /// Iteration on an [`IndexedKmerCounter`] will be much slower than with a
+    /// [`KmerCounter`], as it will be necessary to iterate over every possible
+    /// k-mer with the given k-mer length.
+    ///
+    /// </div>
+    ///
+    /// [`KmerCounter`]: crate::kmer::KmerCounter
     #[inline]
     pub fn iter_encoded(&self) -> impl Iterator<Item = (E::EncodedKmer, &usize)> {
         self.vec
@@ -208,6 +226,18 @@ where
     /// count is nonzero.
     ///
     /// K-mers must have a nonzero count to be included.
+    ///
+    /// <div class="warning">
+    ///
+    /// **Warning**
+    ///
+    /// Iteration on an [`IndexedKmerCounter`] will be much slower than with a
+    /// [`KmerCounter`], as it will be necessary to iterate over every possible
+    /// k-mer with the given k-mer length.
+    ///
+    /// </div>
+    ///
+    /// [`KmerCounter`]: crate::kmer::KmerCounter
     #[inline]
     pub fn iter_decoded(&self) -> impl Iterator<Item = (Kmer<MAX_LEN>, &usize)> {
         self.iter_encoded()

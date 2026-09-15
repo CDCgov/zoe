@@ -249,6 +249,8 @@ where
 /// This is inspired by similar iterators in
 /// [Itertools](https://docs.rs/itertools/latest/itertools/) and
 /// [`iterr`](https://docs.rs/iterr/latest/iterr/).
+///
+/// [`process_results`]: crate::iter_utils::ProcessResultsExt::process_results
 #[derive(Debug)]
 pub struct ProcessResults<'a, I, E: 'a>(ProcessResultsInner<I, &'a mut Result<(), E>>);
 
