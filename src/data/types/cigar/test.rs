@@ -4,7 +4,7 @@ use crate::alignment::AlignmentStates;
 #[test]
 fn test_iter() {
     let cigar = Cigar::from_slice_unchecked("1M22I333D4444N55555S6666H777P88X9=");
-    let mut cigar = cigar.into_iter();
+    let mut cigar = cigar.iter_unchecked();
 
     assert_eq!(cigar.next(), Some(Ciglet { op: b'M', inc: 1 }));
     assert_eq!(cigar.next(), Some(Ciglet { op: b'I', inc: 22 }));
@@ -19,25 +19,25 @@ fn test_iter() {
 
     // Illegal cigar op
     let cigar = Cigar::from_slice_unchecked("8K");
-    assert_eq!(cigar.into_iter().next(), None);
+    assert_eq!(cigar.iter_unchecked().next(), None);
 
     // Leading zeroes don't matter
     let cigar = Cigar::from_slice_unchecked("000000000000000000000000000000155M");
-    assert_eq!(cigar.into_iter().next(), Some(Ciglet { op: b'M', inc: 155 }));
+    assert_eq!(cigar.iter_unchecked().next(), Some(Ciglet { op: b'M', inc: 155 }));
 
     // Overflows
     let cigar = Cigar::from_slice_unchecked("100000000000000000000000000000155M");
-    assert_eq!(cigar.into_iter().next(), None);
+    assert_eq!(cigar.iter_unchecked().next(), None);
 
     // Bad order
     let cigar = Cigar::from_slice_unchecked("M155M");
-    assert_eq!(cigar.into_iter().next(), None);
+    assert_eq!(cigar.iter_unchecked().next(), None);
 
     // usize == u64
     if USIZE_WIDTH == 20 {
         let cigar = Cigar::from_slice_unchecked("18446744073709551615M");
         assert_eq!(
-            cigar.into_iter().next(),
+            cigar.iter_unchecked().next(),
             Some(Ciglet {
                 op:  b'M',
                 inc: 18_446_744_073_709_551_615,
@@ -46,7 +46,7 @@ fn test_iter() {
 
         let cigar = Cigar::from_slice_unchecked("001234567890123456789M");
         assert_eq!(
-            cigar.into_iter().next(),
+            cigar.iter_unchecked().next(),
             Some(Ciglet {
                 op:  b'M',
                 inc: 1_234_567_890_123_456_789,
@@ -56,7 +56,7 @@ fn test_iter() {
 
     // Missing increment
     let cigar = Cigar::from_slice_unchecked("3M2DM5H");
-    let mut iter = cigar.into_iter();
+    let mut iter = cigar.iter_unchecked();
     assert_eq!(iter.next(), Some(Ciglet { inc: 3, op: b'M' }));
     assert_eq!(iter.next(), Some(Ciglet { inc: 2, op: b'D' }));
     assert_eq!(iter.next(), None);
@@ -65,7 +65,7 @@ fn test_iter() {
 
     // Zero increment
     let cigar = Cigar::from_slice_unchecked("3M2D0M0M5H0S");
-    let mut iter = cigar.into_iter();
+    let mut iter = cigar.iter_unchecked();
     assert_eq!(iter.next(), Some(Ciglet { inc: 3, op: b'M' }));
     assert_eq!(iter.next(), Some(Ciglet { inc: 2, op: b'D' }));
     assert_eq!(iter.next(), Some(Ciglet { inc: 0, op: b'M' }));
@@ -113,7 +113,7 @@ fn test_query_len_in_alignment() {
 fn test_add_state() {
     let cigar = Cigar::from_slice_unchecked("4S10M2I2D3M4H4P");
     let mut states = AlignmentStates::new();
-    for Ciglet { inc, op } in &cigar {
+    for Ciglet { inc, op } in cigar.iter_unchecked() {
         for _ in 0..inc {
             states.add_state(op);
         }
@@ -155,7 +155,7 @@ fn test_try_from() {
 #[test]
 fn invalid_next_back() {
     let cigar = Cigar::from_slice_unchecked(b"12M16H2MM");
-    let mut iter = cigar.iter();
+    let mut iter = cigar.iter_unchecked();
 
     assert_eq!(iter.next_back(), None);
     assert_eq!(iter.next_back(), None);

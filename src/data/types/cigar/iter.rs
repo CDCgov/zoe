@@ -241,42 +241,42 @@ impl NextCiglet for CigletIterator<'_> {
 }
 
 impl<'a> IntoIterator for &'a Cigar {
-    type Item = Ciglet;
-    type IntoIter = CigletIterator<'a>;
+    type Item = Result<Ciglet, CigarError>;
+    type IntoIter = CigletIteratorChecked<'a>;
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
-        CigletIterator::new(&self.0)
+        CigletIteratorChecked::new(&self.0)
     }
 }
 
 impl<'a> IntoIterator for CigarView<'a> {
-    type Item = Ciglet;
-    type IntoIter = CigletIterator<'a>;
+    type Item = Result<Ciglet, CigarError>;
+    type IntoIter = CigletIteratorChecked<'a>;
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
-        CigletIterator::new(self.as_bytes())
+        CigletIteratorChecked::new(self.as_bytes())
     }
 }
 
 impl<'a> IntoIterator for &CigarView<'a> {
-    type Item = Ciglet;
-    type IntoIter = CigletIterator<'a>;
+    type Item = Result<Ciglet, CigarError>;
+    type IntoIter = CigletIteratorChecked<'a>;
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
-        CigletIterator::new(self.as_bytes())
+        CigletIteratorChecked::new(self.as_bytes())
     }
 }
 
 impl<'a> IntoIterator for &'a CigarViewMut<'a> {
-    type Item = Ciglet;
-    type IntoIter = CigletIterator<'a>;
+    type Item = Result<Ciglet, CigarError>;
+    type IntoIter = CigletIteratorChecked<'a>;
 
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
-        CigletIterator::new(self.as_bytes())
+        CigletIteratorChecked::new(self.as_bytes())
     }
 }
 
@@ -331,7 +331,7 @@ impl ToCigletIterator for Cigar {
 
     #[inline]
     fn to_ciglet_iterator(&self) -> CigletIterator<'_> {
-        self.iter()
+        self.iter_unchecked()
     }
 
     #[inline]
@@ -348,7 +348,7 @@ impl ToCigletIterator for &Cigar {
 
     #[inline]
     fn to_ciglet_iterator(&self) -> CigletIterator<'_> {
-        self.iter()
+        self.iter_unchecked()
     }
 
     #[inline]
@@ -365,7 +365,7 @@ impl ToCigletIterator for &mut Cigar {
 
     #[inline]
     fn to_ciglet_iterator(&self) -> CigletIterator<'_> {
-        self.iter()
+        self.iter_unchecked()
     }
 
     #[inline]
@@ -382,7 +382,7 @@ impl<'b> ToCigletIterator for CigarView<'b> {
 
     #[inline]
     fn to_ciglet_iterator(&self) -> CigletIterator<'b> {
-        self.iter()
+        self.iter_unchecked()
     }
 
     #[inline]
@@ -399,7 +399,7 @@ impl<'b> ToCigletIterator for &CigarView<'b> {
 
     #[inline]
     fn to_ciglet_iterator(&self) -> CigletIterator<'b> {
-        self.iter()
+        self.iter_unchecked()
     }
 
     #[inline]

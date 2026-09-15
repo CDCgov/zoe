@@ -301,6 +301,7 @@ impl SAMReader<File, false> {
     /// included in the error message.
     ///
     /// [`from_path`]: SAMReader::from_path
+    #[allow(deprecated)]
     #[deprecated(
         since = "0.0.35",
         note = "consider using from_path instead, and then not using the optional fields"

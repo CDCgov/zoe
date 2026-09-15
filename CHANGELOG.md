@@ -8,6 +8,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ### Changed
 
+- Iteration on `Cigar` and `CigarView` now produces a fallible checked iterator
+  by default. To use unchecked and truncating iteration, use `iter_unchecked`
 - `SamOptRaw` now stores the tags using a tab-delimited `String` to improve
   performance and reduce allocations. Some methods return different concrete
   iterator types

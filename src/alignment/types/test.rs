@@ -1,7 +1,7 @@
 use crate::{
     alignment::{
-        Alignment, AlignmentStates, NextCiglet, NextCigletMut, PairwiseSequence, PeekOp, profile::ScalarProfile,
-        sw::sw_scalar_align,
+        profile::ScalarProfile, sw::sw_scalar_align, Alignment, AlignmentStates, NextCiglet, NextCigletMut,
+        PairwiseSequence, PeekOp,
     },
     data::{
         amino_acids::AminoAcids,
@@ -57,7 +57,7 @@ fn states_sequence() {
     let mut alignment_states_mut = alignment_states.clone();
     let mut cigar_slice = alignment_states.as_slice();
     let mut cigar_mut_slice = alignment_states_mut.as_mut_slice();
-    let mut ciglet_iterator = cigar.into_iter();
+    let mut ciglet_iterator = cigar.iter_unchecked();
 
     assert_eq!(cigar_slice.peek_op(), Some(b'H'));
     assert_eq!(cigar_mut_slice.peek_op(), Some(b'H'));
@@ -231,7 +231,7 @@ fn states_sequence_zero_ciglets() {
     let mut alignment_states_mut = alignment_states.clone();
     let mut cigar_slice = alignment_states.as_slice();
     let mut cigar_mut_slice = alignment_states_mut.as_mut_slice();
-    let mut ciglet_iterator = cigar.into_iter();
+    let mut ciglet_iterator = cigar.iter_unchecked();
 
     assert_eq!(cigar_slice.peek_op(), Some(b'M'));
     assert_eq!(cigar_mut_slice.peek_op(), Some(b'M'));
@@ -322,7 +322,7 @@ fn align_with_cigar() {
 
     for (rpos, cig, [ref_input, query_input, ref_output, query_ouptut]) in data {
         assert_eq!(
-            ref_input.align_and_collect(&query_input, &cig, rpos),
+            ref_input.align_and_collect(&query_input, cig.iter_unchecked(), rpos),
             (ref_output, query_ouptut)
         );
     }
@@ -330,17 +330,15 @@ fn align_with_cigar() {
 
 #[test]
 fn collect_ciglets() {
-    assert!(
-        AlignmentStates::from_ciglets_unchecked(vec![
-            Ciglet { inc: 10, op: b'M' },
-            Ciglet { inc: 5, op: b'I' },
-            Ciglet { inc: 12, op: b'D' }
-        ])
-        .iter()
-        .copied()
-        .collect::<Result<AlignmentStates, _>>()
-        .is_ok()
-    );
+    assert!(AlignmentStates::from_ciglets_unchecked(vec![
+        Ciglet { inc: 10, op: b'M' },
+        Ciglet { inc: 5, op: b'I' },
+        Ciglet { inc: 12, op: b'D' }
+    ])
+    .iter()
+    .copied()
+    .collect::<Result<AlignmentStates, _>>()
+    .is_ok());
     assert_eq!(
         AlignmentStates::from_ciglets_unchecked(vec![
             Ciglet { inc: 10, op: b'M' },

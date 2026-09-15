@@ -2,7 +2,7 @@
 //! View types for CIGAR strings.
 
 use crate::data::{
-    cigar::{Cigar, CigarError, CigletIterator},
+    cigar::{Cigar, CigarError, CigletIterator, CigletIteratorChecked},
     views::{impl_len_for_views_generic, impl_view_assoc_types_generic, impl_view_conversion_generic},
 };
 
@@ -55,7 +55,17 @@ impl<'a> CigarView<'a> {
     /// [`Ciglet`]: crate::data::types::cigar::Ciglet
     #[inline]
     #[must_use]
-    pub fn iter(self) -> CigletIterator<'a> {
+    pub fn iter(self) -> CigletIteratorChecked<'a> {
+        CigletIteratorChecked::new(self.0)
+    }
+
+    /// Returns an iterator of the contained [`Ciglet`] values, truncating on
+    /// the first error.
+    ///
+    /// [`Ciglet`]: crate::data::types::cigar::Ciglet
+    #[inline]
+    #[must_use]
+    pub fn iter_unchecked(self) -> CigletIterator<'a> {
         CigletIterator::new(self.0)
     }
 }

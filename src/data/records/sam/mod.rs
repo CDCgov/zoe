@@ -341,7 +341,7 @@ impl SamData {
         let ref_range_end = ref_range_start + self.cigar.ref_len_in_alignment();
         let ref_range = ref_range_start..ref_range_end;
 
-        let mut ciglets = self.cigar.iter();
+        let mut ciglets = self.cigar.iter_unchecked();
         ciglets.next_ciglet_if_op(|op| op == b'H');
         let soft_clipping_front = ciglets.next_ciglet_if_op(|op| op == b'S').map_or(0, |c| c.inc);
         ciglets.next_ciglet_back_if_op(|op| op == b'H');

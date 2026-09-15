@@ -17,7 +17,7 @@ impl AsRef<[Ciglet]> for AlignmentStates {
 impl PartialEq<Cigar> for AlignmentStates {
     #[inline]
     fn eq(&self, other: &Cigar) -> bool {
-        let mut o = other.iter();
+        let mut o = other.iter_unchecked();
         let matches = self.iter().copied().eq(o.by_ref());
         matches && o.valid()
     }

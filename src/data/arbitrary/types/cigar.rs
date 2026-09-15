@@ -546,7 +546,9 @@ impl ClampAlignment for AlignmentStates {
 impl ClampAlignment for Cigar {
     #[inline]
     fn clamp_total(&mut self, max_total: usize) {
-        let total_increments = self.iter().try_fold(0usize, |sum, ciglet| sum.checked_add(ciglet.inc));
+        let total_increments = self
+            .iter_unchecked()
+            .try_fold(0usize, |sum, ciglet| sum.checked_add(ciglet.inc));
 
         let needs_shrink = match total_increments {
             Some(total) => total > max_total,
@@ -556,7 +558,7 @@ impl ClampAlignment for Cigar {
         if needs_shrink {
             let mut new_vec = Vec::new();
             let mut total = 0usize;
-            for ciglet in &*self {
+            for ciglet in self.iter_unchecked() {
                 total = match total.checked_add(ciglet.inc) {
                     Some(query_len) => query_len,
                     None => break,
@@ -580,7 +582,7 @@ impl ClampAlignment for Cigar {
         if needs_shrink {
             let mut new_vec = Vec::new();
             let mut query_len = 0usize;
-            for ciglet in &*self {
+            for ciglet in self.iter_unchecked() {
                 if matches!(ciglet.op, b'M' | b'I' | b'S' | b'=' | b'X') {
                     query_len = match query_len.checked_add(ciglet.inc) {
                         Some(query_len) => query_len,
@@ -600,7 +602,7 @@ impl ClampAlignment for Cigar {
     fn clamp_query_len_exclude_tail(&mut self, max_query_len: usize) {
         let needs_shrink = {
             // Remove clipping
-            let mut ciglets = self.iter();
+            let mut ciglets = self.iter_unchecked();
             ciglets.remove_clipping_back();
 
             // Get count without clipping at front or back
@@ -619,7 +621,7 @@ impl ClampAlignment for Cigar {
             // the end
             let mut clipping_len = 0;
 
-            let mut ciglets = self.iter();
+            let mut ciglets = self.iter_unchecked();
 
             while let Some(ciglet) = ciglets.next_ciglet() {
                 if ciglet.op == b'S' {
@@ -680,7 +682,7 @@ impl ClampAlignment for Cigar {
         if needs_shrink {
             let mut new_vec = Vec::new();
             let mut match_len = 0usize;
-            for ciglet in &*self {
+            for ciglet in self.iter_unchecked() {
                 if matches!(ciglet.op, b'M' | b'D' | b'N' | b'=' | b'X') {
                     match_len = match match_len.checked_add(ciglet.inc) {
                         Some(match_len) => match_len,

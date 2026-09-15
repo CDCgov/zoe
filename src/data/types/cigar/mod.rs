@@ -98,7 +98,15 @@ impl Cigar {
     /// Returns an iterator over the contained [`Ciglet`] values.
     #[inline]
     #[must_use]
-    pub fn iter(&self) -> CigletIterator<'_> {
+    pub fn iter(&self) -> CigletIteratorChecked<'_> {
+        CigletIteratorChecked::new(&self.0)
+    }
+
+    /// Returns an iterator over the contained [`Ciglet`] values, truncating on
+    /// the first error.
+    #[inline]
+    #[must_use]
+    pub fn iter_unchecked(&self) -> CigletIterator<'_> {
         CigletIterator::new(&self.0)
     }
 
@@ -106,7 +114,8 @@ impl Cigar {
     /// repeated the number of times specified in the CIGAR string.
     #[inline]
     pub fn expanded_cigar_iter(&self) -> impl Iterator<Item = u8> {
-        self.iter().flat_map(|Ciglet { inc, op }| std::iter::repeat_n(op, inc))
+        self.iter_unchecked()
+            .flat_map(|Ciglet { inc, op }| std::iter::repeat_n(op, inc))
     }
 
     /// Validates that a CIGAR only contains valid increment-operation pairs.

@@ -273,7 +273,7 @@ impl AlignmentStates {
     ///   missing operations, the output may be truncated
     #[must_use]
     pub fn from_cigar_unchecked(cigar: &Cigar) -> Self {
-        Self(cigar.iter().collect())
+        Self(cigar.iter_unchecked().collect())
     }
 
     /// Reverses the order of the stored alignment states in-place.
