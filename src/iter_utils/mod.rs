@@ -256,6 +256,8 @@ impl_traits! {
     impl<'a, I, T, E> Iterator for ProcessResults<'a, I, E> where I: Iterator<Item = Result<T, E>> {
         type Item = T;
     }
+
+    impl<'a, I, T, E> DoubleEndedIterator for ProcessResults<'a, I, E> where I: DoubleEndedIterator<Item = Result<T, E>> {}
 }
 
 /// An iterator that extracts the `Ok` variants from an input iterator of
@@ -277,6 +279,8 @@ impl_traits! {
     impl<'a, I, T, E> Iterator for OrStop<'a, I, E> where I: Iterator<Item = Result<T, E>> {
         type Item = T;
     }
+
+    impl<'a, I, T, E> DoubleEndedIterator for OrStop<'a, I, E> where I: DoubleEndedIterator<Item = Result<T, E>> {}
 }
 
 /// An extension trait providing [`process_results`], a method for robustly
