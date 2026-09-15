@@ -482,7 +482,13 @@ impl ToCigletIterator for Vec<Ciglet> {
 
     #[inline]
     fn to_ciglet_iterator_checked(&self) -> impl Iterator<Item = Result<Ciglet, CigarError>> {
-        self.to_ciglet_iterator().map(Ok)
+        self.to_ciglet_iterator().map(|ciglet| {
+            if ciglet.inc == 0 {
+                Err(CigarError::IncZero)
+            } else {
+                Ok(ciglet)
+            }
+        })
     }
 }
 
@@ -499,7 +505,13 @@ impl ToCigletIterator for &[Ciglet] {
 
     #[inline]
     fn to_ciglet_iterator_checked(&self) -> impl Iterator<Item = Result<Ciglet, CigarError>> {
-        self.to_ciglet_iterator().map(Ok)
+        self.to_ciglet_iterator().map(|ciglet| {
+            if ciglet.inc == 0 {
+                Err(CigarError::IncZero)
+            } else {
+                Ok(ciglet)
+            }
+        })
     }
 }
 
@@ -516,7 +528,13 @@ impl ToCigletIterator for &mut [Ciglet] {
 
     #[inline]
     fn to_ciglet_iterator_checked(&self) -> impl Iterator<Item = Result<Ciglet, CigarError>> {
-        self.to_ciglet_iterator().map(Ok)
+        self.to_ciglet_iterator().map(|ciglet| {
+            if ciglet.inc == 0 {
+                Err(CigarError::IncZero)
+            } else {
+                Ok(ciglet)
+            }
+        })
     }
 }
 
