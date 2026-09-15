@@ -39,12 +39,17 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
   chain and otherwise use exit code 1
 - Multiversion updated to 0.9, which brings a measurable bump in performance on
   AVX-512 capable machines for a modest binary size increase.
+- `or_stop` with `process_results_many` now uses a new iterator called `OrStop`
 
 ### Removed
 
 - Removed deprecated `SAMReader` constructors
 - Deprecated `SamDataViewMut`
 - Removed the `GetCode` trait
+
+## Fixed
+
+- `ProcessResults` now implements `Send` again
 
 ## [0.0.32] - 2026-09-02
 
