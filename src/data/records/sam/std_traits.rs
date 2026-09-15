@@ -1,6 +1,13 @@
-use super::*;
-use crate::data::err::ResultWithErrorContext;
-use std::str::FromStr;
+#[allow(deprecated)]
+use crate::data::{
+    cigar::CigarView,
+    err::ResultWithErrorContext,
+    nucleotides::NucleotidesView,
+    phred::QualityScoresView,
+    sam::{OptArray, SamData, SamDataView, SamDataViewMut, SamOptField, SamOptValue, is_missing_sam_field},
+    views::AsView,
+};
+use std::{fmt::Display, str::FromStr};
 
 impl Display for SamData {
     #[inline]
@@ -52,8 +59,14 @@ impl Display for SamDataView<'_> {
 
         write!(
             f,
-            "{qname}\t{flag}\t{rname}\t{pos}\t{mapq}\t{cigar}\t{rnext}\t{pnext}\t{tlen}\t{seq}\t{qual}\t{opt_fields}"
-        )
+            "{qname}\t{flag}\t{rname}\t{pos}\t{mapq}\t{cigar}\t{rnext}\t{pnext}\t{tlen}\t{seq}\t{qual}"
+        )?;
+
+        if !opt_fields.is_empty() {
+            write!(f, "\t{opt_fields}")?;
+        }
+
+        Ok(())
     }
 }
 
@@ -66,7 +79,7 @@ impl Display for SamDataViewMut<'_> {
 }
 
 impl Display for SamOptField {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}{}:{}", self.tag[0] as char, self.tag[1] as char, self.value)
     }
 }
@@ -94,7 +107,7 @@ impl Display for SamOptValue {
 
 impl OptArray {
     /// A helper function for displaying a [`SamOptValue::Array`].
-    fn fmt_opt_array<T: Display>(f: &mut Formatter<'_>, arr_type: char, vals: &[T]) -> std::fmt::Result {
+    fn fmt_opt_array<T: Display>(f: &mut std::fmt::Formatter<'_>, arr_type: char, vals: &[T]) -> std::fmt::Result {
         write!(f, "B:{arr_type}")?;
 
         for v in vals {

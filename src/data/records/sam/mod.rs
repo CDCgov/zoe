@@ -11,10 +11,7 @@ use crate::{
     math::AnyInt,
     prelude::*,
 };
-use std::{
-    fmt::{Display, Formatter},
-    hash::Hash,
-};
+use std::hash::Hash;
 
 mod optional_fields;
 mod reader;
