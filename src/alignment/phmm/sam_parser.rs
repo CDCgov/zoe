@@ -703,42 +703,46 @@ where
         // parsed ENDMODEL
         let expected_layer = self.expected_layer?;
 
-        // Get line containing layer number/name
-        let Some(line) = unwrap_or_return_some_err!(self.lines.next().transpose()) else {
-            return Some(Err(IOError::new(ErrorKind::InvalidData, "File ended before ENDMODEL")));
-        };
+        let layer = loop {
+            // Get line containing layer number/name
+            let Some(line) = unwrap_or_return_some_err!(self.lines.next().transpose()) else {
+                return Some(Err(IOError::new(ErrorKind::InvalidData, "File ended before ENDMODEL")));
+            };
 
-        // Get token corresponding to layer name/number
-        let mut tokens = line.split_whitespace();
-        let token = tokens.next().unwrap_or("");
+            // Get token corresponding to layer name/number
+            let mut tokens = line.split_whitespace();
+            let token = tokens.next().unwrap_or("");
 
-        if token.eq_ignore_ascii_case("ENDMODEL") {
-            self.expected_layer = None;
-            return None;
-        }
-
-        if token.eq_ignore_ascii_case("FREQAVE") {
-            unwrap_or_return_some_err!(SupportedConfig::parse_layer_params::<R, T>(tokens, self.lines));
-            return self.next();
-        }
-
-        // Parse the layer name/number
-        if let Some(layer_number) = unwrap_or_return_some_err!(parse_layer_name(token)) {
-            if layer_number != expected_layer {
-                return Some(Err(IOError::new(
-                    ErrorKind::InvalidData,
-                    format!("Found model node {layer_number}, expected model node {expected_layer}"),
-                )));
+            if token.eq_ignore_ascii_case("ENDMODEL") {
+                self.expected_layer = None;
+                return None;
             }
 
-            self.expected_layer = Some(expected_layer + 1);
-        } else {
-            // Reached END, so we expect no more layers
-            self.expected_layer = None;
-        }
+            if token.eq_ignore_ascii_case("FREQAVE") {
+                unwrap_or_return_some_err!(SupportedConfig::parse_layer_params::<R, T>(tokens, self.lines));
+                continue;
+            }
 
-        // Parse the layer
-        let layer = unwrap_or_return_some_err!(SupportedConfig::parse_layer_params(tokens, self.lines));
+            // Parse the layer name/number
+            if let Some(layer_number) = unwrap_or_return_some_err!(parse_layer_name(token)) {
+                if layer_number != expected_layer {
+                    return Some(Err(IOError::new(
+                        ErrorKind::InvalidData,
+                        format!("Found model node {layer_number}, expected model node {expected_layer}"),
+                    )));
+                }
+
+                self.expected_layer = Some(expected_layer + 1);
+            } else {
+                // Reached END, so we expect no more layers
+                self.expected_layer = None;
+            }
+
+            // Parse the layer
+            let layer = unwrap_or_return_some_err!(SupportedConfig::parse_layer_params(tokens, self.lines));
+
+            break layer;
+        };
 
         // If this was the END layer, ensure we also parse ENDMODEL
         if self.expected_layer.is_none() {
