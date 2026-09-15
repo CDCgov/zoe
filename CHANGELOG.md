@@ -24,6 +24,11 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Fixed possible performance issue in `sw_simd_align` when using more than one
   codegen unit
 
+### Removed
+
+- Deprecated `SamData::is_unmapped` in favor of `Flag::is_unmapped` methods and
+  calling `ref_len_in_alignment`
+
 ## [0.0.33] - 2026-09-17
 
 ### Added

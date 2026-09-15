@@ -363,7 +363,9 @@ impl SamData {
     /// that this includes soft clipped regions but not hard clipped.
     #[inline]
     pub fn to_alignment<T: AnyInt>(&self, score: T, ref_len: usize) -> std::io::Result<MaybeAligned<Alignment<T>>> {
-        if self.is_unmapped() {
+        let states = AlignmentStates::try_from(&self.cigar).map_err(std::io::Error::other)?;
+
+        if self.flag.is_unmapped() || states.is_empty() {
             return Ok(MaybeAligned::Unmapped);
         }
 
@@ -391,8 +393,6 @@ impl SamData {
         let query_range_end = query_range_start + (query_len - soft_clipping);
         let query_range = query_range_start..query_range_end;
 
-        let states = AlignmentStates::try_from(&self.cigar).map_err(std::io::Error::other)?;
-
         Ok(MaybeAligned::Some(Alignment {
             score,
             ref_range,
@@ -409,6 +409,7 @@ impl SamData {
     /// or if `cigar` has a match length of 0.
     #[inline]
     #[must_use]
+    #[deprecated(since = "0.0.33", note = "consider manually inspecting the flag and CIGAR string")]
     pub fn is_unmapped(&self) -> bool {
         self.flag.is_unmapped() || self.cigar.ref_len_in_alignment() == 0
     }
