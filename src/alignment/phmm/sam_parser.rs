@@ -322,7 +322,8 @@ trait SamHmmConfig<const S: usize, const L: usize> {
 
         print_params(&mut writer, Self::ungroup_params(&current_layer))?;
         writeln!(writer)?;
-        writeln!(writer, "ENDMODEL")
+        writeln!(writer, "ENDMODEL")?;
+        writer.flush()
     }
 
     /// Parse the alphabet line of the model. This consumes one line of the file
