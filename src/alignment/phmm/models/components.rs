@@ -2,8 +2,8 @@
 //! [`TransitionParams`], [`EmissionParams`], [`LayerParams`], and [`CorePhmm`].
 use crate::alignment::phmm::{
     InvalidModelError, PhmmNumber,
+    at_least_two::VecAtLeast2,
     indexing::{GetLayer, GetLayerMut},
-    nonempty_vec::NonEmptyVec,
     state::{PhmmState, PhmmStateArr},
 };
 use std::ops::{Index, IndexMut};
@@ -224,7 +224,7 @@ impl<T: PhmmNumber, const S: usize> Default for LayerParams<T, S> {
 /// [`LocalPhmm`]: crate::alignment::phmm::models::LocalPhmm
 /// [`SemiLocalPhmm`]: crate::alignment::phmm::models::SemiLocalPhmm
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct CorePhmm<T, const S: usize>(NonEmptyVec<LayerParams<T, S>>);
+pub struct CorePhmm<T, const S: usize>(VecAtLeast2<LayerParams<T, S>>);
 
 impl<T, const S: usize> CorePhmm<T, S> {
     /// Create a new [`CorePhmm`] from a `Vec` of the parameters.
@@ -238,13 +238,9 @@ impl<T, const S: usize> CorePhmm<T, S> {
     ///     crate::alignment::phmm::InvalidModelError::TooFewLayers
     #[inline]
     pub fn new(layers: Vec<LayerParams<T, S>>) -> Result<Self, InvalidModelError> {
-        if layers.len() >= 2 {
-            let Ok(layers) = NonEmptyVec::try_from(layers) else {
-                unreachable!("length checked above")
-            };
-            Ok(CorePhmm(layers))
-        } else {
-            Err(InvalidModelError::TooFewLayers(2))
+        match VecAtLeast2::try_from(layers) {
+            Ok(layers) => Ok(CorePhmm(layers)),
+            Err(_) => Err(InvalidModelError::TooFewLayers(2)),
         }
     }
 
@@ -258,24 +254,24 @@ impl<T, const S: usize> CorePhmm<T, S> {
     ///
     /// ## Panic
     ///
-    /// Panics if `layers` is empty.
+    /// Panics if `layers` has a length less than 2.
     #[inline]
     #[must_use]
     pub(crate) fn new_unchecked(layers: Vec<LayerParams<T, S>>) -> Self {
-        CorePhmm(NonEmptyVec::try_from(layers).unwrap())
+        CorePhmm(VecAtLeast2::try_from(layers).unwrap())
     }
 }
 
 impl<T, const S: usize> GetLayer<T, S> for CorePhmm<T, S> {
     #[inline]
-    fn layers(&self) -> &NonEmptyVec<LayerParams<T, S>> {
+    fn layers(&self) -> &VecAtLeast2<LayerParams<T, S>> {
         &self.0
     }
 }
 
 impl<T, const S: usize> GetLayerMut<T, S> for CorePhmm<T, S> {
     #[inline]
-    fn layers_mut(&mut self) -> &mut NonEmptyVec<LayerParams<T, S>> {
+    fn layers_mut(&mut self) -> &mut VecAtLeast2<LayerParams<T, S>> {
         &mut self.0
     }
 }

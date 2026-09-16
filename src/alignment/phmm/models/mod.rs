@@ -3,10 +3,10 @@
 use crate::{
     alignment::phmm::{
         PhmmNumber,
+        at_least_two::VecAtLeast2,
         components::{CorePhmm, EmissionParams, LayerParams},
         indexing::{AlnIndex, AlnIndexable, GetCore, GetLayer, GetLayerMut, GetMapping, GetModule},
         modules::{DomainModule, LocalModule, SemiLocalModule},
-        nonempty_vec::NonEmptyVec,
     },
     data::mappings::ByteIndexMap,
 };
@@ -15,8 +15,8 @@ use std::{
     fmt::{Debug, Display},
 };
 
+pub mod at_least_two;
 pub mod components;
-pub mod nonempty_vec;
 
 #[cfg(feature = "fuzzing")]
 mod float_compare;
@@ -367,14 +367,14 @@ impl<T, const S: usize> GetCore<T, S> for GlobalPhmm<T, S> {
 
 impl<T, const S: usize> GetLayer<T, S> for GlobalPhmm<T, S> {
     #[inline]
-    fn layers(&self) -> &NonEmptyVec<LayerParams<T, S>> {
+    fn layers(&self) -> &VecAtLeast2<LayerParams<T, S>> {
         self.core().layers()
     }
 }
 
 impl<T, const S: usize> GetLayerMut<T, S> for GlobalPhmm<T, S> {
     #[inline]
-    fn layers_mut(&mut self) -> &mut NonEmptyVec<LayerParams<T, S>> {
+    fn layers_mut(&mut self) -> &mut VecAtLeast2<LayerParams<T, S>> {
         self.core.layers_mut()
     }
 }
@@ -388,14 +388,14 @@ impl<T, const S: usize> GetCore<T, S> for DomainPhmm<T, S> {
 
 impl<T, const S: usize> GetLayer<T, S> for DomainPhmm<T, S> {
     #[inline]
-    fn layers(&self) -> &NonEmptyVec<LayerParams<T, S>> {
+    fn layers(&self) -> &VecAtLeast2<LayerParams<T, S>> {
         self.core().layers()
     }
 }
 
 impl<T, const S: usize> GetLayerMut<T, S> for DomainPhmm<T, S> {
     #[inline]
-    fn layers_mut(&mut self) -> &mut NonEmptyVec<LayerParams<T, S>> {
+    fn layers_mut(&mut self) -> &mut VecAtLeast2<LayerParams<T, S>> {
         self.core.layers_mut()
     }
 }
@@ -409,14 +409,14 @@ impl<T, const S: usize> GetCore<T, S> for SemiLocalPhmm<T, S> {
 
 impl<T, const S: usize> GetLayer<T, S> for SemiLocalPhmm<T, S> {
     #[inline]
-    fn layers(&self) -> &NonEmptyVec<LayerParams<T, S>> {
+    fn layers(&self) -> &VecAtLeast2<LayerParams<T, S>> {
         self.core().layers()
     }
 }
 
 impl<T, const S: usize> GetLayerMut<T, S> for SemiLocalPhmm<T, S> {
     #[inline]
-    fn layers_mut(&mut self) -> &mut NonEmptyVec<LayerParams<T, S>> {
+    fn layers_mut(&mut self) -> &mut VecAtLeast2<LayerParams<T, S>> {
         self.core.layers_mut()
     }
 }
@@ -430,14 +430,14 @@ impl<T, const S: usize> GetCore<T, S> for LocalPhmm<T, S> {
 
 impl<T, const S: usize> GetLayer<T, S> for LocalPhmm<T, S> {
     #[inline]
-    fn layers(&self) -> &NonEmptyVec<LayerParams<T, S>> {
+    fn layers(&self) -> &VecAtLeast2<LayerParams<T, S>> {
         self.core().layers()
     }
 }
 
 impl<T, const S: usize> GetLayerMut<T, S> for LocalPhmm<T, S> {
     #[inline]
-    fn layers_mut(&mut self) -> &mut NonEmptyVec<LayerParams<T, S>> {
+    fn layers_mut(&mut self) -> &mut VecAtLeast2<LayerParams<T, S>> {
         self.core.layers_mut()
     }
 }

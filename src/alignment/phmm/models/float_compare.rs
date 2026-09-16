@@ -4,14 +4,14 @@
 use crate::{
     alignment::phmm::{
         GlobalPhmm,
+        at_least_two::VecAtLeast2,
         components::{CorePhmm, EmissionParams, LayerParams, TransitionParams},
         indexing::{GetCore, GetLayer},
-        nonempty_vec::NonEmptyVec,
     },
     math::{NearlyEqual, NearlyEqualMethod},
 };
 
-impl<T, A: NearlyEqual<T>> NearlyEqual<T> for NonEmptyVec<A> {
+impl<T, A: NearlyEqual<T>> NearlyEqual<T> for VecAtLeast2<A> {
     fn nearly_equal<M: NearlyEqualMethod<T>>(&self, b: &Self, strategy: &M) -> (bool, Option<(T, T)>) {
         self.as_slice().nearly_equal(&b.as_slice(), strategy)
     }

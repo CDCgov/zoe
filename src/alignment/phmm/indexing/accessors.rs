@@ -1,8 +1,8 @@
 use crate::{
     alignment::phmm::{
+        at_least_two::VecAtLeast2,
         components::{CorePhmm, LayerParams},
         indexing::{AlnIndex, AlnIndexRange, AlnIndexable, Begin, FirstResidue, IndexRangeInner, LastResidue},
-        nonempty_vec::NonEmptyVec,
     },
     data::ByteIndexMap,
 };
@@ -35,13 +35,17 @@ pub trait GetCore<T, const S: usize> {
     fn core(&self) -> &CorePhmm<T, S>;
 }
 
+// This is a separate trait from GetLayerMut in order to prevent core_mut from
+// being called on a CorePhmm, which is an easy way to have infinite recursion
+// in an implementation.
+
 /// A trait providing read-only accessors to the layers of a pHMM.
 pub trait GetLayer<T, const S: usize>: AlnIndexable {
     /// Retrieves a vector of the layers contained within the core pHMM.
     ///
     /// This vector will be at least 2 in length.
     #[must_use]
-    fn layers(&self) -> &NonEmptyVec<LayerParams<T, S>>;
+    fn layers(&self) -> &VecAtLeast2<LayerParams<T, S>>;
 
     /// Returns the layers, split at a particular index.
     ///
@@ -88,7 +92,7 @@ pub trait GetLayer<T, const S: usize>: AlnIndexable {
 }
 
 impl<P: GetLayer<T, S>, T, const S: usize> GetLayer<T, S> for &P {
-    fn layers(&self) -> &NonEmptyVec<LayerParams<T, S>> {
+    fn layers(&self) -> &VecAtLeast2<LayerParams<T, S>> {
         P::layers(self)
     }
 }
@@ -96,10 +100,8 @@ impl<P: GetLayer<T, S>, T, const S: usize> GetLayer<T, S> for &P {
 /// A trait providing mutable accessors to the layers of a pHMM.
 pub(crate) trait GetLayerMut<T, const S: usize>: GetLayer<T, S> {
     /// Retrieves a mutable vector of the layers contained within the core pHMM.
-    ///
-    /// This vector will be at least 2 in length.
     #[must_use]
-    fn layers_mut(&mut self) -> &mut NonEmptyVec<LayerParams<T, S>>;
+    fn layers_mut(&mut self) -> &mut VecAtLeast2<LayerParams<T, S>>;
 
     /// Returns a mutable reference to the parameters for the specified layer
     /// which is guaranteed to exist in the pHMM, either [`Begin`],
@@ -122,44 +124,44 @@ pub trait GetMapping<const S: usize> {
 /// layers of a pHMM that are guaranteed to exist.
 pub trait InfallibleLayerIdx: Copy {
     /// Returns the specified layer from `layers`.
-    fn layer<T, const S: usize>(self, layers: &NonEmptyVec<LayerParams<T, S>>) -> &LayerParams<T, S>;
+    fn layer<T, const S: usize>(self, layers: &VecAtLeast2<LayerParams<T, S>>) -> &LayerParams<T, S>;
 
     /// Returns a mutable reference to the specified layer from `layers`.
-    fn layer_mut<T, const S: usize>(self, layers: &mut NonEmptyVec<LayerParams<T, S>>) -> &mut LayerParams<T, S>;
+    fn layer_mut<T, const S: usize>(self, layers: &mut VecAtLeast2<LayerParams<T, S>>) -> &mut LayerParams<T, S>;
 }
 
 impl InfallibleLayerIdx for Begin {
     #[inline]
-    fn layer<T, const S: usize>(self, layers: &NonEmptyVec<LayerParams<T, S>>) -> &LayerParams<T, S> {
+    fn layer<T, const S: usize>(self, layers: &VecAtLeast2<LayerParams<T, S>>) -> &LayerParams<T, S> {
         layers.first()
     }
 
     #[inline]
-    fn layer_mut<T, const S: usize>(self, layers: &mut NonEmptyVec<LayerParams<T, S>>) -> &mut LayerParams<T, S> {
+    fn layer_mut<T, const S: usize>(self, layers: &mut VecAtLeast2<LayerParams<T, S>>) -> &mut LayerParams<T, S> {
         layers.first_mut()
     }
 }
 
 impl InfallibleLayerIdx for FirstResidue {
     #[inline]
-    fn layer<T, const S: usize>(self, layers: &NonEmptyVec<LayerParams<T, S>>) -> &LayerParams<T, S> {
-        &layers[1]
+    fn layer<T, const S: usize>(self, layers: &VecAtLeast2<LayerParams<T, S>>) -> &LayerParams<T, S> {
+        layers.second()
     }
 
     #[inline]
-    fn layer_mut<T, const S: usize>(self, layers: &mut NonEmptyVec<LayerParams<T, S>>) -> &mut LayerParams<T, S> {
-        &mut layers[1]
+    fn layer_mut<T, const S: usize>(self, layers: &mut VecAtLeast2<LayerParams<T, S>>) -> &mut LayerParams<T, S> {
+        layers.second_mut()
     }
 }
 
 impl InfallibleLayerIdx for LastResidue {
     #[inline]
-    fn layer<T, const S: usize>(self, layers: &NonEmptyVec<LayerParams<T, S>>) -> &LayerParams<T, S> {
+    fn layer<T, const S: usize>(self, layers: &VecAtLeast2<LayerParams<T, S>>) -> &LayerParams<T, S> {
         layers.last()
     }
 
     #[inline]
-    fn layer_mut<T, const S: usize>(self, layers: &mut NonEmptyVec<LayerParams<T, S>>) -> &mut LayerParams<T, S> {
+    fn layer_mut<T, const S: usize>(self, layers: &mut VecAtLeast2<LayerParams<T, S>>) -> &mut LayerParams<T, S> {
         layers.last_mut()
     }
 }
