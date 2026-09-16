@@ -6,7 +6,6 @@ use crate::{
     },
     data::ByteIndexMap,
 };
-use std::slice::GetDisjointMutError;
 
 /// A trait providing read-only access to the modules at the beginning and end
 /// of a pHMM.
@@ -25,18 +24,6 @@ pub trait GetModule {
     fn end(&self) -> &Self::End;
 }
 
-/// A trait providing mutable access to the modules at the beginning and end of
-/// a pHMM.
-pub trait GetModuleMut: GetModule {
-    /// Returns a mutable reference to the module at the start of the pHMM.
-    #[must_use]
-    fn begin_mut(&mut self) -> &mut Self::Begin;
-
-    /// Returns a mutable reference to the module at the end of the pHMM.
-    #[must_use]
-    fn end_mut(&mut self) -> &mut Self::End;
-}
-
 // This is a separate trait from GetLayer in order to prevent core from being
 // called on a CorePhmm, which is an easy way to have infinite recursion in an
 // implementation.
@@ -46,18 +33,6 @@ pub trait GetCore<T, const S: usize> {
     /// Returns a reference to the [`CorePhmm`] holding the core parameters.
     #[must_use]
     fn core(&self) -> &CorePhmm<T, S>;
-}
-
-// This is a separate trait from GetLayerMut in order to prevent core_mut from
-// being called on a CorePhmm, which is an easy way to have infinite recursion
-// in an implementation.
-
-/// A trait providing read-only access to the [`CorePhmm`] within a larger pHMM.
-pub trait GetCoreMut<T, const S: usize> {
-    /// Returns a mutable reference to the [`CorePhmm`] holding the core
-    /// parameters.
-    #[must_use]
-    fn core_mut(&mut self) -> &mut CorePhmm<T, S>;
 }
 
 /// A trait providing read-only accessors to the layers of a pHMM.
@@ -119,25 +94,12 @@ impl<P: GetLayer<T, S>, T, const S: usize> GetLayer<T, S> for &P {
 }
 
 /// A trait providing mutable accessors to the layers of a pHMM.
-pub trait GetLayerMut<T, const S: usize>: GetLayer<T, S> {
+pub(crate) trait GetLayerMut<T, const S: usize>: GetLayer<T, S> {
     /// Retrieves a mutable vector of the layers contained within the core pHMM.
     ///
     /// This vector will be at least 2 in length.
     #[must_use]
     fn layers_mut(&mut self) -> &mut NonEmptyVec<LayerParams<T, S>>;
-
-    /// Gets a mutable reference to a layer from within the core pHMM.
-    ///
-    /// This returns `None` if the index is out of bounds or [`End`] (since
-    /// there is no layer corresponding to the END state).
-    ///
-    /// [`End`]: crate::alignment::phmm::indexing::End
-    #[inline]
-    #[must_use]
-    fn get_layer_mut(&mut self, query_idx: impl AlnIndex) -> Option<&mut LayerParams<T, S>> {
-        let idx = query_idx.to_dp_index(self);
-        self.layers_mut().get_mut(idx.0)
-    }
 
     /// Returns a mutable reference to the parameters for the specified layer
     /// which is guaranteed to exist in the pHMM, either [`Begin`],
@@ -146,41 +108,6 @@ pub trait GetLayerMut<T, const S: usize>: GetLayer<T, S> {
     #[must_use]
     fn layer_mut(&mut self, idx: impl InfallibleLayerIdx) -> &mut LayerParams<T, S> {
         idx.layer_mut(self.layers_mut())
-    }
-
-    /// Get a range of mutable layers from within the core pHMM.
-    ///
-    /// If any of the indices are out of bounds, this will return `None`.
-    /// Particularly, if the range is end-inclusive and ends with `End` (e.g.,
-    /// `..=End`), this will return `None`.
-    #[inline]
-    #[must_use]
-    fn get_layers_mut(&mut self, range: impl AlnIndexRange) -> Option<&mut [LayerParams<T, S>]> {
-        let range = range.to_dp_range(self);
-        self.layers_mut().get_mut(range.into_inner())
-    }
-
-    /// Gets mutable references to two distinct layers within the core pHMM.
-    ///
-    /// ## Errors
-    ///
-    /// - [`IndexOutOfBounds`] if either index is out of bounds or [`End`]
-    ///   (since there is no layer corresponding to the END state)
-    /// - [`OverlappingIndices`] if `j1` and `j2` are the same index
-    ///
-    /// [`IndexOutOfBounds`]: GetDisjointMutError::IndexOutOfBounds
-    /// [`End`]: crate::alignment::phmm::indexing::End
-    /// [`OverlappingIndices`]: GetDisjointMutError::OverlappingIndices
-    #[inline]
-    fn get_two_layers_mut(
-        &mut self, j1: impl AlnIndex, j2: impl AlnIndex,
-    ) -> Result<(&mut LayerParams<T, S>, &mut LayerParams<T, S>), GetDisjointMutError> {
-        let j1 = j1.to_dp_index(self);
-        let j2 = j2.to_dp_index(self);
-
-        let [l1, l2] = self.layers_mut().get_disjoint_mut([j1.0, j2.0])?;
-
-        Ok((l1, l2))
     }
 }
 

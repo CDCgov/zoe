@@ -4,9 +4,7 @@ use crate::{
     alignment::phmm::{
         PhmmNumber,
         components::{CorePhmm, EmissionParams, LayerParams},
-        indexing::{
-            AlnIndex, AlnIndexable, GetCore, GetCoreMut, GetLayer, GetLayerMut, GetMapping, GetModule, GetModuleMut,
-        },
+        indexing::{AlnIndex, AlnIndexable, GetCore, GetLayer, GetLayerMut, GetMapping, GetModule},
         modules::{DomainModule, LocalModule, SemiLocalModule},
         nonempty_vec::NonEmptyVec,
     },
@@ -369,42 +367,6 @@ impl<T, const S: usize> GetModule for SemiLocalPhmm<T, S> {
     }
 }
 
-impl<T, const S: usize> GetModuleMut for LocalPhmm<T, S> {
-    #[inline]
-    fn begin_mut(&mut self) -> &mut Self::Begin {
-        &mut self.begin
-    }
-
-    #[inline]
-    fn end_mut(&mut self) -> &mut Self::End {
-        &mut self.end
-    }
-}
-
-impl<T, const S: usize> GetModuleMut for DomainPhmm<T, S> {
-    #[inline]
-    fn begin_mut(&mut self) -> &mut Self::Begin {
-        &mut self.begin
-    }
-
-    #[inline]
-    fn end_mut(&mut self) -> &mut Self::End {
-        &mut self.end
-    }
-}
-
-impl<T, const S: usize> GetModuleMut for SemiLocalPhmm<T, S> {
-    #[inline]
-    fn begin_mut(&mut self) -> &mut Self::Begin {
-        &mut self.begin
-    }
-
-    #[inline]
-    fn end_mut(&mut self) -> &mut Self::End {
-        &mut self.end
-    }
-}
-
 impl<T, const S: usize> GetCore<T, S> for GlobalPhmm<T, S> {
     #[inline]
     fn core(&self) -> &CorePhmm<T, S> {
@@ -416,13 +378,6 @@ impl<T, const S: usize> GetLayer<T, S> for GlobalPhmm<T, S> {
     #[inline]
     fn layers(&self) -> &NonEmptyVec<LayerParams<T, S>> {
         self.core().layers()
-    }
-}
-
-impl<T, const S: usize> GetCoreMut<T, S> for GlobalPhmm<T, S> {
-    #[inline]
-    fn core_mut(&mut self) -> &mut CorePhmm<T, S> {
-        &mut self.core
     }
 }
 
@@ -447,13 +402,6 @@ impl<T, const S: usize> GetLayer<T, S> for DomainPhmm<T, S> {
     }
 }
 
-impl<T, const S: usize> GetCoreMut<T, S> for DomainPhmm<T, S> {
-    #[inline]
-    fn core_mut(&mut self) -> &mut CorePhmm<T, S> {
-        &mut self.core
-    }
-}
-
 impl<T, const S: usize> GetLayerMut<T, S> for DomainPhmm<T, S> {
     #[inline]
     fn layers_mut(&mut self) -> &mut NonEmptyVec<LayerParams<T, S>> {
@@ -475,13 +423,6 @@ impl<T, const S: usize> GetLayer<T, S> for SemiLocalPhmm<T, S> {
     }
 }
 
-impl<T, const S: usize> GetCoreMut<T, S> for SemiLocalPhmm<T, S> {
-    #[inline]
-    fn core_mut(&mut self) -> &mut CorePhmm<T, S> {
-        &mut self.core
-    }
-}
-
 impl<T, const S: usize> GetLayerMut<T, S> for SemiLocalPhmm<T, S> {
     #[inline]
     fn layers_mut(&mut self) -> &mut NonEmptyVec<LayerParams<T, S>> {
@@ -500,13 +441,6 @@ impl<T, const S: usize> GetLayer<T, S> for LocalPhmm<T, S> {
     #[inline]
     fn layers(&self) -> &NonEmptyVec<LayerParams<T, S>> {
         self.core().layers()
-    }
-}
-
-impl<T, const S: usize> GetCoreMut<T, S> for LocalPhmm<T, S> {
-    #[inline]
-    fn core_mut(&mut self) -> &mut CorePhmm<T, S> {
-        &mut self.core
     }
 }
 
