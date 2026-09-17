@@ -14,7 +14,7 @@ use crate::{
 };
 use std::{
     fs::File,
-    io::{BufRead, BufReader, BufWriter, Error as IOError, ErrorKind, Lines, Read, Write},
+    io::{BufRead, BufReader, BufWriter, ErrorKind, Lines, Read, Write},
     marker::PhantomData,
     path::Path,
 };
@@ -93,7 +93,9 @@ impl<T: PhmmNumber> GenericSamHmmParser<T> {
     ///
     /// ## Errors
     ///
+    /// - Any IO errors from reading the file are propagated
     /// - The data must meet the SAM model specifications
+    /// - All parameters must be in `0..=1`
     /// - The data must be a model (not a regularizer or null model)
     /// - The specified alphabet must be `dna`
     /// - No negative indices are allowed in layer names
@@ -107,6 +109,7 @@ impl<T: PhmmNumber> GenericSamHmmParser<T> {
     ///
     /// - Any IO errors from reading the file are propagated
     /// - The data must meet the SAM model specifications
+    /// - All parameters must be in `0..=1`
     /// - The data must be a model (not a regularizer or null model)
     /// - The specified alphabet must be `dna`
     /// - No negative indices are allowed in layer names
@@ -121,6 +124,7 @@ impl<T: PhmmNumber> GenericSamHmmParser<T> {
     ///
     /// - Any IO errors from reading the file are propagated
     /// - The data must meet the SAM model specifications
+    /// - All parameters must be in `0..=1`
     /// - The data must be a model (not a regularizer or null model)
     /// - The specified alphabet must be `protein`
     /// - No negative indices are allowed in layer names
@@ -134,6 +138,7 @@ impl<T: PhmmNumber> GenericSamHmmParser<T> {
     ///
     /// - Any IO errors from reading the file are propagated
     /// - The data must meet the SAM model specifications
+    /// - All parameters must be in `0..=1`
     /// - The data must be a model (not a regularizer or null model)
     /// - The specified alphabet must be `protein`
     /// - No negative indices are allowed in layer names
@@ -217,7 +222,7 @@ trait SamHmmConfig<const S: usize, const L: usize> {
     ///   `L`
     /// - No negative indices are allowed in layer names
     /// - At least three layers must be present in the model
-    fn parse_sam_model<R, T>(read: R) -> Result<GlobalPhmm<T, S>, IOError>
+    fn parse_sam_model<R, T>(read: R) -> std::io::Result<GlobalPhmm<T, S>>
     where
         R: Read,
         T: PhmmNumber,
@@ -231,10 +236,10 @@ trait SamHmmConfig<const S: usize, const L: usize> {
         let mapping = Self::parse_alphabet_line(&mut lines)?;
 
         // Read all model layers
-        let mut layers = LayerIter::new(&mut lines)?.collect::<Result<Vec<_>, IOError>>()?;
+        let mut layers = LayerIter::new(&mut lines)?.collect::<Result<Vec<_>, _>>()?;
 
         let [first_layer, .., last_layer] = layers.as_mut_slice() else {
-            return Err(IOError::new(
+            return Err(std::io::Error::new(
                 ErrorKind::InvalidData,
                 "At least three layers must be specified in the SAM model file",
             ));
@@ -282,7 +287,7 @@ trait SamHmmConfig<const S: usize, const L: usize> {
         P: AsRef<Path>,
         SupportedConfig: SamHmmConfig<S, L>, {
         if model.seq_len() < 1 {
-            return Err(IOError::new(
+            return Err(std::io::Error::new(
                 ErrorKind::InvalidData,
                 "The pHMM must correspond to a reference of length at least 1!",
             ));
@@ -330,18 +335,21 @@ trait SamHmmConfig<const S: usize, const L: usize> {
     fn parse_alphabet_line<R: Read>(lines: &mut LineIterator<R>) -> std::io::Result<&'static ByteIndexMap<S>> {
         let line = lines
             .next()
-            .ok_or(IOError::new(ErrorKind::InvalidData, "Could not locate alphabet line in file"))??
+            .ok_or(std::io::Error::new(
+                ErrorKind::InvalidData,
+                "Could not locate alphabet line in file",
+            ))??
             .to_ascii_uppercase();
 
         let mut tokens = line.split_whitespace();
 
         let field = tokens.next().unwrap_or("");
         if !field.eq_ignore_ascii_case("ALPHABET") {
-            return Err(IOError::new(ErrorKind::InvalidData, "Expected alphabet line"));
+            return Err(std::io::Error::new(ErrorKind::InvalidData, "Expected alphabet line"));
         }
 
         let Some(mut alphabet) = tokens.next() else {
-            return Err(IOError::new(ErrorKind::InvalidData, "Alphabet was missing"));
+            return Err(std::io::Error::new(ErrorKind::InvalidData, "Alphabet was missing"));
         };
         alphabet = alphabet.trim();
 
@@ -361,7 +369,8 @@ trait SamHmmConfig<const S: usize, const L: usize> {
     /// - All parameters must parse successfully, and there should be no extra
     ///   parameters on any line (see [`fill_params_from_iter`])
     ///
-    /// [`fill_params_from_iter`]: crate::alignment::phmm::sam_parser::SamHmmConfig::fill_params_from_iter
+    /// [`fill_params_from_iter`]:
+    ///     crate::alignment::phmm::sam_parser::SamHmmConfig::fill_params_from_iter
     fn parse_layer_params<'a, R: Read, T: PhmmNumber>(
         mut rest_of_line: impl Iterator<Item = &'a str>, lines: &mut LineIterator<R>,
     ) -> std::io::Result<LayerParams<T, S>> {
@@ -383,7 +392,7 @@ trait SamHmmConfig<const S: usize, const L: usize> {
         }
 
         if i < params.len() {
-            return Err(IOError::new(
+            return Err(std::io::Error::new(
                 ErrorKind::InvalidData,
                 "The file ended before a full set of parameters was parsed",
             ));
@@ -403,13 +412,13 @@ trait SamHmmConfig<const S: usize, const L: usize> {
     ///   elements
     fn fill_params_from_iter<'a, T: PhmmNumber>(
         iter: &mut impl Iterator<Item = &'a str>, params: &mut [T], mut i: usize,
-    ) -> Result<usize, std::io::Error> {
+    ) -> std::io::Result<usize> {
         for param in iter.take(L - i) {
             params[i] = parse_param(param)?;
             i += 1;
         }
         if iter.next().is_some() {
-            return Err(IOError::new(
+            return Err(std::io::Error::new(
                 ErrorKind::InvalidData,
                 "Layers of the model must be separated by line breaks",
             ));
@@ -420,14 +429,14 @@ trait SamHmmConfig<const S: usize, const L: usize> {
 
 impl SamHmmConfig<4, 17> for SupportedConfig {
     #[inline]
-    fn parse_mapping(mapping: &str) -> Result<&'static ByteIndexMap<4>, IOError> {
+    fn parse_mapping(mapping: &str) -> std::io::Result<&'static ByteIndexMap<4>> {
         match mapping {
             "DNA" => Ok(&DNA_UNAMBIG_PROFILE_MAP),
-            "PROTEIN" => Err(IOError::new(
+            "PROTEIN" => Err(std::io::Error::new(
                 ErrorKind::InvalidData,
                 "A protein alphabet was found, but a DNA alphabet was expected",
             )),
-            _ => Err(IOError::new(ErrorKind::InvalidData, "Unsupported alphabet specified")),
+            _ => Err(std::io::Error::new(ErrorKind::InvalidData, "Unsupported alphabet specified")),
         }
     }
 
@@ -436,7 +445,10 @@ impl SamHmmConfig<4, 17> for SupportedConfig {
         if mapping == &DNA_UNAMBIG_PROFILE_MAP {
             return Ok("DNA");
         }
-        Err(IOError::new(ErrorKind::InvalidData, "The mapping is unsupported by SAM!"))
+        Err(std::io::Error::new(
+            ErrorKind::InvalidData,
+            "The mapping is unsupported by SAM!",
+        ))
     }
 
     #[inline]
@@ -487,14 +499,14 @@ impl SamHmmConfig<4, 17> for SupportedConfig {
 
 impl SamHmmConfig<20, 49> for SupportedConfig {
     #[inline]
-    fn parse_mapping(mapping: &str) -> Result<&'static ByteIndexMap<20>, IOError> {
+    fn parse_mapping(mapping: &str) -> std::io::Result<&'static ByteIndexMap<20>> {
         match mapping {
-            "DNA" => Err(IOError::new(
+            "DNA" => Err(std::io::Error::new(
                 ErrorKind::InvalidData,
                 "A DNA alphabet was found, but a protein alphabet was expected",
             )),
             "PROTEIN" => Ok(&AA_UNAMBIG_PROFILE_MAP),
-            _ => Err(IOError::new(ErrorKind::InvalidData, "Unsupported alphabet specified")),
+            _ => Err(std::io::Error::new(ErrorKind::InvalidData, "Unsupported alphabet specified")),
         }
     }
 
@@ -503,7 +515,10 @@ impl SamHmmConfig<20, 49> for SupportedConfig {
         if mapping == &AA_UNAMBIG_PROFILE_MAP {
             return Ok("PROTEIN");
         }
-        Err(IOError::new(ErrorKind::InvalidData, "The mapping is unsupported by SAM!"))
+        Err(std::io::Error::new(
+            ErrorKind::InvalidData,
+            "The mapping is unsupported by SAM!",
+        ))
     }
 
     #[inline]
@@ -558,43 +573,47 @@ impl SamHmmConfig<20, 49> for SupportedConfig {
 ///
 /// - Negatively-numbered nodes are not supported
 /// - Any layer name other than BEGIN or END must successfully parse to a usize
-fn parse_layer_name(token: &str) -> Result<Option<usize>, IOError> {
+fn parse_layer_name(token: &str) -> std::io::Result<Option<usize>> {
     if token.eq_ignore_ascii_case("BEGIN") {
         Ok(Some(0))
     } else if token.eq_ignore_ascii_case("END") {
         Ok(None)
     } else if token.starts_with('-') {
-        Err(IOError::new(
+        Err(std::io::Error::new(
             ErrorKind::InvalidData,
             "Negatively-numbered nodes in models are not supported. Consider using a prior version of SAM's hmmconvert to convert the model",
         ))
     } else if let Ok(layer) = token.parse::<usize>() {
         Ok(Some(layer))
     } else {
-        Err(IOError::new(ErrorKind::InvalidData, "Could not parse the layer name"))
+        Err(std::io::Error::new(ErrorKind::InvalidData, "Could not parse the layer name"))
     }
 }
 
 /// Extracts and validates the "MODEL" line of the file
 #[inline]
 fn validate_model_line<R: Read>(lines: &mut LineIterator<R>) -> std::io::Result<()> {
-    let line = lines
-        .next()
-        .ok_or(IOError::new(ErrorKind::InvalidData, "Could not locate initial line in file"))??;
+    let line = lines.next().ok_or(std::io::Error::new(
+        ErrorKind::InvalidData,
+        "Could not locate initial line in file",
+    ))??;
 
     let token = line.split_whitespace().next().unwrap_or("");
 
     match token {
         "MODEL" => Ok(()),
-        "REGULARIZER" => Err(IOError::new(
+        "REGULARIZER" => Err(std::io::Error::new(
             ErrorKind::InvalidData,
             "REGULARIZER is not supported by this parser",
         )),
-        "NULLMODEL" => Err(IOError::new(
+        "NULLMODEL" => Err(std::io::Error::new(
             ErrorKind::InvalidData,
             "NULLMODEL is not supported by this parser",
         )),
-        _ => Err(IOError::new(ErrorKind::InvalidData, "Could not locate initial line in file")),
+        _ => Err(std::io::Error::new(
+            ErrorKind::InvalidData,
+            "Could not locate initial line in file",
+        )),
     }
 }
 
@@ -603,22 +622,23 @@ fn validate_model_line<R: Read>(lines: &mut LineIterator<R>) -> std::io::Result<
 ///
 /// ## Errors
 ///
-/// - Negative parameters are not allowed
-/// - The parameter must succeed when parsing to type `T`
+/// The parameter must be a valid `f64` in `0..=1`.
 #[inline]
-fn parse_param<T: PhmmNumber>(prob: &str) -> Result<T, IOError> {
-    if prob.starts_with('-') {
-        return Err(IOError::new(
-            ErrorKind::InvalidData,
-            format!("A negative parameter was found: {prob}"),
-        ));
-    }
+fn parse_param<T: PhmmNumber>(prob: &str) -> std::io::Result<T> {
     let prob = prob.parse::<f64>().map_err(|_| {
-        IOError::new(
+        std::io::Error::new(
             ErrorKind::InvalidData,
             format!("When parsing the model parameters, the value {prob} could not be parsed as a float"),
         )
     })?;
+
+    if !(0.0..=1.0).contains(&prob) {
+        return Err(std::io::Error::new(
+            ErrorKind::InvalidData,
+            format!("All parameters must be in 0..=1, but found: {prob}"),
+        ));
+    }
+
     Ok(T::from_prob(prob))
 }
 
@@ -646,7 +666,7 @@ where
         let mut raw_layers = RawLayerIter::new(lines);
         let last_layer = raw_layers
             .next()
-            .ok_or(IOError::new(ErrorKind::InvalidData, "No model layers found!"))??;
+            .ok_or(std::io::Error::new(ErrorKind::InvalidData, "No model layers found!"))??;
         Ok(Self { raw_layers, last_layer })
     }
 }
@@ -697,7 +717,7 @@ impl<R: Read, T: PhmmNumber, const S: usize, const L: usize> Iterator for RawLay
 where
     SupportedConfig: SamHmmConfig<S, L>,
 {
-    type Item = Result<LayerParams<T, S>, IOError>;
+    type Item = std::io::Result<LayerParams<T, S>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         // Get the next expected layer, which is `None` only if we have already
@@ -707,7 +727,7 @@ where
         let layer = loop {
             // Get line containing layer number/name
             let Some(line) = unwrap_or_return_some_err!(self.lines.next().transpose()) else {
-                return Some(Err(IOError::new(ErrorKind::InvalidData, "File ended before ENDMODEL")));
+                return Some(Err(std::io::Error::new(ErrorKind::InvalidData, "File ended before ENDMODEL")));
             };
 
             // Get token corresponding to layer name/number
@@ -727,7 +747,7 @@ where
             // Parse the layer name/number
             if let Some(layer_number) = unwrap_or_return_some_err!(parse_layer_name(token)) {
                 if layer_number != expected_layer {
-                    return Some(Err(IOError::new(
+                    return Some(Err(std::io::Error::new(
                         ErrorKind::InvalidData,
                         format!("Found model node {layer_number}, expected model node {expected_layer}"),
                     )));
@@ -751,13 +771,13 @@ where
                 && let Some(token) = unwrap_or_return_some_err!(line).split_whitespace().next()
             {
                 if !token.eq_ignore_ascii_case("ENDMODEL") {
-                    return Some(Err(IOError::new(
+                    return Some(Err(std::io::Error::new(
                         ErrorKind::InvalidData,
                         format!("Unexpected token {token} found between END layer and ENDMODEL"),
                     )));
                 }
             } else {
-                return Some(Err(IOError::new(ErrorKind::InvalidData, "Failed to find ENDMODEL")));
+                return Some(Err(std::io::Error::new(ErrorKind::InvalidData, "Failed to find ENDMODEL")));
             }
         }
 
