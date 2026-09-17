@@ -1,9 +1,11 @@
+//! Definition of the [`AlnIndex`] trait and many specific index types
+//! implementing it.
+
+use crate::alignment::phmm::indexing::AlnIndexable;
 use std::{
     cmp::Ordering,
     ops::{Add, AddAssign},
 };
-
-use crate::alignment::phmm::indexing::AlnIndexable;
 
 /// A trait representing different ways to index into sequence data associated
 /// with a dynamic programming alignment algorithm.

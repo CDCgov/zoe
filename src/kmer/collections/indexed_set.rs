@@ -201,13 +201,14 @@ where
     }
 
     /// Returns an iterator over the encoded k-mers in the indexed set.
+    ///
     /// <div class="warning">
     ///
     /// **Warning**
     ///
-    /// Iteration on an [`IndexedKmerSet`] will be much slower than its non-indexed
-    /// counterpart, as it will be necessary to iterate over every possible k-mer
-    /// with the given k-mer length.
+    /// Iteration on an [`IndexedKmerSet`] will be much slower than its
+    /// non-indexed counterpart, as it will be necessary to iterate over every
+    /// possible k-mer with the given k-mer length.
     ///
     /// </div>
     #[inline]

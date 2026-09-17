@@ -1,3 +1,6 @@
+//! Traits for generating k-mers with a fixed number of mismatches compared to a
+//! given k-mer.
+
 use crate::kmer::{
     KmerEncoder, SupportedKmerLen,
     encoders::{
@@ -8,6 +11,14 @@ use crate::kmer::{
 
 /// A trait for specializing the implementation of [`KmerEncoder::get_variants`]
 /// based on the number of mismatches.
+///
+/// For [`ThreeBitKmerEncoder`] and [`TwoBitKmerEncoder`], between 1 and 10
+/// mismatches are currently supported.
+///
+/// ## Parameters
+///
+/// - `N`: The number of mismatches allowed when generating variants.
+/// - `MAX_LEN`: The maximum k-mer length supported by the given encoder.
 pub trait GetVariants<const N: usize, const MAX_LEN: usize>: KmerEncoder<MAX_LEN> {
     /// The iterator for generating the specified variants.
     type Iter: Iterator<Item = Self::EncodedKmer>;

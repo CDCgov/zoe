@@ -1,3 +1,6 @@
+//! Implementations of standard library traits on [`SamData`] and SAM-related
+//! types.
+
 #[allow(deprecated)]
 use crate::data::{
     cigar::CigarView,

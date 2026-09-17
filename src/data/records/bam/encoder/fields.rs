@@ -103,15 +103,21 @@ pub(super) fn encode_qual(qual: Option<&QualityScores>, seq: Option<&Nucleotides
     Ok(qual_view.iter().map(|&byte| QScoreInt::from(byte).as_u8()).collect())
 }
 
+/// A struct holding the number of residues consumed by a CIGAR string in the
+/// query and in the reference.
 pub(super) struct CigarSpans {
+    /// The number of residues consumed by the CIGAR string in the query.
     pub(super) query_span: usize,
+    /// The number of residues consumed by the CIGAR string in the reference.
     pub(super) ref_span:   u32,
 }
 
 /// Encodes parsed a CIGAR string as BAM CIGAR words, as well as returning the
 /// query and reference span.
 ///
-/// Each word stores a 28-bit operation length and a 4-bit operation code.
+/// Each word stores a 28-bit operation length and a 4-bit operation code. If
+/// `ciglets` is `None`, then an empty vector is returned with the spans as
+/// `None`.
 pub(super) fn encode_cigar(
     ciglets: Option<&impl ToCigletIterator>,
 ) -> Result<(Vec<u32>, Option<CigarSpans>), BamRecordError> {

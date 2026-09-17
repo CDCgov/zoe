@@ -4,47 +4,50 @@ All notable changes to this project will be documented in this file. The format
 is roughly based on [Keep a Changelog], and this project tries to adheres to
 [Semantic Versioning].
 
-## [0.0.33] - TBD
+## [0.0.33] - 2026-09-17
 
 ### Added
 
-- The 2-bit k-mer encoder not has support for `get_variants` with 2-10 mismatches
-- Added `sample_one_weighted` function for weighted sampling without allocation (behind `rand` feature gate)
-- Added `IndexedKmerCounter` and `IndexedKmerSet` structs
-- Added `process_results_many` for simultaneously handling multiple fallible iterators
-- `SamOptField` and `SamOptRaw` now implement `Display`
-- The raw tags are now exposed in `SamOptRaw` via `iter_raw`
-- `SamDataView` now contains a view of the optional fields
-- Added `CigletIteratorChecked` to provide a fallible iterator over `Cigar`
-- Added `to_ciglet_iter_checked` to `ToCigletIterator`, providing fallible iterators
-- Added `op_consumes_query` and `op_consumes_ref` methods to `Ciglet`
+- Added `IndexedKmerCounter` and `IndexedKmerSet` structs as more efficient
+  alternatives when k-mer size is small
+- Added `OrFail::unwrap_or_exit` for exiting with an explicit
+  application-selected error code
 - Added a version of `RangeSearch` that is compatible with UTF-8 `&str`
+- The 2-bit k-mer encoder now has support for `get_variants` with 2-10
+  mismatches
+- Added `process_results_many` for simultaneously handling multiple fallible
+  iterators
+- Added `CigletIteratorChecked` and `to_ciglet_iter_checked` to provide a
+  fallible iterator over `Cigar`
 - Added traits for retrieving or splitting off annotations from record headers
-- Added `OrFail::unwrap_or_exit` for exiting with an explicit application-selected
-  error code
-- `SamOptField` now implements `FromStr` and `IntoIterator`
+- `SamDataView` now contains a view of the optional fields
+- The raw tags are now exposed in `SamOptRaw` via `iter_raw`
+- Added `op_consumes_query` and `op_consumes_ref` methods to `Ciglet`
+- `SamOptField` now implements `FromStr` and `IntoIterator`, and `SamOptField`
+  and `SamOptRaw` now implement `Display`
+- Added `sample_one_weighted` function for weighted sampling without allocation
+  (behind `rand` feature gate)
 
 ### Changed
 
-- The order of the generics has been reversed in `ThreeBitMismatchIter` for consistency
-- Renamed `KmerSet` methods to better differentiate between their `decoded` variants:
-  - `difference()` > `difference_encoded()`
-  - `intersection()` > `intersection_encoded()`
-  - `symmetric_difference()` > `symmetric_difference_encoded()`
-  - `union()` > `union_encoded()`
-- `KmerSet` set operations can now `panic` if the `kmer_length` of the encoders
-  of the sets are not equal
-- Empty `qname`, `rname`, or `cigar` fields are now displayed as `*` by
-  `SamData` and view types
-- `OrFail` and `Fail` now find raw OS error codes directly in the error source
-  chain and otherwise use exit code 1
 - Multiversion updated to 0.9, which brings a measurable bump in performance on
   AVX-512 capable machines for a modest binary size increase.
-- `or_stop` with `process_results_many` now uses a new iterator called `OrStop`
 - `encode_kmer` now panics if the k-mer length is incorrect for the given
   encoder, and added `encode_kmer_unchecked` which does no check
-- `KmerCounter` now supports indexing with either encoded or decoded k-mers
+- `KmerSet` set operations now `panic` if the `kmer_length` of the encoders of
+  the sets are not equal
+- Empty `qname`, `rname`, or `cigar` fields are now displayed as `*` by
+  `SamData` and view types
 - `Cigar` constructors now replace `*` with an empty vector
+- Renamed `KmerSet` methods `difference` to `difference_encoded`, `intersection`
+  to `intersection_encoded`, `symmetric_difference` to
+  `symmetric_difference_encoded`, and `union` to `union_encoded`
+- The order of the generics has been reversed in `ThreeBitMismatchIter` for
+  consistency
+- `OrFail` and `Fail` now find raw OS error codes directly in the error source
+  chain and otherwise use exit code 1
+- `or_stop` with `process_results_many` now uses a new iterator called `OrStop`
+- `KmerCounter` now supports indexing with either encoded or decoded k-mers
 
 ### Removed
 
@@ -53,10 +56,6 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Removed the `GetCode` trait
 - Deprecated `FastaNTAnnot`
 - Deprecated `encode_kmer_checked`
-
-## Fixed
-
-- `ProcessResults` now implements `Send` again
 
 ## [0.0.32] - 2026-09-02
 

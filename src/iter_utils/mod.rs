@@ -30,6 +30,8 @@ pub use stepped_windows::*;
 /// [`Send`]/[`Sync`] and is hence compatible with `rayon` (and has less
 /// overhead), but the latter allows reuse by multiple locations in the code
 /// without conflicting mutable borrows.
+///
+/// [`process_results`]: ProcessResultsExt::process_results
 trait ProcessResultsTracker<E> {
     /// Records an error.
     ///
@@ -353,7 +355,7 @@ impl<T, E, I: Iterator<Item = Result<T, E>>> ProcessResultsExt<T, E> for I {}
 ///
 /// This standalone function provides a context allowing any fallible iterator
 /// to be transformed into an infallible iterator by calling the [`or_stop`]
-/// method on it. This methods yields the `Ok` items from the iterator until an
+/// method on it. This method yields the `Ok` items from the iterator until an
 /// error is reached, after which `None` is returned. The first encountered
 /// error is stored to the context and propagated when the closure exits.
 ///
@@ -364,7 +366,7 @@ impl<T, E, I: Iterator<Item = Result<T, E>>> ProcessResultsExt<T, E> for I {}
 /// ```
 /// # use std::array::IntoIter;
 /// # use zoe::iter_utils::{ProcessResultsExt, process_results_many};
-///
+/// // Example where all elements are Ok
 /// let iter1 = [Ok(1), Ok(2), Ok(3), Ok(4)].into_iter();
 /// let iter2 = [Ok('A'), Ok('B'), Ok('C')].into_iter();
 /// # let iter1: IntoIter<Result<i32, ()>, 4> = iter1;
@@ -377,7 +379,7 @@ impl<T, E, I: Iterator<Item = Result<T, E>>> ProcessResultsExt<T, E> for I {}
 ///
 /// assert_eq!(zipped, Ok(vec![(1, 'A'), (2, 'B'), (3, 'C')]));
 ///
-///
+/// // Example with errors
 /// let iter1 = [Ok(1), Ok(2), Ok(3), Ok(4)].into_iter();
 /// let iter2 = [Ok('A'), Err("Failure"), Ok('C')].into_iter();
 /// let zipped = process_results_many(|cx| {
@@ -393,7 +395,6 @@ impl<T, E, I: Iterator<Item = Result<T, E>>> ProcessResultsExt<T, E> for I {}
 ///
 /// ```
 /// # use zoe::iter_utils::{ProcessResultsExt, process_results_many};
-///
 /// let data = [1, 2, 3];
 /// let idx_iter = ["1", "2", "3", "D"].into_iter();
 ///

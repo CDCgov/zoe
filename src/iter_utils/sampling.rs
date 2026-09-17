@@ -1,4 +1,4 @@
-//! ## Iterators and Iterator Extensions for Subsampling
+//! Iterators and iterator extensions for subsampling.
 //!
 //! *Zoe* provides the ability to efficiently and randomly downsample iterators
 //! (with and without a known size). The following methods are provided:

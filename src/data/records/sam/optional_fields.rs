@@ -1,6 +1,7 @@
-use std::{fmt::Display, str::FromStr};
+//! Structs for holding optional fields in a SAM file.
 
 use crate::{data::err::ResultWithErrorContext, iter_utils::ProcessResultsExt, math::AnyInt, prelude::*};
+use std::{fmt::Display, str::FromStr};
 
 /// Any optional fields stored in a SAM record, lazily parsed on an as-needed
 /// basis.
@@ -99,8 +100,8 @@ impl SamOptRaw {
     }
 }
 
-/// Any optional fields stored in a SAM record, lazily parsed on an as-needed
-/// basis.
+/// A view of any optional fields stored in a SAM record, lazily parsed on an
+/// as-needed basis.
 ///
 /// Each optional field consists of a tag, value type, and value.
 #[derive(Copy, Clone, Debug, Default)]

@@ -380,7 +380,7 @@ pub trait ToStrRangeSearch: AsRef<str> + Sealed {
     }
 
     /// Restrict the search to be in only the first `n` bytes. If the sequence
-    /// is less than `n` bytes long, then the full sequence is searched.
+    /// is less than `n` bytes long, then the full string is searched.
     ///
     /// <div class="warning note">
     ///
@@ -400,7 +400,7 @@ pub trait ToStrRangeSearch: AsRef<str> + Sealed {
     }
 
     /// Restrict the search to be in only the last `n` bytes. If the sequence is
-    /// less than `n` bytes long, then the full sequence is searched.
+    /// less than `n` bytes long, then the full string is searched.
     ///
     /// <div class="warning note">
     ///

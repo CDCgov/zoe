@@ -356,6 +356,11 @@ pub trait KmerIndex: Sized {
     fn as_usize(&self) -> usize;
 
     /// Converts an index back into an encoded k-mer.
+    ///
+    /// ## Panics
+    ///
+    /// This can panic if an index larger than the maximum possible encoded
+    /// k-mer is provided.
     fn from_usize(index: usize) -> Self;
 
     /// Returns the maximum index (maximum encoded k-mer) possible for a given

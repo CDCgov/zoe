@@ -4,7 +4,7 @@
 //! operations efficiently using integer encodings. A k-mer is a short
 //! subsequence of nucleotides, which are represented in *Zoe* by [`Kmer`].
 //!
-//! *Zoe* has two structs to store k-mers:
+//! The basic structs for storing k-mers in *Zoe* are:
 //!
 //! - A [`KmerSet`], which is a [`HashSet`] for k-mers
 //! - A [`KmerCounter`] to store k-mers and their counts (using a [`HashMap`])
@@ -13,6 +13,12 @@
 //! with up to `N` mismatches. They can be then be queried, iterated over, or
 //! used to search within a sequence. See [`KmerSet`] and [`KmerCounter`] for
 //! more details.
+//!
+//! For small k-mer sizes, the same functionality can be achieved with
+//! [`IndexedKmerSet`] and [`IndexedKmerCounter`], which use a `Vec` as the
+//! underlying storage and thus avoid hashing. The encoded k-mers are used
+//! directly as indices into the data structures, and large enough `Vec`s are
+//! allocated to cover all possible encoded k-mers of the specified size.
 //!
 //! ## Generic Parameters
 //!

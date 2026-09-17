@@ -1,5 +1,7 @@
-//! Structs and traits to enable more readable/correct indexing into
-//! pHMM-related data structures.
+//! Definition of the [`AlnIndexable`] trait for structures able to be indexed
+//! with [`AlnIndex`].
+//!
+//! [`AlnIndex`]: super::AlnIndex
 
 use crate::alignment::phmm::{
     DomainPhmm, GlobalPhmm, LocalPhmm, SemiLocalPhmm,

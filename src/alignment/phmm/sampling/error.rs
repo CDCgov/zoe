@@ -122,10 +122,6 @@ where
 {
     /// Creates a new [`ParamSamplingError`] for sampling a pHMM state or
     /// exiting.
-    ///
-    /// The parameters should be in the same order as
-    /// [`PhmmStateOrModule::VARIANTS`], with exiting to the module being the
-    /// last parameter.
     pub(crate) fn new_state_or_exit(e: WeightError, params: PhmmStateOrModuleArr<T>) -> Self {
         let source = ParamWeightError::from(e);
         let params = LabeledParam::new_arr(params.zip_states().map(|(label, param)| (label.display_exit(), param)));

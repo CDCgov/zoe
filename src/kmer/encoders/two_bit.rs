@@ -763,11 +763,6 @@ where
         self.0.as_usize()
     }
 
-    /// Creates a [`KmerIndex`] from a usize
-    ///
-    /// ## Panics
-    ///
-    /// This can panic if an index for a value larger than a [`u64`] is provided
     #[inline]
     fn from_usize(index: usize) -> Self {
         Self(

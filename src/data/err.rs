@@ -24,8 +24,9 @@
 //! the immediate error level. To see the full error stack when handling errors,
 //! it is important to do one of the following:
 //!
-//! - Iterate through the source chain via [`Error::source`]
+//! - Return a `Result<(), ErrorWithContext>` from `main.rs`
 //! - Use *Zoe*'s [`OrFail`] or [`Fail`] traits
+//! - Iterate through the source chain via [`Error::source`]
 //! - Use an external crate like `anyhow`
 //!
 //! ## Error Context
