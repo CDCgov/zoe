@@ -76,14 +76,14 @@ impl<T, const S: usize> LocalPhmm<T, S> {
     ///
     /// ## Errors
     ///
-    /// [`InvalidModelError::IncompatibleModule`] is returned if the length of
-    /// `begin` or `end` doesn't match the length of `core`.
+    /// [`IncompatibleModuleError`] is returned if the length of `begin` or
+    /// `end` doesn't match the length of `core`.
     #[inline]
     pub fn from_parts(
         mapping: &'static ByteIndexMap<S>, core: CorePhmm<T, S>, begin: LocalModule<T, S>, end: LocalModule<T, S>,
-    ) -> Result<LocalPhmm<T, S>, InvalidModelError> {
+    ) -> Result<LocalPhmm<T, S>, IncompatibleModuleError> {
         if core.seq_len() != begin.semilocal_params.seq_len() || core.seq_len() != end.semilocal_params.seq_len() {
-            return Err(InvalidModelError::IncompatibleModule);
+            return Err(IncompatibleModuleError);
         }
 
         Ok(Self {
@@ -172,14 +172,14 @@ impl<T, const S: usize> SemiLocalPhmm<T, S> {
     ///
     /// ## Errors
     ///
-    /// [`InvalidModelError::IncompatibleModule`] is returned if the length of
-    /// `begin` or `end` doesn't match the length of `core`.
+    /// [`IncompatibleModuleError`] is returned if the length of `begin` or
+    /// `end` doesn't match the length of `core`.
     #[inline]
     pub fn from_parts(
         mapping: &'static ByteIndexMap<S>, core: CorePhmm<T, S>, begin: SemiLocalModule<T>, end: SemiLocalModule<T>,
-    ) -> Result<Self, InvalidModelError> {
+    ) -> Result<Self, IncompatibleModuleError> {
         if core.seq_len() != begin.seq_len() || core.seq_len() != end.seq_len() {
-            return Err(InvalidModelError::IncompatibleModule);
+            return Err(IncompatibleModuleError);
         }
 
         Ok(Self {
@@ -257,13 +257,15 @@ pub enum SemiLocalConfig<T> {
 }
 
 impl<T: PhmmNumber, const S: usize> GlobalPhmm<T, S> {
-    /// Creates a [`LocalPhmm`] from a [`GlobalPhmm`].
+    /// Converts a [`GlobalPhmm`] into a [`LocalPhmm`] using the provided
+    /// `config`.
     ///
-    /// The method to use for defining the local alignment behavior is specified
-    /// with `config`.
+    /// ## Errors
+    ///
+    /// [`IncompatibleModuleError`] is returned if the length of either module
+    /// is incorrect (for [`LocalConfig::Custom`]).
     #[inline]
-    #[must_use]
-    pub fn into_local_phmm(self, config: LocalConfig<T, S>) -> LocalPhmm<T, S> {
+    pub fn into_local_phmm(self, config: LocalConfig<T, S>) -> Result<LocalPhmm<T, S>, IncompatibleModuleError> {
         let (begin, end) = match config {
             LocalConfig::NoPenalty { background_emission } => (
                 LocalModule::no_penalty(&self.core, background_emission.clone()),
@@ -271,18 +273,12 @@ impl<T: PhmmNumber, const S: usize> GlobalPhmm<T, S> {
             ),
             LocalConfig::Custom { begin, end } => (begin, end),
         };
-        LocalPhmm {
-            mapping: self.mapping,
-            core: self.core,
-            begin,
-            end,
-        }
+
+        LocalPhmm::from_parts(self.mapping, self.core, begin, end)
     }
 
-    /// Creates a [`DomainPhmm`] from a [`GlobalPhmm`].
-    ///
-    /// The method to use for defining the local alignment behavior is specified
-    /// with `config`.
+    /// Converts a [`GlobalPhmm`] into a [`DomainPhmm`] using the provided
+    /// `config`.
     #[inline]
     #[must_use]
     pub fn into_domain_phmm(self, config: DomainConfig<T, S>) -> DomainPhmm<T, S> {
@@ -293,19 +289,18 @@ impl<T: PhmmNumber, const S: usize> GlobalPhmm<T, S> {
             ),
             DomainConfig::Custom { begin, end } => (begin, end),
         };
-        DomainPhmm {
-            mapping: self.mapping,
-            core: self.core,
-            begin,
-            end,
-        }
+        DomainPhmm::from_parts(self.mapping, self.core, begin, end)
     }
 
     /// Converts a [`GlobalPhmm`] into a [`SemiLocalPhmm`] using the provided
     /// `config`.
+    ///
+    /// ## Errors
+    ///
+    /// [`IncompatibleModuleError`] is returned if the length of either module
+    /// is incorrect (for [`SemiLocalConfig::Custom`]).
     #[inline]
-    #[must_use]
-    pub fn into_semilocal_phmm(self, config: SemiLocalConfig<T>) -> SemiLocalPhmm<T, S> {
+    pub fn into_semilocal_phmm(self, config: SemiLocalConfig<T>) -> Result<SemiLocalPhmm<T, S>, IncompatibleModuleError> {
         let (begin, end) = match config {
             SemiLocalConfig::NoPenalty => (
                 SemiLocalModule::no_penalty(&self.core),
@@ -313,12 +308,8 @@ impl<T: PhmmNumber, const S: usize> GlobalPhmm<T, S> {
             ),
             SemiLocalConfig::Custom { begin, end } => (begin, end),
         };
-        SemiLocalPhmm {
-            mapping: self.mapping,
-            core: self.core,
-            begin,
-            end,
-        }
+
+        SemiLocalPhmm::from_parts(self.mapping, self.core, begin, end)
     }
 }
 
@@ -507,6 +498,18 @@ impl<T, const S: usize> GetMapping<S> for &DomainPhmm<T, S> {
     }
 }
 
+/// An error representing an incompatible module in a pHMM.
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Default)]
+pub struct IncompatibleModuleError;
+
+impl Display for IncompatibleModuleError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "The pHMM's alignment modules are incompatible with the core pHMM!")
+    }
+}
+
+impl Error for IncompatibleModuleError {}
+
 /// An enum representing errors that can happen when working with pHMMs.
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum InvalidModelError {
@@ -527,7 +530,7 @@ impl Display for InvalidModelError {
                 write!(f, "Too few layers were specified for the pHMM! At least {num} are required")
             }
             InvalidModelError::IncompatibleModule => {
-                write!(f, "The pHMM's alignment modules are incompatible with the core pHMM!")
+                write!(f, "{IncompatibleModuleError}")
             }
         }
     }
