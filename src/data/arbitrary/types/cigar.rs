@@ -24,7 +24,7 @@ impl<'a> Arbitrary<'a> for Ciglet {
 impl<'a> Arbitrary<'a> for Cigar {
     #[inline]
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        Ok(Cigar(Vec::arbitrary(u)?))
+        Ok(Cigar::from_vec_unchecked(Vec::arbitrary(u)?))
     }
 }
 
@@ -666,7 +666,7 @@ impl ClampAlignment for Cigar {
                 }
             }
 
-            *self = Cigar(new_vec);
+            *self = Cigar::from_vec_unchecked(new_vec);
         }
     }
 

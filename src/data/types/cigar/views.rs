@@ -18,7 +18,7 @@ pub struct CigarView<'a>(&'a [u8]);
 /// See [Views](crate::data#views) for more details. This struct is still in
 /// development; it currently only supports parsing and displaying, and not all
 /// the other operations that [`Cigar`] supports.
-#[derive(Eq, PartialEq, Hash)]
+#[derive(Eq, PartialEq, Hash, Default)]
 pub struct CigarViewMut<'a>(&'a mut [u8]);
 
 impl<'a> CigarView<'a> {
@@ -30,10 +30,12 @@ impl<'a> CigarView<'a> {
     }
 
     /// Creates a new [`CigarView`] from `v` without checking for validity.
+    ///
+    /// If `*` is passed, this is replaced with [`CigarView::new`].
     #[inline]
     #[must_use]
     pub fn from_slice_unchecked(v: &'a [u8]) -> Self {
-        Self(v)
+        if v == b"*" { CigarView::new() } else { CigarView(v) }
     }
 
     /// Creates a new empty [`CigarView`].
@@ -62,10 +64,19 @@ impl<'a> CigarViewMut<'a> {
     }
 
     /// Creates a new [`CigarViewMut`] from `v` without checking for validity.
+    ///
+    /// If `*` is passed, this is replaced with [`CigarViewMut::new`].
     #[inline]
     #[must_use]
     pub fn from_slice_unchecked(v: &'a mut [u8]) -> Self {
-        Self(v)
+        if v == b"*" { CigarViewMut::new() } else { CigarViewMut(v) }
+    }
+
+    /// Creates a new empty CIGAR string.
+    #[inline]
+    #[must_use]
+    pub fn new() -> Self {
+        Self(&mut [])
     }
 
     /// Returns an iterator of the contained [`Ciglet`] values.

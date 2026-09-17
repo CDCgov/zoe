@@ -14,12 +14,14 @@ pub use views::*;
 
 /// A [CIGAR string] of increment-operation pairs used in sequence alignment.
 ///
-/// [`Cigar`] internally stores a buffer of the bytes used when displaying a
-/// CIGAR string. This makes it efficient for displaying, as well as reading
-/// (since no parsing is done). Some algorithms in *Zoe* assume that a CIGAR
-/// string meets certain assumptions, in which case these are documented.
-/// Otherwise, a CIGAR string may contain arbitrary data, such as through
-/// [`from_vec_unchecked`].
+/// [`Cigar`] internally stores an unvalidated vector of bytes, which makes it
+/// efficient for reading and displaying. An empty or missing CIGAR string is
+/// stored as an empty vector, but is displayed as `*` (and can be parsed from
+/// `*`).
+///
+/// Some algorithms in *Zoe* assume that a CIGAR string meets certain
+/// assumptions, in which case these are documented. Otherwise, a CIGAR string
+/// may contain arbitrary data, such as through [`from_vec_unchecked`].
 ///
 /// For an alternative data type which stores the increment-operation pairs
 /// directly (and hence has more data quality guarantees), see
@@ -29,7 +31,7 @@ pub use views::*;
 ///     https://en.wikipedia.org/wiki/Sequence_alignment#CIGAR_Format
 /// [`from_vec_unchecked`]: Cigar::from_vec_unchecked
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct Cigar(pub(crate) Vec<u8>);
+pub struct Cigar(Vec<u8>);
 
 /// The number of bytes in a [`usize`]. This varies based on the target
 /// architecture.
@@ -54,18 +56,22 @@ impl Cigar {
 
     /// Creates a CIGAR string from a Vec of bytes without checking for
     /// validity.
+    ///
+    /// If `*` is passed, this is replaced with [`Cigar::new`].
     #[inline]
     #[must_use]
-    pub const fn from_vec_unchecked(v: Vec<u8>) -> Self {
-        Cigar(v)
+    pub fn from_vec_unchecked(v: Vec<u8>) -> Self {
+        if v == b"*" { Cigar::new() } else { Cigar(v) }
     }
 
     /// Creates a CIGAR string from a slice of bytes without checking for
     /// validity.
+    ///
+    /// If `*` is passed, this is replaced with [`Cigar::new`].
     #[inline]
     #[must_use]
     pub fn from_slice_unchecked<T: AsRef<[u8]>>(v: T) -> Self {
-        Cigar(v.as_ref().to_vec())
+        Cigar::from_vec_unchecked(v.as_ref().to_vec())
     }
 
     /// Creates a CIGAR string from an iterator of ciglets without checking for
@@ -82,7 +88,7 @@ impl Cigar {
         Cigar(cigar)
     }
 
-    /// Creates a new empty CIGAR string
+    /// Creates a new empty CIGAR string.
     #[inline]
     #[must_use]
     pub const fn new() -> Self {
@@ -196,7 +202,7 @@ impl TryFrom<Vec<u8>> for Cigar {
 
     fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
         Self::check_for_err(&bytes)?;
-        Ok(Cigar(bytes))
+        Ok(Cigar::from_vec_unchecked(bytes))
     }
 }
 
