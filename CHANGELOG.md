@@ -10,8 +10,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 - Stabilized the `phmm` module, offering global, local, semilocal, and domain
   modules; alignment via the Viterbi algorithm; parsing and writing models in
-  the [SAM][sam phmm] format; sampling sequences/alignments probabilistically; and
-  traversing models.
+  the [SAM][sam phmm] format; sampling sequences/alignments probabilistically;
+  and traversing models.
 - Added `GetSamFields` trait, which provides a way of unifying generic SAM data
   (like `SamData`, `SamDataView`, and custom application structs)
 - The `Float` trait has been made public for unifying `f32` and `f64`
@@ -25,6 +25,10 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - `BamWriter` now accepts a generic record implementing `GetSamFields` instead
   of only `SamData`
 - Reworded the debug implementation for `ErrorWithContext`
+- `BamWriter` now uses `with_compressor` builders for custom compression
+  strategies
+- `BamWriter` can optionally write a BAI index with coordinate-order validation
+  using `with_bai`
 
 ### Fixed
 
@@ -36,6 +40,9 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 - Deprecated `SamData::is_unmapped` in favor of `Flag::is_unmapped` methods and
   calling `ref_len_in_alignment`
+- Removed `BamWriter::from_path_with_compressor` and
+  `BamWriter::from_writer_with_compressor`; use `with_compressor` after
+  `from_path` or `from_writer`
 
 ## [0.0.33] - 2026-09-17
 

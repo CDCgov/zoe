@@ -1,11 +1,16 @@
 //! Serialize [SAM](https://en.wikipedia.org/wiki/SAM_(file_format)) records
 //! into a [BAM](https://en.wikipedia.org/wiki/Binary_Alignment_Map) stream.
 //!
-//! The streaming writer [`BamWriter`] accepts SAM header lines and [`SamData`]
-//! records and emits BGZF-wrapped BAM.
+//! The streaming writer [`BamWriter`] accepts SAM header lines and
+//! [`GetSamFields`] records and emits BGZF-wrapped BAM.
 
 use crate::data::{
-    bam::{encoder::PreparedBamRecord, error::BamError, header::Header, writer::bgzf::BgzfWriter},
+    bam::{
+        encoder::PreparedBamRecord,
+        error::{BamError, BamRecordError},
+        header::Header,
+        writer::{bai::BaiWriter, bgzf::BgzfWriter},
+    },
     err::ResultWithErrorContext,
     sam::GetSamFields,
 };
@@ -14,6 +19,7 @@ use std::{
     {fs::File, path::Path},
 };
 
+mod bai;
 mod bgzf;
 
 pub use bgzf::BlockCompressor;
@@ -24,28 +30,28 @@ pub use bgzf::NoCompression;
 /// Compression is controlled by the type parameter `C`, which implements
 /// [`BlockCompressor`]. By default this type is [`NoCompression`], which always
 /// writes stored-DEFLATE BGZF blocks. Downstream crates can provide their own
-/// compression backend by implementing [`BlockCompressor`] and constructing a
-/// writer with [`from_path_with_compressor`] or
-/// [`from_writer_with_compressor`].
+/// compression backend by implementing [`BlockCompressor`] and passing it to
+/// [`with_compressor`].
 ///
 /// Choose a constructor based on how much control is needed:
 ///
 /// - [`from_path`]: create or truncate a BAM file at a filesystem path and use
 ///   the default stored-DEFLATE strategy.
-/// - [`from_path_with_compressor`]: create or truncate a BAM file at a path and
-///   use a caller-provided compression strategy.
-/// - [`from_writer_with_compressor`]: wrap an existing [`Write`] sink and use a
-///   caller-provided compression strategy.
+/// - [`from_writer`]: wrap an existing [`Write`] sink and use the default
+///   stored-DEFLATE strategy.
+/// - [`with_compressor`]: replace the default compression strategy with a
+///   caller-provided one.
+/// - [`with_bai`]: enable a companion BAI index at a caller-provided path.
 ///
 /// After construction, add all SAM header lines with [`write_header_line`],
-/// then serialize [`SamData`] records with [`write_record`]. The BAM header is
-/// written lazily just before the first record, or during [`finish`] if no
-/// records were written.
+/// then serialize [`GetSamFields`] records with [`write_record`]. The BAM
+/// header is written lazily just before the first record, or during [`finish`]
+/// if no records were written.
 ///
 /// Calling [`finish`] is recommended because it is the only way to observe
-/// errors from final header writing, pending BGZF block flushing, and EOF
-/// marker writing. Dropping the writer also attempts finalization, but any
-/// error is ignored.
+/// errors from final header writing, pending BGZF block flushing, EOF marker
+/// writing, and optional BAI index writing. Dropping the writer also attempts
+/// finalization, but any error is ignored.
 ///
 /// ## Restrictions Compared to SAM Format
 ///
@@ -74,9 +80,9 @@ pub use bgzf::NoCompression;
 ///   bits are cleared. The preserved bits are `0x4`, `0x10`, `0x100`, `0x200`,
 ///   `0x400`, and `0x800`.
 /// - **Mate information**: The `RNEXT`, `PNEXT`, and `TLEN` fields from the
-///   input [`SamData`] are *currently* ignored; BAM records are always written
-///   with `RNEXT = -1`, `PNEXT = -1`, and `TLEN = 0`. In the future *Zoe* may
-///   implement these fields in SAM/BAM.
+///   input [`GetSamFields`] are *currently* ignored; BAM records are always
+///   written with `RNEXT = -1`, `PNEXT = -1`, and `TLEN = 0`. In the future
+///   *Zoe* may implement these fields in SAM/BAM.
 /// - **Sequence encoding**: `U` is encoded as `T`, and unrecognized sequence
 ///   symbols are encoded as `N`. The `U` to `T` mapping is an intentional *Zoe*
 ///   choice that deviates from the SAM/BAM spec.
@@ -88,8 +94,9 @@ pub use bgzf::NoCompression;
 ///   5](https://samtools.github.io/hts-specs/SAMv1.pdf).
 ///
 /// [`from_path`]: BamWriter::from_path
-/// [`from_path_with_compressor`]: BamWriter::from_path_with_compressor
-/// [`from_writer_with_compressor`]: BamWriter::from_writer_with_compressor
+/// [`from_writer`]: BamWriter::from_writer
+/// [`with_compressor`]: BamWriter::with_compressor
+/// [`with_bai`]: BamWriter::with_bai
 /// [`write_header_line`]: BamWriter::write_header_line
 /// [`write_record`]: BamWriter::write_record
 /// [`finish`]: BamWriter::finish
@@ -100,6 +107,8 @@ pub struct BamWriter<W: Write = File, C: BlockCompressor = NoCompression> {
     header:      Header,
     /// Whether the BAM header has already been serialized to `bgzf`.
     header_done: bool,
+    /// Optional companion BAI index writer.
+    bai:         Option<BaiWriter>,
 }
 
 impl BamWriter<File, NoCompression> {
@@ -116,44 +125,67 @@ impl BamWriter<File, NoCompression> {
     /// [`write_record`]: BamWriter::write_record
     /// [`finish`]: BamWriter::finish
     pub fn from_path(bam_path: impl AsRef<Path>) -> Result<Self, BamError> {
-        Self::from_path_with_compressor(bam_path, NoCompression)
+        let file = File::create(&bam_path).with_path_context("Cannot create BAM file to write", bam_path)?;
+        Ok(Self::from_writer(file))
     }
 }
 
-impl<C: BlockCompressor> BamWriter<File, C> {
-    /// Creates a new BAM writer at `bam_path` using `compressor`.
+impl<W: Write> BamWriter<W, NoCompression> {
+    /// Wraps `writer` in a BAM writer using [`NoCompression`].
     ///
-    /// This constructor is the path-based variant for callers who want to
-    /// control compression while still letting [`BamWriter`] open the output
-    /// file.
-    ///
-    /// The file is created or truncated immediately, while the BAM header is
-    /// buffered until [`write_record`] or [`finish`] is called.
-    ///
-    /// ## Errors
-    ///
-    /// Returns an error if `bam_path` cannot be created for writing.
+    /// The BAM header is buffered until [`write_record`] or [`finish`] is
+    /// called. Call [`with_compressor`] to replace the default stored-DEFLATE
+    /// strategy before writing data.
     ///
     /// [`write_record`]: BamWriter::write_record
     /// [`finish`]: BamWriter::finish
-    pub fn from_path_with_compressor(bam_path: impl AsRef<Path>, compressor: C) -> Result<Self, BamError> {
-        let file = File::create(&bam_path).with_path_context("Cannot create BAM file to write", bam_path)?;
-        Ok(Self::from_writer_with_compressor(file, compressor))
+    /// [`with_compressor`]: BamWriter::with_compressor
+    pub fn from_writer(writer: W) -> Self {
+        BamWriter {
+            bgzf:        Some(BgzfWriter::new(writer)),
+            header:      Header::default(),
+            header_done: false,
+            bai:         None,
+        }
+    }
+
+    /// Replaces the default [`NoCompression`] strategy with `compressor`.
+    ///
+    /// ## Errors
+    ///
+    /// Returns an error if attempting to set the compression strategy after
+    /// serialization has already begun.
+    pub fn with_compressor<C: BlockCompressor>(mut self, compressor: C) -> Result<BamWriter<W, C>, BamError> {
+        if self.header_done {
+            return Err(BamError::CannotChangeConfiguration);
+        }
+
+        // `self` implements `Drop`, so fields must be extracted via
+        // `take`/`mem::take` rather than moved out directly
+        Ok(BamWriter {
+            bgzf:        self.bgzf.take().map(|b| b.with_compressor(compressor)),
+            header:      std::mem::take(&mut self.header),
+            header_done: self.header_done,
+            bai:         self.bai.take(),
+        })
     }
 }
 
 impl<W: Write, C: BlockCompressor> BamWriter<W, C> {
-    /// Creates a new BAM writer over an existing writer and compressor.
+    /// Enables BAI indexing and stores the result in `path` when finalized.
     ///
-    /// The wrapped writer receives BGZF blocks, and compression decisions are
-    /// delegated to `compressor`. It is not recommended to pass a buffered
-    /// writer, since [`BamWriter`] performs its own buffering.
-    pub fn from_writer_with_compressor(writer: W, compressor: C) -> Self {
-        BamWriter {
-            bgzf:        Some(BgzfWriter::with_compressor(writer, compressor)),
-            header:      Header::default(),
-            header_done: false,
+    /// ## Errors
+    ///
+    /// Returns an error if `path` cannot be created or if attempting to enable
+    /// indexing after serialization has already begun.
+    pub fn with_bai(mut self, path: impl AsRef<Path>) -> Result<Self, BamError> {
+        if self.header_done {
+            return Err(BamError::CannotChangeConfiguration);
         }
+
+        let bai = BaiWriter::from_path(path)?;
+        self.bai = Some(bai);
+        Ok(self)
     }
 
     /// Adds one SAM header line to the pending BAM header.
@@ -185,7 +217,7 @@ impl<W: Write, C: BlockCompressor> BamWriter<W, C> {
         }
     }
 
-    /// Serializes one [`SamData`] record as BAM.
+    /// Serializes one [`GetSamFields`] record as BAM.
     ///
     /// On the first call, this validates and encodes `record` before writing
     /// the accumulated BAM header. Any `RNAME` value other than `*` must have
@@ -221,11 +253,32 @@ impl<W: Write, C: BlockCompressor> BamWriter<W, C> {
 
         let prepared_record =
             PreparedBamRecord::new(&self.header, &record).map_err(|source| BamError::record(record.qname(), source))?;
+
+        if let Some(bai) = self.bai.as_ref()
+            && !bai.is_coordinate_ordered(prepared_record.ref_id, prepared_record.pos0)
+        {
+            return Err(BamError::record(record.qname(), BamRecordError::UnsortedRecord));
+        }
+
         let encoded_record = prepared_record.encode(record.qname())?;
 
         let mut bgzf = self.bgzf.take().ok_or(BamError::WriterFinalized)?;
         self.write_header_if_pending(&mut bgzf)?;
+
+        let chunk_beg = bgzf.virtual_offset()?;
         bgzf.write_all(&encoded_record).map_err(BamError::from)?;
+        let chunk_end = bgzf.virtual_offset()?;
+
+        if let Some(bai) = self.bai.as_mut() {
+            bai.add_record_to_index(
+                prepared_record.ref_id,
+                prepared_record.bin,
+                prepared_record.ref_interval.as_ref(),
+                (chunk_beg, chunk_end),
+            );
+            bai.update_last_coord(prepared_record.ref_id, prepared_record.pos0);
+        }
+
         self.bgzf = Some(bgzf);
 
         Ok(())
@@ -240,15 +293,21 @@ impl<W: Write, C: BlockCompressor> BamWriter<W, C> {
     ///
     /// ## Errors
     ///
-    /// Returns an error if the pending BAM header cannot be written or if the
-    /// BGZF stream cannot be finalized.
+    /// Returns an error if the pending BAM header or BGZF stream cannot be
+    /// finalized, or if the optional BAI index cannot be written.
     pub fn finish(mut self) -> Result<(), BamError> {
         let Some(mut bgzf) = self.bgzf.take() else {
             return Ok(());
         };
 
         self.write_header_if_pending(&mut bgzf)?;
-        bgzf.finish().map_err(BamError::from)
+        bgzf.finish().map_err(BamError::from)?;
+
+        if let Some(bai) = self.bai.take() {
+            bai.write_index().with_context("Error writing BAI file")?;
+        }
+
+        Ok(())
     }
 
     /// Writes the accumulated header if pending. `header_done` is set to true
@@ -257,6 +316,10 @@ impl<W: Write, C: BlockCompressor> BamWriter<W, C> {
         if !self.header_done {
             self.header_done = true;
             self.header.write_to(bgzf)?;
+
+            if let Some(bai) = self.bai.as_mut() {
+                bai.initialize_index(self.header.ref_count());
+            }
         }
 
         Ok(())
@@ -264,15 +327,23 @@ impl<W: Write, C: BlockCompressor> BamWriter<W, C> {
 }
 
 impl<W: Write, C: BlockCompressor> Drop for BamWriter<W, C> {
-    /// Attempts to write any pending header and BGZF EOF marker, ignoring all
-    /// errors.
+    /// Attempts to write any pending header, BGZF EOF marker, and BAI index,
+    /// ignoring all errors.
     fn drop(&mut self) {
         let Some(mut bgzf) = self.bgzf.take() else {
             return;
         };
 
-        if self.write_header_if_pending(&mut bgzf).is_ok() {
-            let _ = bgzf.finish();
+        if self.write_header_if_pending(&mut bgzf).is_err() {
+            return;
+        }
+
+        if bgzf.finish().is_err() {
+            return;
+        }
+
+        if let Some(bai) = self.bai.take() {
+            let _ = bai.write_index();
         }
     }
 }

@@ -45,7 +45,7 @@ pub(super) fn encode_read_name(qname: Option<&str>) -> Result<Vec<u8>, BamRecord
     Ok(out)
 }
 
-/// Encodes a [`Nucleotides`] sequence in BAM's packed 4-bit representation.
+/// Encodes a [`NucleotidesView`] sequence in BAM's packed 4-bit representation.
 ///
 /// A missing sequence (`*` or empty) should be passed as `None`, and is encoded
 /// as an empty byte vector. Bases are packed two per byte, with the first base
@@ -76,7 +76,7 @@ pub(super) fn encode_seq(seq: Option<NucleotidesView>) -> Vec<u8> {
     out
 }
 
-/// Encodes [`QualityScores`] as BAM quality bytes.
+/// Encodes [`QualityScoresView`] as BAM quality bytes.
 ///
 /// Missing quality scores and nucleotides (`*` or empty) should be passed as
 /// `None`. Missing quality scores become `0xFF` repeated once per sequence

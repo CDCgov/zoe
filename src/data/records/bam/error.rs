@@ -45,6 +45,14 @@ pub enum BamError {
         /// The record-specific error.
         source: BamRecordError,
     },
+    /// A change in configuration was attempted after serialization already
+    /// started.
+    CannotChangeConfiguration,
+    /// An error occurred when creating a BAI index.
+    Index {
+        /// The index-specific encoding failure.
+        source: BamEncodingError,
+    },
 }
 
 impl BamError {
@@ -92,6 +100,8 @@ pub enum BamRecordError {
     BinningOutOfRange,
     /// A lower-level BAM encoding failure occurred while processing the record.
     Encoding { source: BamEncodingError },
+    /// A record was written out of coordinate order while building a BAI index.
+    UnsortedRecord,
 }
 
 /// Shared BAM encoding failures that can occur in multiple domains.
@@ -161,6 +171,12 @@ impl From<BamHeaderError> for BamError {
     }
 }
 
+impl From<BamEncodingError> for BamError {
+    fn from(source: BamEncodingError) -> Self {
+        BamError::Index { source }
+    }
+}
+
 impl From<BamEncodingError> for BamHeaderError {
     fn from(source: BamEncodingError) -> Self {
         BamHeaderError::Encoding { source }
@@ -184,6 +200,10 @@ impl fmt::Display for BamError {
             BamError::WriterFinalized => f.write_str("Cannot write to BAM stream after finalization"),
             BamError::Record { qname: Some(qname), .. } => write!(f, "BAM record error while processing {qname}"),
             BamError::Record { qname: None, source } => write!(f, "{source}"),
+            BamError::CannotChangeConfiguration => f.write_str(
+                "Cannot change BamWriter configuration (compression or indexing) after serialization has already begun",
+            ),
+            BamError::Index { .. } => f.write_str("Error occurred when creating BAI index"),
         }
     }
 }
@@ -206,6 +226,9 @@ impl fmt::Display for BamRecordError {
                 f.write_str("Alignment coordinates exceed the range supported by BAI binning (`[0, 2^29)`).")
             }
             BamRecordError::Encoding { .. } => f.write_str("BAM record value cannot be encoded"),
+            BamRecordError::UnsortedRecord => {
+                f.write_str("Record was written out of coordinate order while building a BAI index.")
+            }
         }
     }
 }
@@ -235,7 +258,8 @@ impl Error for BamError {
             BamError::Header { source, .. } => Some(source),
             BamError::Record { source, qname: Some(_) } => Some(source),
             BamError::Record { source, qname: None } => source.source(),
-            BamError::HeaderAlreadyWritten | BamError::WriterFinalized => None,
+            BamError::HeaderAlreadyWritten | BamError::WriterFinalized | BamError::CannotChangeConfiguration => None,
+            BamError::Index { source } => Some(source),
         }
     }
 }
@@ -254,7 +278,9 @@ impl Error for BamRecordError {
         match self {
             BamRecordError::InvalidCigar { source } => Some(source),
             BamRecordError::Encoding { source } => Some(source),
-            BamRecordError::ReferenceNotFound { .. } | BamRecordError::BinningOutOfRange => None,
+            BamRecordError::ReferenceNotFound { .. }
+            | BamRecordError::BinningOutOfRange
+            | BamRecordError::UnsortedRecord => None,
         }
     }
 }

@@ -176,6 +176,11 @@ impl Header {
 
         Ok(())
     }
+
+    /// Returns the number of references.
+    pub(super) fn ref_count(&self) -> usize {
+        self.refs.len()
+    }
 }
 
 /// Parsed `@SQ` reference entry.

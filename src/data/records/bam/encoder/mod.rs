@@ -18,6 +18,7 @@ use crate::data::{
     sam::{Flag, GetSamFields, is_missing_sam_field},
     views::Len,
 };
+use std::ops::Range;
 
 mod binning;
 mod fields;
@@ -28,36 +29,38 @@ const MAX_CIGAR_INC: u32 = 0x0FFF_FFFF;
 /// Fully prepared BAM alignment record ready for binary serialization.
 pub(super) struct PreparedBamRecord {
     /// BAM reference ID for `RNAME`, or `-1` for the SAM sentinel `*`.
-    ref_id:      i32,
+    pub ref_id:       i32,
     /// Zero-based leftmost mapping position, or `-1` when `RNAME` is `*` or
     /// SAM `POS` is `0`.
-    pos0:        i32,
+    pub pos0:         i32,
     /// Mapping quality copied directly from the SAM record.
-    mapq:        u8,
+    mapq:             u8,
     /// Hierarchical BAM bin computed from the reference interval, or the
     /// reserved unplaced-unmapped bin when no coordinate is available.
-    bin:         u16,
+    pub bin:          u16,
+    /// Checked half-open reference interval used for BAM/BAI indexing.
+    pub ref_interval: Option<Range<u32>>,
     /// Number of inline CIGAR operations stored in `cigar_field`.
-    n_cigar_op:  u16,
+    n_cigar_op:       u16,
     /// BAM flag word after normalizing SAM flags for *Zoe*'s BAM output.
-    flag:        Flag,
+    flag:             Flag,
     /// Query sequence length stored in the BAM core record.
-    l_seq:       u32,
+    l_seq:            u32,
     /// NUL-terminated BAM read name payload.
-    read_name:   Vec<u8>,
+    read_name:        Vec<u8>,
     /// BAM-encoded CIGAR words, or the 2-op placeholder used for long CIGARs.
-    cigar_field: Vec<u32>,
+    cigar_field:      Vec<u32>,
     /// Query sequence encoded in BAM's packed 4-bit nucleotide representation.
-    seq:         Vec<u8>,
+    seq:              Vec<u8>,
     /// Query quality scores encoded as raw Phred bytes, or `0xFF` for missing
     /// quality scores.
-    qual:        Vec<u8>,
+    qual:             Vec<u8>,
     /// BAM auxiliary fields, including synthesized `CG:B:I` when needed.
-    aux:         Vec<u8>,
+    aux:              Vec<u8>,
 }
 
 impl PreparedBamRecord {
-    /// Validates a [`SamData`] record and prepares all BAM-encoded fields.
+    /// Validates a [`GetSamFields`] record and prepares all BAM-encoded fields.
     ///
     /// ## Errors
     ///
@@ -93,7 +96,6 @@ impl PreparedBamRecord {
         let encoded_seq = encode_seq(seq);
         let encoded_qual = encode_qual(qual, seq)?;
         let (encoded_cigar, spans) = encode_cigar(cigar.as_ref())?;
-
         if let Some(spans) = &spans
             && let Some(seq) = seq
             && spans.query_span != seq.len()
@@ -151,13 +153,15 @@ impl PreparedBamRecord {
             (aux, encoded_cigar, n_cigar_op)
         };
 
-        let bin = compute_bin(pos0, spans.map(|spans| spans.ref_span), flag)?;
+        let ref_interval = checked_interval(pos0, spans.as_ref().map(|spans| spans.ref_span), flag)?;
+        let bin = compute_bin(ref_interval.as_ref())?;
 
         Ok(Self {
             ref_id,
             pos0,
             mapq: data.mapq().unwrap_or(255),
             bin,
+            ref_interval,
             n_cigar_op,
             flag,
             l_seq,
@@ -314,4 +318,29 @@ fn bam_block_size(component_sizes: &[usize]) -> Result<usize, BamRecordError> {
             })
         })
     })
+}
+
+/// Computes the effective reference interval used by BAM binning and indexing.
+///
+/// Records without a coordinate return `Ok(None)`. Coordinate-bearing records
+/// are checked against the classic BAI coordinate limit.
+fn checked_interval(pos0: i32, ref_span: Option<u32>, flag: Flag) -> Result<Option<Range<u32>>, BamRecordError> {
+    /// Exclusive upper bound for coordinates representable by the classic BAI
+    /// index.
+    const BAI_COORDINATE_LIMIT: u32 = 1 << 29;
+    let beg = match pos0 {
+        ..=-2 => return Err(BamRecordError::BinningOutOfRange),
+        -1 => return Ok(None),
+        pos0 @ 0..=i32::MAX => pos0.cast_unsigned(),
+    };
+
+    let effective_span = if flag.is_unmapped() { 1 } else { ref_span.unwrap_or(1).max(1) };
+
+    let end = beg.checked_add(effective_span).ok_or(BamRecordError::BinningOutOfRange)?;
+
+    if end > BAI_COORDINATE_LIMIT {
+        return Err(BamRecordError::BinningOutOfRange);
+    }
+
+    Ok(Some(beg..end))
 }

@@ -1,7 +1,10 @@
 //! Functionality related to the BGZF file format (Blocked GNU Zip Format),
 //! which is used as a component of BAM.
 
-use crate::data::err::ResultWithErrorContext;
+use crate::data::{
+    bam::error::{BamEncodingError, NumberSizeTarget},
+    err::ResultWithErrorContext,
+};
 use std::io::Write;
 
 /// Maximum size of one complete BGZF block, in bytes.
@@ -79,27 +82,63 @@ impl BlockCompressor for NoCompression {
 ///     https://en.wikipedia.org/wiki/Deflate#:~:text=(sometimes%20called-,stored,-).%20Any%20bits%20up
 pub(super) struct BgzfWriter<W: Write, C: BlockCompressor = NoCompression> {
     /// Wrapped writer that receives complete BGZF blocks.
-    inner:            W,
+    inner:             W,
     /// Pending uncompressed payload bytes for the next BGZF block.
-    payload:          Vec<u8>,
+    payload:           Vec<u8>,
     /// Reusable scratch buffer for one encoded BGZF block.
-    block:            Vec<u8>,
+    block:             Vec<u8>,
     /// Pluggable raw-DEFLATE (compressed) encoder.
-    compressor:       C,
+    compressor:        C,
     /// Reusable raw-DEFLATE (compressed) output storage for compressed blocks.
-    compressed_block: Vec<u8>,
+    compressed_block:  Vec<u8>,
+    /// Total bytes already flushed to `inner`.
+    compressed_offest: u64,
 }
 
-impl<W: Write, C: BlockCompressor> BgzfWriter<W, C> {
+impl<W: Write> BgzfWriter<W> {
     /// Creates an empty BGZF writer over the `inner` writer.
-    pub(super) fn with_compressor(inner: W, compressor: C) -> Self {
+    pub(super) fn new(inner: W) -> Self {
         Self {
             inner,
             payload: Vec::with_capacity(MAX_BGZF_PAYLOAD),
             block: Vec::with_capacity(MAX_BGZF_BLOCK_SIZE),
+            compressor: NoCompression,
+            compressed_block: Vec::new(),
+            compressed_offest: 0,
+        }
+    }
+
+    /// Adds a custom compression strategy for the writer.
+    pub(super) fn with_compressor<C: BlockCompressor>(self, compressor: C) -> BgzfWriter<W, C> {
+        BgzfWriter {
+            inner: self.inner,
+            payload: self.payload,
+            block: self.block,
             compressor,
             compressed_block: Vec::with_capacity(MAX_DEFLATE_SIZE),
+            compressed_offest: self.compressed_offest,
         }
+    }
+}
+
+impl<W: Write, C: BlockCompressor> BgzfWriter<W, C> {
+    /// Returns the BGZF virtual offset at the current payload position.
+    ///
+    /// The compressed block offset occupies the high 48 bits and the payload
+    /// offset occupies the low 16 bits. BGZF cannot represent a stream whose
+    /// compressed offset reaches `2^48` bytes.
+    pub(super) fn virtual_offset(&self) -> Result<u64, BamEncodingError> {
+        const MAX_COMPRESSED_OFFSET: u64 = 1 << 48;
+
+        if self.compressed_offest >= MAX_COMPRESSED_OFFSET {
+            return Err(BamEncodingError::SizeOverflow {
+                field:  "BGZF compressed offset",
+                target: NumberSizeTarget::MaxExclusive(1 << 48),
+            });
+        }
+        // Payload length cannot exceed 65505 (MAX_BGZF_PAYLOAD) so these will
+        // not overlap
+        Ok((self.compressed_offest << 16) | self.payload.len() as u64)
     }
 
     /// Attempts to flush any buffered payload, write the BGZF EOF marker, and
@@ -201,7 +240,10 @@ impl<W: Write, C: BlockCompressor> BgzfWriter<W, C> {
         // gzip footer
         Self::append_bgzf_footer(&mut self.block, crc, len);
 
-        self.inner.write_all(&self.block)
+        self.inner.write_all(&self.block)?;
+
+        self.compressed_offest += self.block.len() as u64;
+        Ok(())
     }
 
     /// Writes one payload as a BGZF block containing an already-finished raw
@@ -237,7 +279,10 @@ impl<W: Write, C: BlockCompressor> BgzfWriter<W, C> {
         // gzip footer
         Self::append_bgzf_footer(&mut self.block, crc, len);
 
-        self.inner.write_all(&self.block)
+        self.inner.write_all(&self.block)?;
+
+        self.compressed_offest += self.block.len() as u64;
+        Ok(())
     }
 
     /// Appends the fixed BGZF/gzip prefix, including `BSIZE`.
