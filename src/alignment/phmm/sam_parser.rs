@@ -293,10 +293,12 @@ trait SamHmmConfig<const S: usize, const L: usize> {
             ));
         }
 
+        let alphabet = Self::unparse_mapping(model.mapping())?;
+
         let mut writer = BufWriter::new(File::create(path.as_ref())?);
 
         writeln!(writer, "MODEL")?;
-        writeln!(writer, "alphabet {}", Self::unparse_mapping(model.mapping())?)?;
+        writeln!(writer, "alphabet {alphabet}")?;
 
         let (first_layer, rest) = model.layers().split_first();
 
