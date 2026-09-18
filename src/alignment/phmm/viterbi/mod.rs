@@ -161,19 +161,6 @@ impl<T> ViterbiTraceback<T> {
     pub fn get_mut(&mut self, i: usize, j: usize) -> &mut T {
         &mut self.data[self.cols * j + i]
     }
-
-    /// Retrieves a mutable reference to a row stored in the traceback given the
-    /// dynamic programming index of the pHMM layer.
-    ///
-    /// `0` corresponds to the BEGIN state, `1` corresponds to the first layer,
-    /// and so on.
-    #[inline]
-    #[must_use]
-    #[allow(dead_code)]
-    pub fn get_rows_mut(&mut self, j: usize) -> (&mut [T], &mut [T]) {
-        let start = self.cols * j;
-        self.data[start..2 * self.cols].split_at_mut(start + self.cols)
-    }
 }
 
 /// The location from which the alignment exits the [`CorePhmm`] for local or
