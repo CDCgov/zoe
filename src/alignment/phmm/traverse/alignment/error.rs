@@ -63,6 +63,12 @@ pub enum GlobalTraverseFromAlignError {
         query_len:              usize,
         query_len_in_alignment: usize,
     },
+    /// The length of the reference as implied by the alignment overflowed a
+    /// [`usize`].
+    RefLenOverflow,
+    /// The length of the query as implied by the alignment overflowed a
+    /// [`usize`].
+    QueryLenOverflow,
 }
 
 /// The possible errors when using an alignment to traverse a [`SemiLocalPhmm`].
@@ -111,6 +117,12 @@ pub enum SemiLocalTraverseFromAlignError {
         layer:   DpIndex,
         state:   PhmmState,
     },
+    /// The length of the reference as implied by the alignment overflowed a
+    /// [`usize`].
+    RefLenOverflow,
+    /// The length of the query as implied by the alignment overflows a
+    /// [`usize`].
+    QueryLenOverflow,
 }
 
 /// The possible errors when using an alignment to traverse a [`DomainPhmm`].
@@ -140,6 +152,12 @@ pub enum DomainTraverseFromAlignError {
         skipped_start:          usize,
         skipped_end:            usize,
     },
+    /// The length of the reference as implied by the alignment overflowed a
+    /// [`usize`].
+    RefLenOverflow,
+    /// The length of the query as implied by the alignment overflows a
+    /// [`usize`].
+    QueryLenOverflow,
 }
 
 /// The possible errors when using an alignment to traverse a [`LocalPhmm`].
@@ -195,6 +213,12 @@ pub enum LocalTraverseFromAlignError {
         layer:   DpIndex,
         state:   PhmmState,
     },
+    /// The length of the reference as implied by the alignment overflowed a
+    /// [`usize`].
+    RefLenOverflow,
+    /// The length of the query as implied by the alignment overflows a
+    /// [`usize`].
+    QueryLenOverflow,
 }
 
 impl Display for GlobalTraverseFromAlignError {
@@ -220,6 +244,15 @@ impl Display for GlobalTraverseFromAlignError {
                 f,
                 "The length of the query is {query_len}, but the alignment implies the length should be {query_len_in_alignment}"
             ),
+            GlobalTraverseFromAlignError::RefLenOverflow => {
+                write!(
+                    f,
+                    "The length of the reference as implied by the alignment overflowed a usize"
+                )
+            }
+            GlobalTraverseFromAlignError::QueryLenOverflow => {
+                write!(f, "The length of the query as implied by the alignment overflowed a usize")
+            }
         }
     }
 }
@@ -278,6 +311,15 @@ impl Display for SemiLocalTraverseFromAlignError {
                     "The alignment ends in the {state} state at reference coordinate {ref_coord} (out of a total reference length of {ref_len}), but an early exit is only permitted from a match state"
                 )
             }
+            SemiLocalTraverseFromAlignError::RefLenOverflow => {
+                write!(
+                    f,
+                    "The length of the reference as implied by the alignment overflowed a usize"
+                )
+            }
+            SemiLocalTraverseFromAlignError::QueryLenOverflow => {
+                write!(f, "The length of the query as implied by the alignment overflowed a usize")
+            }
         }
     }
 }
@@ -313,6 +355,15 @@ impl Display for DomainTraverseFromAlignError {
                 f,
                 "The length of the query is {query_len}, but the alignment implies the length should be {query_len_in_alignment} ({skipped_start} clipped at start, {skipped_end} clipped at end)"
             ),
+            DomainTraverseFromAlignError::RefLenOverflow => {
+                write!(
+                    f,
+                    "The length of the reference as implied by the alignment overflowed a usize"
+                )
+            }
+            DomainTraverseFromAlignError::QueryLenOverflow => {
+                write!(f, "The length of the query as implied by the alignment overflowed a usize")
+            }
         }
     }
 }
@@ -336,11 +387,19 @@ impl Display for LocalTraverseFromAlignError {
                 ref_len,
                 ref_start,
                 ref_len_in_alignment,
-            } => write!(
-                f,
-                "The length of the reference as implied by the pHMM is {ref_len}, but the alignment implies a length of at least {total_ref} (starting at {ref_start} and consuming {ref_len_in_alignment} residues)",
-                total_ref = ref_start + ref_len_in_alignment
-            ),
+            } => {
+                if let Some(total_ref) = ref_start.checked_add(ref_len_in_alignment) {
+                    write!(
+                        f,
+                        "The length of the reference as implied by the pHMM is {ref_len}, but the alignment implies a length of at least {total_ref} (starting at {ref_start} and consuming {ref_len_in_alignment} residues)"
+                    )
+                } else {
+                    write!(
+                        f,
+                        "The length of the reference as implied by the pHMM is {ref_len}, but the alignment implies a longer length (starting at {ref_start} and consuming {ref_len_in_alignment} residues)"
+                    )
+                }
+            }
             LocalTraverseFromAlignError::QueryLenMismatch {
                 query_len,
                 query_len_in_alignment,
@@ -370,6 +429,15 @@ impl Display for LocalTraverseFromAlignError {
                     f,
                     "The alignment ends in the {state} state at reference coordinate {ref_coord} (out of a total reference length of {ref_len}), but an early exit is only permitted from a match state"
                 )
+            }
+            LocalTraverseFromAlignError::RefLenOverflow => {
+                write!(
+                    f,
+                    "The length of the reference as implied by the alignment overflowed a usize"
+                )
+            }
+            LocalTraverseFromAlignError::QueryLenOverflow => {
+                write!(f, "The length of the query as implied by the alignment overflowed a usize")
             }
         }
     }
@@ -509,16 +577,24 @@ impl CoreContextToErr for GlobalContext<'_> {
     type Error = GlobalTraverseFromAlignError;
 
     fn query_len_mismatch(&self) -> Self::Error {
-        GlobalTraverseFromAlignError::QueryLenMismatch {
-            query_len:              self.query_len,
-            query_len_in_alignment: self.states.query_len_in_alignment(),
+        if let Some(query_len_in_alignment) = self.states.query_len_in_alignment_checked() {
+            GlobalTraverseFromAlignError::QueryLenMismatch {
+                query_len: self.query_len,
+                query_len_in_alignment,
+            }
+        } else {
+            GlobalTraverseFromAlignError::QueryLenOverflow
         }
     }
 
     fn model_len_mismatch(&self) -> Self::Error {
-        GlobalTraverseFromAlignError::ModelLenMismatch {
-            ref_len:              self.ref_len,
-            ref_len_in_alignment: self.states.ref_len_in_alignment(),
+        if let Some(ref_len_in_alignment) = self.states.ref_len_in_alignment_checked() {
+            GlobalTraverseFromAlignError::ModelLenMismatch {
+                ref_len: self.ref_len,
+                ref_len_in_alignment,
+            }
+        } else {
+            GlobalTraverseFromAlignError::RefLenOverflow
         }
     }
 
@@ -556,17 +632,25 @@ impl CoreContextToErr for SemiLocalContext<'_> {
     type Error = SemiLocalTraverseFromAlignError;
 
     fn query_len_mismatch(&self) -> Self::Error {
-        SemiLocalTraverseFromAlignError::QueryLenMismatch {
-            query_len:              self.query_len,
-            query_len_in_alignment: self.states.query_len_in_alignment(),
+        if let Some(query_len_in_alignment) = self.states.query_len_in_alignment_checked() {
+            SemiLocalTraverseFromAlignError::QueryLenMismatch {
+                query_len: self.query_len,
+                query_len_in_alignment,
+            }
+        } else {
+            SemiLocalTraverseFromAlignError::QueryLenOverflow
         }
     }
 
     fn model_len_mismatch(&self) -> Self::Error {
-        SemiLocalTraverseFromAlignError::ModelLenMismatch {
-            ref_len:              self.ref_len,
-            ref_start:            self.ref_start,
-            ref_len_in_alignment: self.states.ref_len_in_alignment(),
+        if let Some(ref_len_in_alignment) = self.states.ref_len_in_alignment_checked() {
+            SemiLocalTraverseFromAlignError::ModelLenMismatch {
+                ref_len: self.ref_len,
+                ref_start: self.ref_start,
+                ref_len_in_alignment,
+            }
+        } else {
+            SemiLocalTraverseFromAlignError::RefLenOverflow
         }
     }
 
@@ -635,18 +719,26 @@ impl CoreContextToErr for DomainContext<'_> {
     type Error = DomainTraverseFromAlignError;
 
     fn query_len_mismatch(&self) -> Self::Error {
-        DomainTraverseFromAlignError::QueryLenMismatch {
-            query_len:              self.query_len,
-            skipped_start:          self.skipped_start,
-            skipped_end:            self.skipped_end,
-            query_len_in_alignment: self.states.query_len_in_alignment(),
+        if let Some(query_len_in_alignment) = self.states.query_len_in_alignment_checked() {
+            DomainTraverseFromAlignError::QueryLenMismatch {
+                query_len: self.query_len,
+                skipped_start: self.skipped_start,
+                skipped_end: self.skipped_end,
+                query_len_in_alignment,
+            }
+        } else {
+            DomainTraverseFromAlignError::QueryLenOverflow
         }
     }
 
     fn model_len_mismatch(&self) -> Self::Error {
-        DomainTraverseFromAlignError::ModelLenMismatch {
-            ref_len:              self.ref_len,
-            ref_len_in_alignment: self.states.ref_len_in_alignment(),
+        if let Some(ref_len_in_alignment) = self.states.ref_len_in_alignment_checked() {
+            DomainTraverseFromAlignError::ModelLenMismatch {
+                ref_len: self.ref_len,
+                ref_len_in_alignment,
+            }
+        } else {
+            DomainTraverseFromAlignError::RefLenOverflow
         }
     }
 
@@ -733,19 +825,27 @@ impl CoreContextToErr for LocalContext<'_> {
     type Error = LocalTraverseFromAlignError;
 
     fn query_len_mismatch(&self) -> Self::Error {
-        LocalTraverseFromAlignError::QueryLenMismatch {
-            query_len:              self.query_len,
-            query_len_in_alignment: self.states.query_len_in_alignment(),
-            skipped_start:          self.skipped_start,
-            skipped_end:            self.skipped_end,
+        if let Some(query_len_in_alignment) = self.states.query_len_in_alignment_checked() {
+            LocalTraverseFromAlignError::QueryLenMismatch {
+                query_len: self.query_len,
+                query_len_in_alignment,
+                skipped_start: self.skipped_start,
+                skipped_end: self.skipped_end,
+            }
+        } else {
+            LocalTraverseFromAlignError::QueryLenOverflow
         }
     }
 
     fn model_len_mismatch(&self) -> Self::Error {
-        LocalTraverseFromAlignError::ModelLenMismatch {
-            ref_len:              self.ref_len,
-            ref_start:            self.ref_start,
-            ref_len_in_alignment: self.states.ref_len_in_alignment(),
+        if let Some(ref_len_in_alignment) = self.states.ref_len_in_alignment_checked() {
+            LocalTraverseFromAlignError::ModelLenMismatch {
+                ref_len: self.ref_len,
+                ref_start: self.ref_start,
+                ref_len_in_alignment,
+            }
+        } else {
+            LocalTraverseFromAlignError::RefLenOverflow
         }
     }
 
