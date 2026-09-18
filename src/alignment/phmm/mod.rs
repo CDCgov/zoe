@@ -15,7 +15,7 @@
 //!
 //! [`SamHmmParser`]: sam_parser::SamHmmParser
 
-use crate::math::{CastAs, CastAsNumeric, CastFrom, CastFromNumeric, Float};
+use crate::math::Float;
 use std::{
     fmt::Display,
     ops::{Add, AddAssign, Mul},
@@ -42,18 +42,7 @@ pub use viterbi::*;
 ///
 /// These numeric types are used for performing pHMM calculations in negative
 /// log space.
-pub trait PhmmNumber:
-    Copy
-    + Add<Output = Self>
-    + Mul<Output = Self>
-    + AddAssign
-    + PartialOrd
-    + CastAs
-    + CastAsNumeric
-    + CastFrom
-    + CastFromNumeric
-    + Default
-    + Display {
+pub trait PhmmNumber: Copy + Add<Output = Self> + Mul<Output = Self> + AddAssign + PartialOrd + Default + Display {
     /// Infinity, the negative log space score corresponding to probability zero
     const INFINITY: Self;
     /// Zero, the negative log space score corresponding to probability one
@@ -71,6 +60,14 @@ pub trait PhmmNumber:
     /// Computes the minimum of two negative log space scores
     #[must_use]
     fn min(self, other: Self) -> Self;
+
+    /// Multiplies the parameter by a `usize`, used as a more efficient
+    /// alternative to repeated addition.
+    ///
+    /// This must return [`Self::ZERO`] when `times` is 0, even in the presense
+    /// of NaNs.
+    #[must_use]
+    fn mul_usize(self, times: usize) -> Self;
 
     /// Returns whether the parameter corresponds to an "impossible" probability
     /// of 0.
@@ -115,6 +112,12 @@ impl PhmmNumber for f32 {
     fn min(self, other: Self) -> Self {
         self.min(other)
     }
+
+    #[inline]
+    #[allow(clippy::cast_precision_loss)]
+    fn mul_usize(self, times: usize) -> Self {
+        if times == 0 { 0.0 } else { times as f32 * self }
+    }
 }
 
 impl PhmmNumber for f64 {
@@ -142,5 +145,11 @@ impl PhmmNumber for f64 {
     #[inline]
     fn min(self, other: Self) -> Self {
         self.min(other)
+    }
+
+    #[inline]
+    #[allow(clippy::cast_precision_loss)]
+    fn mul_usize(self, times: usize) -> Self {
+        if times == 0 { 0.0 } else { times as f64 * self }
     }
 }

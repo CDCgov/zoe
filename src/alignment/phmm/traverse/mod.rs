@@ -467,13 +467,7 @@ impl<T: PhmmNumber, const S: usize> DomainModule<T, S> {
         if inserted.is_empty() {
             self.start_to_end
         } else {
-            // Special casing needed in case insert_to_insert is infinite,
-            // causing a NAN to appear when multiplied by 0
-            let insert_to_insert = if inserted.len() > 1 {
-                T::cast_from(inserted.len() - 1) * self.insert_to_insert
-            } else {
-                T::ZERO
-            };
+            let insert_to_insert = self.insert_to_insert.mul_usize(inserted.len() - 1);
 
             self.start_to_insert
                 + self.insert_to_end
@@ -499,13 +493,7 @@ impl<T: PhmmNumber, const S: usize> DomainModule<T, S> {
         if inserted.is_empty() {
             self.start_to_end
         } else {
-            // Special casing needed in case insert_to_insert is infinite,
-            // causing a NAN to appear when multiplied by 0
-            let insert_to_insert = if inserted.len() > 1 {
-                T::cast_from(inserted.len() - 1) * self.insert_to_insert
-            } else {
-                T::ZERO
-            };
+            let insert_to_insert = self.insert_to_insert.mul_usize(inserted.len() - 1);
 
             self.start_to_insert
                 + self.insert_to_end
