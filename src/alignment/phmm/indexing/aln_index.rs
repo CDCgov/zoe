@@ -103,6 +103,10 @@ pub struct DpIndex(pub usize);
 ///
 /// For sequences, 0 represents the first residue. For pHMMs, 0 represents the
 /// first match state with emissions (the first reference coordinate position).
+///
+/// Conversion to a [`DpIndex`] will add 1, and hence may panic (debug mode) or
+/// wrap (release mode). Ensure that the indices used are not equal to
+/// [`usize::MAX`] to avoid this.
 #[repr(transparent)]
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
 pub struct SeqIndex(pub usize);
@@ -137,6 +141,13 @@ impl AlnIndex for DpIndex {
 }
 
 impl AlnIndex for SeqIndex {
+    /// Returns the index as a [`DpIndex`].
+    ///
+    /// It is not checked whether the index is past the end of `seq`.
+    ///
+    /// ## Panics
+    ///
+    /// This may panic or wrap if the [`SeqIndex`] is equal to [`usize::MAX`].
     #[inline]
     fn to_dp_index<Q>(self, _seq: &Q) -> DpIndex
     where
