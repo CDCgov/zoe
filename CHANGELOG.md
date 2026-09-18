@@ -14,6 +14,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ### Changed
 
+- `SamData` now holds a `Flag` type for the FLAG field, offering getters and
+  setters for each bit flag
 - `BamWriter` now accepts a generic record implementing `GetSamFields` instead
   of only `SamData`
 

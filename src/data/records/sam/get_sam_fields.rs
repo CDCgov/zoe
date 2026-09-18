@@ -2,7 +2,7 @@ use crate::data::{
     cigar::ToCigletIterator,
     nucleotides::NucleotidesView,
     phred::QualityScoresView,
-    sam::{SamData, SamDataView, ToOptFieldsIterator, is_missing_sam_field},
+    sam::{Flag, SamData, SamDataView, ToOptFieldsIterator, is_missing_sam_field},
     views::AsView,
 };
 use std::fmt::Display;
@@ -23,7 +23,7 @@ pub trait GetSamFields: Sized {
     fn qname(&self) -> Option<&str>;
 
     /// Returns the FLAG field if it is contained in the struct.
-    fn flag(&self) -> Option<u16>;
+    fn flag(&self) -> Option<Flag>;
 
     /// Returns the RNAME field if it is contained in the struct.
     fn rname(&self) -> Option<&str>;
@@ -78,7 +78,7 @@ where
         (*self).qname()
     }
 
-    fn flag(&self) -> Option<u16> {
+    fn flag(&self) -> Option<Flag> {
         (*self).flag()
     }
 
@@ -116,7 +116,7 @@ impl GetSamFields for SamData {
         Some(&self.qname)
     }
 
-    fn flag(&self) -> Option<u16> {
+    fn flag(&self) -> Option<Flag> {
         Some(self.flag)
     }
 
@@ -154,7 +154,7 @@ impl GetSamFields for SamDataView<'_> {
         Some(self.qname)
     }
 
-    fn flag(&self) -> Option<u16> {
+    fn flag(&self) -> Option<Flag> {
         Some(self.flag)
     }
 
@@ -210,7 +210,7 @@ pub struct SamFieldsDisplay<T>(T);
 impl<T: GetSamFields> Display for SamFieldsDisplay<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let qname = self.0.qname().filter(|q| !is_missing_sam_field(q)).unwrap_or("*");
-        let flag = self.0.flag().unwrap_or(0);
+        let flag = self.0.flag().unwrap_or_default();
         let rname = self.0.rname().filter(|r| !is_missing_sam_field(r)).unwrap_or("*");
         let pos = self.0.pos().unwrap_or(0);
         let mapq = self.0.mapq().unwrap_or(255);

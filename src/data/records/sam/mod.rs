@@ -13,6 +13,7 @@ use crate::{
 };
 use std::hash::Hash;
 
+mod flag;
 mod get_sam_fields;
 mod optional_fields;
 mod reader;
@@ -20,6 +21,7 @@ mod sort_traits;
 mod std_traits;
 mod view_traits;
 
+pub use flag::*;
 pub use get_sam_fields::*;
 pub use optional_fields::*;
 pub use reader::*;
@@ -36,7 +38,7 @@ pub struct SamData {
     /// Query name.
     pub qname:      String,
     /// SAM flag: strandedness, etc.
-    pub flag:       u16,
+    pub flag:       Flag,
     /// Reference name.
     pub rname:      String,
     /// The 1-based position in the reference to which the start of the query
@@ -114,7 +116,7 @@ pub struct SamDataView<'a> {
     /// Query name.
     pub qname:      &'a str,
     /// SAM flag: strandedness, etc.
-    pub flag:       u16,
+    pub flag:       Flag,
     /// Reference name.
     pub rname:      &'a str,
     /// The 1-based position in the reference to which the start of the query
@@ -196,7 +198,7 @@ pub struct SamDataViewMut<'a> {
     /// Query name.
     pub qname: &'a mut String,
     /// SAM flag: strandedness, etc.
-    pub flag:  u16,
+    pub flag:  Flag,
     /// Reference name.
     pub rname: &'a mut String,
     /// The 1-based position in the reference to which the start of the query
@@ -229,7 +231,7 @@ impl SamData {
     #[must_use]
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        qname: String, flag: u16, rname: String, pos: usize, mapq: u8, cigar: Cigar, seq: Nucleotides, qual: QualityScores,
+        qname: String, flag: Flag, rname: String, pos: usize, mapq: u8, cigar: Cigar, seq: Nucleotides, qual: QualityScores,
     ) -> Self {
         SamData {
             qname,
@@ -259,7 +261,16 @@ impl SamData {
         let seq = Nucleotides::from(b"*");
         // Safety: * is graphic ascii
         let qual = unsafe { QualityScores::from_vec_unchecked(b"*".to_vec()) };
-        Self::new(qname.to_string(), 4, rname.to_string(), 0, 255, Cigar::new(), seq, qual)
+        Self::new(
+            qname.to_string(),
+            Flag::UNMAPPED,
+            rname.to_string(),
+            0,
+            255,
+            Cigar::new(),
+            seq,
+            qual,
+        )
     }
 
     /// Constructs a new [`SamData`] record from an [`Alignment`] struct as well
@@ -270,7 +281,7 @@ impl SamData {
     #[inline]
     #[must_use]
     pub fn from_alignment<T: AnyInt + Into<i64>>(
-        alignment: &Alignment<T>, qname: String, flag: u16, rname: String, mapq: u8, seq: Nucleotides, qual: QualityScores,
+        alignment: &Alignment<T>, qname: String, flag: Flag, rname: String, mapq: u8, seq: Nucleotides, qual: QualityScores,
     ) -> Self {
         // Both SAM and Alignment exclude clipped bases when reporting
         // positions, so we just need to adjust to 1-based
@@ -306,13 +317,13 @@ impl SamData {
     ///
     /// ```
     /// # use zoe::{
-    /// #     data::{cigar::Cigar, sam::{SamOptValue, SamData}},
+    /// #     data::{cigar::Cigar, sam::{Flag, SamOptValue, SamData}},
     /// #     prelude::{Nucleotides, QualityScores},
     /// # };
     /// #
     /// # let mut sam_data = SamData::new(
     /// #     String::new(),
-    /// #     0,
+    /// #     Flag::default(),
     /// #     String::new(),
     /// #     0,
     /// #     255,
@@ -399,7 +410,7 @@ impl SamData {
     #[inline]
     #[must_use]
     pub fn is_unmapped(&self) -> bool {
-        self.flag & 0x4 != 0 || self.cigar.ref_len_in_alignment() == 0
+        self.flag.is_unmapped() || self.cigar.ref_len_in_alignment() == 0
     }
 }
 
@@ -408,7 +419,7 @@ impl<'a> SamDataView<'a> {
     #[allow(clippy::too_many_arguments)]
     #[must_use]
     pub fn new(
-        qname: &'a str, flag: u16, rname: &'a str, pos: usize, mapq: u8, cigar: CigarView<'a>, seq: NucleotidesView<'a>,
+        qname: &'a str, flag: Flag, rname: &'a str, pos: usize, mapq: u8, cigar: CigarView<'a>, seq: NucleotidesView<'a>,
         qual: QualityScoresView<'a>,
     ) -> Self {
         SamDataView {
@@ -439,7 +450,7 @@ impl<'a> SamDataView<'a> {
         let seq = NucleotidesView::from(b"*");
         // Safety: * is graphic ascii
         let qual = unsafe { QualityScoresView::from_bytes_unchecked(b"*") };
-        Self::new(qname, 4, rname, 0, 255, CigarView::new(), seq, qual)
+        Self::new(qname, Flag::UNMAPPED, rname, 0, 255, CigarView::new(), seq, qual)
     }
 }
 
@@ -450,7 +461,7 @@ impl<'a> SamDataViewMut<'a> {
     #[allow(clippy::too_many_arguments)]
     #[must_use]
     pub fn new(
-        qname: &'a mut String, flag: u16, rname: &'a mut String, pos: usize, mapq: u8, cigar: CigarViewMut<'a>,
+        qname: &'a mut String, flag: Flag, rname: &'a mut String, pos: usize, mapq: u8, cigar: CigarViewMut<'a>,
         seq: NucleotidesViewMut<'a>, qual: QualityScoresViewMut<'a>,
     ) -> Self {
         SamDataViewMut {

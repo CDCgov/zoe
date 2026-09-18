@@ -4,7 +4,7 @@ use crate::{
         err::ResultWithErrorContext,
         nucleotides::Nucleotides,
         phred::QualityScores,
-        sam::{is_missing_sam_field, SamData, SamOptRaw},
+        sam::{SamData, SamOptRaw, is_missing_sam_field},
     },
     unwrap_or_return_some_err,
 };
@@ -186,7 +186,7 @@ impl<R: std::io::Read, const OPT: bool> Iterator for SAMReader<R, OPT> {
             let qname = parts[0].to_string();
 
             let flag = {
-                match parts[1].parse::<u16>() {
+                match parts[1].parse() {
                     Ok(f) => f,
                     Err(e) => {
                         return Some(Err(IOError::new(

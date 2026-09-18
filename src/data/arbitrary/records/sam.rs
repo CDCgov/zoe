@@ -12,12 +12,19 @@ use crate::{
             StringSpecs, VecSpecs,
         },
         cigar::{Cigar, LenInAlignment},
-        sam::{OptArray, SamData, SamOptField, SamOptRaw, SamOptValue},
+        sam::{Flag, OptArray, SamData, SamOptField, SamOptRaw, SamOptValue},
     },
     prelude::{Len, Nucleotides, QualityScores},
 };
 use arbitrary::{Arbitrary, Unstructured};
 use std::num::NonZeroUsize;
+
+impl<'a> Arbitrary<'a> for Flag {
+    #[inline]
+    fn arbitrary(u: &mut Unstructured<'a>) -> arbitrary::Result<Self> {
+        u16::arbitrary(u).map(Flag)
+    }
+}
 
 impl<'a> Arbitrary<'a> for SamData {
     /// Generates an arbitrary [`SamData`] record from the given unstructured
@@ -30,7 +37,7 @@ impl<'a> Arbitrary<'a> for SamData {
     fn arbitrary(u: &mut Unstructured<'a>) -> arbitrary::Result<Self> {
         let mut data = SamData::new(
             String::arbitrary(u)?,
-            u16::arbitrary(u)?,
+            Flag::arbitrary(u)?,
             String::arbitrary(u)?,
             usize::arbitrary(u)?,
             u8::arbitrary(u)?,
@@ -139,7 +146,7 @@ impl<'a> ArbitrarySpecs<'a> for SamDataSpecs {
 
         let mut data = SamData::new(
             self.qname.make_arbitrary(u)?,
-            u16::arbitrary(u)?,
+            Flag::arbitrary(u)?,
             self.rname.make_arbitrary(u)?,
             pos,
             u8::arbitrary(u)?,

@@ -15,7 +15,7 @@ use crate::data::{
         header::Header,
     },
     cigar::ToCigletIterator,
-    sam::{GetSamFields, is_missing_sam_field},
+    sam::{Flag, GetSamFields, is_missing_sam_field},
     views::Len,
 };
 
@@ -24,9 +24,6 @@ mod fields;
 
 /// Maximum operation length that fits in BAM's 28-bit CIGAR increment field.
 const MAX_CIGAR_INC: u32 = 0x0FFF_FFFF;
-
-/// SAM/BAM flag bit indicating that the read itself is unmapped.
-const READ_UNMAPPED: u16 = 0x4;
 
 /// Fully prepared BAM alignment record ready for binary serialization.
 pub(super) struct PreparedBamRecord {
@@ -43,7 +40,7 @@ pub(super) struct PreparedBamRecord {
     /// Number of inline CIGAR operations stored in `cigar_field`.
     n_cigar_op:  u16,
     /// BAM flag word after normalizing SAM flags for *Zoe*'s BAM output.
-    flag:        u16,
+    flag:        Flag,
     /// Query sequence length stored in the BAM core record.
     l_seq:       u32,
     /// NUL-terminated BAM read name payload.
@@ -252,7 +249,7 @@ impl PreparedBamRecord {
         buf.push(self.mapq);
         buf.extend_from_slice(&self.bin.to_le_bytes());
         buf.extend_from_slice(&self.n_cigar_op.to_le_bytes());
-        buf.extend_from_slice(&self.flag.to_le_bytes());
+        buf.extend_from_slice(&self.flag.0.to_le_bytes());
         buf.extend_from_slice(&self.l_seq.to_le_bytes());
         // RNEXT, PNEXT, and TLEN are not populated yet.
         buf.extend_from_slice(&RNEXT.to_le_bytes());
@@ -275,13 +272,13 @@ impl PreparedBamRecord {
 /// Unsupported or mate-dependent bits are cleared, and records with an empty
 /// CIGAR are marked as unmapped so the serialized BAM flag is consistent with
 /// *Zoe*'s treatment of empty-CIGAR records.
-fn normalize_flags(flag: Option<u16>, cigar_is_missing: bool) -> u16 {
+fn normalize_flags(flag: Option<Flag>, cigar_is_missing: bool) -> Flag {
     let mut flag = flag.unwrap_or_default();
 
     flag = filter_unsupported_flags(flag);
 
     if cigar_is_missing {
-        flag |= READ_UNMAPPED;
+        flag.set_unmapped();
     }
 
     flag
@@ -294,21 +291,16 @@ fn normalize_flags(flag: Option<u16>, cigar_is_missing: bool) -> u16 {
 /// unmapped), `0x20` (next segment reverse-complemented), `0x40` (first
 /// segment), and `0x80` (last segment). Reserved or otherwise unknown bits are
 /// also cleared.
-fn filter_unsupported_flags(flag: u16) -> u16 {
-    const READ_REVERSE_COMPLEMENTED: u16 = 0x10;
-    const SECONDARY_ALIGNMENT: u16 = 0x100;
-    const FAILED_QUALITY_CHECKS: u16 = 0x200;
-    const DUPLICATE: u16 = 0x400;
-    const SUPPLEMENTARY_ALIGNMENT: u16 = 0x800;
+fn filter_unsupported_flags(mut flag: Flag) -> Flag {
+    flag.unset_segmented();
+    flag.unset_properly_segmented();
+    flag.unset_unmapped_next_segment();
+    flag.unset_revcomp_next_segment();
+    flag.unset_first_template();
+    flag.unset_last_template();
+    flag.standardize();
 
-    const SUPPORTED_FLAGS: u16 = READ_UNMAPPED
-        | READ_REVERSE_COMPLEMENTED
-        | SECONDARY_ALIGNMENT
-        | FAILED_QUALITY_CHECKS
-        | DUPLICATE
-        | SUPPLEMENTARY_ALIGNMENT;
-
-    flag & SUPPORTED_FLAGS
+    flag
 }
 
 /// Computes the checked total BAM block size from a list of encoded field
