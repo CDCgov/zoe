@@ -73,6 +73,13 @@ impl<T: PhmmNumber, const S: usize> GlobalPhmm<T, S> {
     /// Samples a sequence and corresponding [`Alignment`] from the
     /// [`GlobalPhmm`].
     ///
+    /// If any part of the model is non-probabilistic (the probabilities exiting
+    /// a state do not sum to 1), then the probabilities are viewed as weights
+    /// instead and are renormalized. This means that each decision while
+    /// sampling uses local information only: a likely transition will be chosen
+    /// with greater frequency even if after that transition, all possible paths
+    /// have low probability.
+    ///
     /// To avoid pathological cases, insertion sizes are truncated to 1000.
     ///
     /// ## Errors
@@ -107,6 +114,13 @@ impl<T: PhmmNumber, const S: usize> GlobalPhmm<T, S> {
 impl<T: PhmmNumber, const S: usize> DomainPhmm<T, S> {
     /// Samples a sequence and corresponding [`Alignment`] from the
     /// [`DomainPhmm`].
+    ///
+    /// If any part of the model is non-probabilistic (the probabilities exiting
+    /// a state do not sum to 1), then the probabilities are viewed as weights
+    /// instead and are renormalized. This means that each decision while
+    /// sampling uses local information only: a likely transition will be chosen
+    /// with greater frequency even if after that transition, all possible paths
+    /// have low probability.
     ///
     /// To avoid pathological cases, insertion sizes are truncated to 1000.
     ///
@@ -143,6 +157,13 @@ impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
     /// Samples a sequence and corresponding [`Alignment`] from the
     /// [`SemiLocalPhmm`].
     ///
+    /// If any part of the model is non-probabilistic (the probabilities exiting
+    /// a state do not sum to 1), then the probabilities are viewed as weights
+    /// instead and are renormalized. This means that each decision while
+    /// sampling uses local information only: a likely transition will be chosen
+    /// with greater frequency even if after that transition, all possible paths
+    /// have low probability.
+    ///
     /// To avoid pathological cases, insertion sizes are truncated to 1000.
     ///
     /// ## Errors
@@ -176,6 +197,13 @@ impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
 impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
     /// Samples a sequence and corresponding [`Alignment`] from the
     /// [`LocalPhmm`].
+    ///
+    /// If any part of the model is non-probabilistic (the probabilities exiting
+    /// a state do not sum to 1), then the probabilities are viewed as weights
+    /// instead and are renormalized. This means that each decision while
+    /// sampling uses local information only: a likely transition will be chosen
+    /// with greater frequency even if after that transition, all possible paths
+    /// have low probability.
     ///
     /// To avoid pathological cases, insertion sizes are truncated to 1000.
     ///
