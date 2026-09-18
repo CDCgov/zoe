@@ -73,7 +73,12 @@ pub(crate) use crate::data::extension::simd;
 #[allow(deprecated)]
 mod private {
     #[cfg(feature = "dev-phmm")]
-    use crate::alignment::phmm::{DomainPhmm, GlobalPhmm, LocalPhmm, SemiLocalPhmm};
+    use crate::alignment::phmm::{
+        DomainPhmm, GlobalPhmm, LocalPhmm, SemiLocalPhmm,
+        components::CorePhmm,
+        indexing::{Begin, DpIndex, End, FirstResidue, LastResidue, SeqIndex},
+        modules::{PrecomputedDomainModule, PrecomputedLocalModule, SemiLocalModule},
+    };
     use crate::{
         data::{
             cigar::{Cigar, CigarView, CigarViewMut},
@@ -81,8 +86,10 @@ mod private {
         },
         prelude::*,
     };
+    use std::ops::Range;
     use std::{
         hash::BuildHasher,
+        ops::{Bound, RangeFrom, RangeInclusive, RangeTo, RangeToInclusive},
         simd::{Simd, SimdElement},
     };
 
@@ -94,13 +101,16 @@ mod private {
     }
 
     pub trait Sealed {}
-    sealed!(String, &String, &str, str);
+
+    impl<T: Sealed> Sealed for &T {}
+    impl<T: Sealed> Sealed for &mut T {}
+    impl<A: Sealed, B: Sealed> Sealed for (A, B) {}
+
+    sealed!(String, str, Box<[u8]>);
     impl<T> Sealed for Vec<T> {}
-    impl Sealed for Box<[u8]> {}
     impl<T> Sealed for [T] {}
     impl<T> Sealed for &[T] {}
     impl<T> Sealed for &mut [T] {}
-    impl<T, const N: usize> Sealed for &[T; N] {}
     impl<T, const N: usize> Sealed for [T; N] {}
     impl<Q: ?Sized> Sealed for crate::search::RangeSearch<'_, Q> {}
     impl<T: SimdElement, const N: usize> Sealed for Simd<T, N> {}
@@ -108,6 +118,13 @@ mod private {
     impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>, S: BuildHasher> Sealed for KmerSet<MAX_LEN, E, S> {}
     impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>> Sealed for crate::kmer::IndexedKmerSet<MAX_LEN, E> {}
     impl<const MAX_LEN: usize, E: KmerEncoder<MAX_LEN>> Sealed for crate::kmer::IndexedKmerCounter<MAX_LEN, E> {}
+
+    impl<T: Sealed> Sealed for Bound<T> {}
+    impl<T: Sealed> Sealed for Range<T> {}
+    impl<T: Sealed> Sealed for RangeInclusive<T> {}
+    impl<T: Sealed> Sealed for RangeFrom<T> {}
+    impl<T: Sealed> Sealed for RangeTo<T> {}
+    impl<T: Sealed> Sealed for RangeToInclusive<T> {}
 
     #[cfg(feature = "dev-generic-fasta")]
     sealed!(
@@ -135,6 +152,8 @@ mod private {
     impl<M: AssocViewMutType, S: AssocViewMutType> Sealed for crate::data::fasta::generic::FastaAnnotViewMut<'_, M, S> {}
 
     #[cfg(feature = "dev-phmm")]
+    impl<T, const S: usize> Sealed for CorePhmm<T, S> {}
+    #[cfg(feature = "dev-phmm")]
     impl<T, const S: usize> Sealed for GlobalPhmm<'_, T, S> {}
     #[cfg(feature = "dev-phmm")]
     impl<T, const S: usize> Sealed for LocalPhmm<'_, T, S> {}
@@ -142,6 +161,24 @@ mod private {
     impl<T, const S: usize> Sealed for SemiLocalPhmm<'_, T, S> {}
     #[cfg(feature = "dev-phmm")]
     impl<T, const S: usize> Sealed for DomainPhmm<'_, T, S> {}
+    #[cfg(feature = "dev-phmm")]
+    impl<T> Sealed for SemiLocalModule<T> {}
+    #[cfg(feature = "dev-phmm")]
+    impl<T, const S: usize> Sealed for PrecomputedLocalModule<'_, T, S> {}
+    #[cfg(feature = "dev-phmm")]
+    impl<T, const S: usize> Sealed for PrecomputedDomainModule<T, S> {}
+    #[cfg(feature = "dev-phmm")]
+    impl Sealed for Begin {}
+    #[cfg(feature = "dev-phmm")]
+    impl Sealed for FirstResidue {}
+    #[cfg(feature = "dev-phmm")]
+    impl Sealed for LastResidue {}
+    #[cfg(feature = "dev-phmm")]
+    impl Sealed for End {}
+    #[cfg(feature = "dev-phmm")]
+    impl Sealed for DpIndex {}
+    #[cfg(feature = "dev-phmm")]
+    impl Sealed for SeqIndex {}
 
     sealed!(
         AminoAcids,

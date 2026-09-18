@@ -1,8 +1,11 @@
-use crate::alignment::phmm::indexing::{AlnIndex, AlnIndexable, Begin, DpIndex, End, FirstResidue, SeqIndex};
+use crate::{
+    alignment::phmm::indexing::{AlnIndex, AlnIndexable, Begin, DpIndex, End, FirstResidue, SeqIndex},
+    private::Sealed,
+};
 use std::ops::{Bound, Range, RangeBounds, RangeFrom, RangeInclusive, RangeTo, RangeToInclusive};
 
 /// A trait similar to [`RangeBounds`] but for ranges of [`AlnIndex`] values.
-pub trait AlnIndexRange {
+pub trait AlnIndexRange: Sealed {
     /// The type of the starting index.
     type Start: AlnIndex;
     /// The type of the ending index.
@@ -141,7 +144,7 @@ impl<I: AlnIndex> AlnIndexRange for RangeToInclusive<I> {
 
 /// An extension trait for `Range<DpIndex>` and `Range<SeqIndex>` to convert
 /// them into `Range<usize>`.
-pub trait IndexRangeInner {
+pub trait IndexRangeInner: Sealed {
     /// Extracts the contained `usize` indices within the range.
     fn into_inner(self) -> Range<usize>;
 }

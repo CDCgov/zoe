@@ -1,7 +1,7 @@
 //! Definition of the [`AlnIndex`] trait and many specific index types
 //! implementing it.
 
-use crate::alignment::phmm::indexing::AlnIndexable;
+use crate::{alignment::phmm::indexing::AlnIndexable, private::Sealed};
 use std::{
     cmp::Ordering,
     ops::{Add, AddAssign},
@@ -9,7 +9,7 @@ use std::{
 
 /// A trait representing different ways to index into sequence data associated
 /// with a dynamic programming alignment algorithm.
-pub trait AlnIndex: Copy {
+pub trait AlnIndex: Copy + Sealed {
     /// Returns the index as a [`DpIndex`].
     ///
     /// It is not checked whether the index is past the end of `seq`.

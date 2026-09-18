@@ -3,18 +3,21 @@
 //!
 //! [`AlnIndex`]: super::AlnIndex
 
-use crate::alignment::phmm::{
-    DomainPhmm, GlobalPhmm, LocalPhmm, SemiLocalPhmm,
-    components::CorePhmm,
-    indexing::{GetCore, GetLayer},
-    modules::{PrecomputedDomainModule, PrecomputedLocalModule, SemiLocalModule},
+use crate::{
+    alignment::phmm::{
+        DomainPhmm, GlobalPhmm, LocalPhmm, SemiLocalPhmm,
+        components::CorePhmm,
+        indexing::{GetCore, GetLayer},
+        modules::{PrecomputedDomainModule, PrecomputedLocalModule, SemiLocalModule},
+    },
+    private::Sealed,
 };
 
 /// A trait for structures that can be indexed via a [`AlnIndex`], such as byte
 /// sequences, pHMMs, and modules.
 ///
 /// [`AlnIndex`]: crate::alignment::phmm::indexing::AlnIndex
-pub trait AlnIndexable {
+pub trait AlnIndexable: Sealed {
     /// Returns the length of the query or reference sequence corresponding to
     /// the structure.
     #[must_use]

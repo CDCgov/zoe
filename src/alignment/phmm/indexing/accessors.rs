@@ -6,11 +6,12 @@ use crate::{
         modules::SemiLocalModule,
     },
     data::ByteIndexMap,
+    private::Sealed,
 };
 
 /// A trait providing read-only access to the modules at the beginning and end
 /// of a pHMM.
-pub trait GetModule {
+pub trait GetModule: Sealed {
     /// The type of the module at the beginning of the pHMM.
     type Begin;
     /// The type of the module at the end of the pHMM.
@@ -30,7 +31,7 @@ pub trait GetModule {
 // implementation.
 
 /// A trait providing read-only access to the [`CorePhmm`] within a larger pHMM.
-pub trait GetCore<T, const S: usize> {
+pub trait GetCore<T, const S: usize>: Sealed {
     /// Returns a reference to the [`CorePhmm`] holding the core parameters.
     #[must_use]
     fn core(&self) -> &CorePhmm<T, S>;
@@ -115,7 +116,7 @@ pub(crate) trait GetLayerMut<T, const S: usize>: GetLayer<T, S> {
 }
 
 /// A trait providing access to the underlying alphabet of a pHMM.
-pub trait GetMapping<'a, const S: usize> {
+pub trait GetMapping<'a, const S: usize>: Sealed {
     /// Returns a reference to the underlying alphabet of the pHMM.
     #[must_use]
     fn mapping(&self) -> &'a ByteIndexMap<S>;
@@ -123,7 +124,7 @@ pub trait GetMapping<'a, const S: usize> {
 
 /// A trait unifying [`Begin`], [`FirstResidue`], and [`LastResidue`], which are
 /// layers of a pHMM that are guaranteed to exist.
-pub trait InfallibleLayerIdx: Copy {
+pub trait InfallibleLayerIdx: Copy + Sealed {
     /// Returns the specified layer from `layers`.
     fn layer<T, const S: usize>(self, layers: &VecAtLeast2<LayerParams<T, S>>) -> &LayerParams<T, S>;
 
