@@ -15,8 +15,9 @@ use crate::data::{
     sam::GetSamFields,
 };
 use std::{
+    fs::File,
     io::Write,
-    {fs::File, path::Path},
+    path::{Path, PathBuf},
 };
 
 mod bai;
@@ -33,12 +34,15 @@ pub use bgzf::NoCompression;
 /// compression backend by implementing [`BlockCompressor`] and passing it to
 /// [`with_compressor`].
 ///
-/// Choose a constructor based on how much control is needed:
+/// Construct with:
 ///
 /// - [`from_path`]: create or truncate a BAM file at a filesystem path and use
 ///   the default stored-DEFLATE strategy.
 /// - [`from_writer`]: wrap an existing [`Write`] sink and use the default
 ///   stored-DEFLATE strategy.
+///
+/// then optionally call:
+///
 /// - [`with_compressor`]: replace the default compression strategy with a
 ///   caller-provided one.
 /// - [`with_bai`]: enable a companion BAI index at a caller-provided path.
@@ -101,6 +105,8 @@ pub use bgzf::NoCompression;
 /// [`write_record`]: BamWriter::write_record
 /// [`finish`]: BamWriter::finish
 pub struct BamWriter<W: Write = File, C: BlockCompressor = NoCompression> {
+    /// File path of the output BAM file.
+    bam_path:    Option<PathBuf>,
     /// BGZF output stream receiving BAM bytes.
     bgzf:        Option<BgzfWriter<W, C>>,
     /// Accumulated header lines and parsed reference dictionary.
@@ -125,8 +131,11 @@ impl BamWriter<File, NoCompression> {
     /// [`write_record`]: BamWriter::write_record
     /// [`finish`]: BamWriter::finish
     pub fn from_path(bam_path: impl AsRef<Path>) -> Result<Self, BamError> {
-        let file = File::create(&bam_path).with_path_context("Cannot create BAM file to write", bam_path)?;
-        Ok(Self::from_writer(file))
+        let bam_path = bam_path.as_ref();
+        let file = File::create(bam_path).with_path_context("Cannot create BAM file to write", bam_path)?;
+        let mut bam_writer = Self::from_writer(file);
+        bam_writer.bam_path = Some(bam_path.to_path_buf());
+        Ok(bam_writer)
     }
 }
 
@@ -142,6 +151,7 @@ impl<W: Write> BamWriter<W, NoCompression> {
     /// [`with_compressor`]: BamWriter::with_compressor
     pub fn from_writer(writer: W) -> Self {
         BamWriter {
+            bam_path:    None,
             bgzf:        Some(BgzfWriter::new(writer)),
             header:      Header::default(),
             header_done: false,
@@ -163,6 +173,7 @@ impl<W: Write> BamWriter<W, NoCompression> {
         // `self` implements `Drop`, so fields must be extracted via
         // `take`/`mem::take` rather than moved out directly
         Ok(BamWriter {
+            bam_path:    self.bam_path.take(),
             bgzf:        self.bgzf.take().map(|b| b.with_compressor(compressor)),
             header:      std::mem::take(&mut self.header),
             header_done: self.header_done,
@@ -176,14 +187,20 @@ impl<W: Write, C: BlockCompressor> BamWriter<W, C> {
     ///
     /// ## Errors
     ///
-    /// Returns an error if `path` cannot be created or if attempting to enable
-    /// indexing after serialization has already begun.
-    pub fn with_bai(mut self, path: impl AsRef<Path>) -> Result<Self, BamError> {
+    /// Returns an error if `path` cannot be created, if attempting to enable
+    /// indexing after serialization has already begun, or if the BAI path is
+    /// the same as the BAM path.
+    pub fn with_bai(mut self, bai_path: impl AsRef<Path>) -> Result<Self, BamError> {
         if self.header_done {
             return Err(BamError::CannotChangeConfiguration);
         }
 
-        let bai = BaiWriter::from_path(path)?;
+        let bai_path = bai_path.as_ref();
+        if self.bam_path.as_deref() == Some(bai_path) {
+            return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "BAI path must differ from BAM path").into());
+        }
+
+        let bai = BaiWriter::from_path(bai_path)?;
         self.bai = Some(bai);
         Ok(self)
     }
@@ -262,21 +279,27 @@ impl<W: Write, C: BlockCompressor> BamWriter<W, C> {
 
         let encoded_record = prepared_record.encode(record.qname())?;
 
+        // This uses take instead of as_mut to prevent double mutable borrow
         let mut bgzf = self.bgzf.take().ok_or(BamError::WriterFinalized)?;
         self.write_header_if_pending(&mut bgzf)?;
 
-        let chunk_beg = bgzf.virtual_offset()?;
-        bgzf.write_all(&encoded_record).map_err(BamError::from)?;
-        let chunk_end = bgzf.virtual_offset()?;
+        match self.bai.as_mut() {
+            Some(bai) => {
+                let chunk_beg = bgzf.virtual_offset().map_err(|source| BamError::Index { source })?;
+                bgzf.write_all(&encoded_record)?;
+                let chunk_end = bgzf.virtual_offset().map_err(|source| BamError::Index { source })?;
 
-        if let Some(bai) = self.bai.as_mut() {
-            bai.add_record_to_index(
-                prepared_record.ref_id,
-                prepared_record.bin,
-                prepared_record.ref_interval.as_ref(),
-                (chunk_beg, chunk_end),
-            );
-            bai.update_last_coord(prepared_record.ref_id, prepared_record.pos0);
+                bai.add_record_to_index(
+                    prepared_record.ref_id,
+                    prepared_record.bin,
+                    prepared_record.ref_interval.as_ref(),
+                    (chunk_beg, chunk_end),
+                );
+                bai.update_last_coord(prepared_record.ref_id, prepared_record.pos0);
+            }
+            None => {
+                bgzf.write_all(&encoded_record)?;
+            }
         }
 
         self.bgzf = Some(bgzf);

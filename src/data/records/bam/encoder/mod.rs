@@ -86,7 +86,7 @@ impl PreparedBamRecord {
             _ => {
                 return Err(BamEncodingError::SizeOverflow {
                     field:  "SAM POS",
-                    target: NumberSizeTarget::MaxInclusive(i32::MAX as usize),
+                    target: NumberSizeTarget::MaxInclusive(i32::MAX as u64),
                 }
                 .into());
             }
@@ -113,7 +113,7 @@ impl PreparedBamRecord {
         let l_seq = seq.map_or(Ok(0), |seq| {
             u32::try_from(seq.len()).map_err(|_| BamEncodingError::SizeOverflow {
                 field:  "SEQ",
-                target: NumberSizeTarget::MaxInclusive(u32::MAX as usize),
+                target: NumberSizeTarget::MaxInclusive(u64::from(u32::MAX)),
             })
         })?;
 
@@ -125,7 +125,7 @@ impl PreparedBamRecord {
             if l_seq > MAX_CIGAR_INC {
                 return Err(BamEncodingError::SizeOverflow {
                     field:  "long-CIGAR placeholder sequence length",
-                    target: NumberSizeTarget::MaxExclusive(1usize << 28),
+                    target: NumberSizeTarget::MaxExclusive(1 << 28),
                 }
                 .into());
             }
@@ -133,7 +133,7 @@ impl PreparedBamRecord {
             if spans.ref_span > MAX_CIGAR_INC {
                 return Err(BamEncodingError::SizeOverflow {
                     field:  "long-CIGAR placeholder reference span",
-                    target: NumberSizeTarget::MaxExclusive(1usize << 28),
+                    target: NumberSizeTarget::MaxExclusive(1 << 28),
                 }
                 .into());
             }
@@ -147,7 +147,7 @@ impl PreparedBamRecord {
             let aux = encode_aux_fields(data.opt_fields(), None)?;
             let n_cigar_op = u16::try_from(encoded_cigar.len()).map_err(|_| BamEncodingError::SizeOverflow {
                 field:  "number of CIGAR ops",
-                target: NumberSizeTarget::MaxInclusive(u16::MAX as usize),
+                target: NumberSizeTarget::MaxInclusive(u64::from(u16::MAX)),
             })?;
 
             (aux, encoded_cigar, n_cigar_op)
@@ -204,7 +204,7 @@ impl PreparedBamRecord {
                     qname,
                     BamEncodingError::SizeOverflow {
                         field:  "BAM CIGAR",
-                        target: NumberSizeTarget::MaxInclusive(usize::MAX),
+                        target: NumberSizeTarget::MaxInclusive(usize::MAX as u64),
                     },
                 )
             })?;
@@ -223,7 +223,7 @@ impl PreparedBamRecord {
                 qname,
                 BamEncodingError::SizeOverflow {
                     field:  "BAM block",
-                    target: NumberSizeTarget::MaxInclusive(u32::MAX as usize),
+                    target: NumberSizeTarget::MaxInclusive(u64::from(u32::MAX)),
                 },
             )
         })?;
@@ -232,7 +232,7 @@ impl PreparedBamRecord {
                 qname,
                 BamEncodingError::SizeOverflow {
                     field:  "BAM block buffer",
-                    target: NumberSizeTarget::MaxInclusive(usize::MAX),
+                    target: NumberSizeTarget::MaxInclusive(usize::MAX as u64),
                 },
             )
         })?;
@@ -246,7 +246,7 @@ impl PreparedBamRecord {
                 qname,
                 BamEncodingError::SizeOverflow {
                     field:  "QNAME length",
-                    target: NumberSizeTarget::MaxInclusive(u8::MAX as usize),
+                    target: NumberSizeTarget::MaxInclusive(u64::from(u8::MAX)),
                 },
             )
         })?);
@@ -314,7 +314,7 @@ fn bam_block_size(component_sizes: &[usize]) -> Result<usize, BamRecordError> {
         total.checked_add(*size).ok_or_else(|| {
             BamRecordError::from(BamEncodingError::SizeOverflow {
                 field:  "BAM block",
-                target: NumberSizeTarget::MaxInclusive(usize::MAX),
+                target: NumberSizeTarget::MaxInclusive(usize::MAX as u64),
             })
         })
     })

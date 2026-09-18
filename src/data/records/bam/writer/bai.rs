@@ -15,6 +15,8 @@ use std::{
 
 /// Number of coordinate bits represented by one linear-index window.
 const LINEAR_INDEX_SHIFT: u32 = 14;
+/// Sentinel for empty linear offset.
+const EMPTY_LINEAR_OFFSET: u64 = u64::MAX;
 
 /// Accumulates BAI data and writes it to a companion output stream.
 pub(super) struct BaiWriter {
@@ -40,14 +42,18 @@ impl BaiWriter {
 
         self.inner.write_all(BAI_MAGIC)?;
 
-        let n_ref = i32::try_from(self.index.references.len()).map_err(|_| BamEncodingError::SizeOverflow {
-            field:  "Number of references",
-            target: NumberSizeTarget::MaxExclusive(1 << 31),
+        let n_ref = i32::try_from(self.index.references.len()).map_err(|_| BamError::Index {
+            source: BamEncodingError::SizeOverflow {
+                field:  "Number of references",
+                target: NumberSizeTarget::MaxExclusive(1 << 31),
+            },
         })?;
 
         self.inner.write_all(&n_ref.to_le_bytes())?;
 
-        for (ref_id, reference) in self.index.references.iter().enumerate() {
+        for (ref_id, reference) in self.index.references.iter_mut().enumerate() {
+            reference.fill_linear_index_gaps();
+
             reference
                 .write_to(&mut self.inner)
                 .with_context(format!("Error writing BAI reference {ref_id}"))?;
@@ -97,7 +103,17 @@ impl BaiWriter {
             return;
         };
 
-        reference.bins.entry(bin).or_default().push(chunk);
+        let chunks = reference.bins.entry(bin).or_default();
+        // Merge chunks sharing a compressed block or insert new chunk.
+        match chunks.last_mut() {
+            // Chunks are bit-shifted to recover their compressed offset from
+            // their virtual offset.
+            Some(last) if chunk.0 >> 16 <= last.1 >> 16 => {
+                last.1 = last.1.max(chunk.1);
+            }
+            _ => chunks.push(chunk),
+        }
+
         if let Some(ref_interval) = ref_interval {
             reference.update_linear_index(ref_interval, chunk);
         }
@@ -107,39 +123,51 @@ impl BaiWriter {
 /// In-memory BAI index accumulated from encoded BAM records.
 #[derive(Default)]
 struct BaiIndex {
+    /// Per-reference indexes in BAM reference-ID order.
     references: Vec<ReferenceIndex>,
+    /// Number of records with no BAM reference ID.
     n_no_coord: u64,
 }
 
 /// Index entries for one reference sequence.
 #[derive(Default)]
 struct ReferenceIndex {
+    /// BAI bin numbers mapped to their BGZF virtual-offset chunks.
     bins:         HashMap<u16, Vec<(u64, u64)>>,
+    /// Earliest chunk offset for each 16 KiB reference window.
     linear_index: Vec<u64>,
 }
 
 impl ReferenceIndex {
+    /// Updates every window overlapped by `ref_interval` with the earliest
+    /// virtual offset of `chunk`.
     fn update_linear_index(&mut self, ref_interval: &Range<u32>, chunk: (u64, u64)) {
         let first_window = (ref_interval.start >> LINEAR_INDEX_SHIFT) as usize;
         let last_window = ((ref_interval.end - 1) >> LINEAR_INDEX_SHIFT) as usize;
 
         if self.linear_index.len() <= last_window {
-            self.linear_index.resize(last_window + 1, 0);
+            self.linear_index.resize(last_window + 1, EMPTY_LINEAR_OFFSET);
         }
-        for window in &mut self.linear_index[first_window..=last_window] {
-            if *window == 0 || chunk.0 < *window {
-                *window = chunk.0;
+
+        for offset in &mut self.linear_index[first_window..=last_window] {
+            if *offset == EMPTY_LINEAR_OFFSET || chunk.0 < *offset {
+                *offset = chunk.0;
             }
         }
     }
 
-    // TODO: samtools merges adjacent/overlapping chunks within a bin before
-    // writing. We currently write one chunk per record, which is spec-valid
-    // but larger than samtools output. Optimize once round-trip tests pass.
+    /// Writes this reference's bins, chunks, and linear index in BAI format.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if a section length exceeds the BAI field size or if
+    /// writing fails.
     fn write_to<W: Write>(&self, writer: &mut W) -> Result<(), BamError> {
-        let n_bin = i32::try_from(self.bins.len()).map_err(|_| BamEncodingError::SizeOverflow {
-            field:  "Number of bins",
-            target: NumberSizeTarget::MaxExclusive(1usize << 31),
+        let n_bin = i32::try_from(self.bins.len()).map_err(|_| BamError::Index {
+            source: BamEncodingError::SizeOverflow {
+                field:  "Number of bins",
+                target: NumberSizeTarget::MaxExclusive(1 << 31),
+            },
         })?;
 
         writer.write_all(&n_bin.to_le_bytes())?;
@@ -151,9 +179,11 @@ impl ReferenceIndex {
             let bin = u32::from(bin);
             writer.write_all(&bin.to_le_bytes())?;
 
-            let n_chunk = i32::try_from(chunks.len()).map_err(|_| BamEncodingError::SizeOverflow {
-                field:  "Number of chunks",
-                target: NumberSizeTarget::MaxExclusive(1usize << 31),
+            let n_chunk = i32::try_from(chunks.len()).map_err(|_| BamError::Index {
+                source: BamEncodingError::SizeOverflow {
+                    field:  "Number of chunks",
+                    target: NumberSizeTarget::MaxExclusive(1 << 31),
+                },
             })?;
 
             writer.write_all(&n_chunk.to_le_bytes())?;
@@ -164,9 +194,11 @@ impl ReferenceIndex {
             }
         }
 
-        let lin_indx_len = i32::try_from(self.linear_index.len()).map_err(|_| BamEncodingError::SizeOverflow {
-            field:  "Linear index length",
-            target: NumberSizeTarget::MaxExclusive(1usize << 31),
+        let lin_indx_len = i32::try_from(self.linear_index.len()).map_err(|_| BamError::Index {
+            source: BamEncodingError::SizeOverflow {
+                field:  "Linear index length",
+                target: NumberSizeTarget::MaxExclusive(1 << 31),
+            },
         })?;
         writer.write_all(&lin_indx_len.to_le_bytes())?;
 
@@ -176,8 +208,29 @@ impl ReferenceIndex {
 
         Ok(())
     }
+
+    fn fill_linear_index_gaps(&mut self) {
+        let Some((next_offset, offsets)) = self.linear_index.split_last_mut() else {
+            return;
+        };
+
+        for offset in offsets.iter_mut().rev() {
+            if *offset == EMPTY_LINEAR_OFFSET {
+                *offset = *next_offset;
+            } else {
+                *next_offset = *offset;
+            }
+        }
+
+        // `update_linear_index` overwrites the last entry whenever it extends the
+        // index, so the reverse scan fills every gap.
+        debug_assert!(self.linear_index.iter().all(|&offset| offset != EMPTY_LINEAR_OFFSET));
+    }
 }
 
+/// Builds a sort key from a BAM reference ID and zero-based position.
+///
+/// Records without a reference ID sort after records with a reference ID.
 fn coordinate(ref_id: i32, pos0: i32) -> (u8, i32, i32) {
     if ref_id < 0 { (1, 0, 0) } else { (0, ref_id, pos0) }
 }

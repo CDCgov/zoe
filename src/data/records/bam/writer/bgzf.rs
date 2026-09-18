@@ -92,7 +92,7 @@ pub(super) struct BgzfWriter<W: Write, C: BlockCompressor = NoCompression> {
     /// Reusable raw-DEFLATE (compressed) output storage for compressed blocks.
     compressed_block:  Vec<u8>,
     /// Total bytes already flushed to `inner`.
-    compressed_offest: u64,
+    compressed_offset: u64,
 }
 
 impl<W: Write> BgzfWriter<W> {
@@ -104,7 +104,7 @@ impl<W: Write> BgzfWriter<W> {
             block: Vec::with_capacity(MAX_BGZF_BLOCK_SIZE),
             compressor: NoCompression,
             compressed_block: Vec::new(),
-            compressed_offest: 0,
+            compressed_offset: 0,
         }
     }
 
@@ -116,7 +116,7 @@ impl<W: Write> BgzfWriter<W> {
             block: self.block,
             compressor,
             compressed_block: Vec::with_capacity(MAX_DEFLATE_SIZE),
-            compressed_offest: self.compressed_offest,
+            compressed_offset: self.compressed_offset,
         }
     }
 }
@@ -130,7 +130,7 @@ impl<W: Write, C: BlockCompressor> BgzfWriter<W, C> {
     pub(super) fn virtual_offset(&self) -> Result<u64, BamEncodingError> {
         const MAX_COMPRESSED_OFFSET: u64 = 1 << 48;
 
-        if self.compressed_offest >= MAX_COMPRESSED_OFFSET {
+        if self.compressed_offset >= MAX_COMPRESSED_OFFSET {
             return Err(BamEncodingError::SizeOverflow {
                 field:  "BGZF compressed offset",
                 target: NumberSizeTarget::MaxExclusive(1 << 48),
@@ -138,7 +138,7 @@ impl<W: Write, C: BlockCompressor> BgzfWriter<W, C> {
         }
         // Payload length cannot exceed 65505 (MAX_BGZF_PAYLOAD) so these will
         // not overlap
-        Ok((self.compressed_offest << 16) | self.payload.len() as u64)
+        Ok((self.compressed_offset << 16) | self.payload.len() as u64)
     }
 
     /// Attempts to flush any buffered payload, write the BGZF EOF marker, and
@@ -242,7 +242,7 @@ impl<W: Write, C: BlockCompressor> BgzfWriter<W, C> {
 
         self.inner.write_all(&self.block)?;
 
-        self.compressed_offest += self.block.len() as u64;
+        self.compressed_offset += self.block.len() as u64;
         Ok(())
     }
 
@@ -281,7 +281,7 @@ impl<W: Write, C: BlockCompressor> BgzfWriter<W, C> {
 
         self.inner.write_all(&self.block)?;
 
-        self.compressed_offest += self.block.len() as u64;
+        self.compressed_offset += self.block.len() as u64;
         Ok(())
     }
 

@@ -51,7 +51,7 @@ impl Header {
             if self.refs.len() >= i32::MAX as usize {
                 return Err(BamEncodingError::SizeOverflow {
                     field:  "Number of references",
-                    target: NumberSizeTarget::MaxExclusive(1usize << 31),
+                    target: NumberSizeTarget::MaxExclusive(1 << 31),
                 }
                 .into());
             }
@@ -103,20 +103,20 @@ impl Header {
             let line_len = line.len().checked_add(1).ok_or_else(|| {
                 BamHeaderError::from(BamEncodingError::SizeOverflow {
                     field:  "header text",
-                    target: NumberSizeTarget::MaxInclusive(usize::MAX),
+                    target: NumberSizeTarget::MaxInclusive(usize::MAX as u64),
                 })
             })?;
             total.checked_add(line_len).ok_or_else(|| {
                 BamHeaderError::from(BamEncodingError::SizeOverflow {
                     field:  "header text",
-                    target: NumberSizeTarget::MaxInclusive(usize::MAX),
+                    target: NumberSizeTarget::MaxInclusive(usize::MAX as u64),
                 })
             })
         })?;
         if header_text_len >= (1usize << 31) {
             return Err(BamHeaderError::from(BamEncodingError::SizeOverflow {
                 field:  "Header text length",
-                target: NumberSizeTarget::MaxExclusive(1usize << 31),
+                target: NumberSizeTarget::MaxExclusive(1 << 31),
             })
             .into());
         }
@@ -124,7 +124,7 @@ impl Header {
         if self.refs.len() >= (1usize << 31) {
             return Err(BamHeaderError::from(BamEncodingError::SizeOverflow {
                 field:  "Number of references",
-                target: NumberSizeTarget::MaxExclusive(1usize << 31),
+                target: NumberSizeTarget::MaxExclusive(1 << 31),
             })
             .into());
         }
@@ -150,13 +150,13 @@ impl Header {
             let name_len_with_nul = reference.name.len().checked_add(1).ok_or_else(|| {
                 BamHeaderError::from(BamEncodingError::SizeOverflow {
                     field:  "reference name length",
-                    target: NumberSizeTarget::MaxInclusive(usize::MAX),
+                    target: NumberSizeTarget::MaxInclusive(usize::MAX as u64),
                 })
             })?;
             let l_name = u32::try_from(name_len_with_nul).map_err(|_| {
                 BamHeaderError::from(BamEncodingError::SizeOverflow {
                     field:  "reference name",
-                    target: NumberSizeTarget::MaxInclusive(u32::MAX as usize),
+                    target: NumberSizeTarget::MaxInclusive(u64::from(u32::MAX)),
                 })
             })?;
 

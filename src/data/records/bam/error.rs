@@ -149,8 +149,8 @@ impl BamEncodingError {
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 #[non_exhaustive]
 pub enum NumberSizeTarget {
-    MaxInclusive(usize),
-    MaxExclusive(usize),
+    MaxInclusive(u64),
+    MaxExclusive(u64),
 }
 
 impl From<std::io::Error> for BamError {
@@ -168,12 +168,6 @@ impl From<ErrorWithContext> for BamError {
 impl From<BamHeaderError> for BamError {
     fn from(source: BamHeaderError) -> Self {
         BamError::header(source)
-    }
-}
-
-impl From<BamEncodingError> for BamError {
-    fn from(source: BamEncodingError) -> Self {
-        BamError::Index { source }
     }
 }
 

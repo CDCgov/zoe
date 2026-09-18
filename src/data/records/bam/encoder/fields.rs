@@ -33,7 +33,7 @@ pub(super) fn encode_read_name(qname: Option<&str>) -> Result<Vec<u8>, BamRecord
     }
     let total_len = qname.len().checked_add(1).ok_or(BamEncodingError::SizeOverflow {
         field:  "QNAME length",
-        target: NumberSizeTarget::MaxInclusive(usize::MAX),
+        target: NumberSizeTarget::MaxInclusive(usize::MAX as u64),
     })?;
     if total_len > u8::MAX as usize {
         return Err(BamEncodingError::other(format!("QNAME is too long for BAM ({total_len} bytes including NUL)")).into());
@@ -142,7 +142,7 @@ pub(super) fn encode_cigar(
 
             let cig_inc = u32::try_from(ciglet.inc).map_err(|_| BamEncodingError::SizeOverflow {
                 field:  "CIGAR increment length",
-                target: NumberSizeTarget::MaxInclusive(u32::MAX as usize),
+                target: NumberSizeTarget::MaxInclusive(u64::from(u32::MAX)),
             })?;
 
             if ciglet.op_consumes_query() {
@@ -150,14 +150,14 @@ pub(super) fn encode_cigar(
                     .checked_add(ciglet.inc)
                     .ok_or_else(|| BamEncodingError::SizeOverflow {
                         field:  "query-consuming CIGAR length",
-                        target: NumberSizeTarget::MaxInclusive(usize::MAX),
+                        target: NumberSizeTarget::MaxInclusive(usize::MAX as u64),
                     })?;
             }
 
             if ciglet.op_consumes_ref() {
                 ref_inc = ref_inc.checked_add(cig_inc).ok_or_else(|| BamEncodingError::SizeOverflow {
                     field:  "reference-consuming CIGAR length",
-                    target: NumberSizeTarget::MaxInclusive(u32::MAX as usize),
+                    target: NumberSizeTarget::MaxInclusive(u64::from(u32::MAX)),
                 })?;
             }
 
@@ -171,7 +171,7 @@ pub(super) fn encode_cigar(
             if cig_inc > MAX_CIGAR_INC {
                 return Err(BamEncodingError::SizeOverflow {
                     field:  "CIGAR increment length",
-                    target: NumberSizeTarget::MaxExclusive(1usize << 28),
+                    target: NumberSizeTarget::MaxExclusive(1 << 28),
                 }
                 .into());
             }
@@ -235,7 +235,7 @@ pub(super) fn encode_aux_fields(
             &u32::try_from(cigar.len())
                 .map_err(|_| BamEncodingError::SizeOverflow {
                     field:  "CG array",
-                    target: NumberSizeTarget::MaxInclusive(u32::MAX as usize),
+                    target: NumberSizeTarget::MaxInclusive(u64::from(u32::MAX)),
                 })?
                 .to_le_bytes(),
         );
@@ -305,7 +305,7 @@ fn encode_aux_fields_duplicates(
             &u32::try_from(cigar.len())
                 .map_err(|_| BamEncodingError::SizeOverflow {
                     field:  "CG array",
-                    target: NumberSizeTarget::MaxInclusive(u32::MAX as usize),
+                    target: NumberSizeTarget::MaxInclusive(u64::from(u32::MAX)),
                 })?
                 .to_le_bytes(),
         );
@@ -421,7 +421,7 @@ fn write_opt_array<V>(
         &u32::try_from(values.len())
             .map_err(|_| BamEncodingError::SizeOverflow {
                 field:  "'B' field array",
-                target: NumberSizeTarget::MaxInclusive(u32::MAX as usize),
+                target: NumberSizeTarget::MaxInclusive(u64::from(u32::MAX)),
             })?
             .to_le_bytes(),
     );
