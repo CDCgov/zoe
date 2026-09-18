@@ -139,7 +139,7 @@ impl<T: PhmmNumber, const S: usize> GlobalPhmm<T, S> {
         best_score.update_seq_end_last_layer(end, v_m[i], v_d[i], v_i[i]);
 
         // This is a necessary check, otherwise the traceback may panic
-        if best_score.score == T::INFINITY {
+        if best_score.score.is_impossible() {
             return Err(ViterbiError::NoAlignmentFound);
         }
 

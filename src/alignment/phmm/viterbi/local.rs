@@ -214,7 +214,7 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
         best_score.update_last_layer(end, v_m[i], v_d[i], v_i[i], LastResidue, seq, &begin_mod, &end_mod);
 
         // This is a necessary check, otherwise the traceback may panic
-        if best_score.score == T::INFINITY {
+        if best_score.score.is_impossible() {
             return Err(ViterbiError::NoAlignmentFound);
         }
 

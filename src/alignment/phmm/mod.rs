@@ -71,6 +71,22 @@ pub trait PhmmNumber:
     /// Computes the minimum of two negative log space scores
     #[must_use]
     fn min(self, other: Self) -> Self;
+
+    /// Returns whether the parameter corresponds to an "impossible" probability
+    /// of 0.
+    #[inline]
+    #[must_use]
+    fn is_impossible(self) -> bool {
+        self == Self::INFINITY
+    }
+
+    /// Returns whether the parameter corresponds to a "possible" probability
+    /// greater than 0.
+    #[inline]
+    #[must_use]
+    fn is_possible(self) -> bool {
+        self < Self::INFINITY
+    }
 }
 
 impl PhmmNumber for f32 {

@@ -73,15 +73,7 @@ impl<T: PhmmNumber, const S: usize> GlobalPhmm<T, S> {
     /// Samples a sequence and corresponding [`Alignment`] from the
     /// [`GlobalPhmm`].
     ///
-    /// ## Validity
-    ///
-    /// If the transition probabilities out of an insert state are zero, this
-    /// implementation may enter an infinite loop. If they are too small, the
-    /// sampling may run slowly.
-    ///
-    /// The pHMM parameters must be correctly specified at the beginning and end
-    /// of the model, so that invalid transitions have a probability of 0.
-    /// *Zoe*'s parsers automatically handle this.
+    /// To avoid pathological cases, insertion sizes are truncated to 1000.
     ///
     /// ## Errors
     ///
@@ -116,15 +108,7 @@ impl<T: PhmmNumber, const S: usize> DomainPhmm<T, S> {
     /// Samples a sequence and corresponding [`Alignment`] from the
     /// [`DomainPhmm`].
     ///
-    /// ## Validity
-    ///
-    /// If the transition probabilities out of an insert state are zero, this
-    /// implementation may enter an infinite loop. If they are too small, the
-    /// sampling may run slowly.
-    ///
-    /// The pHMM parameters must be correctly specified at the beginning and end
-    /// of the model, so that invalid transitions have a probability of 0.
-    /// *Zoe*'s parsers automatically handle this.
+    /// To avoid pathological cases, insertion sizes are truncated to 1000.
     ///
     /// ## Errors
     ///
@@ -159,15 +143,7 @@ impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
     /// Samples a sequence and corresponding [`Alignment`] from the
     /// [`SemiLocalPhmm`].
     ///
-    /// ## Validity
-    ///
-    /// If the transition probabilities out of an insert state are zero, this
-    /// implementation may enter an infinite loop. If they are too small, the
-    /// sampling may run slowly.
-    ///
-    /// The pHMM parameters must be correctly specified at the beginning and end
-    /// of the model, so that invalid transitions have a probability of 0.
-    /// *Zoe*'s parsers automatically handle this.
+    /// To avoid pathological cases, insertion sizes are truncated to 1000.
     ///
     /// ## Errors
     ///
@@ -201,15 +177,7 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
     /// Samples a sequence and corresponding [`Alignment`] from the
     /// [`LocalPhmm`].
     ///
-    /// ## Validity
-    ///
-    /// If the transition probabilities out of an insert state are zero, this
-    /// implementation may enter an infinite loop. If they are too small, the
-    /// sampling may run slowly.
-    ///
-    /// The pHMM parameters must be correctly specified at the beginning and end
-    /// of the model, so that invalid transitions have a probability of 0.
-    /// *Zoe*'s parsers automatically handle this.
+    /// To avoid pathological cases, insertion sizes are truncated to 1000.
     ///
     /// ## Errors
     ///

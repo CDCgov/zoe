@@ -101,7 +101,11 @@ where
         let params = params.exiting_params(exiting);
 
         // Check for ParamTrapError
-        if exiting == Insert && params[Match] == T::INFINITY && params[Delete] == T::INFINITY && params[Insert] > T::ZERO {
+        if exiting == Insert
+            && params[Match].is_impossible()
+            && params[Delete].is_impossible()
+            && params[Insert].is_possible()
+        {
             return Err(LayerSamplingError {
                 kind: SamplingLayerErrorKind::FromState(SampleFromStateError {
                     kind: SampleFromStateErrorKind::State(ParamTrapError::new_state(params).into()),
@@ -156,7 +160,7 @@ where
         let params = [end_param, insert_param];
 
         // Check for ParamTrapError
-        if exiting == Insert && end_param == T::INFINITY && insert_param > T::ZERO {
+        if exiting == Insert && end_param.is_impossible() && insert_param.is_possible() {
             return Err(LayerSamplingError {
                 kind: SamplingLayerErrorKind::FromState(SampleFromStateError {
                     kind: SampleFromStateErrorKind::EndOrInsert(
@@ -343,7 +347,7 @@ where
         let params = [module.insert_to_end, module.insert_to_insert];
 
         // Check for ParamTrapError
-        if module.insert_to_end == T::INFINITY && module.insert_to_insert > T::ZERO {
+        if module.insert_to_end.is_impossible() && module.insert_to_insert.is_possible() {
             return Err(ModuleSamplingError {
                 kind: ModuleSamplingErrorKind::DomainExitInsert(DomainExitInsertError(
                     ParamTrapError::new_end_or_insert(module.insert_to_end, module.insert_to_insert).into(),
