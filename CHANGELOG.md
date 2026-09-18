@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file. The format
 is roughly based on [Keep a Changelog], and this project tries to adheres to
 [Semantic Versioning].
 
+## [0.0.34] - TBD
+
+### Added
+
+- The `Float` trait has been made public for unifying `f32` and `f64`
+
 ## [0.0.33] - 2026-09-17
 
 ### Added
@@ -674,6 +680,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - **Added**: Initial internal release. Provides various readers and types for bioinformatics data manipulation.
 
 <!-- Versions -->
+[0.0.34]: https://github.com/CDCgov/zoe/compare/v0.0.33...v0.0.34
 [0.0.33]: https://github.com/CDCgov/zoe/compare/v0.0.32...v0.0.33
 [0.0.32]: https://github.com/CDCgov/zoe/compare/v0.0.31...v0.0.32
 [0.0.31]: https://github.com/CDCgov/zoe/compare/v0.0.30...v0.0.31
