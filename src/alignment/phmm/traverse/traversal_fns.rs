@@ -96,6 +96,10 @@ struct TraverseCorePhmmOrExitOutput<T> {
 /// [`choose_end_or_insert`], [`choose_end_insert_or_exit`], and
 /// [`exit_core_from_end`].
 ///
+/// ## Panic
+///
+/// This panics if `enter_layer` is out of bounds for `phmm`.
+///
 /// [`choose_emission`]: VisitCoreOrExit::choose_emission
 /// [`choose_core_transition`]: VisitCoreOrExit::choose_core_transition
 /// [`choose_core_transition_or_exit`]:
@@ -130,8 +134,6 @@ where
     {
         (before.last(), layer, remaining_layers)
     } else {
-        // TODO: Convert this into an actual error variant, so now we need a
-        // trait for visitor errors...
         panic!("The requested layer for entering the pHMM is out of bounds")
     };
 
@@ -358,6 +360,8 @@ impl<T, const S: usize> SemiLocalPhmm<T, S> {
         T: PhmmNumber + 'static, {
         let layer = visitor.enter_core(self.begin().semilocal_params(), self)?;
 
+        // This panics if layer is out of bounds, but this is documented for
+        // enter_core
         let TraverseCorePhmmOrExitOutput {
             exit_layer,
             exit_param,
@@ -404,6 +408,8 @@ impl<T, const S: usize> LocalPhmm<T, S> {
 
         let enter_layer = visitor.enter_core(&self.begin().semilocal_params, self)?;
 
+        // This panics if layer is out of bounds, but this is documented for
+        // enter_core
         let TraverseCorePhmmOrExitOutput {
             exit_layer,
             exit_param,
