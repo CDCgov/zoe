@@ -130,6 +130,31 @@ impl<T> VecAtLeast2<T> {
 
     #[inline]
     #[must_use]
+    pub fn second_back(&self) -> &T {
+        &self.0[self.len() - 2]
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn second_back_mut(&mut self) -> &mut T {
+        let idx = self.len() - 2;
+        &mut self.0[idx]
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn last(&self) -> &T {
+        self.0.last().expect("at least two elements are present")
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn last_mut(&mut self) -> &mut T {
+        self.0.last_mut().expect("at least two elements are present")
+    }
+
+    #[inline]
+    #[must_use]
     pub fn split_first(&self) -> (&T, &[T]) {
         self.0.split_first().expect("at least two elements are present")
     }
@@ -150,18 +175,6 @@ impl<T> VecAtLeast2<T> {
     #[must_use]
     pub fn split_last_mut(&mut self) -> (&mut T, &mut [T]) {
         self.0.split_last_mut().expect("at least two elements are present")
-    }
-
-    #[inline]
-    #[must_use]
-    pub fn last(&self) -> &T {
-        self.0.last().expect("at least two elements are present")
-    }
-
-    #[inline]
-    #[must_use]
-    pub fn last_mut(&mut self) -> &mut T {
-        self.0.last_mut().expect("at least two elements are present")
     }
 }
 
