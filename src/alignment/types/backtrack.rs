@@ -96,7 +96,7 @@ impl BacktrackMatrix {
 /// (each holding `N` entries in the DP table).
 #[derive(Clone, Debug)]
 pub(crate) struct BacktrackMatrixStriped<const N: usize> {
-    pub data:  Vec<Simd<u8, N>>,
+    pub data:  Box<[Simd<u8, N>]>,
     num_vecs:  usize,
     v_cursor:  usize,
     curr_lane: usize,
@@ -109,17 +109,15 @@ impl<const N: usize> BacktrackMatrixStriped<N> {
     /// The total number of SIMD vectors is given by `size`.
     #[inline]
     #[must_use]
-    pub(crate) fn make_uninit_data(size: usize) -> Vec<MaybeUninit<Simd<u8, N>>> {
-        let mut data = Vec::with_capacity(size);
-        data.resize_with(size, MaybeUninit::uninit);
-        data
+    pub(crate) fn make_uninit_data(size: usize) -> Box<[MaybeUninit<Simd<u8, N>>]> {
+        Box::<[Simd<u8, N>]>::new_uninit_slice(size)
     }
 
     /// Wraps a vector of SIMD vectors in a [`BacktrackMatrixStriped`] to
     /// facilitate backtracking.
     #[inline]
     #[must_use]
-    pub(crate) fn new(data: Vec<Simd<u8, N>>, num_vecs: usize) -> Self {
+    pub(crate) fn new(data: Box<[Simd<u8, N>]>, num_vecs: usize) -> Self {
         assert!(data.len().is_multiple_of(num_vecs));
         BacktrackMatrixStriped {
             data,

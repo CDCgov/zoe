@@ -583,14 +583,7 @@ where
     }
 
     // SAFETY: we have initialized all members of the table in the main loop.
-    //
-    // Also, this should not re-allocate thanks to equivalent size and
-    // alignment:
-    // https://doc.rust-lang.org/nightly/src/alloc/vec/in_place_collect.rs.html
-    let mut backtrack = BacktrackMatrixStriped::new(
-        backtrack.into_iter().map(|uninit| unsafe { uninit.assume_init() }).collect(),
-        num_vecs,
-    );
+    let mut backtrack = BacktrackMatrixStriped::new(unsafe { backtrack.assume_init() }, num_vecs);
 
     score_to_maybe_aligned(best, query.bias, |score| {
         backtrack.to_alignment(score, r_end, c_end, reference.len(), query.seq_len)

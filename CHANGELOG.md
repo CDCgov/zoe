@@ -17,6 +17,11 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - `BamWriter` now accepts a generic record implementing `GetSamFields` instead
   of only `SamData`
 
+### Fixed
+
+- Fixed possible performance issue in `sw_simd_align` when using more than one
+  codegen unit
+
 ## [0.0.33] - 2026-09-17
 
 ### Added
