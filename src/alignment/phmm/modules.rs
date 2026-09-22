@@ -17,7 +17,8 @@
 
 use crate::{
     alignment::phmm::{
-        PhmmNumber,
+        InvalidModelError, PhmmNumber,
+        at_least_two::VecAtLeast2,
         components::{CorePhmm, EmissionParams},
         indexing::{AlnIndex, PhmmLen},
     },
@@ -31,7 +32,7 @@ use crate::{
 /// match state (and the BEGIN state and END state) have a transition parameter
 /// associated with them.
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct SemiLocalModule<T>(pub(crate) Vec<T>);
+pub struct SemiLocalModule<T>(pub(crate) VecAtLeast2<T>);
 
 impl<T> SemiLocalModule<T> {
     /// Returns the parameters as a slice.
@@ -51,8 +52,23 @@ impl<T> SemiLocalModule<T> {
 
 impl<T: PhmmNumber> SemiLocalModule<T> {
     /// Constructs a [`SemiLocalModule`] from a slice of parameters.
-    pub fn from_slice(params: &[T]) -> Self {
-        Self(params.to_vec())
+    ///
+    /// ## Errors
+    ///
+    /// The length of the slice must be at least 3, otherwise [`TooFewLayers`]
+    /// is returned.
+    ///
+    /// [`TooFewLayers`]: InvalidModelError::TooFewLayers
+    pub fn from_slice(params: &[T]) -> Result<Self, InvalidModelError> {
+        let Ok(params) = VecAtLeast2::try_from(params.to_vec()) else {
+            return Err(InvalidModelError::TooFewLayers(3));
+        };
+
+        if params.len() < 3 {
+            Err(InvalidModelError::TooFewLayers(3))
+        } else {
+            Ok(Self(params))
+        }
     }
 
     /// Constructs a [`SemiLocalModule`] where all transitions are free.
@@ -63,7 +79,11 @@ impl<T: PhmmNumber> SemiLocalModule<T> {
     #[inline]
     #[must_use]
     pub fn no_penalty<const S: usize>(core: &CorePhmm<T, S>) -> Self {
-        Self(vec![T::ZERO; core.num_pseudomatch()])
+        let Ok(inner) = vec![T::ZERO; core.num_pseudomatch()].try_into() else {
+            unreachable!("num_pseudomatch returns usize at least 2 and is sealed")
+        };
+
+        Self(inner)
     }
 
     /// Gets the score for entering directly into layer `phmm_idx` (when this

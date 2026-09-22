@@ -146,7 +146,7 @@ where
 {
     #[inline]
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        Ok(Self(Vec::<T>::arbitrary(u)?))
+        Ok(Self(VecAtLeast2::arbitrary(u)?))
     }
 }
 
@@ -197,9 +197,9 @@ where
 
     #[inline]
     fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {
-        let specs = VecSpecs {
+        let specs = VecAtLeast2Specs {
             element_specs: self.param_specs,
-            min_len:       0,
+            min_len:       2,
             len:           self.num_pseudomatch,
             max_len:       usize::MAX,
         };
