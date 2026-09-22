@@ -6,8 +6,10 @@ use crate::{
     math::Uint,
     private::Sealed,
 };
-use std::ops::{Add, AddAssign};
-use std::simd::{SimdElement, num::SimdUint, prelude::*};
+use std::{
+    ops::{Add, AddAssign},
+    simd::{SimdElement, num::SimdUint, prelude::*},
+};
 
 /// Nucleotide count statistics for A, C, G, T/U, N, - (or gaps), other valid
 /// IUPAC codes, and invalid codes.

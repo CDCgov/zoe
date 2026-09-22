@@ -4,3 +4,5 @@ max_width = 125
 struct_field_align_threshold = 20
 enum_discrim_align_threshold = 20
 brace_style = "PreferSameLine"
+unstable_features = true
+imports_granularity = "Crate"

@@ -85,10 +85,9 @@ mod private {
         },
         prelude::*,
     };
-    use std::ops::Range;
     use std::{
         hash::BuildHasher,
-        ops::{Bound, RangeFrom, RangeInclusive, RangeTo, RangeToInclusive},
+        ops::{Bound, Range, RangeFrom, RangeInclusive, RangeTo, RangeToInclusive},
         simd::{Simd, SimdElement},
     };
 

@@ -557,8 +557,10 @@ mod bench {
     use test::Bencher;
     extern crate test;
     use super::*;
-    use crate::alignment::sw::test_data::{GAP_EXTEND, GAP_OPEN};
-    use crate::data::{constants::mappings::DNA_PROFILE_MAP, matrices::WeightMatrix};
+    use crate::{
+        alignment::sw::test_data::{GAP_EXTEND, GAP_OPEN},
+        data::{constants::mappings::DNA_PROFILE_MAP, matrices::WeightMatrix},
+    };
     pub(crate) static DATA: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/KJ907631.1.txt")); // H5 HA, complete CDS
     pub(crate) static MATRIX: WeightMatrix<u8, 5> =
         WeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N')).to_biased_matrix();

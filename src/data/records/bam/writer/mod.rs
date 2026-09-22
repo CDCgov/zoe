@@ -23,8 +23,7 @@ use std::{
 mod bai;
 mod bgzf;
 
-pub use bgzf::BlockCompressor;
-pub use bgzf::NoCompression;
+pub use bgzf::{BlockCompressor, NoCompression};
 
 /// Streaming writer for BAM records backed by a BGZF output stream.
 ///
