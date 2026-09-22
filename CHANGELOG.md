@@ -20,11 +20,13 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
   setters for each bit flag
 - `BamWriter` now accepts a generic record implementing `GetSamFields` instead
   of only `SamData`
+- Reworded the debug implementation for `ErrorWithContext`
 
 ### Fixed
 
 - Fixed possible performance issue in `sw_simd_align` when using more than one
   codegen unit
+- Removed an extra newline in the debug implementation for `ErrorWithContext`
 
 ### Removed
 

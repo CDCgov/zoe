@@ -301,12 +301,12 @@ impl Debug for ErrorWithContext {
             f.debug_struct("ErrorWithContext").field("repr", &self.repr).finish()
         } else {
             if let Ok(bin) = std::env::current_exe() {
-                writeln!(f, "Error in {b}", b = bin.display())?;
+                writeln!(f, "A problem occurred in {b}", b = bin.display())?;
             } else {
-                writeln!(f, "Error in program")?;
+                writeln!(f)?;
             }
 
-            writeln!(f, "{}", self.display_stack())
+            write!(f, "{}", self.display_stack())
         }
     }
 }
