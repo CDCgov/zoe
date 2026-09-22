@@ -30,7 +30,11 @@ struct SemiLocalBestScore<T> {
 impl<T: PhmmNumber> SemiLocalBestScore<T> {
     #[inline]
     fn update_seq_end<const S: usize>(&mut self, match_val: T, phmm_idx: impl AlnIndex, phmm: &SemiLocalPhmm<T, S>) {
-        let score = match_val + phmm.end().get_score(phmm_idx);
+        let Some(end_score) = phmm.end().get_score(phmm_idx) else {
+            return;
+        };
+
+        let score = match_val + end_score;
         if score < self.score {
             self.score = score;
             self.loc = match phmm_idx.to_seq_index(phmm) {
@@ -56,14 +60,14 @@ impl<T: PhmmNumber> SemiLocalBestScore<T> {
         insert_val += layer.transition[(Insert, Match)];
 
         let (state, mut score) = if seq.is_empty() {
-            let enter_val = phmm.begin().get_score(End);
+            let enter_val = phmm.begin().score(End);
             best_state_or_enter(match_val, delete_val, insert_val, enter_val)
         } else {
             let (state, score) = best_state(match_val, delete_val, insert_val);
             (PhmmStateOrModule::from(state), score)
         };
 
-        score += phmm.end().get_score(End);
+        score += phmm.end().score(End);
 
         if score < self.score {
             self.score = score;
@@ -112,7 +116,7 @@ impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
         let phmm_dim = layers.len() + 1;
 
         let mut v_m = vec![T::INFINITY; query_dim];
-        v_m[0] = self.begin().get_score(Begin);
+        v_m[0] = self.begin().score(Begin);
         let mut v_i = vec![T::INFINITY; query_dim];
         let mut v_d = vec![T::INFINITY; query_dim];
 
@@ -150,7 +154,7 @@ impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
                             match_val + layer.transition[(Match, Match)],
                             delete_val + layer.transition[(Delete, Match)],
                             insert_val + layer.transition[(Insert, Match)],
-                            self.begin().get_score(next_layer_idx),
+                            self.begin().score_unchecked(next_layer_idx),
                         );
                         (state, best + layer.emission_match[x_idx])
                     } else {

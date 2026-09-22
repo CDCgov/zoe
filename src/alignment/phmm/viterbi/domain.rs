@@ -41,7 +41,7 @@ impl<T: PhmmNumber> DomainBestScore<T> {
         insert_val += layer.transition[(Insert, Match)];
 
         let (state, mut score) = best_state(match_val, delete_val, insert_val);
-        score += end.get_score(query_idx);
+        score += end.score(query_idx);
 
         if score < self.score {
             self.score = score;
@@ -94,7 +94,7 @@ impl<T: PhmmNumber, const S: usize> DomainPhmm<T, S> {
 
         let mut v_m = vec![T::INFINITY; query_dim];
         for (i, value) in v_m.iter_mut().enumerate() {
-            *value = begin_mod.get_score(DpIndex(i));
+            *value = begin_mod.score(DpIndex(i));
         }
         let mut v_i = vec![T::INFINITY; query_dim];
         let mut v_d = vec![T::INFINITY; query_dim];

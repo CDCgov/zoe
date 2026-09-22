@@ -194,8 +194,8 @@ where
         // Update score all at once to have correct order of floating point
         // operations
         match loc {
-            ModuleLocation::Begin => self.score += module.get_begin_score(&self.module_inserted, phmm.mapping()),
-            ModuleLocation::End => self.score += module.get_end_score(&self.module_inserted, phmm.mapping()),
+            ModuleLocation::Begin => self.score += module.begin_score(&self.module_inserted, phmm.mapping()),
+            ModuleLocation::End => self.score += module.end_score(&self.module_inserted, phmm.mapping()),
         }
         self.module_inserted.clear();
 
@@ -280,7 +280,12 @@ where
 
     fn enter_core(&mut self, module: &SemiLocalModule<T>, phmm: &SemiLocalPhmm<T, S>) -> Result<DpIndex, Self::Error> {
         let layer = self.inner_visitor.enter_core(module, phmm)?;
-        self.score += module.get_score(layer);
+
+        // If out of bounds, do not update and let traverse panic as normal
+        if let Some(score) = module.get_score(layer) {
+            self.score += score;
+        }
+
         Ok(layer)
     }
 
@@ -375,7 +380,12 @@ where
 
     fn enter_core(&mut self, module: &SemiLocalModule<T>, phmm: &LocalPhmm<T, S>) -> Result<DpIndex, Self::Error> {
         let layer = self.inner_visitor.enter_core(module, phmm)?;
-        self.score += module.get_score(layer);
+
+        // If out of bounds, do not update and let traverse panic as normal
+        if let Some(score) = module.get_score(layer) {
+            self.score += score;
+        }
+
         Ok(layer)
     }
 
@@ -424,8 +434,8 @@ where
         // Update score all at once to have correct order of floating point
         // operations
         let domain_score = match loc {
-            ModuleLocation::Begin => module.get_begin_score(&self.module_inserted, phmm.mapping()),
-            ModuleLocation::End => module.get_end_score(&self.module_inserted, phmm.mapping()),
+            ModuleLocation::Begin => module.begin_score(&self.module_inserted, phmm.mapping()),
+            ModuleLocation::End => module.end_score(&self.module_inserted, phmm.mapping()),
         };
         self.score += match loc {
             ModuleLocation::Begin => domain_score,

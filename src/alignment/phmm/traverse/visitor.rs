@@ -169,7 +169,7 @@ pub trait SemiLocalVisitor<T, const S: usize> {
     /// ## Validity
     ///
     /// This must return an index that is in-range for the given pHMM, otherwise
-    /// [`traverse`] may panic.
+    /// [`traverse`] will panic.
     ///
     /// ## Errors
     ///
@@ -428,7 +428,7 @@ pub trait LocalVisitor<T, const S: usize> {
     /// ## Validity
     ///
     /// This must return an index that is in-range for the given pHMM, otherwise
-    /// [`traverse`] may panic.
+    /// [`traverse`] will panic.
     ///
     /// ## Errors
     ///

@@ -2,7 +2,8 @@ use crate::{
     alignment::phmm::{
         at_least_two::VecAtLeast2,
         components::{CorePhmm, LayerParams},
-        indexing::{AlnIndex, AlnIndexRange, AlnIndexable, Begin, FirstResidue, IndexRangeInner, LastResidue},
+        indexing::{AlnIndex, AlnIndexRange, AlnIndexable, Begin, End, FirstResidue, IndexRangeInner, LastResidue},
+        modules::SemiLocalModule,
     },
     data::ByteIndexMap,
 };
@@ -163,5 +164,40 @@ impl InfallibleLayerIdx for LastResidue {
     #[inline]
     fn layer_mut<T, const S: usize>(self, layers: &mut VecAtLeast2<LayerParams<T, S>>) -> &mut LayerParams<T, S> {
         layers.last_mut()
+    }
+}
+
+/// A trait unifying [`Begin`], [`FirstResidue`], [`LastResidue`], and [`End`],
+/// which are parameters in a [`SemiLocalModule`] which are guaranteed to exist.
+pub trait InfallibleSemilocalModIdx: Copy {
+    /// Returns the score for entering/exiting the given layer.
+    fn score<T: Copy>(self, module: &SemiLocalModule<T>) -> T;
+}
+
+impl InfallibleSemilocalModIdx for Begin {
+    #[inline]
+    fn score<T: Copy>(self, module: &SemiLocalModule<T>) -> T {
+        *module.0.first()
+    }
+}
+
+impl InfallibleSemilocalModIdx for FirstResidue {
+    #[inline]
+    fn score<T: Copy>(self, module: &SemiLocalModule<T>) -> T {
+        *module.0.second()
+    }
+}
+
+impl InfallibleSemilocalModIdx for LastResidue {
+    #[inline]
+    fn score<T: Copy>(self, module: &SemiLocalModule<T>) -> T {
+        *module.0.second_back()
+    }
+}
+
+impl InfallibleSemilocalModIdx for End {
+    #[inline]
+    fn score<T: Copy>(self, module: &SemiLocalModule<T>) -> T {
+        *module.0.last()
     }
 }

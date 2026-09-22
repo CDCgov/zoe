@@ -10,8 +10,8 @@ use crate::{
             modules::{DomainModule, SemiLocalModule, SemiLocalParams},
             state::{PhmmState, PhmmStateOrModule},
             traverse::{
-                DomainVisitor, EndInsert, EndInsertExit, GetScoreDomain, GetScoreLocal, GlobalVisitor, LocalVisitor,
-                ModuleLocation, SemiLocalVisitor,
+                DomainVisitor, EndInsert, EndInsertExit, GlobalVisitor, LocalVisitor, ModuleLocation, ScoreDomain,
+                ScoreLocal, SemiLocalVisitor,
             },
         },
     },
@@ -354,9 +354,8 @@ where
             // Handle an empty alignment, which will ignore ref_start
             None | Some(b'S') => {
                 let score_through_begin =
-                    self.inner.score + module.get_score(Begin) + phmm.end().semilocal_params().get_score(Begin);
-                let score_through_end =
-                    self.inner.score + module.get_score(End) + phmm.end().semilocal_params().get_score(End);
+                    self.inner.score + module.score(Begin) + phmm.end().semilocal_params().score(Begin);
+                let score_through_end = self.inner.score + module.score(End) + phmm.end().semilocal_params().score(End);
 
                 let idx = if score_through_begin <= score_through_end {
                     Begin.to_dp_index()
@@ -392,8 +391,8 @@ where
             PhmmState::Match => {
                 let begin_to_first_match_param = phmm.layer(Begin).transition[(PhmmState::Match, PhmmState::Match)];
 
-                let skip_begin_score = self.inner.score + module.get_score(FirstResidue);
-                let through_begin_score = self.inner.score + module.get_score(Begin) + begin_to_first_match_param;
+                let skip_begin_score = self.inner.score + module.score(FirstResidue);
+                let through_begin_score = self.inner.score + module.score(Begin) + begin_to_first_match_param;
 
                 let layer = if through_begin_score <= skip_begin_score {
                     Begin.to_dp_index()
@@ -716,8 +715,11 @@ where
     ) -> Result<DpIndex, SemiLocalTraverseFromAlignError> {
         let index = self.inner.enter_core(module, phmm)?;
 
-        // Update the score for transitions into the core pHMM
-        self.inner.inner.score += module.get_score(index);
+        // Update the score for transitions into the core pHMM. If the index is
+        // out of bounds, do not update, and let traverse panic as normal
+        if let Some(score) = module.get_score(index) {
+            self.inner.inner.score += score;
+        }
 
         Ok(index)
     }
@@ -969,11 +971,11 @@ where
         // operations is correct.
         match loc {
             ModuleLocation::Begin => {
-                self.inner.score += phmm.get_begin_score(self.begin_residues);
+                self.inner.score += phmm.begin_score(self.begin_residues);
                 Ok(!self.begin_residues.is_empty())
             }
             ModuleLocation::End => {
-                self.inner.score += phmm.get_end_score(self.end_residues);
+                self.inner.score += phmm.end_score(self.end_residues);
                 Ok(!self.end_residues.is_empty())
             }
         }
@@ -1110,17 +1112,31 @@ where
 
             for begin_residues_len in 0..=query.len() {
                 let (begin_residues, end_residues) = query.split_at(begin_residues_len);
-                for (through_begin, through_state) in [(true, Begin.to_dp_index()), (false, End.to_dp_index(phmm))] {
-                    let begin_score = phmm.get_begin_score(begin_residues, through_state);
-                    let end_score = phmm.get_end_score(end_residues, through_state);
-                    let score = begin_score + end_score;
 
-                    if score < best_score {
-                        best_begin_residues = begin_residues;
-                        best_end_residues = end_residues;
-                        best_through_begin = through_begin;
-                        best_score = score;
-                    }
+                let score_through_begin = {
+                    let begin_score = phmm.begin_score(begin_residues, Begin);
+                    let end_score = phmm.end_score(end_residues, Begin);
+                    begin_score + end_score
+                };
+
+                let score_through_end = {
+                    let begin_score = phmm.begin_score(begin_residues, End);
+                    let end_score = phmm.end_score(end_residues, End);
+                    begin_score + end_score
+                };
+
+                if score_through_begin < best_score {
+                    best_begin_residues = begin_residues;
+                    best_end_residues = end_residues;
+                    best_through_begin = true;
+                    best_score = score_through_begin;
+                }
+
+                if score_through_end < best_score {
+                    best_begin_residues = begin_residues;
+                    best_end_residues = end_residues;
+                    best_through_begin = false;
+                    best_score = score_through_end;
                 }
             }
 
@@ -1166,7 +1182,7 @@ where
     }
 
     fn compute_end_module_score<const S: usize>(&self, exit_param: T, phmm: &LocalPhmm<T, S>) -> T {
-        let domain_score = phmm.end().domain_params.get_end_score(self.end_residues, phmm.mapping());
+        let domain_score = phmm.end().domain_params.end_score(self.end_residues, phmm.mapping());
         domain_score + exit_param
     }
 }
@@ -1353,7 +1369,11 @@ where
             self.inner.enter_core(module, phmm)?
         };
 
-        self.inner.inner.score += phmm.get_begin_semilocal_score(layer);
+        // If out of bounds, do not update and let traverse panic as normal
+        if let Some(score) = phmm.begin().semilocal_params.get_score(layer) {
+            self.inner.inner.score += score;
+        }
+
         Ok(layer)
     }
 
@@ -1414,7 +1434,7 @@ where
     ) -> Result<bool, LocalTraverseFromAlignError> {
         match loc {
             ModuleLocation::Begin => {
-                self.inner.inner.score += phmm.get_begin_domain_score(self.begin_residues);
+                self.inner.inner.score += phmm.begin_domain_score(self.begin_residues);
                 Ok(!self.begin_residues.is_empty())
             }
             ModuleLocation::End => Ok(!self.end_residues.is_empty()),

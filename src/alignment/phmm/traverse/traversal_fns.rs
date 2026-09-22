@@ -2,6 +2,7 @@
 
 use crate::alignment::phmm::{
     DomainPhmm, GlobalPhmm, LocalPhmm, PhmmNumber, SemiLocalPhmm,
+    components::LayerParams,
     indexing::{AlnIndex, AlnIndexable, Begin, DpIndex, End, GetLayer, GetMapping, GetModule, SeqIndex},
     modules::{DomainParams, SemiLocalParams},
     state::PhmmState,
@@ -10,7 +11,7 @@ use crate::alignment::phmm::{
         VisitCoreOrExit, VisitDomainModule,
     },
 };
-use std::ops::{Range, RangeInclusive};
+use std::ops::{ControlFlow, Range, RangeInclusive};
 
 /// Traverses the core pHMM using a given visitor, for use with [`GlobalPhmm`]
 /// or [`DomainPhmm`] (no early exit is permitted).
@@ -98,7 +99,7 @@ struct TraverseCorePhmmOrExitOutput<T> {
 ///
 /// ## Panic
 ///
-/// This panics if `enter_layer` is out of bounds for `phmm`.
+/// This is guaranteed to panic if `enter_layer` is out of bounds for `phmm`.
 ///
 /// [`choose_emission`]: VisitCoreOrExit::choose_emission
 /// [`choose_core_transition`]: VisitCoreOrExit::choose_core_transition
@@ -113,23 +114,28 @@ fn traverse_core_phmm_or_exit<P, T, V, const S: usize>(
 where
     P: AlnIndexable + GetLayer<T, S> + GetMapping<S> + GetModule<End: SemiLocalParams<T>> + VisitCoreOrExit<V, T, S>,
     T: PhmmNumber + 'static, {
-    let mut layer_idx = enter_layer;
     let mut num_emitted = num_emitted_begin_module;
 
-    if layer_idx.eq_index(End, &phmm) {
-        phmm.exit_core_from_end(visitor, layer_idx, phmm.end().semilocal_params().get_score(layer_idx))?;
+    // If this is true or false, we check for out of bounds enter_layer either way
+    if enter_layer.eq_index(End, &phmm) {
+        let Some(exit_param) = phmm.end().semilocal_params().get_score(enter_layer) else {
+            panic!("The requested layer for entering the pHMM is out of bounds")
+        };
+
+        phmm.exit_core_from_end(visitor, enter_layer, exit_param)?;
+
         return Ok(TraverseCorePhmmOrExitOutput {
-            exit_layer:     layer_idx,
-            exit_param:     phmm.end().semilocal_params().get_score(layer_idx),
-            aligned_layers: enter_layer..=layer_idx,
-            query_range:    SeqIndex(num_emitted_begin_module)..SeqIndex(num_emitted),
+            exit_layer: enter_layer,
+            exit_param,
+            aligned_layers: enter_layer..=enter_layer,
+            query_range: SeqIndex(num_emitted_begin_module)..SeqIndex(num_emitted),
         });
     }
 
     // Get the current layer (since we are not at End), any remaining
     // layers, and optionally the previous layer if we are not at Begin.
     let (prev_layer, mut layer, mut remaining_layers) = if let Some((before, layer_and_after)) =
-        phmm.split_layers_at(layer_idx)
+        phmm.split_layers_at(enter_layer)
         && let Some((layer, remaining_layers)) = layer_and_after.split_first()
     {
         (before.last(), layer, remaining_layers)
@@ -140,61 +146,36 @@ where
     // The emission parameters are stored in the previous layer. If there is
     // no previous layer, then we are in Begin, which has no emission.
     if let Some(emit_params) = prev_layer.map(|layer| &layer.emission_match) {
-        phmm.choose_emission(visitor, layer_idx, PhmmState::Match, emit_params, phmm.mapping())?;
+        phmm.choose_emission(visitor, enter_layer, PhmmState::Match, emit_params, phmm.mapping())?;
         num_emitted += 1;
     }
 
+    let mut layer_idx = enter_layer;
     let mut state = PhmmState::Match;
 
     loop {
         // If the first branch doesn't run, then the current layer is the last
         // match layer
         if let Some((next_layer, rest)) = remaining_layers.split_first() {
-            let params = &layer.transition;
-
-            let next_state = if state == PhmmState::Match {
-                let exit_param = phmm.end().semilocal_params().get_score(layer_idx);
-                let next_state = phmm.choose_core_transition_or_exit(visitor, layer_idx, params, exit_param)?;
-
-                match PhmmState::get_from(next_state) {
-                    Some(next_state) => next_state,
-                    None => break,
-                }
-            } else {
-                phmm.choose_core_transition(visitor, layer_idx, state, params)?
+            let advance = match advance_middle(phmm, layer_idx, layer, &mut state, &mut num_emitted, visitor)? {
+                ControlFlow::Continue(advance) => advance,
+                ControlFlow::Break(()) => break,
             };
 
-            match next_state {
-                PhmmState::Match => {
-                    let emit_params = &layer.emission_match;
-                    layer_idx += 1;
-                    layer = next_layer;
-                    remaining_layers = rest;
-
-                    phmm.choose_emission(visitor, layer_idx, next_state, emit_params, phmm.mapping())?;
-                    num_emitted += 1;
-                }
-                PhmmState::Delete => {
-                    layer_idx += 1;
-                    layer = next_layer;
-                    remaining_layers = rest;
-                }
-                PhmmState::Insert => {
-                    phmm.choose_emission(visitor, layer_idx, next_state, &layer.emission_insert, phmm.mapping())?;
-                    num_emitted += 1;
-                }
+            if advance {
+                layer_idx += 1;
+                layer = next_layer;
+                remaining_layers = rest;
             }
-
-            state = next_state;
         } else if state == PhmmState::Match {
-            let exit_param = phmm.end().semilocal_params().get_score(layer_idx);
-            let exit_from_end_param = phmm.end().semilocal_params().get_score(End);
+            let exit_param = phmm.end().semilocal_params().score_unchecked(layer_idx);
+            let exit_from_end_param = phmm.end().semilocal_params().score(End);
             let next_state =
                 phmm.choose_end_insert_or_exit(visitor, layer_idx, &layer.transition, exit_param, exit_from_end_param)?;
             match next_state {
                 EndInsertExit::End => {
                     layer_idx = End.to_dp_index(phmm);
-                    phmm.exit_core_from_end(visitor, layer_idx, phmm.end().semilocal_params().get_score(layer_idx))?;
+                    phmm.exit_core_from_end(visitor, layer_idx, exit_param)?;
                     break;
                 }
                 EndInsertExit::Insert => {
@@ -207,16 +188,15 @@ where
                 EndInsertExit::Exit => break,
             }
         } else {
+            let exit_param = phmm.end().semilocal_params().score_unchecked(layer_idx);
             let next_state = phmm.choose_end_or_insert(visitor, layer_idx, state, &layer.transition)?;
             match next_state {
                 EndInsert::End => {
-                    layer_idx = End.to_dp_index(phmm);
-                    phmm.exit_core_from_end(visitor, layer_idx, phmm.end().semilocal_params().get_score(layer_idx))?;
+                    phmm.exit_core_from_end(visitor, End.to_dp_index(phmm), exit_param)?;
                     break;
                 }
                 EndInsert::Insert => {
                     state = PhmmState::Insert;
-
                     phmm.choose_emission(visitor, layer_idx, state, &layer.emission_insert, phmm.mapping())?;
                     num_emitted += 1;
                 }
@@ -224,12 +204,61 @@ where
         }
     }
 
+    let exit_param = phmm.end().semilocal_params().score_unchecked(layer_idx);
+
     Ok(TraverseCorePhmmOrExitOutput {
-        exit_layer:     layer_idx,
-        exit_param:     phmm.end().semilocal_params().get_score(layer_idx),
+        exit_layer: layer_idx,
+        exit_param,
         aligned_layers: enter_layer..=layer_idx,
-        query_range:    SeqIndex(num_emitted_begin_module)..SeqIndex(num_emitted),
+        query_range: SeqIndex(num_emitted_begin_module)..SeqIndex(num_emitted),
     })
+}
+
+/// A helper function for [`traverse_core_phmm_or_exit`], responsible for
+/// advancing the traversal when in the middle of the pHMM (not at the end).
+///
+/// This will choose the next transition and emission if applicable.
+/// [`ControlFlow::Break`] is returned if the transition exits the pHMM.
+/// Otherwise, `state` and `num_emitted` are appropriately mutated, and `true`
+/// is returned if the `layer` was advanced (signalling to the caller that the
+/// index and layer variables should be updated).
+fn advance_middle<P, T, V, const S: usize>(
+    phmm: &P, layer_idx: DpIndex, layer: &LayerParams<T, S>, state: &mut PhmmState, num_emitted: &mut usize, visitor: &mut V,
+) -> Result<ControlFlow<(), bool>, P::Error>
+where
+    P: AlnIndexable + GetLayer<T, S> + GetMapping<S> + GetModule<End: SemiLocalParams<T>> + VisitCoreOrExit<V, T, S>,
+    T: PhmmNumber, {
+    let params = &layer.transition;
+
+    let next_state = if *state == PhmmState::Match {
+        let exit_param = phmm.end().semilocal_params().score_unchecked(layer_idx);
+        let next_state = phmm.choose_core_transition_or_exit(visitor, layer_idx, params, exit_param)?;
+
+        match PhmmState::get_from(next_state) {
+            Some(next_state) => next_state,
+            None => return Ok(ControlFlow::Break(())),
+        }
+    } else {
+        phmm.choose_core_transition(visitor, layer_idx, *state, params)?
+    };
+
+    let advance_layer = match next_state {
+        PhmmState::Match => {
+            phmm.choose_emission(visitor, layer_idx + 1, next_state, &layer.emission_match, phmm.mapping())?;
+            *num_emitted += 1;
+            true
+        }
+        PhmmState::Delete => true,
+        PhmmState::Insert => {
+            phmm.choose_emission(visitor, layer_idx, next_state, &layer.emission_insert, phmm.mapping())?;
+            *num_emitted += 1;
+            false
+        }
+    };
+
+    *state = next_state;
+
+    Ok(ControlFlow::Continue(advance_layer))
 }
 
 /// Traverses the [`DomainModule`] using a given visitor, for use with

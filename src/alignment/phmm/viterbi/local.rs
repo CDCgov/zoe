@@ -38,7 +38,11 @@ impl<T: PhmmNumber> LocalBestScore<T> {
         &mut self, match_val: T, query_idx: impl AlnIndex, phmm_idx: impl AlnIndex, seq: &[u8],
         end: &PrecomputedLocalModule<T, S>,
     ) {
-        let score = match_val + end.get_score(query_idx, phmm_idx);
+        let Some(end_score) = end.get_score(query_idx, phmm_idx) else {
+            return;
+        };
+
+        let score = match_val + end_score;
         if score < self.score {
             self.score = score;
             self.query_idx = query_idx.to_dp_index(seq);
@@ -63,10 +67,10 @@ impl<T: PhmmNumber> LocalBestScore<T> {
         match_val += layer.transition[(Match, Match)];
         delete_val += layer.transition[(Delete, Match)];
         insert_val += layer.transition[(Insert, Match)];
-        let enter_val = begin.get_score(query_idx, End);
+        let enter_val = begin.score(query_idx, End);
 
         let (state, mut score) = best_state_or_enter(match_val, delete_val, insert_val, enter_val);
-        score += end.get_score(query_idx, End);
+        score += end.score(query_idx, End);
 
         if score < self.score {
             self.score = score;
@@ -124,7 +128,7 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
 
         let mut v_m = vec![T::INFINITY; query_dim];
         for (i, value) in v_m.iter_mut().enumerate() {
-            *value = begin_mod.get_score(DpIndex(i), Begin);
+            *value = begin_mod.score(DpIndex(i), Begin);
         }
         let mut v_i = vec![T::INFINITY; query_dim];
         let mut v_d = vec![T::INFINITY; query_dim];
@@ -167,7 +171,7 @@ impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
                         match_val + layer.transition[(Match, Match)],
                         delete_val + layer.transition[(Delete, Match)],
                         insert_val + layer.transition[(Insert, Match)],
-                        begin_mod.get_score(i, next_layer_idx),
+                        begin_mod.score_unchecked(i, next_layer_idx),
                     );
 
                     (state, best + layer.emission_match[x_idx])

@@ -5,7 +5,7 @@ use crate::{
         PhmmNumber,
         at_least_two::VecAtLeast2,
         components::{CorePhmm, EmissionParams, LayerParams},
-        indexing::{AlnIndex, AlnIndexable, GetCore, GetLayer, GetLayerMut, GetMapping, GetModule},
+        indexing::{AlnIndexable, GetCore, GetLayer, GetLayerMut, GetMapping, GetModule},
         modules::{DomainModule, LocalModule, SemiLocalModule},
     },
     data::mappings::ByteIndexMap,
@@ -195,26 +195,6 @@ impl<T, const S: usize> SemiLocalPhmm<T, S> {
     #[must_use]
     pub fn mapping(&self) -> &'static ByteIndexMap<S> {
         self.mapping
-    }
-}
-
-impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
-    /// Gets the score for transitioning into a given [`AlnIndex`] from the
-    /// [`SemiLocalModule`] at the beginning of the pHMM.
-    #[inline]
-    #[must_use]
-    #[allow(dead_code)]
-    pub(crate) fn get_begin_score(&self, index: impl AlnIndex) -> T {
-        self.begin.get_score(index)
-    }
-
-    /// Gets the score for transitioning out of a given [`AlnIndex`] into the
-    /// [`SemiLocalModule`] at the end of the pHMM.
-    #[inline]
-    #[must_use]
-    #[allow(dead_code)]
-    pub(crate) fn get_end_score(&self, index: impl AlnIndex) -> T {
-        self.end.get_score(index)
     }
 }
 

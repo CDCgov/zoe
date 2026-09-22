@@ -62,7 +62,7 @@ use crate::{
     alignment::phmm::{
         DomainPhmm, GlobalPhmm, LocalPhmm, PhmmNumber, SemiLocalPhmm,
         components::{EmissionParams, TransitionParams},
-        indexing::{AlnIndex, DpIndex, GetMapping, GetModule},
+        indexing::{DpIndex, GetMapping, GetModule, InfallibleSemilocalModIdx},
         modules::{DomainModule, LocalModule},
         state::{PhmmState, PhmmStateOrModule},
     },
@@ -463,7 +463,7 @@ impl<T: PhmmNumber, const S: usize> DomainModule<T, S> {
     ///
     /// [`PrecomputedDomainModule`]:
     ///     crate::alignment::phmm::modules::PrecomputedDomainModule
-    fn get_begin_score(&self, inserted: &[u8], mapping: &'static ByteIndexMap<S>) -> T {
+    fn begin_score(&self, inserted: &[u8], mapping: &'static ByteIndexMap<S>) -> T {
         if inserted.is_empty() {
             self.start_to_end
         } else {
@@ -489,7 +489,7 @@ impl<T: PhmmNumber, const S: usize> DomainModule<T, S> {
     ///
     /// [`PrecomputedDomainModule`]:
     ///     crate::alignment::phmm::modules::PrecomputedDomainModule
-    fn get_end_score(&self, inserted: &[u8], mapping: &'static ByteIndexMap<S>) -> T {
+    fn end_score(&self, inserted: &[u8], mapping: &'static ByteIndexMap<S>) -> T {
         if inserted.is_empty() {
             self.start_to_end
         } else {
@@ -507,8 +507,7 @@ impl<T: PhmmNumber, const S: usize> DomainModule<T, S> {
     }
 }
 
-trait GetScoreDomain<T, const S: usize>:
-    GetModule<Begin = DomainModule<T, S>, End = DomainModule<T, S>> + GetMapping<S>
+trait ScoreDomain<T, const S: usize>: GetModule<Begin = DomainModule<T, S>, End = DomainModule<T, S>> + GetMapping<S>
 where
     T: PhmmNumber, {
     /// Lazily compute the score for skipping `inserted` residues at the
@@ -522,8 +521,8 @@ where
     /// [`PrecomputedDomainModule`]:
     ///     crate::alignment::phmm::modules::PrecomputedDomainModule
     #[inline]
-    fn get_begin_score(&self, inserted: &[u8]) -> T {
-        self.begin().get_begin_score(inserted, self.mapping())
+    fn begin_score(&self, inserted: &[u8]) -> T {
+        self.begin().begin_score(inserted, self.mapping())
     }
 
     /// Lazily compute the score for skipping `inserted` residues at the end of
@@ -537,19 +536,19 @@ where
     /// [`PrecomputedDomainModule`]:
     ///     crate::alignment::phmm::modules::PrecomputedDomainModule
     #[inline]
-    fn get_end_score(&self, inserted: &[u8]) -> T {
-        self.end().get_end_score(inserted, self.mapping())
+    fn end_score(&self, inserted: &[u8]) -> T {
+        self.end().end_score(inserted, self.mapping())
     }
 }
 
-impl<P, T, const S: usize> GetScoreDomain<T, S> for P
+impl<P, T, const S: usize> ScoreDomain<T, S> for P
 where
     T: PhmmNumber,
     P: GetModule<Begin = DomainModule<T, S>, End = DomainModule<T, S>> + GetMapping<S>,
 {
 }
 
-trait GetScoreLocal<T, const S: usize>: GetModule<Begin = LocalModule<T, S>, End = LocalModule<T, S>> + GetMapping<S>
+trait ScoreLocal<T, const S: usize>: GetModule<Begin = LocalModule<T, S>, End = LocalModule<T, S>> + GetMapping<S>
 where
     T: PhmmNumber, {
     /// Lazily compute the score for skipping `inserted` residues at the
@@ -563,37 +562,37 @@ where
     /// [`PrecomputedDomainModule`]:
     ///     crate::alignment::phmm::modules::PrecomputedDomainModule
     #[inline]
-    fn get_begin_domain_score(&self, inserted: &[u8]) -> T {
-        self.begin().domain_params.get_begin_score(inserted, self.mapping())
+    fn begin_domain_score(&self, inserted: &[u8]) -> T {
+        self.begin().domain_params.begin_score(inserted, self.mapping())
     }
 
     #[inline]
-    fn get_begin_semilocal_score(&self, phmm_idx: impl AlnIndex) -> T {
-        self.begin().semilocal_params.get_score(phmm_idx)
+    fn begin_semilocal_score(&self, phmm_idx: impl InfallibleSemilocalModIdx) -> T {
+        self.begin().semilocal_params.score(phmm_idx)
     }
 
     #[inline]
-    fn get_end_domain_score(&self, inserted: &[u8]) -> T {
-        self.end().domain_params.get_end_score(inserted, self.mapping())
+    fn end_domain_score(&self, inserted: &[u8]) -> T {
+        self.end().domain_params.end_score(inserted, self.mapping())
     }
 
     #[inline]
-    fn get_end_semilocal_score(&self, phmm_idx: impl AlnIndex) -> T {
-        self.end().semilocal_params.get_score(phmm_idx)
+    fn end_semilocal_score(&self, phmm_idx: impl InfallibleSemilocalModIdx) -> T {
+        self.end().semilocal_params.score(phmm_idx)
     }
 
     #[inline]
-    fn get_begin_score(&self, inserted: &[u8], phmm_idx: impl AlnIndex) -> T {
-        self.get_begin_domain_score(inserted) + self.get_begin_semilocal_score(phmm_idx)
+    fn begin_score(&self, inserted: &[u8], phmm_idx: impl InfallibleSemilocalModIdx) -> T {
+        self.begin_domain_score(inserted) + self.begin_semilocal_score(phmm_idx)
     }
 
     #[inline]
-    fn get_end_score(&self, inserted: &[u8], phmm_idx: impl AlnIndex) -> T {
-        self.get_end_domain_score(inserted) + self.get_end_semilocal_score(phmm_idx)
+    fn end_score(&self, inserted: &[u8], phmm_idx: impl InfallibleSemilocalModIdx) -> T {
+        self.end_domain_score(inserted) + self.end_semilocal_score(phmm_idx)
     }
 }
 
-impl<P, T, const S: usize> GetScoreLocal<T, S> for P
+impl<P, T, const S: usize> ScoreLocal<T, S> for P
 where
     T: PhmmNumber,
     P: GetModule<Begin = LocalModule<T, S>, End = LocalModule<T, S>> + GetMapping<S>,

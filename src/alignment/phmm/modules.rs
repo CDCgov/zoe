@@ -20,7 +20,7 @@ use crate::{
         InvalidModelError, PhmmNumber,
         at_least_two::VecAtLeast2,
         components::{CorePhmm, EmissionParams},
-        indexing::{AlnIndex, PhmmLen},
+        indexing::{AlnIndex, InfallibleSemilocalModIdx, PhmmLen},
     },
     data::mappings::ByteIndexMap,
 };
@@ -90,9 +90,32 @@ impl<T: PhmmNumber> SemiLocalModule<T> {
     /// module is placed at the beginning of the [`CorePhmm`] or exiting early
     /// from layer `phmm_idx` (when this module is placed at the end of the
     /// [`CorePhmm`]).
+    ///
+    /// Returns `None` if the `phmm_idx` is out of bounds for the
+    /// [`SemiLocalModule`].
     #[inline]
     #[must_use]
-    pub fn get_score(&self, phmm_idx: impl AlnIndex) -> T {
+    pub fn get_score(&self, phmm_idx: impl AlnIndex) -> Option<T> {
+        self.0.get(phmm_idx.to_dp_index(self).0).copied()
+    }
+
+    /// A version of [`get_score`] that takes a known-to-exist index and does
+    /// not return an `Option`.
+    ///
+    /// [`get_score`]: SemiLocalModule::get_score
+    #[inline]
+    #[must_use]
+    pub fn score(&self, phmm_idx: impl InfallibleSemilocalModIdx) -> T {
+        phmm_idx.score(self)
+    }
+
+    /// An internal version of [`get_score`] that will panic on out-of-bounds
+    /// indexing.
+    ///
+    /// [`get_score`]: SemiLocalModule::get_score
+    #[inline]
+    #[must_use]
+    pub(crate) fn score_unchecked(&self, phmm_idx: impl AlnIndex) -> T {
         self.0[phmm_idx.to_dp_index(self).0]
     }
 }
@@ -182,7 +205,7 @@ impl<T: Copy, const S: usize> PrecomputedDomainModule<T, S> {
     /// (when this module is placed at the beginning of the [`CorePhmm`]) or
     /// skipping the last `query_idx` residues in the query (when this module is
     /// placed at the end of the [`CorePhmm`]).
-    pub(crate) fn get_score(&self, query_idx: impl AlnIndex) -> T {
+    pub(crate) fn score(&self, query_idx: impl AlnIndex) -> T {
         self.0[query_idx.to_dp_index(self).0]
     }
 }
@@ -286,8 +309,26 @@ impl<T: PhmmNumber, const S: usize> PrecomputedLocalModule<'_, T, S> {
     /// - Exiting early from layer `phmm_idx` then skipping the last `query_idx`
     ///   residues in the query (when this module is placed at the end of the
     ///   [`CorePhmm`])
-    pub(crate) fn get_score(&self, query_idx: impl AlnIndex, phmm_idx: impl AlnIndex) -> T {
-        self.domain_params.get_score(query_idx) + self.semilocal_params.get_score(phmm_idx)
+    ///
+    /// Returns `None` if the `phmm_idx` is out of bounds for the local module.
+    pub(crate) fn get_score(&self, query_idx: impl AlnIndex, phmm_idx: impl AlnIndex) -> Option<T> {
+        Some(self.domain_params.score(query_idx) + self.semilocal_params.get_score(phmm_idx)?)
+    }
+
+    /// A version of [`get_score`] that takes a known-to-exist `phmm_index` and
+    /// does not return an `Option`.
+    ///
+    /// [`get_score`]: PrecomputedLocalModule::get_score
+    pub(crate) fn score(&self, query_idx: impl AlnIndex, phmm_idx: impl InfallibleSemilocalModIdx) -> T {
+        self.domain_params.score(query_idx) + self.semilocal_params.score(phmm_idx)
+    }
+
+    /// An internal version of [`get_score`] that will panic on out-of-bounds
+    /// indexing for `phmm_index`.
+    ///
+    /// [`get_score`]: PrecomputedLocalModule::get_score
+    pub(crate) fn score_unchecked(&self, query_idx: impl AlnIndex, phmm_idx: impl AlnIndex) -> T {
+        self.domain_params.score(query_idx) + self.semilocal_params.score_unchecked(phmm_idx)
     }
 }
 
