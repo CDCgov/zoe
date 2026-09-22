@@ -33,6 +33,7 @@
 //! [`ThreeBitKmerSet`]: crate::kmer::encoders::three_bit::ThreeBitKmerSet
 
 use arbitrary::{Arbitrary, Result, Unstructured};
+use std::marker::PhantomData;
 
 mod alignment;
 mod byte;
@@ -75,6 +76,33 @@ pub trait ArbitrarySpecs<'a>: Sized {
     #[inline]
     fn make_arbitrary_iter<'b>(&self, u: &'b mut Unstructured<'a>) -> MakeArbitraryIter<'a, 'b, '_, Self> {
         MakeArbitraryIter { specs: self, u }
+    }
+}
+
+/// A zero-sized type representing the specs for generating `T` without any
+/// constraints (i.e., using the standard [`Arbitrary`] impl).
+///
+/// This is provided for compatibility with generic interfaces, like
+/// [`VecSpecs`] which expects the element specs to implement
+/// [`ArbitrarySpecs`].
+pub struct NoConstraintSpecs<T> {
+    inner: PhantomData<T>,
+}
+
+impl<T> Default for NoConstraintSpecs<T> {
+    fn default() -> Self {
+        Self { inner: PhantomData }
+    }
+}
+
+impl<'a, T> ArbitrarySpecs<'a> for NoConstraintSpecs<T>
+where
+    T: Arbitrary<'a>,
+{
+    type Output = T;
+
+    fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {
+        T::arbitrary(u)
     }
 }
 

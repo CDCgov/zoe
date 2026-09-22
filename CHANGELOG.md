@@ -11,6 +11,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `GetSamFields` trait, which provides a way of unifying generic SAM data
   (like `SamData`, `SamDataView`, and custom application structs)
 - The `Float` trait has been made public for unifying `f32` and `f64`
+- Added `NoConstraintSpecs` wrapper type for bridging `Arbitrary` and
+  `ArbitrarySpecs` traits (behind `fuzzing` feature gate)
 
 ### Changed
 
