@@ -11,6 +11,8 @@ pub struct VecSpecs<S> {
     pub element_specs: S,
 
     /// The minimum length of the [`Vec`].
+    ///
+    /// This must be less than or equal to `max_len`.
     pub min_len: usize,
 
     /// The exact length of the [`Vec`] to generate.
@@ -19,6 +21,8 @@ pub struct VecSpecs<S> {
     pub len: Option<usize>,
 
     /// The maximum length of the [`Vec`].
+    ///
+    /// This must be greater than or equal to `min_len`.
     pub max_len: usize,
 }
 
@@ -50,11 +54,19 @@ where
     ///
     /// ## Panics
     ///
-    /// The `len` field must be between `min_len` and `max_len`.
+    /// `min_len` must be less than or equal to `max_len`.
     ///
     /// [`arbitrary`]: arbitrary::Arbitrary::arbitrary
     #[inline]
     fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {
+        let Some(len_range) = self.max_len.checked_sub(self.min_len) else {
+            panic!(
+                "The min_len field must be less than or equal to the max_len field for VecSpecs (found min_len={min_len} and max_len={max_len}",
+                min_len = self.min_len,
+                max_len = self.max_len
+            );
+        };
+
         let vec = if let Some(len) = self.len {
             std::iter::repeat_with(|| self.element_specs.make_arbitrary(u))
                 .take(len)
@@ -64,8 +76,7 @@ where
 
             let mut out = start.collect::<Result<Vec<_>>>()?;
 
-            let remaining_len = self.max_len - self.min_len;
-            let remaining = self.element_specs.make_arbitrary_iter(u).take(remaining_len);
+            let remaining = self.element_specs.make_arbitrary_iter(u).take(len_range);
 
             remaining.process_results(|iter| {
                 out.extend(iter);

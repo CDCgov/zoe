@@ -2,7 +2,7 @@
 //! in the [`kmer`](crate::kmer) module.
 
 use crate::{
-    data::arbitrary::{ArbitrarySpecs, ByteSet, ByteSpecs, Case, VecSpecs},
+    data::arbitrary::{ArbitrarySpecs, ByteSet, ByteSpecs, VecSpecs},
     kmer::{
         Kmer, KmerEncoder, SupportedKmerLen,
         encoders::three_bit::{ThreeBitKmerEncoder, ThreeBitKmerLen, ThreeBitKmerSet},
@@ -21,12 +21,12 @@ impl<'a, const MAX_LEN: usize> Arbitrary<'a> for Kmer<MAX_LEN> {
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
         let kmer_specs = VecSpecs {
             element_specs: ByteSpecs {
-                set:  ByteSet::Ascii,
-                case: Case::Any,
+                set: ByteSet::Ascii,
+                ..Default::default()
             },
-            min_len:       2,
-            max_len:       MAX_LEN,
-            len:           None,
+            min_len: 2,
+            max_len: MAX_LEN,
+            ..Default::default()
         };
 
         Ok(Kmer::new(kmer_specs.make_arbitrary(u)?))
@@ -62,8 +62,8 @@ where
 
         let kmer_specs = VecSpecs {
             element_specs: ByteSpecs {
-                set:  ByteSet::Ascii,
-                case: Case::Any,
+                set: ByteSet::Ascii,
+                ..Default::default()
             },
             len: Some(set.len()),
             ..Default::default()

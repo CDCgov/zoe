@@ -10,6 +10,8 @@ use arbitrary::{Arbitrary, Result, Unstructured};
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub struct QualityScoresSpecs {
     /// The minimum number of quality scores to generate.
+    ///
+    /// This must be less than or equal to `max_len`.
     pub min_len: usize,
 
     /// The exact number of quality scores to generate.
@@ -18,6 +20,8 @@ pub struct QualityScoresSpecs {
     pub len: Option<usize>,
 
     /// The maximum number of quality scores to generate.
+    ///
+    /// This must be greater than or equal to `min_len`.
     pub max_len: usize,
 }
 
@@ -55,15 +59,27 @@ impl<'a> Arbitrary<'a> for QualityScores {
             max_len:       usize::MAX,
         };
 
-        // Safety: The bytes will only contain graphic ASCII characters per
+        // Validity: The bytes will only contain graphic ASCII characters per
         // above.
-        specs.make_arbitrary(u).map(QualityScores)
+        Ok(QualityScores::try_from(specs.make_arbitrary(u)?).unwrap())
     }
 }
 
 impl<'a> ArbitrarySpecs<'a> for QualityScoresSpecs {
     type Output = QualityScores;
 
+    /// Generates arbitrary [`QualityScores`] conforming to the given
+    /// specifications.
+    ///
+    /// ## Errors
+    ///
+    /// Any errors from the underlying [`arbitrary`] calls are propagated.
+    ///
+    /// ## Panics
+    ///
+    /// `min_len` must be less than or equal to `max_len`.
+    ///
+    /// [`arbitrary`]: arbitrary::Arbitrary::arbitrary
     #[inline]
     fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {
         let specs = VecSpecs {
@@ -76,6 +92,8 @@ impl<'a> ArbitrarySpecs<'a> for QualityScoresSpecs {
             max_len:       self.max_len,
         };
 
-        specs.make_arbitrary(u).map(QualityScores)
+        // Validity: The bytes will only contain graphic ASCII characters per
+        // above.
+        Ok(QualityScores::try_from(specs.make_arbitrary(u)?).unwrap())
     }
 }

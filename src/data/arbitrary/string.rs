@@ -17,6 +17,8 @@ pub struct StringSpecs {
     // since invalid UTF-8 chunks are at most 3 bytes and the replacement
     // character is 3 bytes
     /// The minimum length of the [`String`], in bytes.
+    ///
+    /// This must be less than or equal to `max_len`.
     pub min_len: usize,
 
     /// The exact length of the [`String`] to generate, in bytes.
@@ -28,8 +30,9 @@ pub struct StringSpecs {
 
     /// The maximum length of the [`String`], in bytes.
     ///
-    /// If a non-ASCII `set` is chosen, then this requirement might fail to be
-    /// satisfied during lossy conversion.
+    /// This must be greater than or equal to `min_len`. If a non-ASCII `set` is
+    /// chosen, then this requirement might fail to be satisfied during lossy
+    /// conversion.
     pub max_len: usize,
 }
 
@@ -48,6 +51,18 @@ impl Default for StringSpecs {
 impl<'a> ArbitrarySpecs<'a> for StringSpecs {
     type Output = String;
 
+    /// Generates an arbitrary [`String`] conforming to the given
+    /// specifications.
+    ///
+    /// ## Errors
+    ///
+    /// Any errors from the underlying [`arbitrary`] calls are propagated.
+    ///
+    /// ## Panics
+    ///
+    /// `min_len` must be less than or equal to `max_len`.
+    ///
+    /// [`arbitrary`]: arbitrary::Arbitrary::arbitrary
     #[inline]
     fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {
         let byte_specs = ByteSpecsView {
