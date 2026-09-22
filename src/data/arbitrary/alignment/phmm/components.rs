@@ -1,11 +1,12 @@
 use crate::{
     alignment::phmm::{
         PhmmNumber,
+        at_least_two::VecAtLeast2,
         components::{CorePhmm, EmissionParams, LayerParams, TransitionParams},
         indexing::{Begin, GetLayerMut, LastResidue},
         state::PhmmState,
     },
-    data::arbitrary::{ArbitrarySpecs, ArraySpecs, VecSpecs},
+    data::arbitrary::{ArbitrarySpecs, ArraySpecs, VecAtLeast2Specs},
 };
 use arbitrary::{Arbitrary, Result, Unstructured};
 
@@ -49,9 +50,7 @@ where
 {
     #[inline]
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        let mut layers = vec![LayerParams::<T, S>::arbitrary(u)?, LayerParams::<T, S>::arbitrary(u)?];
-        layers.extend(Vec::<LayerParams<T, S>>::arbitrary(u)?);
-        Ok(CorePhmm::new_unchecked(layers))
+        VecAtLeast2::arbitrary(u).map(CorePhmm)
     }
 }
 
@@ -76,7 +75,7 @@ where
     fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {
         use PhmmState::*;
 
-        let specs = VecSpecs {
+        let specs = VecAtLeast2Specs {
             element_specs: LayerParamsSpecs {
                 param_specs: self.param_specs,
             },
@@ -85,7 +84,7 @@ where
             max_len:       usize::MAX,
         };
 
-        let mut core = CorePhmm::new_unchecked(specs.make_arbitrary(u)?);
+        let mut core = CorePhmm(specs.make_arbitrary(u)?);
 
         if self.disallow_invalid {
             let first_layer = core.layer_mut(Begin);

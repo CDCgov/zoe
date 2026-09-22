@@ -224,7 +224,7 @@ impl<T: PhmmNumber, const S: usize> Default for LayerParams<T, S> {
 /// [`LocalPhmm`]: crate::alignment::phmm::models::LocalPhmm
 /// [`SemiLocalPhmm`]: crate::alignment::phmm::models::SemiLocalPhmm
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct CorePhmm<T, const S: usize>(VecAtLeast2<LayerParams<T, S>>);
+pub struct CorePhmm<T, const S: usize>(pub(crate) VecAtLeast2<LayerParams<T, S>>);
 
 impl<T, const S: usize> CorePhmm<T, S> {
     /// Create a new [`CorePhmm`] from a `Vec` of the parameters.

@@ -4,21 +4,141 @@
 use crate::{
     alignment::phmm::{
         DomainPhmm, GlobalPhmm, LocalPhmm, PhmmNumber, SemiLocalPhmm,
+        at_least_two::VecAtLeast2,
         components::EmissionParams,
         indexing::PhmmLen,
         modules::{DomainModule, LocalModule, SemiLocalModule},
     },
     data::{
         arbitrary::{
-            ArbitrarySpecs, VecSpecs,
+            ArbitrarySpecs, NoConstraintSpecs, VecSpecs,
             components::{CorePhmmSpecs, EmissionParamsSpecs},
         },
         mappings::DNA_UNAMBIG_PROFILE_MAP,
     },
+    iter_utils::ProcessResultsExt,
 };
 use arbitrary::{Arbitrary, Result, Unstructured};
 
 pub mod components;
+
+impl<'a, T> Arbitrary<'a> for VecAtLeast2<T>
+where
+    T: Arbitrary<'a>,
+{
+    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
+        let specs = VecSpecs {
+            element_specs: NoConstraintSpecs::default(),
+            min_len: 2,
+            ..Default::default()
+        };
+
+        let vec = specs.make_arbitrary(u)?;
+        Ok(vec.try_into().unwrap())
+    }
+}
+
+/// Specifications for generating an arbitrary [`VecAtLeast2`].
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+pub struct VecAtLeast2Specs<S> {
+    /// The specifications for generating each element of the [`VecAtLeast2`].
+    pub element_specs: S,
+
+    /// The minimum length of the [`VecAtLeast2`].
+    ///
+    /// This must be less than or equal to `max_len`, and will be clamped to be
+    /// above 2 during usage.
+    pub min_len: usize,
+
+    /// The exact length of the [`VecAtLeast2`] to generate.
+    ///
+    /// If set, this ignores the `min_len` and `max_len` fields. This must be at
+    /// least 2.
+    pub len: Option<usize>,
+
+    /// The maximum length of the [`VecAtLeast2`].
+    ///
+    /// This must be greater than or equal to `min_len`. This must be at least
+    /// 2.
+    pub max_len: usize,
+}
+
+impl<S> Default for VecAtLeast2Specs<S>
+where
+    S: Default,
+{
+    fn default() -> Self {
+        Self {
+            element_specs: S::default(),
+            min_len:       2,
+            len:           None,
+            max_len:       usize::MAX,
+        }
+    }
+}
+
+impl<'a, S> ArbitrarySpecs<'a> for VecAtLeast2Specs<S>
+where
+    S: ArbitrarySpecs<'a>,
+{
+    type Output = VecAtLeast2<S::Output>;
+
+    /// Generates an arbitrary [`VecAtLeast2`] conforming to the given
+    /// specifications.
+    ///
+    /// ## Errors
+    ///
+    /// Any errors from the underlying [`arbitrary`] calls are propagated.
+    ///
+    /// ## Panics
+    ///
+    /// `min_len` must be less than or equal to `max_len`, and `len` and
+    /// `max_len` cannot be less than 2.
+    ///
+    /// [`arbitrary`]: arbitrary::Arbitrary::arbitrary
+    #[inline]
+    fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {
+        assert!(
+            self.max_len >= 2,
+            "The max_len field must be at least 2 for VecAtLeast2Specs (found {})",
+            self.max_len
+        );
+
+        let min_len = self.min_len.max(2);
+
+        let Some(len_range) = self.max_len.checked_sub(min_len) else {
+            panic!(
+                "The min_len field must be less than or equal to the max_len field for VecAtLeast2Specs (found min_len={min_len} and max_len={max_len}",
+                max_len = self.max_len
+            );
+        };
+
+        let vec = if let Some(len) = self.len {
+            assert!(
+                len >= 2,
+                "The len field must be at least 2 for VecAtLeast2Specs (found {len})"
+            );
+
+            std::iter::repeat_with(|| self.element_specs.make_arbitrary(u))
+                .take(len)
+                .collect::<Result<Vec<_>>>()?
+        } else {
+            let start = std::iter::repeat_with(|| self.element_specs.make_arbitrary(u)).take(min_len);
+
+            let mut out = start.collect::<Result<Vec<_>>>()?;
+
+            let remaining = self.element_specs.make_arbitrary_iter(u).take(len_range);
+
+            remaining.process_results(|iter| {
+                out.extend(iter);
+            })?;
+
+            out
+        };
+
+        Ok(vec.try_into().unwrap())
+    }
+}
 
 impl<'a, T> Arbitrary<'a> for SemiLocalModule<T>
 where
