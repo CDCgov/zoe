@@ -4,7 +4,7 @@ use crate::{
     alignment::phmm::{
         DomainPhmm, GlobalPhmm, LocalPhmm, PhmmNumber, SemiLocalPhmm,
         components::{EmissionParams, TransitionParams},
-        indexing::{DpIndex, SeqIndex},
+        indexing::{DpIndex, GetMapping, SeqIndex},
         modules::{DomainModule, SemiLocalModule},
         state::{PhmmState, PhmmStateOrModule},
         traverse::{DomainVisitor, EndInsert, EndInsertExit, GlobalVisitor, LocalVisitor, ModuleLocation, SemiLocalVisitor},

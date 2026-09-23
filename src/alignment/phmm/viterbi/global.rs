@@ -3,7 +3,7 @@ use crate::alignment::{
     phmm::{
         GlobalPhmm, PhmmNumber,
         components::LayerParams,
-        indexing::{AlnIndexable, GetLayer},
+        indexing::{AlnIndexable, GetLayer, GetMapping},
         state::{
             PhmmBacktrackFlags,
             PhmmState::{self, Delete, Insert, Match},

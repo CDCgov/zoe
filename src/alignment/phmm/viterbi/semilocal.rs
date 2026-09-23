@@ -4,8 +4,8 @@ use crate::alignment::{
         InvalidModelError, PhmmNumber, SemiLocalPhmm,
         components::LayerParams,
         indexing::{
-            AlnIndex, AlnIndexRange, AlnIndexable, Begin, DpIndex, End, GetLayer, GetModule, IndexRangeInner, LastResidue,
-            PhmmLen,
+            AlnIndex, AlnIndexRange, AlnIndexable, Begin, DpIndex, End, GetLayer, GetMapping, GetModule, IndexRangeInner,
+            LastResidue, PhmmLen,
         },
         state::{
             PhmmBacktrackFlags,

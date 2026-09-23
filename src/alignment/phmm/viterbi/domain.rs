@@ -3,7 +3,9 @@ use crate::alignment::{
     phmm::{
         DomainPhmm, PhmmNumber,
         components::LayerParams,
-        indexing::{AlnIndex, AlnIndexRange, AlnIndexable, DpIndex, GetLayer, GetModule, IndexRangeInner, LastResidue},
+        indexing::{
+            AlnIndex, AlnIndexRange, AlnIndexable, DpIndex, GetLayer, GetMapping, GetModule, IndexRangeInner, LastResidue,
+        },
         modules::PrecomputedDomainModule,
         state::{
             PhmmBacktrackFlags,

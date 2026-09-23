@@ -6,7 +6,7 @@ use crate::{
         GlobalPhmm,
         at_least_two::VecAtLeast2,
         components::{CorePhmm, EmissionParams, LayerParams, TransitionParams},
-        indexing::{GetCore, GetLayer},
+        indexing::{GetCore, GetLayer, GetMapping},
     },
     math::{NearlyEqual, NearlyEqualMethod},
 };

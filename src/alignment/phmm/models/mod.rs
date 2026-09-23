@@ -47,13 +47,6 @@ impl<'a, T, const S: usize> GlobalPhmm<'a, T, S> {
     pub fn from_parts(mapping: &'a ByteIndexMap<S>, core: CorePhmm<T, S>) -> Self {
         Self { mapping, core }
     }
-
-    /// Returns a reference to the [`ByteIndexMap`] used by the global pHMM.
-    #[inline]
-    #[must_use]
-    pub fn mapping(&self) -> &'a ByteIndexMap<S> {
-        self.mapping
-    }
 }
 
 /// An implementation of a profile hidden Markov model (pHMM) for local
@@ -107,13 +100,6 @@ impl<'a, T, const S: usize> LocalPhmm<'a, T, S> {
             end,
         })
     }
-
-    /// Returns a reference to the [`ByteIndexMap`] used by the local pHMM.
-    #[inline]
-    #[must_use]
-    pub fn mapping(&self) -> &'a ByteIndexMap<S> {
-        self.mapping
-    }
 }
 
 /// An implementation of a profile hidden Markov model (pHMM) for domain
@@ -157,13 +143,6 @@ impl<'a, T, const S: usize> DomainPhmm<'a, T, S> {
             begin,
             end,
         }
-    }
-
-    /// Returns a reference to the [`ByteIndexMap`] used by the domain pHMM.
-    #[inline]
-    #[must_use]
-    pub fn mapping(&self) -> &'a ByteIndexMap<S> {
-        self.mapping
     }
 }
 
@@ -216,13 +195,6 @@ impl<'a, T, const S: usize> SemiLocalPhmm<'a, T, S> {
             begin,
             end,
         })
-    }
-
-    /// Returns a reference to the [`ByteIndexMap`] used by the semilocal pHMM.
-    #[inline]
-    #[must_use]
-    pub fn mapping(&self) -> &'a ByteIndexMap<S> {
-        self.mapping
     }
 }
 

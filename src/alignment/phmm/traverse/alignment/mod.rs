@@ -6,7 +6,9 @@ use crate::{
         phmm::{
             DomainPhmm, GlobalPhmm, LocalPhmm, PhmmNumber, SemiLocalPhmm,
             components::{EmissionParams, TransitionParams},
-            indexing::{AlnIndex, AlnIndexable, Begin, DpIndex, End, FirstResidue, GetLayer, GetModule, SeqIndex},
+            indexing::{
+                AlnIndex, AlnIndexable, Begin, DpIndex, End, FirstResidue, GetLayer, GetMapping, GetModule, SeqIndex,
+            },
             modules::{DomainModule, SemiLocalModule, SemiLocalParams},
             state::{PhmmState, PhmmStateOrModule},
             traverse::{
