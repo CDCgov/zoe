@@ -43,6 +43,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Removed `BamWriter::from_path_with_compressor` and
   `BamWriter::from_writer_with_compressor`; use `with_compressor` after
   `from_path` or `from_writer`
+- Deprecated `CigarViewMut`
 
 ## [0.0.33] - 2026-09-17
 

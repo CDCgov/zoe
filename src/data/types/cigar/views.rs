@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 //! View types for CIGAR strings.
 
 use crate::data::{
@@ -19,6 +20,10 @@ pub struct CigarView<'a>(&'a [u8]);
 /// development; it currently only supports parsing and displaying, and not all
 /// the other operations that [`Cigar`] supports.
 #[derive(Eq, PartialEq, Hash, Default)]
+#[deprecated(
+    since = "0.0.34",
+    note = "consider using an immutable view instead. This struct will be removed in v0.0.36. Open an issue with a use-case if this struct is required"
+)]
 pub struct CigarViewMut<'a>(&'a mut [u8]);
 
 impl<'a> CigarView<'a> {

@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 //! A module for reading and manipulating
 //! [SAM](https://samtools.github.io/hts-specs/SAMv1.pdf) files. Provides some
 //! special-case functions used by [IRMA](https://wonder.cdc.gov/amd/flu/irma/).

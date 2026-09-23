@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 //! Implementations and methods for iterating over CIGAR strings.
 
 use crate::{
