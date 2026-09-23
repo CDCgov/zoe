@@ -24,11 +24,11 @@ use std::ops::{ControlFlow, Range, RangeInclusive};
 /// - `S`: The alphabet size of the pHMM
 ///
 /// [`CorePhmm`]: crate::alignment::phmm::components::CorePhmm
-fn traverse_core_phmm<V, P, T, const S: usize>(
+fn traverse_core_phmm<'a, V, P, T, const S: usize>(
     phmm: &P, mut num_emitted: usize, visitor: &mut V,
 ) -> Result<usize, P::Error>
 where
-    P: GetMapping<S> + GetLayer<T, S> + VisitCore<V, T, S>, {
+    P: GetMapping<'a, S> + GetLayer<T, S> + VisitCore<V, T, S>, {
     let (mut layer, mut remaining_layers) = phmm.layers().split_first();
     let mut layer_idx = Begin.to_dp_index();
     let mut state = PhmmState::Match;
@@ -108,11 +108,11 @@ struct TraverseCorePhmmOrExitOutput<T> {
 /// [`choose_end_or_insert`]: VisitCoreOrExit::choose_end_or_insert
 /// [`choose_end_insert_or_exit`]: VisitCoreOrExit::choose_end_insert_or_exit
 /// [`exit_core_from_end`]: VisitCoreOrExit::exit_core_from_end
-fn traverse_core_phmm_or_exit<P, T, V, const S: usize>(
+fn traverse_core_phmm_or_exit<'a, P, T, V, const S: usize>(
     phmm: &P, enter_layer: DpIndex, num_emitted_begin_module: usize, visitor: &mut V,
 ) -> Result<TraverseCorePhmmOrExitOutput<T>, P::Error>
 where
-    P: AlnIndexable + GetLayer<T, S> + GetMapping<S> + GetModule<End: SemiLocalParams<T>> + VisitCoreOrExit<V, T, S>,
+    P: AlnIndexable + GetLayer<T, S> + GetMapping<'a, S> + GetModule<End: SemiLocalParams<T>> + VisitCoreOrExit<V, T, S>,
     T: PhmmNumber + 'static, {
     let mut num_emitted = num_emitted_begin_module;
 
@@ -222,11 +222,11 @@ where
 /// Otherwise, `state` and `num_emitted` are appropriately mutated, and `true`
 /// is returned if the `layer` was advanced (signalling to the caller that the
 /// index and layer variables should be updated).
-fn advance_middle<P, T, V, const S: usize>(
+fn advance_middle<'a, P, T, V, const S: usize>(
     phmm: &P, layer_idx: DpIndex, layer: &LayerParams<T, S>, state: &mut PhmmState, num_emitted: &mut usize, visitor: &mut V,
 ) -> Result<ControlFlow<(), bool>, P::Error>
 where
-    P: AlnIndexable + GetLayer<T, S> + GetMapping<S> + GetModule<End: SemiLocalParams<T>> + VisitCoreOrExit<V, T, S>,
+    P: AlnIndexable + GetLayer<T, S> + GetMapping<'a, S> + GetModule<End: SemiLocalParams<T>> + VisitCoreOrExit<V, T, S>,
     T: PhmmNumber, {
     let params = &layer.transition;
 
@@ -273,11 +273,11 @@ where
 /// [`enter_module_insert`]: VisitDomainModule::enter_module_insert
 /// [`exit_module_insert`]: VisitDomainModule::exit_module_insert
 /// [`DomainModule`]: crate::alignment::phmm::modules::DomainModule
-fn traverse_domain_module<V, P, T, const S: usize>(
+fn traverse_domain_module<'a, V, P, T, const S: usize>(
     phmm: &P, loc: ModuleLocation, visitor: &mut V,
 ) -> Result<TraverseDomainModuleOutput, P::Error>
 where
-    P: GetMapping<S> + GetModule<Begin: DomainParams<T, S>, End: DomainParams<T, S>> + VisitDomainModule<V, T, S>, {
+    P: GetMapping<'a, S> + GetModule<Begin: DomainParams<T, S>, End: DomainParams<T, S>> + VisitDomainModule<V, T, S>, {
     let module = match loc {
         ModuleLocation::Begin => phmm.begin().domain_params(),
         ModuleLocation::End => phmm.end().domain_params(),
@@ -308,7 +308,7 @@ struct TraverseDomainModuleOutput {
     num_emitted: usize,
 }
 
-impl<T, const S: usize> GlobalPhmm<T, S> {
+impl<T, const S: usize> GlobalPhmm<'_, T, S> {
     /// Performs full traversal of the [`GlobalPhmm`], making decisions using
     /// the provided `visitor`.
     ///
@@ -329,7 +329,7 @@ impl<T, const S: usize> GlobalPhmm<T, S> {
     }
 }
 
-impl<T, const S: usize> DomainPhmm<T, S> {
+impl<T, const S: usize> DomainPhmm<'_, T, S> {
     /// Performs full traversal of the [`DomainPhmm`], making decisions using
     /// the provided `visitor`.
     ///
@@ -362,7 +362,7 @@ impl<T, const S: usize> DomainPhmm<T, S> {
     }
 }
 
-impl<T, const S: usize> SemiLocalPhmm<T, S> {
+impl<T, const S: usize> SemiLocalPhmm<'_, T, S> {
     /// Performs full traversal of the [`SemiLocalPhmm`], making decisions using
     /// the provided `visitor`.
     ///
@@ -403,7 +403,7 @@ impl<T, const S: usize> SemiLocalPhmm<T, S> {
     }
 }
 
-impl<T, const S: usize> LocalPhmm<T, S> {
+impl<T, const S: usize> LocalPhmm<'_, T, S> {
     /// Performs full traversal of the [`LocalPhmm`], making decisions using the
     /// provided `visitor`.
     ///

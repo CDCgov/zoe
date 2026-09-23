@@ -35,7 +35,7 @@ impl SamHmmParser {
     /// - The data must be a model (not a regularizer or null model)
     /// - The specified alphabet must be `dna`
     /// - No negative indices are allowed in layer names
-    pub fn dna_hmm_from_readable<R: Read>(read: R) -> std::io::Result<GlobalPhmm<f32, 4>> {
+    pub fn dna_hmm_from_readable<R: Read>(read: R) -> std::io::Result<GlobalPhmm<'static, f32, 4>> {
         SupportedConfig::parse_sam_model(read)
     }
 
@@ -48,7 +48,7 @@ impl SamHmmParser {
     /// - The data must be a model (not a regularizer or null model)
     /// - The specified alphabet must be `dna`
     /// - No negative indices are allowed in layer names
-    pub fn dna_hmm_from_path(path: impl AsRef<Path>) -> std::io::Result<GlobalPhmm<f32, 4>> {
+    pub fn dna_hmm_from_path(path: impl AsRef<Path>) -> std::io::Result<GlobalPhmm<'static, f32, 4>> {
         SupportedConfig::parse_sam_model(File::open(path)?)
     }
 
@@ -62,7 +62,7 @@ impl SamHmmParser {
     /// - The data must be a model (not a regularizer or null model)
     /// - The specified alphabet must be `protein`
     /// - No negative indices are allowed in layer names
-    pub fn protein_hmm_from_readable<R: Read>(read: R) -> Result<GlobalPhmm<f32, 20>, std::io::Error> {
+    pub fn protein_hmm_from_readable<R: Read>(read: R) -> std::io::Result<GlobalPhmm<'static, f32, 20>> {
         SupportedConfig::parse_sam_model(read)
     }
 
@@ -75,7 +75,7 @@ impl SamHmmParser {
     /// - The data must be a model (not a regularizer or null model)
     /// - The specified alphabet must be `protein`
     /// - No negative indices are allowed in layer names
-    pub fn protein_hmm_from_path(path: impl AsRef<Path>) -> Result<GlobalPhmm<f32, 20>, std::io::Error> {
+    pub fn protein_hmm_from_path(path: impl AsRef<Path>) -> std::io::Result<GlobalPhmm<'static, f32, 20>> {
         SupportedConfig::parse_sam_model(File::open(path)?)
     }
 }
@@ -99,7 +99,7 @@ impl<T: PhmmNumber> GenericSamHmmParser<T> {
     /// - The data must be a model (not a regularizer or null model)
     /// - The specified alphabet must be `dna`
     /// - No negative indices are allowed in layer names
-    pub fn dna_hmm_from_readable<R: Read>(read: R) -> std::io::Result<GlobalPhmm<T, 4>> {
+    pub fn dna_hmm_from_readable<R: Read>(read: R) -> std::io::Result<GlobalPhmm<'static, T, 4>> {
         SupportedConfig::parse_sam_model(read)
     }
 
@@ -113,7 +113,7 @@ impl<T: PhmmNumber> GenericSamHmmParser<T> {
     /// - The data must be a model (not a regularizer or null model)
     /// - The specified alphabet must be `dna`
     /// - No negative indices are allowed in layer names
-    pub fn dna_hmm_from_path(path: impl AsRef<Path>) -> std::io::Result<GlobalPhmm<T, 4>> {
+    pub fn dna_hmm_from_path(path: impl AsRef<Path>) -> std::io::Result<GlobalPhmm<'static, T, 4>> {
         SupportedConfig::parse_sam_model(File::open(path)?)
     }
 
@@ -128,7 +128,7 @@ impl<T: PhmmNumber> GenericSamHmmParser<T> {
     /// - The data must be a model (not a regularizer or null model)
     /// - The specified alphabet must be `protein`
     /// - No negative indices are allowed in layer names
-    pub fn protein_hmm_from_readable<R: Read>(read: R) -> std::io::Result<GlobalPhmm<T, 20>> {
+    pub fn protein_hmm_from_readable<R: Read>(read: R) -> std::io::Result<GlobalPhmm<'static, T, 20>> {
         SupportedConfig::parse_sam_model(read)
     }
 
@@ -142,7 +142,7 @@ impl<T: PhmmNumber> GenericSamHmmParser<T> {
     /// - The data must be a model (not a regularizer or null model)
     /// - The specified alphabet must be `protein`
     /// - No negative indices are allowed in layer names
-    pub fn protein_hmm_from_path(path: impl AsRef<Path>) -> std::io::Result<GlobalPhmm<T, 20>> {
+    pub fn protein_hmm_from_path(path: impl AsRef<Path>) -> std::io::Result<GlobalPhmm<'static, T, 20>> {
         SupportedConfig::parse_sam_model(File::open(path)?)
     }
 }
@@ -202,7 +202,7 @@ trait SamHmmConfig<const S: usize, const L: usize> {
 
     /// Converts a [`ByteIndexMap`] to the appropriate alphabet name for the SAM
     /// file.
-    fn unparse_mapping(mapping: &'static ByteIndexMap<S>) -> std::io::Result<&'static str>;
+    fn unparse_mapping(mapping: &ByteIndexMap<S>) -> std::io::Result<&'static str>;
 
     /// Given a flat array of `L=2*S+9` parameters, converts them into
     /// [`LayerParams`].
@@ -222,7 +222,7 @@ trait SamHmmConfig<const S: usize, const L: usize> {
     ///   `L`
     /// - No negative indices are allowed in layer names
     /// - At least three layers must be present in the model
-    fn parse_sam_model<R, T>(read: R) -> std::io::Result<GlobalPhmm<T, S>>
+    fn parse_sam_model<R, T>(read: R) -> std::io::Result<GlobalPhmm<'static, T, S>>
     where
         R: Read,
         T: PhmmNumber,
@@ -443,7 +443,7 @@ impl SamHmmConfig<4, 17> for SupportedConfig {
     }
 
     #[inline]
-    fn unparse_mapping(mapping: &'static ByteIndexMap<4>) -> std::io::Result<&'static str> {
+    fn unparse_mapping(mapping: &ByteIndexMap<4>) -> std::io::Result<&'static str> {
         if mapping == &DNA_UNAMBIG_PROFILE_MAP {
             return Ok("DNA");
         }
@@ -513,7 +513,7 @@ impl SamHmmConfig<20, 49> for SupportedConfig {
     }
 
     #[inline]
-    fn unparse_mapping(mapping: &'static ByteIndexMap<20>) -> std::io::Result<&'static str> {
+    fn unparse_mapping(mapping: &ByteIndexMap<20>) -> std::io::Result<&'static str> {
         if mapping == &AA_UNAMBIG_PROFILE_MAP {
             return Ok("PROTEIN");
         }

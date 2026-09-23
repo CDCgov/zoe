@@ -11,7 +11,7 @@ use crate::alignment::{
     },
 };
 
-impl<T: PhmmNumber, const S: usize> GlobalPhmm<T, S>
+impl<T: PhmmNumber, const S: usize> GlobalPhmm<'_, T, S>
 where
     T: 'static,
 {
@@ -34,7 +34,7 @@ where
     }
 }
 
-impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S>
+impl<T: PhmmNumber, const S: usize> LocalPhmm<'_, T, S>
 where
     T: 'static,
 {
@@ -62,7 +62,7 @@ where
     }
 }
 
-impl<T: PhmmNumber, const S: usize> DomainPhmm<T, S>
+impl<T: PhmmNumber, const S: usize> DomainPhmm<'_, T, S>
 where
     T: 'static,
 {
@@ -86,7 +86,7 @@ where
     }
 }
 
-impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S>
+impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<'_, T, S>
 where
     T: 'static,
 {

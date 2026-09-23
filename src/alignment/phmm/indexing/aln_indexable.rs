@@ -44,28 +44,28 @@ impl<T, const S: usize> AlnIndexable for CorePhmm<T, S> {
     }
 }
 
-impl<T, const S: usize> AlnIndexable for GlobalPhmm<T, S> {
+impl<T, const S: usize> AlnIndexable for GlobalPhmm<'_, T, S> {
     #[inline]
     fn seq_len(&self) -> usize {
         self.core().seq_len()
     }
 }
 
-impl<T, const S: usize> AlnIndexable for LocalPhmm<T, S> {
+impl<T, const S: usize> AlnIndexable for LocalPhmm<'_, T, S> {
     #[inline]
     fn seq_len(&self) -> usize {
         self.core().seq_len()
     }
 }
 
-impl<T, const S: usize> AlnIndexable for SemiLocalPhmm<T, S> {
+impl<T, const S: usize> AlnIndexable for SemiLocalPhmm<'_, T, S> {
     #[inline]
     fn seq_len(&self) -> usize {
         self.core().seq_len()
     }
 }
 
-impl<T, const S: usize> AlnIndexable for DomainPhmm<T, S> {
+impl<T, const S: usize> AlnIndexable for DomainPhmm<'_, T, S> {
     #[inline]
     fn seq_len(&self) -> usize {
         self.core().seq_len()
@@ -117,10 +117,10 @@ pub trait PhmmLen: AlnIndexable {
 }
 
 impl<T, const S: usize> PhmmLen for CorePhmm<T, S> {}
-impl<T, const S: usize> PhmmLen for GlobalPhmm<T, S> {}
-impl<T, const S: usize> PhmmLen for LocalPhmm<T, S> {}
-impl<T, const S: usize> PhmmLen for SemiLocalPhmm<T, S> {}
-impl<T, const S: usize> PhmmLen for DomainPhmm<T, S> {}
+impl<T, const S: usize> PhmmLen for GlobalPhmm<'_, T, S> {}
+impl<T, const S: usize> PhmmLen for LocalPhmm<'_, T, S> {}
+impl<T, const S: usize> PhmmLen for SemiLocalPhmm<'_, T, S> {}
+impl<T, const S: usize> PhmmLen for DomainPhmm<'_, T, S> {}
 impl<T> PhmmLen for SemiLocalModule<T> {}
 impl<T, const S: usize> PhmmLen for PrecomputedLocalModule<'_, T, S> {}
 impl<T, const S: usize> PhmmLen for PrecomputedDomainModule<T, S> {}

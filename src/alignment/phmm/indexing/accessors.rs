@@ -115,10 +115,10 @@ pub(crate) trait GetLayerMut<T, const S: usize>: GetLayer<T, S> {
 }
 
 /// A trait providing access to the underlying alphabet of a pHMM.
-pub trait GetMapping<const S: usize> {
+pub trait GetMapping<'a, const S: usize> {
     /// Returns a reference to the underlying alphabet of the pHMM.
     #[must_use]
-    fn mapping(&self) -> &'static ByteIndexMap<S>;
+    fn mapping(&self) -> &'a ByteIndexMap<S>;
 }
 
 /// A trait unifying [`Begin`], [`FirstResidue`], and [`LastResidue`], which are

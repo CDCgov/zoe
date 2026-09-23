@@ -86,7 +86,7 @@ impl<T: PhmmNumber> Default for SemiLocalBestScore<T> {
     }
 }
 
-impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
+impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<'_, T, S> {
     /// Computes the best scoring local alignment along with its score via the
     /// Viterbi algorithm.
     ///

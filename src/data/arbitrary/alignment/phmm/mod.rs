@@ -287,7 +287,7 @@ impl<'a, K> ArbitrarySpecs<'a> for DnaGlobalPhmmSpecs<K>
 where
     K: ArbitrarySpecs<'a, Output: PhmmNumber> + Copy,
 {
-    type Output = GlobalPhmm<K::Output, 4>;
+    type Output = GlobalPhmm<'static, K::Output, 4>;
 
     #[inline]
     fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {
@@ -323,7 +323,7 @@ impl<'a, K> ArbitrarySpecs<'a> for DnaLocalPhmmSpecs<K>
 where
     K: ArbitrarySpecs<'a, Output: PhmmNumber> + Copy,
 {
-    type Output = LocalPhmm<K::Output, 4>;
+    type Output = LocalPhmm<'static, K::Output, 4>;
 
     #[inline]
     fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {
@@ -367,7 +367,7 @@ impl<'a, K> ArbitrarySpecs<'a> for DnaDomainPhmmSpecs<K>
 where
     K: ArbitrarySpecs<'a, Output: PhmmNumber> + Copy,
 {
-    type Output = DomainPhmm<K::Output, 4>;
+    type Output = DomainPhmm<'static, K::Output, 4>;
 
     #[inline]
     fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {
@@ -414,7 +414,7 @@ impl<'a, K> ArbitrarySpecs<'a> for DnaSemiLocalPhmmSpecs<K>
 where
     K: ArbitrarySpecs<'a, Output: PhmmNumber> + Copy,
 {
-    type Output = SemiLocalPhmm<K::Output, 4>;
+    type Output = SemiLocalPhmm<'static, K::Output, 4>;
 
     #[inline]
     fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {

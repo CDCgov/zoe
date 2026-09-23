@@ -69,7 +69,7 @@ pub struct SampledSequence<T> {
     pub alignment: Alignment<T>,
 }
 
-impl<T: PhmmNumber, const S: usize> GlobalPhmm<T, S> {
+impl<T: PhmmNumber, const S: usize> GlobalPhmm<'_, T, S> {
     /// Samples a sequence and corresponding [`Alignment`] from the
     /// [`GlobalPhmm`].
     ///
@@ -111,7 +111,7 @@ impl<T: PhmmNumber, const S: usize> GlobalPhmm<T, S> {
     }
 }
 
-impl<T: PhmmNumber, const S: usize> DomainPhmm<T, S> {
+impl<T: PhmmNumber, const S: usize> DomainPhmm<'_, T, S> {
     /// Samples a sequence and corresponding [`Alignment`] from the
     /// [`DomainPhmm`].
     ///
@@ -153,7 +153,7 @@ impl<T: PhmmNumber, const S: usize> DomainPhmm<T, S> {
     }
 }
 
-impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
+impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<'_, T, S> {
     /// Samples a sequence and corresponding [`Alignment`] from the
     /// [`SemiLocalPhmm`].
     ///
@@ -194,7 +194,7 @@ impl<T: PhmmNumber, const S: usize> SemiLocalPhmm<T, S> {
     }
 }
 
-impl<T: PhmmNumber, const S: usize> LocalPhmm<T, S> {
+impl<T: PhmmNumber, const S: usize> LocalPhmm<'_, T, S> {
     /// Samples a sequence and corresponding [`Alignment`] from the
     /// [`LocalPhmm`].
     ///

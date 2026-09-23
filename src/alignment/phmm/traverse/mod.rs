@@ -110,7 +110,7 @@ trait VisitCore<V, T, const S: usize> {
     ) -> Result<EndInsert, Self::Error>;
 }
 
-impl<V, T, const S: usize> VisitCore<V, T, S> for GlobalPhmm<T, S>
+impl<V, T, const S: usize> VisitCore<V, T, S> for GlobalPhmm<'_, T, S>
 where
     V: GlobalVisitor<T, S>,
 {
@@ -138,7 +138,7 @@ where
     }
 }
 
-impl<V, T, const S: usize> VisitCore<V, T, S> for DomainPhmm<T, S>
+impl<V, T, const S: usize> VisitCore<V, T, S> for DomainPhmm<'_, T, S>
 where
     V: DomainVisitor<T, S>,
 {
@@ -215,7 +215,7 @@ trait VisitCoreOrExit<V, T, const S: usize> {
     fn exit_core_from_end(&self, visitor: &mut V, layer: DpIndex, exit_param: T) -> Result<(), Self::Error>;
 }
 
-impl<V, T, const S: usize> VisitCoreOrExit<V, T, S> for SemiLocalPhmm<T, S>
+impl<V, T, const S: usize> VisitCoreOrExit<V, T, S> for SemiLocalPhmm<'_, T, S>
 where
     V: SemiLocalVisitor<T, S>,
 {
@@ -262,7 +262,7 @@ where
     }
 }
 
-impl<V, T, const S: usize> VisitCoreOrExit<V, T, S> for LocalPhmm<T, S>
+impl<V, T, const S: usize> VisitCoreOrExit<V, T, S> for LocalPhmm<'_, T, S>
 where
     V: LocalVisitor<T, S>,
 {
@@ -347,7 +347,7 @@ trait VisitDomainModule<V, T, const S: usize> {
     ) -> Result<(), Self::Error>;
 }
 
-impl<V, T, const S: usize> VisitDomainModule<V, T, S> for DomainPhmm<T, S>
+impl<V, T, const S: usize> VisitDomainModule<V, T, S> for DomainPhmm<'_, T, S>
 where
     V: DomainVisitor<T, S>,
 {
@@ -382,7 +382,7 @@ where
     }
 }
 
-impl<V, T, const S: usize> VisitDomainModule<V, T, S> for LocalPhmm<T, S>
+impl<V, T, const S: usize> VisitDomainModule<V, T, S> for LocalPhmm<'_, T, S>
 where
     V: LocalVisitor<T, S>,
 {
@@ -463,7 +463,7 @@ impl<T: PhmmNumber, const S: usize> DomainModule<T, S> {
     ///
     /// [`PrecomputedDomainModule`]:
     ///     crate::alignment::phmm::modules::PrecomputedDomainModule
-    fn begin_score(&self, inserted: &[u8], mapping: &'static ByteIndexMap<S>) -> T {
+    fn begin_score(&self, inserted: &[u8], mapping: &ByteIndexMap<S>) -> T {
         if inserted.is_empty() {
             self.start_to_end
         } else {
@@ -489,7 +489,7 @@ impl<T: PhmmNumber, const S: usize> DomainModule<T, S> {
     ///
     /// [`PrecomputedDomainModule`]:
     ///     crate::alignment::phmm::modules::PrecomputedDomainModule
-    fn end_score(&self, inserted: &[u8], mapping: &'static ByteIndexMap<S>) -> T {
+    fn end_score(&self, inserted: &[u8], mapping: &ByteIndexMap<S>) -> T {
         if inserted.is_empty() {
             self.start_to_end
         } else {
@@ -507,7 +507,8 @@ impl<T: PhmmNumber, const S: usize> DomainModule<T, S> {
     }
 }
 
-trait ScoreDomain<T, const S: usize>: GetModule<Begin = DomainModule<T, S>, End = DomainModule<T, S>> + GetMapping<S>
+trait ScoreDomain<'a, T, const S: usize>:
+    GetModule<Begin = DomainModule<T, S>, End = DomainModule<T, S>> + GetMapping<'a, S>
 where
     T: PhmmNumber, {
     /// Lazily compute the score for skipping `inserted` residues at the
@@ -541,14 +542,15 @@ where
     }
 }
 
-impl<P, T, const S: usize> ScoreDomain<T, S> for P
+impl<'a, P, T, const S: usize> ScoreDomain<'a, T, S> for P
 where
     T: PhmmNumber,
-    P: GetModule<Begin = DomainModule<T, S>, End = DomainModule<T, S>> + GetMapping<S>,
+    P: GetModule<Begin = DomainModule<T, S>, End = DomainModule<T, S>> + GetMapping<'a, S>,
 {
 }
 
-trait ScoreLocal<T, const S: usize>: GetModule<Begin = LocalModule<T, S>, End = LocalModule<T, S>> + GetMapping<S>
+trait ScoreLocal<'a, T, const S: usize>:
+    GetModule<Begin = LocalModule<T, S>, End = LocalModule<T, S>> + GetMapping<'a, S>
 where
     T: PhmmNumber, {
     /// Lazily compute the score for skipping `inserted` residues at the
@@ -592,10 +594,10 @@ where
     }
 }
 
-impl<P, T, const S: usize> ScoreLocal<T, S> for P
+impl<'a, P, T, const S: usize> ScoreLocal<'a, T, S> for P
 where
     T: PhmmNumber,
-    P: GetModule<Begin = LocalModule<T, S>, End = LocalModule<T, S>> + GetMapping<S>,
+    P: GetModule<Begin = LocalModule<T, S>, End = LocalModule<T, S>> + GetMapping<'a, S>,
 {
 }
 

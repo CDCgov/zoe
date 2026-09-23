@@ -62,7 +62,7 @@ impl<T: PhmmNumber> Default for DomainBestScore<T> {
     }
 }
 
-impl<T: PhmmNumber, const S: usize> DomainPhmm<T, S> {
+impl<T: PhmmNumber, const S: usize> DomainPhmm<'_, T, S> {
     /// Computes the best scoring domain alignment along with its score via the
     /// Viterbi algorithm.
     ///

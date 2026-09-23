@@ -135,13 +135,13 @@ mod private {
     impl<M: AssocViewMutType, S: AssocViewMutType> Sealed for crate::data::fasta::generic::FastaAnnotViewMut<'_, M, S> {}
 
     #[cfg(feature = "dev-phmm")]
-    impl<T, const S: usize> Sealed for GlobalPhmm<T, S> {}
+    impl<T, const S: usize> Sealed for GlobalPhmm<'_, T, S> {}
     #[cfg(feature = "dev-phmm")]
-    impl<T, const S: usize> Sealed for LocalPhmm<T, S> {}
+    impl<T, const S: usize> Sealed for LocalPhmm<'_, T, S> {}
     #[cfg(feature = "dev-phmm")]
-    impl<T, const S: usize> Sealed for SemiLocalPhmm<T, S> {}
+    impl<T, const S: usize> Sealed for SemiLocalPhmm<'_, T, S> {}
     #[cfg(feature = "dev-phmm")]
-    impl<T, const S: usize> Sealed for DomainPhmm<T, S> {}
+    impl<T, const S: usize> Sealed for DomainPhmm<'_, T, S> {}
 
     sealed!(
         AminoAcids,

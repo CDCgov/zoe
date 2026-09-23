@@ -50,7 +50,7 @@ impl<T: NearlyEqual<T>, const S: usize> NearlyEqual<T> for CorePhmm<T, S> {
     }
 }
 
-impl<T: NearlyEqual<T>, const S: usize> NearlyEqual<T> for GlobalPhmm<T, S> {
+impl<T: NearlyEqual<T>, const S: usize> NearlyEqual<T> for GlobalPhmm<'_, T, S> {
     fn nearly_equal<M: NearlyEqualMethod<T>>(&self, b: &Self, strategy: &M) -> (bool, Option<(T, T)>) {
         if self.mapping() == b.mapping() {
             self.core().nearly_equal(b.core(), strategy)
