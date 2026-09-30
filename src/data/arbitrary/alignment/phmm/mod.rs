@@ -47,7 +47,7 @@ pub struct VecAtLeast2Specs<S> {
     /// The minimum length of the [`VecAtLeast2`].
     ///
     /// This must be less than or equal to `max_len`, and will be clamped to be
-    /// above 2 during usage.
+    /// at least 2 during usage.
     pub min_len: usize,
 
     /// The exact length of the [`VecAtLeast2`] to generate.

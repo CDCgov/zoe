@@ -92,7 +92,7 @@ impl BacktrackMatrix {
 
 /// A backtrack matrix for the Striped Smith Waterman algorithm.
 ///
-/// This stores the traceback information in a flattened vector of SIMD vectors
+/// This stores the traceback information in a flattened slice of SIMD vectors
 /// (each holding `N` entries in the DP table).
 #[derive(Clone, Debug)]
 pub(crate) struct BacktrackMatrixStriped<const N: usize> {
@@ -113,7 +113,7 @@ impl<const N: usize> BacktrackMatrixStriped<N> {
         Box::<[Simd<u8, N>]>::new_uninit_slice(size)
     }
 
-    /// Wraps a vector of SIMD vectors in a [`BacktrackMatrixStriped`] to
+    /// Wraps a boxed slice of SIMD vectors in a [`BacktrackMatrixStriped`] to
     /// facilitate backtracking.
     #[inline]
     #[must_use]

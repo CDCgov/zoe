@@ -196,8 +196,8 @@ impl<T: PhmmNumber, const S: usize> Default for LayerParams<T, S> {
 /// [`LocalPhmm`], [`DomainPhmm`], and [`SemiLocalPhmm`].
 ///
 /// This includes the layers of the pHMM without any modules at the beginning or
-/// end. This struct guarantees that at least two layers are present
-/// (corresponding to a reference length of one).
+/// end. This struct guarantees that the pHMM corresponds to a reference length
+/// of at least one (at least [`LayerParams`] elements).
 ///
 /// Internally, each element stores:
 ///

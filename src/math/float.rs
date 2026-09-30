@@ -56,11 +56,22 @@ pub trait Float:
     + std::iter::Sum<Self>
     + for<'a> std::iter::Sum<&'a Self>
     + Sealed {
+    /// The smallest finite value of the floating point type.
     const MIN: Self;
+
+    /// The smallest positive normal value of the floating point type.
     const MIN_POSITIVE: Self;
+
+    /// The largest finite value of the floating point type.
     const MAX: Self;
+
+    /// A constant equal to `0.0`.
     const ZERO: Self;
+
+    /// A constant equal to `1.0`.
     const ONE: Self;
+
+    /// Infinity (∞).
     const INFINITY: Self;
 
     /// Generic absolute value for [`Float`]

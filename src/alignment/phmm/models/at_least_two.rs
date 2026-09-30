@@ -25,115 +25,139 @@ use std::{
 pub struct VecAtLeast2<T>(Vec<T>);
 
 impl<T> VecAtLeast2<T> {
+    /// See [`Vec::push`].
     #[inline]
     pub fn push(&mut self, value: T) {
         self.0.push(value);
     }
 
+    /// See [`Vec::push_mut`].
     #[inline]
     pub fn push_mut(&mut self, value: T) -> &mut T {
         self.0.push_mut(value)
     }
 
+    /// See [`Vec::capacity`].
     #[inline]
     #[must_use]
     pub const fn capacity(&self) -> usize {
         self.0.capacity()
     }
 
+    /// See [`Vec::reserve`].
     #[inline]
     pub fn reserve(&mut self, additional: usize) {
         self.0.reserve(additional);
     }
 
+    /// See [`Vec::reserve_exact`].
     #[inline]
     pub fn reserve_exact(&mut self, additional: usize) {
         self.0.reserve_exact(additional);
     }
 
+    /// See [`Vec::try_reserve`].
     #[inline]
     pub fn try_reserve(&mut self, additional: usize) -> Result<(), TryReserveError> {
         self.0.try_reserve(additional)
     }
 
+    /// See [`Vec::try_reserve_exact`].
     #[inline]
     pub fn try_reserve_exact(&mut self, additional: usize) -> Result<(), TryReserveError> {
         self.0.try_reserve_exact(additional)
     }
 
+    /// See [`Vec::shrink_to_fit`].
     #[inline]
     pub fn shrink_to_fit(&mut self) {
         self.0.shrink_to_fit();
     }
 
+    /// See [`Vec::shrink_to`].
     #[inline]
     pub fn shrink_to(&mut self, min_capacity: usize) {
         self.0.shrink_to(min_capacity);
     }
 
+    /// See [`Vec::into_boxed_slice`].
     #[inline]
     #[must_use]
     pub fn into_boxed_slice(self) -> Box<[T]> {
         self.0.into_boxed_slice()
     }
 
+    /// See [`Vec::as_slice`].
     #[inline]
     #[must_use]
     pub const fn as_slice(&self) -> &[T] {
         self.0.as_slice()
     }
 
+    /// See [`Vec::as_mut_slice`].
     #[inline]
     #[must_use]
     pub const fn as_mut_slice(&mut self) -> &mut [T] {
         self.0.as_mut_slice()
     }
 
+    /// See [`Vec::insert`].
     #[inline]
     pub fn insert(&mut self, index: usize, element: T) {
         self.0.insert(index, element);
     }
 
+    /// See [`Vec::insert_mut`].
     #[inline]
     pub fn insert_mut(&mut self, index: usize, element: T) -> &mut T {
         self.0.insert_mut(index, element)
     }
 
+    /// See [`Vec::append`].
     #[inline]
     pub fn append(&mut self, other: &mut Vec<T>) {
         self.0.append(other);
     }
 
+    /// Returns the first element of the [`VecAtLeast2`].
     #[inline]
     #[must_use]
     pub fn first(&self) -> &T {
         self.0.first().expect("at least two elements are present")
     }
 
+    /// Returns a mutable reference to the first element of the [`VecAtLeast2`].
     #[inline]
     #[must_use]
     pub fn first_mut(&mut self) -> &mut T {
         self.0.first_mut().expect("at least two elements are present")
     }
 
+    /// Returns the second element of the [`VecAtLeast2`].
     #[inline]
     #[must_use]
     pub fn second(&self) -> &T {
         &self.0[1]
     }
 
+    /// Returns a mutable reference to the second element of the
+    /// [`VecAtLeast2`].
     #[inline]
     #[must_use]
     pub fn second_mut(&mut self) -> &mut T {
         &mut self.0[1]
     }
 
+    /// Returns the second element from the end of the [`VecAtLeast2`] (the
+    /// element before the last).
     #[inline]
     #[must_use]
     pub fn second_back(&self) -> &T {
         &self.0[self.len() - 2]
     }
 
+    /// Returns a mutable reference to the second element from the end of the
+    /// [`VecAtLeast2`] (the element before the last).
     #[inline]
     #[must_use]
     pub fn second_back_mut(&mut self) -> &mut T {
@@ -141,36 +165,46 @@ impl<T> VecAtLeast2<T> {
         &mut self.0[idx]
     }
 
+    /// Returns the last element of the [`VecAtLeast2`].
     #[inline]
     #[must_use]
     pub fn last(&self) -> &T {
         self.0.last().expect("at least two elements are present")
     }
 
+    /// Returns a mutable reference to the last element of the [`VecAtLeast2`].
     #[inline]
     #[must_use]
     pub fn last_mut(&mut self) -> &mut T {
         self.0.last_mut().expect("at least two elements are present")
     }
 
+    /// Returns the first element and the remaining elements in the
+    /// [`VecAtLeast2`].
     #[inline]
     #[must_use]
     pub fn split_first(&self) -> (&T, &[T]) {
         self.0.split_first().expect("at least two elements are present")
     }
 
+    /// Returns mutable references to the first element and the remaining
+    /// elements in the [`VecAtLeast2`].
     #[inline]
     #[must_use]
     pub fn split_first_mut(&mut self) -> (&mut T, &mut [T]) {
         self.0.split_first_mut().expect("at least two elements are present")
     }
 
+    /// Returns the last element and the remaining elements in the
+    /// [`VecAtLeast2`].
     #[inline]
     #[must_use]
     pub fn split_last(&self) -> (&T, &[T]) {
         self.0.split_last().expect("at least two elements are present")
     }
 
+    /// Returns mutable references to the last element and the remaining
+    /// elements in the [`VecAtLeast2`].
     #[inline]
     #[must_use]
     pub fn split_last_mut(&mut self) -> (&mut T, &mut [T]) {
@@ -179,11 +213,13 @@ impl<T> VecAtLeast2<T> {
 }
 
 impl<T: Clone> VecAtLeast2<T> {
+    /// See [`Vec::extend_from_slice`].
     #[inline]
     pub fn extend_from_slice(&mut self, other: &[T]) {
         self.0.extend_from_slice(other);
     }
 
+    /// See [`Vec::extend_from_within`].
     #[inline]
     pub fn extend_from_within<R>(&mut self, src: R)
     where
@@ -331,7 +367,9 @@ impl<T> TryFrom<Vec<T>> for VecAtLeast2<T> {
 /// insufficient elements.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub enum TooShort {
+    /// The vector being wrapped was empty.
     Empty,
+    /// The vector being wrapped had only one element.
     Len1,
 }
 

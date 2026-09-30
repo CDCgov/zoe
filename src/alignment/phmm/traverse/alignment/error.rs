@@ -120,7 +120,7 @@ pub enum SemiLocalTraverseFromAlignError {
     /// The length of the reference as implied by the alignment overflowed a
     /// [`usize`].
     RefLenOverflow,
-    /// The length of the query as implied by the alignment overflows a
+    /// The length of the query as implied by the alignment overflowed a
     /// [`usize`].
     QueryLenOverflow,
 }
@@ -155,7 +155,7 @@ pub enum DomainTraverseFromAlignError {
     /// The length of the reference as implied by the alignment overflowed a
     /// [`usize`].
     RefLenOverflow,
-    /// The length of the query as implied by the alignment overflows a
+    /// The length of the query as implied by the alignment overflowed a
     /// [`usize`].
     QueryLenOverflow,
 }
@@ -216,7 +216,7 @@ pub enum LocalTraverseFromAlignError {
     /// The length of the reference as implied by the alignment overflowed a
     /// [`usize`].
     RefLenOverflow,
-    /// The length of the query as implied by the alignment overflows a
+    /// The length of the query as implied by the alignment overflowed a
     /// [`usize`].
     QueryLenOverflow,
 }

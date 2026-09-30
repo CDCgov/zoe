@@ -1,3 +1,6 @@
+//! Code for [`GetSamFields`], a getter trait for unifying SAM-like record
+//! structs.
+
 use crate::data::{
     cigar::ToCigletIterator,
     nucleotides::NucleotidesView,
@@ -18,6 +21,8 @@ use std::fmt::Display;
 /// trait for custom structs that do not hold some SAM fields. Returning `Some`
 /// does not mean the field is present though. For example, `Some("*")` could be
 /// returned for the `cigar` field of an unmapped record.
+///
+/// [`display`]: GetSamFields::display
 pub trait GetSamFields: Sized {
     /// Returns the QNAME field if it is contained in the struct.
     fn qname(&self) -> Option<&str>;

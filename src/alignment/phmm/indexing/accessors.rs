@@ -44,8 +44,6 @@ pub trait GetCore<T, const S: usize>: Sealed {
 /// A trait providing read-only accessors to the layers of a pHMM.
 pub trait GetLayer<T, const S: usize>: AlnIndexable + Sealed {
     /// Retrieves a vector of the layers contained within the core pHMM.
-    ///
-    /// This vector will be at least 2 in length.
     #[must_use]
     fn layers(&self) -> &VecAtLeast2<LayerParams<T, S>>;
 
@@ -117,6 +115,12 @@ pub(crate) trait GetLayerMut<T, const S: usize>: GetLayer<T, S> {
 }
 
 /// A trait providing access to the underlying alphabet of a pHMM.
+///
+/// ## Parameters
+///
+/// - '`a`: The lifetime of the alphabet. This can be `'static` for compile-time
+///   alphabets.
+/// - `S`: The size of the alphabet.
 pub trait GetMapping<'a, const S: usize>: Sealed {
     /// Returns a reference to the underlying alphabet of the pHMM.
     #[must_use]

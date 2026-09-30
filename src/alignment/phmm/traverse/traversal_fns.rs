@@ -18,6 +18,7 @@ use std::ops::{ControlFlow, Range, RangeInclusive};
 ///
 /// ## Parameters
 ///
+/// - '`a`: The lifetime of the alphabet in the pHMM
 /// - `V`: The type of the visitor
 /// - `P`: The type of pHMM being traversed
 /// - `T`: The type of the parameters in the pHMM
