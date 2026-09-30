@@ -17,7 +17,7 @@ use crate::{
 /// sequences, pHMMs, and modules.
 ///
 /// [`AlnIndex`]: crate::alignment::phmm::indexing::AlnIndex
-pub trait AlnIndexable: Sealed {
+pub trait AlnIndexable {
     /// Returns the length of the query or reference sequence corresponding to
     /// the structure.
     #[must_use]
@@ -111,7 +111,7 @@ impl AlnIndexable for &[u8] {
 }
 
 /// A trait providing an extension of [`AlnIndexable`] specifically for pHMMs.
-pub trait PhmmLen: AlnIndexable {
+pub trait PhmmLen: AlnIndexable + Sealed {
     /// Returns the number of pseudo-match states in the pHMM, which includes
     /// both match states with emissions as well as the BEGIN and END states.
     fn num_pseudomatch(&self) -> usize {

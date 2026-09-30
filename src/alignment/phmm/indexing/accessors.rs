@@ -42,7 +42,7 @@ pub trait GetCore<T, const S: usize>: Sealed {
 // in an implementation.
 
 /// A trait providing read-only accessors to the layers of a pHMM.
-pub trait GetLayer<T, const S: usize>: AlnIndexable {
+pub trait GetLayer<T, const S: usize>: AlnIndexable + Sealed {
     /// Retrieves a vector of the layers contained within the core pHMM.
     ///
     /// This vector will be at least 2 in length.
