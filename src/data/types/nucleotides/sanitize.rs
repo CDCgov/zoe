@@ -17,6 +17,7 @@ use crate::{
     },
     prelude::*,
     private::Sealed,
+    simd::SimdByteFunctions,
 };
 use std::simd::prelude::*;
 
@@ -205,8 +206,7 @@ pub trait RecodeNucleotides: NucleotidesMutable + Sealed {
     /// strategy for read data. Data that cannot be recoded becomes `N`.
     #[inline]
     fn recode_dna_reads(&mut self) {
-        self.nucleotide_mut_bytes()
-            .recode(RecodeDNAStrat::AnyToAcgtnNoGapsUpper.mapping());
+        make_acgtn_uc_simd(self.nucleotide_mut_bytes());
     }
 
     /// Recodes the stored sequence using
@@ -359,4 +359,27 @@ fn is_acgtn_uc_simd(s: &[u8]) -> bool {
     }
 
     left.iter().chain(right).all(|&b| b.is_valid(IsValidDNA::AcgtnNoGapsUc))
+}
+
+#[inline]
+#[allow(non_snake_case)]
+#[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
+fn make_acgtn_uc_simd(s: &mut [u8]) {
+    let (chunks, mut tail) = s.as_chunks_mut::<{ DEFAULT_SIMD_LANES }>();
+    let (A, G, C, T, N) = (
+        Simd::splat(b'A'),
+        Simd::splat(b'G'),
+        Simd::splat(b'C'),
+        Simd::splat(b'T'),
+        Simd::splat(b'N'),
+    );
+
+    for c in chunks.iter_mut() {
+        let mut v = Simd::from_array(*c);
+        v.make_ascii_uppercase();
+        v.if_value_then_replace(b'U', b'T');
+        let valid = v.simd_eq(A) | v.simd_eq(G) | v.simd_eq(C) | v.simd_eq(T);
+        *c = valid.select(v, N).to_array();
+    }
+    tail.recode(RecodeDNAStrat::AnyToAcgtnNoGapsUpper.mapping());
 }

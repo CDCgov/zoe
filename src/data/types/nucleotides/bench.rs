@@ -7,10 +7,10 @@ use std::sync::LazyLock;
 /// Upper and lowercase English alphabet.
 const ENGLISH: &[u8; 52] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-const N: usize = 1200;
+const LEN: usize = 1200;
 const SEED: u64 = 42;
 
-static SEQ: LazyLock<Vec<u8>> = LazyLock::new(|| crate::generate::rand_sequence(ENGLISH, N, SEED));
+static SEQ: LazyLock<Vec<u8>> = LazyLock::new(|| crate::generate::rand_sequence(ENGLISH, LEN, SEED));
 static READ: LazyLock<Vec<u8>> = LazyLock::new(|| crate::generate::rand_sequence(DNA_ACGTN_UC, 150, SEED));
 
 #[bench]
@@ -62,4 +62,57 @@ fn is_acgtn_uc_read_scalar(b: &mut Bencher) {
 fn is_acgtn_uc_read_simd(b: &mut Bencher) {
     let s = READ.as_slice();
     b.iter(|| s.is_acgtn_uc());
+}
+
+mod read_recode {
+    use crate::DEFAULT_SIMD_LANES;
+
+    use super::*;
+    use crate::data::validation::recode::Recode;
+    use crate::simd::SimdByteFunctions;
+    use std::simd::prelude::*;
+
+    #[bench]
+    fn baseline(b: &mut Bencher) {
+        let v: Nucleotides = SEQ.to_vec().into();
+        b.iter(|| v.clone());
+    }
+
+    #[bench]
+    fn scalar(b: &mut Bencher) {
+        let v: Nucleotides = SEQ.to_vec().into();
+        b.iter(|| v.clone().recode_dna(RecodeDNAStrat::AnyToAcgtnNoGapsUpper));
+    }
+
+    #[bench]
+    fn as_chunks_simd(b: &mut Bencher) {
+        let v: Nucleotides = SEQ.to_vec().into();
+        b.iter(|| v.clone().recode_dna_reads());
+    }
+
+    #[bench]
+    fn as_simd(b: &mut Bencher) {
+        fn make_acgtn_uc_simd(s: &mut [u8]) {
+            const A: Simd<u8, { DEFAULT_SIMD_LANES }> = Simd::splat(b'A');
+            const G: Simd<u8, { DEFAULT_SIMD_LANES }> = Simd::splat(b'G');
+            const C: Simd<u8, { DEFAULT_SIMD_LANES }> = Simd::splat(b'C');
+            const T: Simd<u8, { DEFAULT_SIMD_LANES }> = Simd::splat(b'T');
+            const N: Simd<u8, { DEFAULT_SIMD_LANES }> = Simd::splat(b'N');
+
+            let (mut left, mid, mut right) = s.as_simd_mut::<{ DEFAULT_SIMD_LANES }>();
+
+            left.recode(RecodeDNAStrat::AnyToAcgtnNoGapsUpper.mapping());
+
+            for v in mid {
+                v.make_ascii_uppercase();
+                v.if_value_then_replace(b'U', b'T');
+                let valid = v.simd_eq(A) | v.simd_eq(G) | v.simd_eq(C) | v.simd_eq(T);
+                *v = valid.select(*v, N);
+            }
+            right.recode(RecodeDNAStrat::AnyToAcgtnNoGapsUpper.mapping());
+        }
+
+        let v = SEQ.to_vec();
+        b.iter(|| make_acgtn_uc_simd(&mut v.clone()));
+    }
 }
