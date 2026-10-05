@@ -212,7 +212,10 @@ fn read_line_owned<R: Read>(reader: &mut BufReader<R>) -> std::io::Result<Vec<u8
         return Ok(line);
     }
 
-    let mut line = Vec::new();
+    // Consume the entire existing buffer, so as not to rescan it again
+    let mut line = buf.to_vec();
+    reader.consume(line.len());
+
     reader.read_until(b'\n', &mut line)?;
     Ok(line)
 }
