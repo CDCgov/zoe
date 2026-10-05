@@ -18,6 +18,11 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - `FastQReader::from_bufreader` now retries automatically on
   `ErrorKind::Interrupted`
 
+### Removed
+
+- Removed the deprecated API: `FastaNTAnnot`, `SamDataViewMut`,
+  `SamData::is_unmapped`, and `KmerEncoder::encode_kmer_checked`
+
 ## [0.0.34] - 2026-10-01
 
 ### Added

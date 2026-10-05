@@ -1,13 +1,12 @@
 //! Implementations of standard library traits on [`SamData`] and SAM-related
 //! types.
 
-#[allow(deprecated)]
 use crate::data::{
     cigar::CigarView,
     err::ResultWithErrorContext,
     nucleotides::NucleotidesView,
     phred::QualityScoresView,
-    sam::{OptArray, SamData, SamDataView, SamDataViewMut, SamOptField, SamOptValue, is_missing_sam_field},
+    sam::{OptArray, SamData, SamDataView, SamOptField, SamOptValue, is_missing_sam_field},
     views::AsView,
 };
 use std::{fmt::Display, str::FromStr};
@@ -70,14 +69,6 @@ impl Display for SamDataView<'_> {
         }
 
         Ok(())
-    }
-}
-
-#[allow(deprecated)]
-impl Display for SamDataViewMut<'_> {
-    #[inline]
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        self.as_view().fmt(f)
     }
 }
 

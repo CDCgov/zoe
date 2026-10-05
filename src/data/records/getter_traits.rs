@@ -1,12 +1,11 @@
 //! Getter traits for fields in record types, such as headers, annotations, and
 //! sequences.
 
-#[allow(deprecated)]
 use crate::{
     alignment::{LocalProfiles, SharedProfiles},
     data::{
         amino_acids::{AminoAcids, AminoAcidsView, AminoAcidsViewMut},
-        fasta::{FastaAA, FastaNT, FastaNTAnnot, FastaSeq},
+        fasta::{FastaAA, FastaNT, FastaSeq},
         fastq::{FastQ, FastQView, FastQViewMut},
         nucleotides::{Nucleotides, NucleotidesView, NucleotidesViewMut},
     },
@@ -63,14 +62,6 @@ impl HeaderReadable for FastaAA {
     }
 }
 
-#[allow(deprecated)]
-impl HeaderReadable for FastaNTAnnot {
-    #[inline]
-    fn header(&self) -> &str {
-        &self.name
-    }
-}
-
 /// Getter trait for structures providing mutable access to a header/name.
 pub trait HeaderMutable {
     /// Gets the header from the record.
@@ -107,14 +98,6 @@ impl HeaderMutable for FastaNT {
 }
 
 impl HeaderMutable for FastaAA {
-    #[inline]
-    fn header_mut(&mut self) -> &mut String {
-        &mut self.name
-    }
-}
-
-#[allow(deprecated)]
-impl HeaderMutable for FastaNTAnnot {
     #[inline]
     fn header_mut(&mut self) -> &mut String {
         &mut self.name
@@ -209,14 +192,6 @@ impl SequenceReadable for FastaAA {
 }
 
 impl SequenceReadable for FastaNT {
-    #[inline]
-    fn sequence_bytes(&self) -> &[u8] {
-        self.sequence.as_ref()
-    }
-}
-
-#[allow(deprecated)]
-impl SequenceReadable for FastaNTAnnot {
     #[inline]
     fn sequence_bytes(&self) -> &[u8] {
         self.sequence.as_ref()

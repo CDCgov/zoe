@@ -155,22 +155,6 @@ where
     // conversion. In such cases, `iter_from_sequence_rev` should be used
     // instead.
 
-    /// Encodes a k-mer, checking to ensure that its length is correct (and
-    /// returning [`None`] otherwise).
-    #[inline]
-    #[must_use]
-    #[deprecated(
-        since = "0.0.33",
-        note = "consider using encode_kmer or performing a manual check beforehand"
-    )]
-    fn encode_kmer_checked<S: AsRef<[u8]>>(&self, kmer: S) -> Option<Self::EncodedKmer> {
-        if kmer.as_ref().len() == self.kmer_length() {
-            Some(self.encode_kmer(kmer))
-        } else {
-            None
-        }
-    }
-
     /// Given an iterator of encoded k-mers, returns an iterator over the
     /// decoded k-mers.
     ///

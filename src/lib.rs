@@ -81,7 +81,7 @@ mod private {
         },
         data::{
             cigar::{Cigar, CigarView, CigarViewMut},
-            sam::{SamData, SamDataView, SamDataViewMut, SamOptRaw, SamOptRawView},
+            sam::{SamData, SamDataView, SamOptRaw, SamOptRawView},
         },
         prelude::*,
     };
@@ -168,7 +168,6 @@ mod private {
         CigarViewMut<'_>,
         SamData,
         SamDataView<'_>,
-        SamDataViewMut<'_>,
         SamOptRaw,
         SamOptRawView<'_>,
     );

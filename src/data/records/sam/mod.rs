@@ -1,4 +1,3 @@
-#![allow(deprecated)]
 //! A module for reading and manipulating
 //! [SAM](https://samtools.github.io/hts-specs/SAMv1.pdf) files. Provides some
 //! special-case functions used by [IRMA](https://wonder.cdc.gov/amd/flu/irma/).
@@ -7,7 +6,7 @@ use crate::{
     alignment::{Alignment, AlignmentStates, MaybeAligned, NextCiglet},
     data::{
         cigar::LenInAlignment,
-        types::cigar::{Cigar, CigarView, CigarViewMut},
+        types::cigar::{Cigar, CigarView},
     },
     math::AnyInt,
     prelude::*,
@@ -183,46 +182,6 @@ impl Hash for SamDataView<'_> {
         self.seq.hash(state);
         self.qual.hash(state);
     }
-}
-
-/// A mutable view of a [`SamData`] record, where sequence and string types are
-/// views (and primitive types are copied).
-///
-/// See [Views](crate::data#views) for more details. This struct is primarily
-/// used for displaying SAM data without requiring ownership.
-#[derive(Eq, PartialEq, Hash, Debug)]
-#[deprecated(
-    since = "0.0.33",
-    note = "consider using an immutable view or a custom struct instead. This struct will be removed in v0.0.35. Open an issue with a use-case if this struct is required"
-)]
-pub struct SamDataViewMut<'a> {
-    /// Query name.
-    pub qname: &'a mut String,
-    /// SAM flag: strandedness, etc.
-    pub flag:  Flag,
-    /// Reference name.
-    pub rname: &'a mut String,
-    /// The 1-based position in the reference to which the start of the query
-    /// aligns. This excludes clipped bases.
-    pub pos:   usize,
-    /// Mystical map quality value.
-    pub mapq:  u8,
-    /// Old style cigar format that does not include match and mismatch as
-    /// separate values.
-    pub cigar: CigarViewMut<'a>,
-    /// Reference name of the mate / next read. Currently not implemented and
-    /// set to `*`.
-    rnext:     char,
-    /// Position of the mate / next read. Currently not implemented and set to
-    /// `0`.
-    pnext:     u32,
-    /// So-called "observed template length." Currently not implemented and
-    /// always set to `0`.
-    tlen:      i32,
-    /// Query sequence.
-    pub seq:   NucleotidesViewMut<'a>,
-    /// Query quality scores in ASCII-encoded format with Phred Quality of +33.
-    pub qual:  QualityScoresViewMut<'a>,
 }
 
 impl SamData {
@@ -403,17 +362,6 @@ impl SamData {
             query_len,
         }))
     }
-
-    /// Tests if the [`SamData`] is unmapped.
-    ///
-    /// A record is considered unmapped if either the `flag` field has 0x4 set,
-    /// or if `cigar` has a match length of 0.
-    #[inline]
-    #[must_use]
-    #[deprecated(since = "0.0.33", note = "consider manually inspecting the flag and CIGAR string")]
-    pub fn is_unmapped(&self) -> bool {
-        self.flag.is_unmapped() || self.cigar.ref_len_in_alignment() == 0
-    }
 }
 
 impl<'a> SamDataView<'a> {
@@ -453,32 +401,6 @@ impl<'a> SamDataView<'a> {
         // Safety: * is graphic ascii
         let qual = unsafe { QualityScoresView::from_bytes_unchecked(b"*") };
         Self::new(qname, Flag::UNMAPPED, rname, 0, 255, CigarView::new(), seq, qual)
-    }
-}
-
-#[allow(deprecated)]
-impl<'a> SamDataViewMut<'a> {
-    /// Constructs a new [`SamDataViewMut`] record from the corresponding
-    /// fields.
-    #[allow(clippy::too_many_arguments)]
-    #[must_use]
-    pub fn new(
-        qname: &'a mut String, flag: Flag, rname: &'a mut String, pos: usize, mapq: u8, cigar: CigarViewMut<'a>,
-        seq: NucleotidesViewMut<'a>, qual: QualityScoresViewMut<'a>,
-    ) -> Self {
-        SamDataViewMut {
-            qname,
-            flag,
-            rname,
-            pos,
-            mapq,
-            cigar,
-            rnext: '*',
-            pnext: 0,
-            tlen: 0,
-            seq,
-            qual,
-        }
     }
 }
 
