@@ -10,7 +10,7 @@ use crate::{
 };
 use std::{
     fs::File,
-    io::{BufRead, Error as IOError, ErrorKind},
+    io::{BufRead, Error as IOError, ErrorKind, Read},
     path::Path,
 };
 
@@ -72,23 +72,18 @@ impl std::fmt::Display for SamRow {
 ///
 /// [`QualityScores`]: crate::data::types::phred::QualityScores
 #[derive(Debug)]
-pub struct SAMReader<R: std::io::Read, const OPT: bool> {
+pub struct SAMReader<R: Read, const OPT: bool> {
     sam_reader: std::io::Lines<std::io::BufReader<R>>,
 }
 
-impl<R: std::io::Read> SAMReader<R, true> {
+impl<R: Read> SAMReader<R, true> {
     /// Creates an iterator over SAM data, wrapping the input in a buffered
     /// reader.
     ///
     /// Unlike [`from_readable`], this does not read any data initially. It also
     /// allows for empty input, in which case the resulting iterator is empty.
     ///
-    /// If the optional data in the SAM records is not being used by the
-    /// downstream application, consider using [`new_ignore_opt`] for
-    /// efficiency.
-    ///
     /// [`from_readable`]: SAMReader::from_readable
-    /// [`new_ignore_opt`]: SAMReader::new_ignore_opt
     pub fn new(inner: R) -> Self {
         SAMReader {
             sam_reader: std::io::BufReader::new(inner).lines(),
@@ -98,16 +93,9 @@ impl<R: std::io::Read> SAMReader<R, true> {
     /// Creates an iterator over SAM data from a type implementing [`Read`],
     /// wrapping the input in a buffered reader.
     ///
-    /// If the optional data in the SAM records is not being used by the
-    /// downstream application, consider using [`from_readable_ignore_opt`] for
-    /// efficiency.
-    ///
     /// ## Errors
     ///
     /// Will return `Err` if the input data is empty or an IO error occurs.
-    ///
-    /// [`Read`]: std::io::Read
-    /// [`from_readable_ignore_opt`]: SAMReader::from_readable_ignore_opt
     pub fn from_readable(read: R) -> std::io::Result<Self> {
         let mut sam_reader = std::io::BufReader::new(read);
         if sam_reader.fill_buf()?.is_empty() {
@@ -284,17 +272,11 @@ impl SAMReader<File, true> {
     /// Creates an iterator over the SAM data contained in a path, using a
     /// buffered reader.
     ///
-    /// If the optional data in the SAM records is not being used by the
-    /// downstream application, consider using [`from_path_ignore_opt`] for
-    /// efficiency.
-    ///
     /// ## Errors
     ///
     /// Will return `Err` if the path does not exist, if there are insufficient
     /// permissions to read from it, or if it contains no data. The path is
     /// included in the error message.
-    ///
-    /// [`from_path_ignore_opt`]: SAMReader::from_path_ignore_opt
     pub fn from_path<P>(path: P) -> Result<Self, std::io::Error>
     where
         P: AsRef<Path>, {
