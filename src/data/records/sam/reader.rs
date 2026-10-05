@@ -134,6 +134,10 @@ impl<R: std::io::Read> SAMReader<R, false> {
     ///
     /// [`from_readable_ignore_opt`]: SAMReader::from_readable_ignore_opt
     /// [`new`]: SAMReader::new
+    #[deprecated(
+        since = "0.0.35",
+        note = "consider using new instead, and then not using the optional fields"
+    )]
     pub fn new_ignore_opt(inner: R) -> Self {
         SAMReader {
             sam_reader: std::io::BufReader::new(inner).lines(),
@@ -153,6 +157,10 @@ impl<R: std::io::Read> SAMReader<R, false> {
     ///
     /// [`Read`]: std::io::Read
     /// [`from_readable`]: SAMReader::from_readable
+    #[deprecated(
+        since = "0.0.35",
+        note = "consider using from_readable instead, and then not using the optional fields"
+    )]
     pub fn from_readable_ignore_opt(read: R) -> std::io::Result<Self> {
         let mut sam_reader = std::io::BufReader::new(read);
         if sam_reader.fill_buf()?.is_empty() {
@@ -311,6 +319,10 @@ impl SAMReader<File, false> {
     /// included in the error message.
     ///
     /// [`from_path`]: SAMReader::from_path
+    #[deprecated(
+        since = "0.0.35",
+        note = "consider using from_path instead, and then not using the optional fields"
+    )]
     pub fn from_path_ignore_opt<P>(path: P) -> Result<Self, std::io::Error>
     where
         P: AsRef<Path>, {
