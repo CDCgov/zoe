@@ -215,6 +215,6 @@ impl AsView for SamOptRaw {
 impl ToOwnedData for SamOptRawView<'_> {
     #[inline]
     fn to_owned_data(&self) -> Self::Owned {
-        SamOptRaw(self.0.to_vec())
+        SamOptRaw(self.0.to_string())
     }
 }

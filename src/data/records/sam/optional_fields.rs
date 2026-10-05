@@ -1,21 +1,32 @@
 //! Structs for holding optional fields in a SAM file.
 
-use crate::{data::err::ResultWithErrorContext, iter_utils::ProcessResultsExt, math::AnyInt, prelude::*};
-use std::{fmt::Display, str::FromStr};
+use crate::{
+    data::err::ResultWithErrorContext, iter_utils::ProcessResultsExt, math::AnyInt, prelude::*, search::ToStrRangeSearch,
+};
+use std::{
+    fmt::{Display, Write},
+    ops::Bound,
+    str::FromStr,
+};
 
 /// Any optional fields stored in a SAM record, lazily parsed on an as-needed
 /// basis.
 ///
 /// Each optional field consists of a tag, value type, and value.
 #[derive(Clone, Debug, Default)]
-pub struct SamOptRaw(pub(super) Vec<String>);
+pub struct SamOptRaw(
+    // Using a String instead of a split Vec<String> makes parsing of this as
+    // lazy as possible. Splitting and allocating increases runtime of IRMA
+    // core's merge-sam by 5-8%
+    pub(super) String,
+);
 
 impl SamOptRaw {
     /// Returns an empty collection of optional fields.
     #[inline]
     #[must_use]
     pub fn new() -> Self {
-        SamOptRaw(Vec::new())
+        Self::default()
     }
 
     /// Returns [`SamOptRaw`] containing just a single field with the alignment
@@ -25,9 +36,7 @@ impl SamOptRaw {
     #[inline]
     #[must_use]
     pub fn new_with_score<T: AnyInt + Into<i64>>(score: T) -> Self {
-        let mut inner = Vec::with_capacity(1);
-        inner.push(format!("AS:i:{score}", score = score.into()));
-        SamOptRaw(inner)
+        SamOptRaw(format!("AS:i:{score}", score = score.into()))
     }
 
     /// Returns whether the optional data is empty.
@@ -41,7 +50,7 @@ impl SamOptRaw {
     #[inline]
     #[must_use]
     pub fn len(&self) -> usize {
-        self.0.len()
+        if self.is_empty() { 0 } else { self.0.split('\t').count() }
     }
 
     /// Provides an iterator over the optional fields present (the tag names and
@@ -65,8 +74,9 @@ impl SamOptRaw {
 
     /// Provides an iterator over the raw, unparsed optional fields present.
     #[inline]
-    pub fn iter_raw(&self) -> std::slice::Iter<'_, String> {
-        self.0.iter()
+    #[must_use]
+    pub fn iter_raw(&self) -> std::str::Split<'_, char> {
+        self.as_view().iter_raw()
     }
 
     /// Returns the optional data for the provided tag, if it is present.
@@ -96,7 +106,9 @@ impl SamOptRaw {
     /// The tag name being pushed should not already be present in `self`.
     #[inline]
     pub fn push(&mut self, tag: &str, data: &SamOptValue) {
-        self.0.push(format!("{tag}:{data}"));
+        let delim = if self.is_empty() { "" } else { "\t" };
+        // Validity: writing to String is infallible
+        let _ = write!(&mut self.0, "{delim}{tag}:{data}");
     }
 }
 
@@ -105,14 +117,14 @@ impl SamOptRaw {
 ///
 /// Each optional field consists of a tag, value type, and value.
 #[derive(Copy, Clone, Debug, Default)]
-pub struct SamOptRawView<'a>(pub(super) &'a [String]);
+pub struct SamOptRawView<'a>(pub(super) &'a str);
 
-impl SamOptRawView<'_> {
+impl<'a> SamOptRawView<'a> {
     /// Returns an empty collection of optional fields.
     #[inline]
     #[must_use]
     pub fn new() -> Self {
-        SamOptRawView(&[])
+        Self::default()
     }
 
     /// Returns whether the optional data is empty.
@@ -126,7 +138,7 @@ impl SamOptRawView<'_> {
     #[inline]
     #[must_use]
     pub fn len(self) -> usize {
-        self.0.len()
+        if self.is_empty() { 0 } else { self.0.split('\t').count() }
     }
 
     /// Provides an iterator over the optional fields present (the tag names and
@@ -145,13 +157,18 @@ impl SamOptRawView<'_> {
     /// or `B`. `VALUE` must successfully parse into the corresponding type.
     #[inline]
     pub fn iter(self) -> impl Iterator<Item = std::io::Result<SamOptField>> {
-        self.0.iter().map(|f| SamOptField::from_str(f))
+        self.iter_raw().map(SamOptField::from_str)
     }
 
     /// Provides an iterator over the raw, unparsed optional fields present.
     #[inline]
-    pub fn iter_raw(&self) -> std::slice::Iter<'_, String> {
-        self.0.iter()
+    #[must_use]
+    pub fn iter_raw(&self) -> std::str::Split<'a, char> {
+        let mut iter = self.0.split('\t');
+        if self.is_empty() {
+            iter.next();
+        }
+        iter
     }
 
     /// Returns the optional data for the provided tag, if it is present.
@@ -171,7 +188,7 @@ impl SamOptRawView<'_> {
     ///
     /// [`get`]: SamOptRaw::get
     pub fn get(self, tag: &str) -> std::io::Result<Option<SamOptField>> {
-        for field in self.0 {
+        for field in self.iter_raw() {
             let inv_opt_err_msg = || std::io::Error::other(format!("Invalid optional field {field}"));
             let (this_tag, rest) = field.split_once(':').ok_or_else(inv_opt_err_msg)?;
 
@@ -209,7 +226,17 @@ impl FromIterator<String> for SamOptRaw {
     /// Furthermore, the tags should be unique.
     #[inline]
     fn from_iter<T: IntoIterator<Item = String>>(iter: T) -> Self {
-        SamOptRaw(Vec::from_iter(iter))
+        // TODO: Replace with intersperse once it stabilizes
+        let mut iter = iter.into_iter();
+
+        let Some(mut out) = iter.next() else { return Self::new() };
+
+        for option in iter {
+            out.push('\t');
+            out.push_str(&option);
+        }
+
+        SamOptRaw(out)
     }
 }
 
@@ -221,22 +248,12 @@ impl Display for SamOptRaw {
 
 impl Display for SamOptRawView<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let Some((first, rest)) = self.0.split_first() else {
-            return Ok(());
-        };
-
-        write!(f, "{first}")?;
-
-        for opt_field in rest {
-            write!(f, "\t{opt_field}")?;
-        }
-
-        Ok(())
+        self.0.fmt(f)
     }
 }
 
 /// A parsed optional field in the SAM file format.
-#[derive(Clone, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct SamOptField {
     /// The tag of the optional SAM field.
     pub tag:   [u8; 2],
@@ -533,29 +550,39 @@ impl OptArray {
 /// An iterator over the fields in [`SamOptRaw`], lazily parsed and validated.
 pub struct SamOptRawIter<'a> {
     /// An iterator over the unparsed fields, by reference.
-    fields: std::slice::Iter<'a, String>,
+    fields: std::str::Split<'a, char>,
 }
 
 impl Iterator for SamOptRawIter<'_> {
     type Item = std::io::Result<SamOptField>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.fields.next().map(|s| s.parse())
+        self.fields.next().map(str::parse)
     }
 }
 
 /// An iterator over the fields in [`SamOptRaw`], lazily parsed and validated,
 /// and stored/consumed by this iterator.
 pub struct SamOptRawIntoIter {
-    /// An iterator over the unparsed fields, by value.
-    fields: std::vec::IntoIter<String>,
+    /// The full string of fields being parsed
+    fields: String,
+    /// The current index in `fields` at which to being parsing the next field.
+    /// If `None`, the iterator has been exhausted.
+    idx:    Option<usize>,
 }
 
 impl Iterator for SamOptRawIntoIter {
     type Item = std::io::Result<SamOptField>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.fields.next().map(|s| s.parse())
+        let idx = self.idx?;
+
+        let end_idx = self.fields.str_search_in(idx..).find('\t');
+        let range = (Bound::Included(idx), end_idx.map_or(Bound::Unbounded, Bound::Excluded));
+
+        self.idx = end_idx.map(|i| i + 1);
+
+        Some(self.fields[range].parse())
     }
 }
 
@@ -564,7 +591,7 @@ impl<'a> IntoIterator for &'a SamOptRaw {
     type IntoIter = SamOptRawIter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        SamOptRawIter { fields: self.0.iter() }
+        SamOptRawIter { fields: self.iter_raw() }
     }
 }
 
@@ -573,7 +600,7 @@ impl<'a> IntoIterator for SamOptRawView<'a> {
     type IntoIter = SamOptRawIter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        SamOptRawIter { fields: self.0.iter() }
+        SamOptRawIter { fields: self.iter_raw() }
     }
 }
 
@@ -582,9 +609,10 @@ impl IntoIterator for SamOptRaw {
     type IntoIter = SamOptRawIntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
-        SamOptRawIntoIter {
-            fields: self.0.into_iter(),
-        }
+        // If there are no optional fields, then idx is None so that iterator is
+        // empty.
+        let idx = (!self.0.is_empty()).then_some(0);
+        SamOptRawIntoIter { fields: self.0, idx }
     }
 }
 

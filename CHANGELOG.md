@@ -6,6 +6,12 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ## [0.0.35] - TBD
 
+### Changed
+
+- `SamOptRaw` now stores the tags using a tab-delimited `String` to improve
+  performance and reduce allocations. Some methods return different concrete
+  iterator types
+
 ### Fixed
 
 - Improved the performance of `FastQReader` to avoid unnecessary allocations

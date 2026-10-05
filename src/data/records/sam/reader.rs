@@ -174,7 +174,8 @@ impl<R: std::io::Read, const OPT: bool> Iterator for SAMReader<R, OPT> {
         if line.starts_with('@') {
             Some(Ok(SamRow::Header(line)))
         } else {
-            let parts = line.split('\t').collect::<Vec<_>>();
+            // 11 required fields and one slot for optional fields
+            let parts = line.splitn(12, '\t').collect::<Vec<_>>();
 
             if parts.len() < 11 {
                 return Some(Err(IOError::new(
@@ -244,10 +245,10 @@ impl<R: std::io::Read, const OPT: bool> Iterator for SAMReader<R, OPT> {
                 unwrap_or_return_some_err!(parts[10].try_into())
             };
 
-            let opt_fields = if OPT {
-                parts[11..].iter().map(ToString::to_string).collect::<SamOptRaw>()
+            let opt_fields = if OPT && let Some(opt) = parts.get(11) {
+                SamOptRaw(opt.to_string())
             } else {
-                SamOptRaw::new()
+                SamOptRaw::default()
             };
 
             let row = SamData {
