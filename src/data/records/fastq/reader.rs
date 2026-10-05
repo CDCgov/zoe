@@ -4,7 +4,7 @@ use crate::{
 };
 use std::{
     fs::File,
-    io::{BufRead, BufReader, Error as IOError, ErrorKind},
+    io::{BufRead, BufReader, Error as IOError, ErrorKind, Read},
     path::Path,
 };
 
@@ -14,12 +14,11 @@ use std::{
 /// This does not support multiline FASTQ files. In other words, each sequence
 /// must be on a single line, and the quality scores must be on a single line.
 #[derive(Debug)]
-pub struct FastQReader<R: std::io::Read> {
-    fastq_reader: std::io::BufReader<R>,
-    fastq_buffer: Vec<u8>,
+pub struct FastQReader<R: Read> {
+    reader: BufReader<R>,
 }
 
-impl<R: std::io::Read> FastQReader<R> {
+impl<R: Read> FastQReader<R> {
     /// Creates an iterator over FASTQ data, wrapping the input in a buffered
     /// reader.
     ///
@@ -29,8 +28,7 @@ impl<R: std::io::Read> FastQReader<R> {
     /// [`from_readable`]: FastQReader::from_readable
     pub fn new(inner: R) -> Self {
         FastQReader {
-            fastq_reader: std::io::BufReader::new(inner),
-            fastq_buffer: Vec::new(),
+            reader: BufReader::new(inner),
         }
     }
 
@@ -40,26 +38,21 @@ impl<R: std::io::Read> FastQReader<R> {
     /// ## Errors
     ///
     /// Will return `Err` if the input data is empty or an IO error occurs.
-    ///
-    /// [`Read`]: std::io::Read
     pub fn from_readable(read: R) -> std::io::Result<Self> {
-        FastQReader::from_bufreader(std::io::BufReader::new(read))
+        FastQReader::from_bufreader(BufReader::new(read))
     }
 
-    /// Creates an iterator over FASTQ data from a `BufReader`.
+    /// Creates an iterator over FASTQ data from a [`BufReader`].
     ///
     /// ## Errors
     ///
     /// Will return `Err` if the input data is empty or an IO error occurs.
     pub fn from_bufreader(mut reader: BufReader<R>) -> std::io::Result<Self> {
-        if reader.fill_buf()?.is_empty() {
+        if reader.retrying_fill_buf()?.is_empty() {
             return Err(IOError::new(ErrorKind::InvalidData, "No FASTQ data was found!"));
         }
 
-        Ok(FastQReader {
-            fastq_reader: reader,
-            fastq_buffer: Vec::new(),
-        })
+        Ok(FastQReader { reader })
     }
 }
 
@@ -81,108 +74,145 @@ impl FastQReader<std::fs::File> {
     }
 }
 
-/// An iterator for buffered reading of a
-/// [FASTQ](https://en.wikipedia.org/wiki/FASTQ_format) file. Guarantees quality
-/// scores are valid.
-impl<R: std::io::Read> Iterator for FastQReader<R> {
+impl<R: Read> Iterator for FastQReader<R> {
     type Item = std::io::Result<FastQ>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.fastq_buffer.clear();
+        self.next_helper().transpose()
+    }
+}
 
-        // Read HEADER line
-        match self.fastq_reader.read_until(b'\n', &mut self.fastq_buffer) {
-            Ok(0) => return None,
-            Ok(_) => {}
-            Err(e) => return Some(Err(e)),
-        }
+impl<R: Read> FastQReader<R> {
+    /// A helper function for [`FastQReader::next`] that returns a [`Result`]
+    /// rather than an [`Option`], to allow for a more readable implementation.
+    #[inline]
+    fn next_helper(&mut self) -> std::io::Result<Option<FastQ>> {
+        // Consume "@" at start of header, or skip line and abort
+        let buf = self.reader.retrying_fill_buf()?;
 
-        let Some(mut header) = self.fastq_buffer.strip_prefix(b"@") else {
-            return Some(Err(IOError::new(
+        let Some(marker) = buf.first().copied() else { return Ok(None) };
+        if marker != b'@' {
+            // Skip the entire problematic line to avoid repeated errors (or
+            // infinite loops, in the case of an improperly used reader)
+            self.reader.skip_until(b'\n')?;
+
+            return Err(IOError::new(
                 ErrorKind::InvalidData,
                 "Missing '@' symbol at header line beginning! Ensure that the FASTQ file is not multi-line.",
-            )));
-        };
+            ));
+        }
 
+        self.reader.consume(1);
+
+        // Read header directly into Vec
+        let mut header = read_line_owned(&mut self.reader)?;
         header.chop_line_break();
 
         if header.is_empty() {
-            return Some(Err(IOError::new(ErrorKind::InvalidData, "Missing FASTQ header!")));
+            return Err(IOError::new(ErrorKind::InvalidData, "Missing FASTQ header!"));
         }
 
-        let header = match String::from_utf8(header.to_vec()) {
-            Ok(s) => s,
-            Err(e) => return Some(Err(IOError::new(ErrorKind::InvalidData, e))),
-        };
+        let header = String::from_utf8(header).map_err(|err| IOError::new(ErrorKind::InvalidData, err))?;
 
-        self.fastq_buffer.clear();
+        // Read sequence directly into Vec
+        let mut sequence = read_line_owned(&mut self.reader)?;
+        sequence.chop_line_break();
 
-        // Read SEQUENCE line
-        if let Err(e) = self.fastq_reader.read_until(b'\n', &mut self.fastq_buffer) {
-            return Some(Err(e));
-        }
-
-        self.fastq_buffer.chop_line_break();
-
-        if self.fastq_buffer.is_empty() {
-            return Some(Err(IOError::new(
+        if sequence.is_empty() {
+            return Err(IOError::new(
                 ErrorKind::InvalidData,
                 format!("Missing FASTQ sequence! See header: {header}"),
-            )));
+            ));
         }
 
-        let sequence = Nucleotides(self.fastq_buffer.clone());
+        let sequence = Nucleotides(sequence);
 
-        self.fastq_buffer.clear();
+        // Consume "+" line without allocating
+        let buffer = self.reader.retrying_fill_buf()?;
+        let plus_marker = buffer.first().copied();
+        // Skip the line, even in the case when the marker is not present (this
+        // avoids repeated errors and infinite loops)
+        self.reader.skip_until(b'\n')?;
 
-        // Read "+" line
-        if let Err(e) = self.fastq_reader.read_until(b'\n', &mut self.fastq_buffer) {
-            return Some(Err(e));
-        }
-
-        if !self.fastq_buffer.starts_with(b"+") {
-            return Some(Err(IOError::new(
+        if plus_marker != Some(b'+') {
+            return Err(IOError::new(
                 ErrorKind::InvalidData,
                 format!("Missing '+' line! Ensure that the FASTQ file is not multi-line. See header: {header}"),
-            )));
+            ));
         }
 
-        self.fastq_buffer.clear();
+        // Read quality line directly into Vec of known capacity. Use
+        // wrapping_add for efficiency over saturating_add, which will almost
+        // surely never wrap (but if it does, it does not cause a logic error)
+        let mut quality = Vec::with_capacity(sequence.len().wrapping_add(2));
+        self.reader.read_until(b'\n', &mut quality)?;
+        quality.chop_line_break();
 
-        // Read QUALITY line
-        if let Err(e) = self.fastq_reader.read_until(b'\n', &mut self.fastq_buffer) {
-            return Some(Err(e));
-        }
-
-        self.fastq_buffer.chop_line_break();
-
-        if self.fastq_buffer.len() != sequence.len() {
-            if self.fastq_buffer.is_empty() {
-                return Some(Err(IOError::new(
+        if quality.len() != sequence.len() {
+            if quality.is_empty() {
+                return Err(IOError::new(
                     ErrorKind::InvalidData,
                     format!("Missing FASTQ quality scores! See header: {header}"),
-                )));
+                ));
             }
 
-            return Some(Err(IOError::new(
+            return Err(IOError::new(
                 ErrorKind::InvalidData,
                 format!(
                     "Sequence and quality score length mismatch ({s} ≠ {q})! See: {header}",
                     s = sequence.len(),
-                    q = self.fastq_buffer.len(),
+                    q = quality.len(),
                 ),
-            )));
+            ));
         }
 
-        let quality = match QualityScores::try_from(self.fastq_buffer.as_slice()) {
-            Ok(s) => s,
-            Err(e) => return Some(Err(IOError::new(ErrorKind::InvalidData, e))),
-        };
+        let quality = QualityScores::try_from(quality)?;
 
-        Some(Ok(FastQ {
+        Ok(Some(FastQ {
             header,
             sequence,
             quality,
         }))
     }
+}
+
+/// An extension trait for [`BufRead`] offering a retrying version of
+/// [`BufRead::fill_buf`].
+trait BufReadExtension: BufRead {
+    /// A version of [`BufRead::fill_buf`] that retries upon
+    /// [`ErrorKind::Interrupted`].
+    ///
+    /// Many higher-level [`BufRead`] methods retry on this error like
+    /// [`BufRead::read_until`], so this method allows implementing similar
+    /// higher-level functionality.
+    fn retrying_fill_buf(&mut self) -> std::io::Result<&[u8]> {
+        loop {
+            match self.fill_buf() {
+                Ok(buf) => return Ok(buf),
+                Err(err) if err.kind() == ErrorKind::Interrupted => {}
+                Err(err) => return Err(err),
+            }
+        }
+    }
+}
+
+impl<R: BufRead> BufReadExtension for R {}
+
+/// Reads a line (including any line break) into an exactly-sized [`Vec`] when
+/// it is already fully buffered, otherwise falls back to [`read_until`].
+///
+/// [`read_until`]: BufRead::read_until
+#[inline]
+fn read_line_owned<R: Read>(reader: &mut BufReader<R>) -> std::io::Result<Vec<u8>> {
+    let buf = reader.retrying_fill_buf()?;
+
+    if let Some(i) = buf.find_byte(b'\n') {
+        let line = buf[..=i].to_vec();
+        reader.consume(i + 1);
+        return Ok(line);
+    }
+
+    let mut line = Vec::new();
+    reader.read_until(b'\n', &mut line)?;
+    Ok(line)
 }

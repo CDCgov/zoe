@@ -1,5 +1,90 @@
 use crate::prelude::*;
-use std::io::Cursor;
+use std::io::{BufReader, Cursor, ErrorKind, Read};
+
+struct InterruptedOnce<R> {
+    inner:       R,
+    interrupted: bool,
+}
+
+impl<R: Read> Read for InterruptedOnce<R> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        if self.interrupted {
+            self.inner.read(buf)
+        } else {
+            self.interrupted = true;
+            Err(ErrorKind::Interrupted.into())
+        }
+    }
+}
+
+#[test]
+fn interrupted_header_read_is_retried() {
+    let input = InterruptedOnce {
+        inner:       Cursor::new(b"@seq1\nA\n+\n!\n"),
+        interrupted: false,
+    };
+    let mut reader = FastQReader::new(input);
+
+    let record = reader.next().unwrap().unwrap();
+    assert_eq!(record.header, "seq1");
+    assert_eq!(record.sequence, Nucleotides::from_vec_unchecked(b"A".into()));
+    assert_eq!(record.quality, QualityScores::try_from(b"!".to_vec()).unwrap());
+    assert!(reader.next().is_none());
+}
+
+#[test]
+fn crlf_with_one_byte_input_buffer() {
+    let input = b"@seq1\r\nATGC\r\n+seq1\r\nIIII\r\n";
+    let inner = BufReader::with_capacity(1, Cursor::new(input));
+    let mut reader = FastQReader::from_bufreader(inner).unwrap();
+
+    let record = reader.next().unwrap().unwrap();
+    assert_eq!(record.header, "seq1");
+    assert_eq!(record.sequence, Nucleotides::from_vec_unchecked(b"ATGC".into()));
+    assert_eq!(record.quality, QualityScores::try_from(b"IIII".to_vec()).unwrap());
+    assert!(reader.next().is_none());
+}
+
+#[test]
+fn malformed_header_line_is_consumed() {
+    let input = b"not-a-header\n@seq2\nA\n+\n!\n";
+    let inner = BufReader::with_capacity(1, Cursor::new(input));
+    let mut reader = FastQReader::from_bufreader(inner).unwrap();
+
+    let error = reader.next().unwrap().unwrap_err();
+    assert_eq!(error.kind(), ErrorKind::InvalidData);
+    assert_eq!(
+        error.to_string(),
+        "Missing '@' symbol at header line beginning! Ensure that the FASTQ file is not multi-line."
+    );
+
+    let record = reader.next().unwrap().unwrap();
+    assert_eq!(record.header, "seq2");
+    assert_eq!(record.sequence, Nucleotides::from_vec_unchecked(b"A".into()));
+    assert_eq!(record.quality, QualityScores::try_from(b"!".to_vec()).unwrap());
+    assert!(reader.next().is_none());
+}
+
+#[test]
+fn invalid_header_utf8_retains_details() {
+    let input = b"@\xff\nA\n+\n!\n";
+    let mut reader = FastQReader::new(Cursor::new(input));
+    let error = reader.next().unwrap().unwrap_err();
+    let expected = String::from_utf8(vec![0xff]).unwrap_err();
+
+    assert_eq!(error.kind(), ErrorKind::InvalidData);
+    assert_eq!(error.to_string(), expected.to_string());
+}
+
+#[test]
+fn invalid_quality_is_rejected() {
+    let input = b"@seq1\nA\n+\n \n";
+    let mut reader = FastQReader::new(Cursor::new(input));
+    let error = reader.next().unwrap().unwrap_err();
+
+    assert_eq!(error.kind(), ErrorKind::InvalidData);
+    assert_eq!(error.to_string(), "Quality scores contain invalid state!");
+}
 
 #[test]
 fn empty_file() {

@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file. The format
 is roughly based on [Keep a Changelog], and this project tries to adheres to
 [Semantic Versioning].
 
+## [0.0.35] - TBD
+
+### Fixed
+
+- Improved the performance of `FastQReader` to avoid unnecessary allocations
+- `FastQReader::from_bufreader` now retries automatically on
+  `ErrorKind::Interrupted`
+
 ## [0.0.34] - 2026-10-01
 
 ### Added
@@ -715,6 +723,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - **Added**: Initial internal release. Provides various readers and types for bioinformatics data manipulation.
 
 <!-- Versions -->
+[0.0.35]: https://github.com/CDCgov/zoe/compare/v0.0.34...v0.0.35
 [0.0.34]: https://github.com/CDCgov/zoe/compare/v0.0.33...v0.0.34
 [0.0.33]: https://github.com/CDCgov/zoe/compare/v0.0.32...v0.0.33
 [0.0.32]: https://github.com/CDCgov/zoe/compare/v0.0.31...v0.0.32
