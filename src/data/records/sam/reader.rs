@@ -10,7 +10,7 @@ use crate::{
 };
 use std::{
     fs::File,
-    io::{BufRead, Error as IOError, ErrorKind, Read},
+    io::{BufRead, BufReader, Error as IOError, ErrorKind, Read},
     path::Path,
 };
 
@@ -97,13 +97,21 @@ impl<R: Read> SAMReader<R, true> {
     ///
     /// Will return `Err` if the input data is empty or an IO error occurs.
     pub fn from_readable(read: R) -> std::io::Result<Self> {
-        let mut sam_reader = std::io::BufReader::new(read);
-        if sam_reader.fill_buf()?.is_empty() {
-            return Err(IOError::new(ErrorKind::InvalidData, "No SAM data was found!"));
+        SAMReader::from_bufreader(BufReader::new(read))
+    }
+
+    /// Creates an iterator over SAM data from a [`BufReader`].
+    ///
+    /// ## Errors
+    ///
+    /// Will return `Err` if the input data is empty or an IO error occurs.
+    pub fn from_bufreader(mut reader: BufReader<R>) -> std::io::Result<Self> {
+        if reader.fill_buf()?.is_empty() {
+            return Err(IOError::new(ErrorKind::InvalidData, "No FASTQ data was found!"));
         }
 
         Ok(SAMReader {
-            sam_reader: sam_reader.lines(),
+            sam_reader: reader.lines(),
         })
     }
 }

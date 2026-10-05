@@ -6,6 +6,10 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ## [0.0.35] - TBD
 
+### Added
+
+- Added `from_bufreader` constructor for `SAMReader`
+
 ### Changed
 
 - Iteration on `Cigar` and `CigarView` now produces a fallible checked iterator
