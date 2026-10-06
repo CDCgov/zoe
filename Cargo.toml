@@ -4,7 +4,7 @@ name = "zoe"
 version = "0.0.35-dev"
 # Note: use nightly-2026-06-28 or later to silence invalid_doc_attributes
 # warnings and correct documentation generation.
-rust-version = "1.95"
+rust-version = "1.100"
 description = "A nightly library for viral genomics"
 license = "Apache-2.0"
 

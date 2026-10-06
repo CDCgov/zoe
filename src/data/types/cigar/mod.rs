@@ -10,6 +10,7 @@ mod views;
 
 pub use error::*;
 pub use iter::*;
+use std::str::FromStr;
 pub use views::*;
 
 /// A [CIGAR string] of increment-operation pairs used in sequence alignment.
@@ -273,6 +274,15 @@ impl<const N: usize> TryFrom<&mut [u8; N]> for Cigar {
     #[inline]
     fn try_from(v: &mut [u8; N]) -> Result<Self, Self::Error> {
         Cigar::try_from(v.to_vec())
+    }
+}
+
+impl FromStr for Cigar {
+    type Err = CigarError;
+
+    #[inline]
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Cigar::try_from(s.as_bytes())
     }
 }
 

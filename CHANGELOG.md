@@ -13,6 +13,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - `SamOptRaw` now stores the tags using a tab-delimited `String` to improve
   performance and reduce allocations. Some methods return different concrete
   iterator types
+- MSRV is now 1.100 to default to the new borrow checker.
 
 ### Fixed
 

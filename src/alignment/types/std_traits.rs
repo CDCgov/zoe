@@ -5,7 +5,7 @@ use crate::{
         types::cigar::{Cigar, CigarError, Ciglet, CigletIteratorChecked},
     },
 };
-use std::{cmp::Ordering, fmt::Write};
+use std::{cmp::Ordering, fmt::Write, str::FromStr};
 
 impl AsRef<[Ciglet]> for AlignmentStates {
     #[inline]
@@ -205,6 +205,15 @@ impl<const N: usize> TryFrom<&mut [u8; N]> for AlignmentStates {
     #[inline]
     fn try_from(v: &mut [u8; N]) -> Result<Self, Self::Error> {
         AlignmentStates::try_from(v.as_slice())
+    }
+}
+
+impl FromStr for AlignmentStates {
+    type Err = CigarError;
+
+    #[inline]
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        AlignmentStates::try_from(s.as_bytes())
     }
 }
 

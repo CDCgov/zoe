@@ -7,6 +7,7 @@ use std::{
     io::{Error as IOError, ErrorKind},
     ops::Index,
     slice::SliceIndex,
+    str::FromStr,
 };
 
 impl AsRef<[u8]> for QualityScores {
@@ -133,6 +134,15 @@ impl TryFrom<&mut String> for QualityScores {
     type Error = IOError;
     #[inline]
     fn try_from(encoded_scores: &mut String) -> Result<Self, Self::Error> {
+        QualityScores::try_from(encoded_scores.as_bytes())
+    }
+}
+
+impl FromStr for QualityScores {
+    type Err = IOError;
+
+    #[inline]
+    fn from_str(encoded_scores: &str) -> Result<Self, Self::Err> {
         QualityScores::try_from(encoded_scores.as_bytes())
     }
 }

@@ -226,7 +226,7 @@ impl<'a> ArbitrarySpecs<'a> for AlignmentStatesSpecs {
         let mut vec = self.ciglet_specs.make_arbitrary_iter(u).collect::<Result<Vec<_>>>()?;
 
         if self.avoid_middle_hard_clipping {
-            let mut iter = vec.as_slice().iter();
+            let mut iter = vec.iter();
 
             let hard_clip_start = iter.by_ref().take_while(|ciglet| ciglet.op == b'H').count();
             let hard_clip_back = iter.by_ref().rev().take_while(|ciglet| ciglet.op == b'H').count();
@@ -243,7 +243,7 @@ impl<'a> ArbitrarySpecs<'a> for AlignmentStatesSpecs {
         }
 
         if self.avoid_middle_soft_clipping {
-            let mut iter = vec.as_slice().iter();
+            let mut iter = vec.iter();
 
             let clip_start = {
                 let mut clipping_op = b'H';
