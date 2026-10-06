@@ -73,6 +73,12 @@
 use crate::alignment::{Alignment, BackTrackable, BacktrackMatrix, ScalarProfile};
 use std::ops::Add;
 
+#[cfg(feature = "alignment-diagnostics")]
+mod score_from_path;
+
+#[cfg(feature = "alignment-diagnostics")]
+pub use score_from_path::*;
+
 /// Needleman–Wunsch algorithm (non-vectorized), yielding the optimal score.
 ///
 /// Provides the globally optimal sequence alignment score using affine gap
@@ -319,76 +325,4 @@ pub fn nw_scalar_align<const S: usize>(reference: &[u8], query: &ScalarProfile<S
     }
 
     backtrack.to_alignment_global(h_row[h_row.len() - 1], reference.len(), query.seq.len())
-}
-
-/// Computes the score for a global alignment.
-///
-/// When scoring an alignment, this function expects the `query` to be
-/// passed as a [`ScalarProfile`].
-///
-/// ## Validity
-///
-/// - The iterator of ciglets should never contain two ciglets with the same
-///   operation adjacent to each other.
-///
-/// ## Errors
-///
-/// - The `ciglets` must contain valid operations in `MIDNP=X`,
-/// - All of `query`, `ref_in_alignment`, and `cigar` must be fully consumed.
-///
-/// ## Panics
-///
-/// - All increments must be nonzero.
-#[cfg(feature = "alignment-diagnostics")]
-#[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
-pub fn nw_score_from_path<const S: usize>(
-    ciglets: impl IntoIterator<Item = crate::data::cigar::Ciglet>, reference: &[u8], query: &ScalarProfile<S>,
-) -> Result<i32, super::ScoringError> {
-    use std::cmp::Ordering::{Equal, Greater, Less};
-
-    let mut score = 0;
-    let mut r = 0;
-    let mut q = 0;
-
-    for crate::data::cigar::Ciglet { inc, op } in ciglets {
-        match op {
-            b'M' | b'=' | b'X' => {
-                for _ in 0..inc {
-                    let Some(reference_base) = reference.get(r).copied() else {
-                        return Err(super::ScoringError::ReferenceEnded);
-                    };
-                    let Some(query_base) = query.seq.get(q).copied() else {
-                        return Err(super::ScoringError::QueryEnded);
-                    };
-                    score += i32::from(query.matrix.get_weight(reference_base, query_base));
-                    q += 1;
-                    r += 1;
-                }
-            }
-            b'I' => {
-                score += query.gap_open + query.gap_extend * (inc - 1) as i32;
-                q += inc;
-            }
-            b'D' => {
-                score += query.gap_open + query.gap_extend * (inc - 1) as i32;
-                r += inc;
-            }
-            b'N' => r += inc,
-            b'P' => {}
-            op => return Err(super::ScoringError::InvalidCigarOp(op)),
-        }
-    }
-    match q.cmp(&query.seq.len()) {
-        Less => return Err(super::ScoringError::FullQueryNotUsed),
-        Greater => return Err(super::ScoringError::QueryEnded),
-        Equal => {}
-    }
-
-    match r.cmp(&reference.len()) {
-        Less => return Err(super::ScoringError::FullReferenceNotUsed),
-        Greater => return Err(super::ScoringError::ReferenceEnded),
-        Equal => {}
-    }
-
-    Ok(score)
 }
