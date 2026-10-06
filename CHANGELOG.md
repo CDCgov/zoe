@@ -14,6 +14,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
   performance and reduce allocations. Some methods return different concrete
   iterator types
 - MSRV is now 1.100 to default to the new borrow checker.
+- Deprecated `ScoringError` in favor of `SwScoringError` and `NwScoringError`, separate enums for each function
 
 ### Fixed
 

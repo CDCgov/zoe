@@ -41,6 +41,10 @@ impl Error for ProfileError {}
 
 /// An enum representing errors that can happen when calculating an alignment
 /// score for a particular CIGAR string.
+#[deprecated(
+    since = "0.0.35",
+    note = "consider using SwScoringError or NwScoringError instead, behind alignment-diagnostics feature gate"
+)]
 #[derive(PartialEq)]
 #[non_exhaustive]
 pub enum ScoringError {
@@ -60,6 +64,7 @@ pub enum ScoringError {
     InvalidCigarOp(u8),
 }
 
+#[allow(deprecated)]
 impl fmt::Display for ScoringError {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -82,6 +87,7 @@ impl fmt::Display for ScoringError {
     }
 }
 
+#[allow(deprecated)]
 impl fmt::Debug for ScoringError {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -89,4 +95,5 @@ impl fmt::Debug for ScoringError {
     }
 }
 
+#[allow(deprecated)]
 impl Error for ScoringError {}

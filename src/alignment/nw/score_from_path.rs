@@ -1,8 +1,9 @@
-use crate::{
-    alignment::{ScalarProfile, ScoringError},
-    data::cigar::Ciglet,
+use crate::{alignment::ScalarProfile, data::cigar::Ciglet};
+use std::{
+    cmp::Ordering::{Equal, Greater, Less},
+    error::Error,
+    fmt::{Debug, Display},
 };
-use std::cmp::Ordering::{Equal, Greater, Less};
 
 /// Computes the score for a global alignment.
 ///
@@ -25,7 +26,7 @@ use std::cmp::Ordering::{Equal, Greater, Less};
 #[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
 pub fn nw_score_from_path<const S: usize>(
     ciglets: impl IntoIterator<Item = Ciglet>, reference: &[u8], query: &ScalarProfile<S>,
-) -> Result<i32, ScoringError> {
+) -> Result<i32, NwScoringError> {
     let mut score = 0;
     let mut r = 0;
     let mut q = 0;
@@ -35,10 +36,10 @@ pub fn nw_score_from_path<const S: usize>(
             b'M' | b'=' | b'X' => {
                 for _ in 0..inc {
                     let Some(reference_base) = reference.get(r).copied() else {
-                        return Err(ScoringError::ReferenceEnded);
+                        return Err(NwScoringError::ReferenceEnded);
                     };
                     let Some(query_base) = query.seq.get(q).copied() else {
-                        return Err(ScoringError::QueryEnded);
+                        return Err(NwScoringError::QueryEnded);
                     };
                     score += i32::from(query.matrix.get_weight(reference_base, query_base));
                     q += 1;
@@ -55,20 +56,69 @@ pub fn nw_score_from_path<const S: usize>(
             }
             b'N' => r += inc,
             b'P' => {}
-            op => return Err(ScoringError::InvalidCigarOp(op)),
+            op => return Err(NwScoringError::InvalidCigarOp(op)),
         }
     }
     match q.cmp(&query.seq.len()) {
-        Less => return Err(ScoringError::FullQueryNotUsed),
-        Greater => return Err(ScoringError::QueryEnded),
+        Less => return Err(NwScoringError::FullQueryNotUsed),
+        Greater => return Err(NwScoringError::QueryEnded),
         Equal => {}
     }
 
     match r.cmp(&reference.len()) {
-        Less => return Err(ScoringError::FullReferenceNotUsed),
-        Greater => return Err(ScoringError::ReferenceEnded),
+        Less => return Err(NwScoringError::FullReferenceNotUsed),
+        Greater => return Err(NwScoringError::ReferenceEnded),
         Equal => {}
     }
 
     Ok(score)
 }
+
+/// An enum representing errors that can happen when calculating an alignment
+/// score for a particular CIGAR string.
+#[derive(PartialEq)]
+#[non_exhaustive]
+pub enum NwScoringError {
+    /// Query ended before the entire CIGAR string was consumed
+    QueryEnded,
+    /// Reference ended before the entire CIGAR string was consumed
+    ReferenceEnded,
+    /// Failed to consume the full, provided query, which was expected to
+    /// contain no more than what was represented by the CIGAR string
+    FullQueryNotUsed,
+    /// Failed to consume the full, provided reference, which was expected to
+    /// contain only the aligned region of the original reference
+    FullReferenceNotUsed,
+    /// Unsupported CIGAR opcode used in argument
+    InvalidCigarOp(u8),
+}
+
+impl Display for NwScoringError {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            NwScoringError::QueryEnded => write!(f, "The query ended before the entire CIGAR string was consumed!"),
+            NwScoringError::ReferenceEnded => write!(f, "The reference ended before the entire CIGAR string was consumed!"),
+            NwScoringError::FullQueryNotUsed => write!(
+                f,
+                "Failed to consume the full, provided query, which was expected to contain no more than what was represented by the CIGAR string"
+            ),
+            NwScoringError::FullReferenceNotUsed => {
+                write!(
+                    f,
+                    "Failed to consume the full, provided reference, which was expected to contain only the aligned region of the original reference"
+                )
+            }
+            NwScoringError::InvalidCigarOp(op) => write!(f, "An unsupported CIGAR opcode was encountered: {op}"),
+        }
+    }
+}
+
+impl Debug for NwScoringError {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{self}")
+    }
+}
+
+impl Error for NwScoringError {}
