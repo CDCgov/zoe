@@ -3,7 +3,7 @@
 
 use crate::{
     alignment::{AlignmentStates, NextCiglet, PeekOp},
-    data::cigar::{Cigar, CigarError, CigarView, CigarViewMut, Ciglet, USIZE_WIDTH, is_valid_op},
+    data::cigar::{AlignOp, Cigar, CigarError, CigarView, CigarViewMut, Ciglet, USIZE_WIDTH},
     unwrap_or_return_some_err,
 };
 use std::hint::cold_path;
@@ -60,7 +60,7 @@ impl Iterator for CigletIterator<'_> {
             if b.is_ascii_digit() {
                 num *= 10;
                 num += usize::from(b - b'0');
-            } else if is_valid_op(b) {
+            } else if let Ok(op) = AlignOp::try_from(b) {
                 if index == 0 {
                     // The increment field was completely missing, which is
                     // invalid
@@ -69,7 +69,7 @@ impl Iterator for CigletIterator<'_> {
                 }
 
                 self.buffer = &self.buffer[index + 1..];
-                return Some(Ciglet { inc: num, op: b });
+                return Some(Ciglet { inc: num, op });
             } else {
                 self.valid = false;
                 return None;
@@ -86,9 +86,9 @@ impl Iterator for CigletIterator<'_> {
                     return None;
                 };
                 num = new_num;
-            } else if is_valid_op(b) {
+            } else if let Ok(op) = AlignOp::try_from(b) {
                 self.buffer = &self.buffer[index + 1..];
-                return Some(Ciglet { inc: num, op: b });
+                return Some(Ciglet { inc: num, op });
             } else {
                 self.valid = false;
                 return None;
@@ -108,9 +108,7 @@ impl DoubleEndedIterator for CigletIterator<'_> {
         let mut buffer = buffer;
         let op = *op;
 
-        if !is_valid_op(op) {
-            return None;
-        }
+        let Ok(op) = AlignOp::try_from(op) else { return None };
 
         let mut num = 0;
 
@@ -176,7 +174,7 @@ impl DoubleEndedIterator for CigletIterator<'_> {
 
 impl PeekOp for CigletIterator<'_> {
     #[inline]
-    fn peek_op(&mut self) -> Option<u8> {
+    fn peek_op(&mut self) -> Option<AlignOp> {
         loop {
             let op_pos = self.buffer.iter().position(|x| !x.is_ascii_digit())?;
             let (inc, rest) = self.buffer.split_at(op_pos);
@@ -185,14 +183,16 @@ impl PeekOp for CigletIterator<'_> {
             if inc.iter().all(|b| *b == b'0') {
                 cold_path();
                 self.buffer = &self.buffer[op_pos + 1..];
-            } else {
+            } else if let Ok(op) = AlignOp::try_from(op) {
                 return Some(op);
+            } else {
+                return None;
             }
         }
     }
 
     #[inline]
-    fn peek_op_back(&mut self) -> Option<u8> {
+    fn peek_op_back(&mut self) -> Option<AlignOp> {
         loop {
             let (op, rest) = self.buffer.split_last()?;
 
@@ -205,8 +205,10 @@ impl PeekOp for CigletIterator<'_> {
             if inc.iter().all(|b| *b == b'0') {
                 cold_path();
                 self.buffer = &self.buffer[..inc_start_idx];
+            } else if let Ok(op) = AlignOp::try_from(*op) {
+                return Some(op);
             } else {
-                return Some(*op);
+                return None;
             }
         }
     }
@@ -584,16 +586,18 @@ impl Iterator for CigletIteratorChecked<'_> {
                 num *= 10;
                 num += usize::from(b - b'0');
                 has_number = true;
-            } else if is_valid_op(b) {
+            } else {
+                let op = match AlignOp::try_from(b) {
+                    Ok(op) => op,
+                    Err(err) => return Some(Err(err.into())),
+                };
                 if !has_number {
                     return Some(Err(CigarError::MissingInc));
                 } else if num == 0 {
                     return Some(Err(CigarError::IncZero));
                 }
                 self.buffer = &self.buffer[index + 1..];
-                return Some(Ok(Ciglet { inc: num, op: b }));
-            } else {
-                return Some(Err(CigarError::InvalidOperation));
+                return Some(Ok(Ciglet { inc: num, op }));
             }
             index += 1;
         }
@@ -608,16 +612,18 @@ impl Iterator for CigletIteratorChecked<'_> {
                         .ok_or(CigarError::IncOverflow)
                 );
                 has_number = true;
-            } else if is_valid_op(b) {
+            } else {
+                let op = match AlignOp::try_from(b) {
+                    Ok(op) => op,
+                    Err(err) => return Some(Err(err.into())),
+                };
                 if !has_number {
                     return Some(Err(CigarError::MissingInc));
                 } else if num == 0 {
                     return Some(Err(CigarError::IncZero));
                 }
                 self.buffer = &self.buffer[index + 1..];
-                return Some(Ok(Ciglet { inc: num, op: b }));
-            } else {
-                return Some(Err(CigarError::InvalidOperation));
+                return Some(Ok(Ciglet { inc: num, op }));
             }
             index += 1;
         }

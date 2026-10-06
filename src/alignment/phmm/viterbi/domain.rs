@@ -1,19 +1,23 @@
-use crate::alignment::{
-    Alignment, AlignmentStates,
-    phmm::{
-        DomainPhmm, PhmmNumber,
-        components::LayerParams,
-        indexing::{
-            AlnIndex, AlnIndexRange, AlnIndexable, DpIndex, GetLayer, GetMapping, GetModule, IndexRangeInner, LastResidue,
+use crate::{
+    alignment::{
+        Alignment, AlignmentStates,
+        phmm::{
+            DomainPhmm, PhmmNumber,
+            components::LayerParams,
+            indexing::{
+                AlnIndex, AlnIndexRange, AlnIndexable, DpIndex, GetLayer, GetMapping, GetModule, IndexRangeInner,
+                LastResidue,
+            },
+            modules::PrecomputedDomainModule,
+            state::{
+                PhmmBacktrackFlags,
+                PhmmState::{self, Delete, Insert, Match},
+                PhmmTracebackState, best_state,
+            },
+            viterbi::{ViterbiError, ViterbiTraceback, update_delete, update_insert},
         },
-        modules::PrecomputedDomainModule,
-        state::{
-            PhmmBacktrackFlags,
-            PhmmState::{self, Delete, Insert, Match},
-            PhmmTracebackState, best_state,
-        },
-        viterbi::{ViterbiError, ViterbiTraceback, update_delete, update_insert},
     },
+    data::cigar::AlignOp,
 };
 use std::ops::Bound::{Excluded, Included};
 
@@ -193,14 +197,14 @@ impl<T: PhmmNumber, const S: usize> DomainPhmm<'_, T, S> {
             let next_state = traceback.get(i, j).get_prev_state(state);
 
             if state.is_match() {
-                states.add_state(b'M');
+                states.add_state(AlignOp::M);
                 i -= 1;
                 j -= 1;
             } else if state.is_delete() {
-                states.add_state(b'D');
+                states.add_state(AlignOp::D);
                 j -= 1;
             } else {
-                states.add_state(b'I');
+                states.add_state(AlignOp::I);
                 i -= 1;
             }
 

@@ -1,16 +1,19 @@
-use crate::alignment::{
-    Alignment, AlignmentStates,
-    phmm::{
-        GlobalPhmm, PhmmNumber,
-        components::LayerParams,
-        indexing::{AlnIndexable, GetLayer, GetMapping},
-        state::{
-            PhmmBacktrackFlags,
-            PhmmState::{self, Delete, Insert, Match},
-            PhmmTracebackState, best_state,
+use crate::{
+    alignment::{
+        Alignment, AlignmentStates,
+        phmm::{
+            GlobalPhmm, PhmmNumber,
+            components::LayerParams,
+            indexing::{AlnIndexable, GetLayer, GetMapping},
+            state::{
+                PhmmBacktrackFlags,
+                PhmmState::{self, Delete, Insert, Match},
+                PhmmTracebackState, best_state,
+            },
+            viterbi::{ViterbiError, ViterbiTraceback, update_delete, update_insert},
         },
-        viterbi::{ViterbiError, ViterbiTraceback, update_delete, update_insert},
     },
+    data::cigar::AlignOp,
 };
 
 /// A tracker for the best score for the global Viterbi algorithm.
@@ -153,15 +156,15 @@ impl<T: PhmmNumber, const S: usize> GlobalPhmm<'_, T, S> {
             let next_state = traceback.data[cursor].get_prev_state(state);
 
             if state.is_match() {
-                states.add_state(b'M');
+                states.add_state(AlignOp::M);
                 // i -= 1; j -= 1;
                 cursor -= traceback.cols + 1;
             } else if state.is_delete() {
-                states.add_state(b'D');
+                states.add_state(AlignOp::D);
                 // j -= 1;
                 cursor -= traceback.cols;
             } else {
-                states.add_state(b'I');
+                states.add_state(AlignOp::I);
                 // i -= 1;
                 cursor -= 1;
             }

@@ -1,4 +1,7 @@
-use crate::alignment::{Alignment, AlignmentStates};
+use crate::{
+    alignment::{Alignment, AlignmentStates},
+    data::cigar::AlignOp,
+};
 use std::{
     mem::MaybeUninit,
     simd::{Select, prelude::*},
@@ -289,7 +292,9 @@ pub(crate) trait BackTrackable {
         &mut self, score: T, mut r_end: usize, mut c_end: usize, ref_len: usize, query_len: usize,
     ) -> Alignment<T> {
         let mut states = AlignmentStates::new();
-        let mut op = 0;
+        // Initialize with match op so that it gets overridden in the loop
+        // without triggering any is_*_extending branches
+        let mut op = AlignOp::M;
 
         self.move_to(r_end, c_end); // 0-based move to max
 
@@ -303,20 +308,18 @@ pub(crate) trait BackTrackable {
         states.soft_clip(query_len - c);
 
         while !self.is_stop() && r > 0 && c > 0 {
-            if op == b'D' && self.is_up_extending() {
-                op = b'D';
+            if op == AlignOp::D && self.is_up_extending() {
                 r -= 1;
-            } else if op == b'I' && self.is_left_extending() {
-                op = b'I';
+            } else if op == AlignOp::I && self.is_left_extending() {
                 c -= 1;
             } else if self.is_up() {
-                op = b'D';
+                op = AlignOp::D;
                 r -= 1;
             } else if self.is_left() {
-                op = b'I';
+                op = AlignOp::I;
                 c -= 1;
             } else {
-                op = b'M';
+                op = AlignOp::M;
                 r -= 1;
                 c -= 1;
             }
@@ -343,17 +346,19 @@ pub(crate) trait BackTrackable {
     /// backtrack matrix.
     fn to_alignment_global<T>(&mut self, score: T, ref_len: usize, query_len: usize) -> Alignment<T> {
         let mut states = AlignmentStates::new();
-        let mut op = 0;
+        // Initialize with match op so that it gets overridden in the loop
+        // without triggering any is_*_extending branches
+        let mut op = AlignOp::M;
 
         let Some(mut r) = ref_len.checked_sub(1) else {
             // reference is empty
-            states.add_inc_op(query_len, b'I');
+            states.add_inc_op(query_len, AlignOp::I);
             return Alignment::new_global(score, states, ref_len, query_len);
         };
 
         let Some(mut c) = query_len.checked_sub(1) else {
             // query is empty
-            states.add_inc_op(ref_len, b'D');
+            states.add_inc_op(ref_len, AlignOp::D);
             return Alignment::new_global(score, states, ref_len, query_len);
         };
 
@@ -364,31 +369,29 @@ pub(crate) trait BackTrackable {
         c += 1;
 
         loop {
-            if op == b'D' && self.is_up_extending() {
-                op = b'D';
+            if op == AlignOp::D && self.is_up_extending() {
                 r -= 1;
-            } else if op == b'I' && self.is_left_extending() {
-                op = b'I';
+            } else if op == AlignOp::I && self.is_left_extending() {
                 c -= 1;
             } else if self.is_up() {
-                op = b'D';
+                op = AlignOp::D;
                 r -= 1;
             } else if self.is_left() {
-                op = b'I';
+                op = AlignOp::I;
                 c -= 1;
             } else {
-                op = b'M';
+                op = AlignOp::M;
                 r -= 1;
                 c -= 1;
             }
             states.add_state(op);
 
             if r == 0 {
-                states.add_inc_op(c, b'I');
+                states.add_inc_op(c, AlignOp::I);
                 states.make_reverse();
                 return Alignment::new_global(score, states, ref_len, query_len);
             } else if c == 0 {
-                states.add_inc_op(r, b'D');
+                states.add_inc_op(r, AlignOp::D);
                 states.make_reverse();
                 return Alignment::new_global(score, states, ref_len, query_len);
             }

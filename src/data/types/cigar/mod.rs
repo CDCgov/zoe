@@ -1,5 +1,6 @@
 use crate::alignment::AlignmentStates;
 use core::fmt::NumBuffer;
+use std::{fmt::Display, str::FromStr};
 
 #[cfg(test)]
 mod test;
@@ -10,7 +11,6 @@ mod views;
 
 pub use error::*;
 pub use iter::*;
-use std::str::FromStr;
 pub use views::*;
 
 /// A [CIGAR string] of increment-operation pairs used in sequence alignment.
@@ -114,7 +114,7 @@ impl Cigar {
     /// Returns an iterator over the opcodes in the CIGAR string, with each
     /// repeated the number of times specified in the CIGAR string.
     #[inline]
-    pub fn expanded_cigar_iter(&self) -> impl Iterator<Item = u8> {
+    pub fn expanded_cigar_iter(&self) -> impl Iterator<Item = AlignOp> {
         self.iter_unchecked()
             .flat_map(|Ciglet { inc, op }| std::iter::repeat_n(op, inc))
     }
@@ -323,7 +323,7 @@ impl FormatCigletForCigarVec for Vec<u8> {
     fn push_formatted_ciglet(&mut self, ciglet: Ciglet) {
         let mut buff = NumBuffer::new();
         self.extend_from_slice(ciglet.inc.format_into(&mut buff).as_bytes());
-        self.push(ciglet.op);
+        self.push(ciglet.op as u8);
     }
 }
 
@@ -336,24 +336,111 @@ pub struct Ciglet {
     /// Increment or repetition count.
     pub inc: usize,
     /// Alignment operation code.
-    pub op:  u8,
+    pub op:  AlignOp,
 }
 
-impl Ciglet {
-    /// Returns true if the operation in the [`Ciglet`] consumes positions from
-    /// the query.
+/// An enum of the different alignment states that can exist in a CIGAR string,
+/// as used in *Zoe*'s [`Cigar`] and [`Ciglet`].
+///
+/// The operations match those used by the
+/// [SAM](https://samtools.github.io/hts-specs/SAMv1.pdf) specifications.
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+#[repr(u8)]
+pub enum AlignOp {
+    /// Alignment match (can be a sequence match or mismatch).
+    ///
+    /// This operation consumes positions from both the query and reference.
+    /// This is prefered to [`AlignOp::Eq`] and [`AlignOp::X`] in *Zoe* since it
+    /// allows more concise and readable alignment representations.
+    M  = b'M',
+
+    /// Insertion to the reference.
+    ///
+    /// This operation consumes positions from the query only.
+    I  = b'I',
+
+    /// Deletion from the reference.
+    ///
+    /// This operation consumes positions from the reference only.
+    D  = b'D',
+
+    /// Skipped region from the reference.
+    ///
+    /// This operation consumes positions from the reference only.
+    N  = b'N',
+
+    /// Soft clipping (clipped sequences present in SAM's `SEQ` field).
+    ///
+    /// This operation consumes positions from the query only.
+    S  = b'S',
+
+    /// Hard clipping (clipped sequences not present in SAM's `SEQ` field).
+    ///
+    /// This operation consumes positions from neither the query nor reference.
+    H  = b'H',
+
+    /// Padding (silent deletion from padded reference).
+    ///
+    /// This operation consumes positions from neither the query nor reference.
+    P  = b'P',
+
+    /// Sequence match.
+    ///
+    /// This operation consumes positions from both the query and reference.
+    Eq = b'=',
+
+    /// Sequence mismatch.
+    ///
+    /// This operation consumes positions from both the query and reference.
+    X  = b'X',
+}
+
+impl AlignOp {
+    /// Converts the [`AlignOp`] to a `char` which can be displayed.
+    #[must_use]
+    pub fn as_char(self) -> char {
+        (self as u8) as char
+    }
+}
+
+impl TryFrom<u8> for AlignOp {
+    type Error = InvalidCigarOpErr;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            b'M' => Ok(AlignOp::M),
+            b'I' => Ok(AlignOp::I),
+            b'D' => Ok(AlignOp::D),
+            b'N' => Ok(AlignOp::N),
+            b'S' => Ok(AlignOp::S),
+            b'H' => Ok(AlignOp::H),
+            b'P' => Ok(AlignOp::P),
+            b'=' => Ok(AlignOp::Eq),
+            b'X' => Ok(AlignOp::X),
+            op => Err(InvalidCigarOpErr(op)),
+        }
+    }
+}
+
+impl Display for AlignOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_char())
+    }
+}
+
+impl AlignOp {
+    /// Returns true if the [`AlignOp`] consumes positions from the query.
     #[inline]
     #[must_use]
-    pub fn op_consumes_query(self) -> bool {
-        matches!(self.op, b'M' | b'I' | b'S' | b'=' | b'X')
+    pub fn consumes_query(self) -> bool {
+        matches!(self, AlignOp::M | AlignOp::I | AlignOp::S | AlignOp::Eq | AlignOp::X)
     }
 
-    /// Returns true if the operation in the [`Ciglet`] consumes positions from
-    /// the reference.
+    /// Returns true if the [`AlignOp`] consumes positions from the reference.
     #[inline]
     #[must_use]
-    pub fn op_consumes_ref(self) -> bool {
-        matches!(self.op, b'M' | b'D' | b'N' | b'=' | b'X')
+    pub fn consumes_ref(self) -> bool {
+        matches!(self, AlignOp::M | AlignOp::D | AlignOp::N | AlignOp::Eq | AlignOp::X)
     }
 }
 
@@ -367,14 +454,14 @@ impl PartialEq<AlignmentStates> for Cigar {
 impl std::fmt::Display for Ciglet {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}{}", self.inc, self.op as char)
+        write!(f, "{}{}", self.inc, self.op)
     }
 }
 
 impl std::fmt::Debug for Ciglet {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "({},{})", self.inc, self.op as char)
+        write!(f, "({},{})", self.inc, self.op)
     }
 }
 
@@ -388,8 +475,6 @@ impl FromIterator<Ciglet> for Result<Cigar, CigarError> {
         for ciglet in data {
             if ciglet.inc == 0 {
                 return Err(CigarError::IncZero);
-            } else if !is_valid_op(ciglet.op) {
-                return Err(CigarError::InvalidOperation);
             }
 
             byte_string.push_formatted_ciglet(ciglet);
@@ -397,14 +482,6 @@ impl FromIterator<Ciglet> for Result<Cigar, CigarError> {
 
         Ok(Cigar(byte_string))
     }
-}
-
-/// Returns whether a byte represents a valid CIGAR operation.
-///
-/// The following operations are valid: `MIDNSHPX=`.
-#[inline]
-pub(crate) const fn is_valid_op(op: u8) -> bool {
-    matches!(op, b'M' | b'I' | b'D' | b'N' | b'S' | b'H' | b'P' | b'X' | b'=')
 }
 
 /// A trait allowing the length of the query or reference in an alignment to be
@@ -445,28 +522,28 @@ where
     #[inline]
     fn ref_len_in_alignment(&self) -> usize {
         self.to_ciglet_iterator()
-            .filter_map(|ciglet| ciglet.op_consumes_ref().then_some(ciglet.inc))
+            .filter_map(|ciglet| ciglet.op.consumes_ref().then_some(ciglet.inc))
             .sum()
     }
 
     #[inline]
     fn query_len_in_alignment(&self) -> usize {
         self.to_ciglet_iterator()
-            .filter_map(|ciglet| ciglet.op_consumes_query().then_some(ciglet.inc))
+            .filter_map(|ciglet| ciglet.op.consumes_query().then_some(ciglet.inc))
             .sum()
     }
 
     #[inline]
     fn ref_len_in_alignment_checked(&self) -> Option<usize> {
         self.to_ciglet_iterator()
-            .filter_map(|ciglet| ciglet.op_consumes_ref().then_some(ciglet.inc))
+            .filter_map(|ciglet| ciglet.op.consumes_ref().then_some(ciglet.inc))
             .try_fold(0, usize::checked_add)
     }
 
     #[inline]
     fn query_len_in_alignment_checked(&self) -> Option<usize> {
         self.to_ciglet_iterator()
-            .filter_map(|ciglet| ciglet.op_consumes_query().then_some(ciglet.inc))
+            .filter_map(|ciglet| ciglet.op.consumes_query().then_some(ciglet.inc))
             .try_fold(0, usize::checked_add)
     }
 }
@@ -486,6 +563,6 @@ where
 {
     #[inline]
     fn has_indels(&self) -> bool {
-        self.to_ciglet_iterator().any(|c| matches!(c.op, b'I' | b'D'))
+        self.to_ciglet_iterator().any(|c| matches!(c.op, AlignOp::I | AlignOp::D))
     }
 }

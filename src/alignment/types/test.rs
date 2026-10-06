@@ -1,3 +1,4 @@
+use crate::data::amino_acids::AminoAcidsView;
 #[allow(deprecated)]
 use crate::{
     alignment::{
@@ -5,8 +6,8 @@ use crate::{
         sw::sw_scalar_align,
     },
     data::{
-        amino_acids::{AminoAcids, AminoAcidsView},
-        cigar::CigarError,
+        amino_acids::AminoAcids,
+        cigar::{AlignOp, CigarError},
         matrices::WeightMatrix,
         nucleotides::{Nucleotides, NucleotidesView},
         types::cigar::{Cigar, Ciglet},
@@ -51,6 +52,7 @@ fn alignment_reversal() {
 }
 
 #[test]
+#[allow(clippy::too_many_lines)]
 fn states_sequence() {
     // The cigar string is not valid here, but we are using it to exercise all
     // options
@@ -61,20 +63,20 @@ fn states_sequence() {
     let mut cigar_mut_slice = alignment_states_mut.as_mut_slice();
     let mut ciglet_iterator = cigar.iter_unchecked();
 
-    assert_eq!(cigar_slice.peek_op(), Some(b'H'));
-    assert_eq!(cigar_mut_slice.peek_op(), Some(b'H'));
-    assert_eq!(ciglet_iterator.peek_op(), Some(b'H'));
-    assert_eq!(cigar_slice.peek_op_back(), Some(b'H'));
-    assert_eq!(cigar_mut_slice.peek_op_back(), Some(b'H'));
-    assert_eq!(ciglet_iterator.peek_op_back(), Some(b'H'));
+    assert_eq!(cigar_slice.peek_op(), Some(AlignOp::H));
+    assert_eq!(cigar_mut_slice.peek_op(), Some(AlignOp::H));
+    assert_eq!(ciglet_iterator.peek_op(), Some(AlignOp::H));
+    assert_eq!(cigar_slice.peek_op_back(), Some(AlignOp::H));
+    assert_eq!(cigar_mut_slice.peek_op_back(), Some(AlignOp::H));
+    assert_eq!(ciglet_iterator.peek_op_back(), Some(AlignOp::H));
 
     // Shouldn't have changed, since we didn't advance
-    assert_eq!(cigar_slice.peek_op(), Some(b'H'));
-    assert_eq!(cigar_mut_slice.peek_op(), Some(b'H'));
-    assert_eq!(ciglet_iterator.peek_op(), Some(b'H'));
-    assert_eq!(cigar_slice.peek_op_back(), Some(b'H'));
-    assert_eq!(cigar_mut_slice.peek_op_back(), Some(b'H'));
-    assert_eq!(ciglet_iterator.peek_op_back(), Some(b'H'));
+    assert_eq!(cigar_slice.peek_op(), Some(AlignOp::H));
+    assert_eq!(cigar_mut_slice.peek_op(), Some(AlignOp::H));
+    assert_eq!(ciglet_iterator.peek_op(), Some(AlignOp::H));
+    assert_eq!(cigar_slice.peek_op_back(), Some(AlignOp::H));
+    assert_eq!(cigar_mut_slice.peek_op_back(), Some(AlignOp::H));
+    assert_eq!(ciglet_iterator.peek_op_back(), Some(AlignOp::H));
 
     assert_eq!(cigar_slice.remove_clipping_front(), 7);
     assert_eq!(cigar_mut_slice.remove_clipping_front(), 7);
@@ -83,12 +85,12 @@ fn states_sequence() {
     assert_eq!(cigar_mut_slice.remove_clipping_back(), 11);
     assert_eq!(ciglet_iterator.remove_clipping_back(), 11);
 
-    assert_eq!(cigar_slice.peek_op(), Some(b'S'));
-    assert_eq!(cigar_mut_slice.peek_op(), Some(b'S'));
-    assert_eq!(ciglet_iterator.peek_op(), Some(b'S'));
-    assert_eq!(cigar_slice.peek_op_back(), Some(b'S'));
-    assert_eq!(cigar_mut_slice.peek_op_back(), Some(b'S'));
-    assert_eq!(ciglet_iterator.peek_op_back(), Some(b'S'));
+    assert_eq!(cigar_slice.peek_op(), Some(AlignOp::S));
+    assert_eq!(cigar_mut_slice.peek_op(), Some(AlignOp::S));
+    assert_eq!(ciglet_iterator.peek_op(), Some(AlignOp::S));
+    assert_eq!(cigar_slice.peek_op_back(), Some(AlignOp::S));
+    assert_eq!(cigar_mut_slice.peek_op_back(), Some(AlignOp::S));
+    assert_eq!(ciglet_iterator.peek_op_back(), Some(AlignOp::S));
 
     assert_eq!(cigar_slice.remove_clipping_front(), 4);
     assert_eq!(cigar_mut_slice.remove_clipping_front(), 4);
@@ -111,51 +113,60 @@ fn states_sequence() {
     assert_eq!(cigar_mut_slice.remove_clipping_back(), 0);
     assert_eq!(ciglet_iterator.remove_clipping_back(), 0);
 
-    assert_eq!(cigar_slice.next_ciglet_if_op(|op| op == b'I'), None);
-    assert_eq!(cigar_mut_slice.next_ciglet_if_op(|op| op == b'I'), None);
-    assert_eq!(ciglet_iterator.next_ciglet_if_op(|op| op == b'I'), None);
-    assert_eq!(cigar_slice.next_ciglet_back_if_op(|op| op == b'I'), None);
-    assert_eq!(cigar_mut_slice.next_ciglet_back_if_op(|op| op == b'I'), None);
-    assert_eq!(ciglet_iterator.next_ciglet_back_if_op(|op| op == b'I'), None);
+    assert_eq!(cigar_slice.next_ciglet_if_op(|op| op == AlignOp::I), None);
+    assert_eq!(cigar_mut_slice.next_ciglet_if_op(|op| op == AlignOp::I), None);
+    assert_eq!(ciglet_iterator.next_ciglet_if_op(|op| op == AlignOp::I), None);
+    assert_eq!(cigar_slice.next_ciglet_back_if_op(|op| op == AlignOp::I), None);
+    assert_eq!(cigar_mut_slice.next_ciglet_back_if_op(|op| op == AlignOp::I), None);
+    assert_eq!(ciglet_iterator.next_ciglet_back_if_op(|op| op == AlignOp::I), None);
 
     assert_eq!(
-        cigar_slice.next_ciglet_if_op(|op| op == b'M'),
-        Some(Ciglet { inc: 10, op: b'M' })
+        cigar_slice.next_ciglet_if_op(|op| op == AlignOp::M),
+        Some(Ciglet {
+            inc: 10,
+            op:  AlignOp::M,
+        })
     );
     assert_eq!(
-        cigar_mut_slice.next_ciglet_if_op(|op| op == b'M'),
-        Some(Ciglet { inc: 10, op: b'M' })
+        cigar_mut_slice.next_ciglet_if_op(|op| op == AlignOp::M),
+        Some(Ciglet {
+            inc: 10,
+            op:  AlignOp::M,
+        })
     );
     assert_eq!(
-        ciglet_iterator.next_ciglet_if_op(|op| op == b'M'),
-        Some(Ciglet { inc: 10, op: b'M' })
+        ciglet_iterator.next_ciglet_if_op(|op| op == AlignOp::M),
+        Some(Ciglet {
+            inc: 10,
+            op:  AlignOp::M,
+        })
     );
     assert_eq!(
-        cigar_slice.next_ciglet_back_if_op(|op| op == b'M'),
-        Some(Ciglet { inc: 5, op: b'M' })
+        cigar_slice.next_ciglet_back_if_op(|op| op == AlignOp::M),
+        Some(Ciglet { inc: 5, op: AlignOp::M })
     );
     assert_eq!(
-        cigar_mut_slice.next_ciglet_back_if_op(|op| op == b'M'),
-        Some(Ciglet { inc: 5, op: b'M' })
+        cigar_mut_slice.next_ciglet_back_if_op(|op| op == AlignOp::M),
+        Some(Ciglet { inc: 5, op: AlignOp::M })
     );
     assert_eq!(
-        ciglet_iterator.next_ciglet_back_if_op(|op| op == b'M'),
-        Some(Ciglet { inc: 5, op: b'M' })
+        ciglet_iterator.next_ciglet_back_if_op(|op| op == AlignOp::M),
+        Some(Ciglet { inc: 5, op: AlignOp::M })
     );
 
-    assert_eq!(cigar_slice.next_ciglet(), Some(Ciglet { inc: 9, op: b'I' }));
-    assert_eq!(cigar_mut_slice.next_ciglet(), Some(Ciglet { inc: 9, op: b'I' }));
-    assert_eq!(ciglet_iterator.next_ciglet(), Some(Ciglet { inc: 9, op: b'I' }));
-    assert_eq!(cigar_slice.next_ciglet_back(), Some(Ciglet { inc: 1, op: b'D' }));
-    assert_eq!(cigar_mut_slice.next_ciglet_back(), Some(Ciglet { inc: 1, op: b'D' }));
-    assert_eq!(ciglet_iterator.next_ciglet_back(), Some(Ciglet { inc: 1, op: b'D' }));
+    assert_eq!(cigar_slice.next_ciglet(), Some(Ciglet { inc: 9, op: AlignOp::I }));
+    assert_eq!(cigar_mut_slice.next_ciglet(), Some(Ciglet { inc: 9, op: AlignOp::I }));
+    assert_eq!(ciglet_iterator.next_ciglet(), Some(Ciglet { inc: 9, op: AlignOp::I }));
+    assert_eq!(cigar_slice.next_ciglet_back(), Some(Ciglet { inc: 1, op: AlignOp::D }));
+    assert_eq!(cigar_mut_slice.next_ciglet_back(), Some(Ciglet { inc: 1, op: AlignOp::D }));
+    assert_eq!(ciglet_iterator.next_ciglet_back(), Some(Ciglet { inc: 1, op: AlignOp::D }));
 
     assert_ne!(cigar_slice, []);
     assert_ne!(cigar_mut_slice, []);
 
-    assert_eq!(cigar_slice.next_ciglet(), Some(Ciglet { inc: 3, op: b'M' }));
-    assert_eq!(cigar_mut_slice.next_ciglet(), Some(Ciglet { inc: 3, op: b'M' }));
-    assert_eq!(ciglet_iterator.next_ciglet(), Some(Ciglet { inc: 3, op: b'M' }));
+    assert_eq!(cigar_slice.next_ciglet(), Some(Ciglet { inc: 3, op: AlignOp::M }));
+    assert_eq!(cigar_mut_slice.next_ciglet(), Some(Ciglet { inc: 3, op: AlignOp::M }));
+    assert_eq!(ciglet_iterator.next_ciglet(), Some(Ciglet { inc: 3, op: AlignOp::M }));
     assert_eq!(cigar_slice.next_ciglet_back(), None);
     assert_eq!(cigar_mut_slice.next_ciglet_back(), None);
     assert_eq!(ciglet_iterator.next_ciglet_back(), None);
@@ -175,18 +186,18 @@ fn states_sequence_mut() {
     let mut alignment_states = AlignmentStates::from_cigar_unchecked(&cigar);
     let mut cigar_mut_slice = alignment_states.as_mut_slice();
 
-    assert_eq!(cigar_mut_slice.peek_op(), Some(b'H'));
-    assert_eq!(cigar_mut_slice.peek_op_back(), Some(b'H'));
+    assert_eq!(cigar_mut_slice.peek_op(), Some(AlignOp::H));
+    assert_eq!(cigar_mut_slice.peek_op_back(), Some(AlignOp::H));
 
     // Shouldn't have changed, since we didn't advance
-    assert_eq!(cigar_mut_slice.peek_op(), Some(b'H'));
-    assert_eq!(cigar_mut_slice.peek_op_back(), Some(b'H'));
+    assert_eq!(cigar_mut_slice.peek_op(), Some(AlignOp::H));
+    assert_eq!(cigar_mut_slice.peek_op_back(), Some(AlignOp::H));
 
     assert_eq!(cigar_mut_slice.remove_clipping_front(), 7);
     assert_eq!(cigar_mut_slice.remove_clipping_back(), 11);
 
-    assert_eq!(cigar_mut_slice.peek_op(), Some(b'S'));
-    assert_eq!(cigar_mut_slice.peek_op_back(), Some(b'S'));
+    assert_eq!(cigar_mut_slice.peek_op(), Some(AlignOp::S));
+    assert_eq!(cigar_mut_slice.peek_op_back(), Some(AlignOp::S));
 
     assert_eq!(cigar_mut_slice.remove_clipping_front(), 4);
     assert_eq!(cigar_mut_slice.remove_clipping_back(), 5);
@@ -197,25 +208,37 @@ fn states_sequence_mut() {
     assert_eq!(cigar_mut_slice.remove_clipping_front(), 0);
     assert_eq!(cigar_mut_slice.remove_clipping_back(), 0);
 
-    assert_eq!(cigar_mut_slice.next_ciglet_if_op(|op| op == b'I'), None);
-    assert_eq!(cigar_mut_slice.next_ciglet_back_if_op(|op| op == b'I'), None);
-    assert_eq!(cigar_mut_slice.next_ciglet_if_op_mut(|op| op == b'I'), None);
-    assert_eq!(cigar_mut_slice.next_ciglet_back_if_op_mut(|op| op == b'I'), None);
+    assert_eq!(cigar_mut_slice.next_ciglet_if_op(|op| op == AlignOp::I), None);
+    assert_eq!(cigar_mut_slice.next_ciglet_back_if_op(|op| op == AlignOp::I), None);
+    assert_eq!(cigar_mut_slice.next_ciglet_if_op_mut(|op| op == AlignOp::I), None);
+    assert_eq!(cigar_mut_slice.next_ciglet_back_if_op_mut(|op| op == AlignOp::I), None);
 
-    let next_ciglet = cigar_mut_slice.next_ciglet_if_op_mut(|op| op == b'M');
-    assert_eq!(next_ciglet, Some(&mut Ciglet { inc: 10, op: b'M' }));
+    let next_ciglet = cigar_mut_slice.next_ciglet_if_op_mut(|op| op == AlignOp::M);
+    assert_eq!(
+        next_ciglet,
+        Some(&mut Ciglet {
+            inc: 10,
+            op:  AlignOp::M,
+        })
+    );
     next_ciglet.unwrap().inc += 1;
 
-    let next_ciglet_back = cigar_mut_slice.next_ciglet_back_if_op_mut(|op| op == b'M');
-    assert_eq!(next_ciglet_back, Some(&mut Ciglet { inc: 5, op: b'M' }));
-    next_ciglet_back.unwrap().op = b'I';
+    let next_ciglet_back = cigar_mut_slice.next_ciglet_back_if_op_mut(|op| op == AlignOp::M);
+    assert_eq!(next_ciglet_back, Some(&mut Ciglet { inc: 5, op: AlignOp::M }));
+    next_ciglet_back.unwrap().op = AlignOp::I;
 
-    assert_eq!(cigar_mut_slice.next_ciglet_mut(), Some(&mut Ciglet { inc: 9, op: b'I' }));
-    assert_eq!(cigar_mut_slice.next_ciglet_back_mut(), Some(&mut Ciglet { inc: 1, op: b'D' }));
+    assert_eq!(
+        cigar_mut_slice.next_ciglet_mut(),
+        Some(&mut Ciglet { inc: 9, op: AlignOp::I })
+    );
+    assert_eq!(
+        cigar_mut_slice.next_ciglet_back_mut(),
+        Some(&mut Ciglet { inc: 1, op: AlignOp::D })
+    );
 
     assert_ne!(cigar_mut_slice, []);
 
-    assert_eq!(cigar_mut_slice.next_ciglet(), Some(Ciglet { inc: 3, op: b'M' }));
+    assert_eq!(cigar_mut_slice.next_ciglet(), Some(Ciglet { inc: 3, op: AlignOp::M }));
     assert_eq!(cigar_mut_slice.next_ciglet_back(), None);
     assert_eq!(cigar_mut_slice.next_ciglet(), None);
 
@@ -235,20 +258,20 @@ fn states_sequence_zero_ciglets() {
     let mut cigar_mut_slice = alignment_states_mut.as_mut_slice();
     let mut ciglet_iterator = cigar.iter_unchecked();
 
-    assert_eq!(cigar_slice.peek_op(), Some(b'M'));
-    assert_eq!(cigar_mut_slice.peek_op(), Some(b'M'));
-    assert_eq!(ciglet_iterator.peek_op(), Some(b'M'));
-    assert_eq!(cigar_slice.peek_op_back(), Some(b'S'));
-    assert_eq!(cigar_mut_slice.peek_op_back(), Some(b'S'));
-    assert_eq!(ciglet_iterator.peek_op_back(), Some(b'S'));
+    assert_eq!(cigar_slice.peek_op(), Some(AlignOp::M));
+    assert_eq!(cigar_mut_slice.peek_op(), Some(AlignOp::M));
+    assert_eq!(ciglet_iterator.peek_op(), Some(AlignOp::M));
+    assert_eq!(cigar_slice.peek_op_back(), Some(AlignOp::S));
+    assert_eq!(cigar_mut_slice.peek_op_back(), Some(AlignOp::S));
+    assert_eq!(ciglet_iterator.peek_op_back(), Some(AlignOp::S));
 
     // Shouldn't have changed, since we didn't advance
-    assert_eq!(cigar_slice.peek_op(), Some(b'M'));
-    assert_eq!(cigar_mut_slice.peek_op(), Some(b'M'));
-    assert_eq!(ciglet_iterator.peek_op(), Some(b'M'));
-    assert_eq!(cigar_slice.peek_op_back(), Some(b'S'));
-    assert_eq!(cigar_mut_slice.peek_op_back(), Some(b'S'));
-    assert_eq!(ciglet_iterator.peek_op_back(), Some(b'S'));
+    assert_eq!(cigar_slice.peek_op(), Some(AlignOp::M));
+    assert_eq!(cigar_mut_slice.peek_op(), Some(AlignOp::M));
+    assert_eq!(ciglet_iterator.peek_op(), Some(AlignOp::M));
+    assert_eq!(cigar_slice.peek_op_back(), Some(AlignOp::S));
+    assert_eq!(cigar_mut_slice.peek_op_back(), Some(AlignOp::S));
+    assert_eq!(ciglet_iterator.peek_op_back(), Some(AlignOp::S));
 
     assert_eq!(cigar_slice.remove_clipping_front(), 0);
     assert_eq!(cigar_mut_slice.remove_clipping_front(), 0);
@@ -257,12 +280,12 @@ fn states_sequence_zero_ciglets() {
     assert_eq!(cigar_mut_slice.remove_clipping_back(), 1);
     assert_eq!(ciglet_iterator.remove_clipping_back(), 1);
 
-    assert_eq!(cigar_slice.peek_op(), Some(b'M'));
-    assert_eq!(cigar_mut_slice.peek_op(), Some(b'M'));
-    assert_eq!(ciglet_iterator.peek_op(), Some(b'M'));
-    assert_eq!(cigar_slice.peek_op_back(), Some(b'N'));
-    assert_eq!(cigar_mut_slice.peek_op_back(), Some(b'N'));
-    assert_eq!(ciglet_iterator.peek_op_back(), Some(b'N'));
+    assert_eq!(cigar_slice.peek_op(), Some(AlignOp::M));
+    assert_eq!(cigar_mut_slice.peek_op(), Some(AlignOp::M));
+    assert_eq!(ciglet_iterator.peek_op(), Some(AlignOp::M));
+    assert_eq!(cigar_slice.peek_op_back(), Some(AlignOp::N));
+    assert_eq!(cigar_mut_slice.peek_op_back(), Some(AlignOp::N));
+    assert_eq!(ciglet_iterator.peek_op_back(), Some(AlignOp::N));
 
     assert_eq!(cigar_slice.remove_clipping_front(), 0);
     assert_eq!(cigar_mut_slice.remove_clipping_front(), 0);
@@ -271,36 +294,54 @@ fn states_sequence_zero_ciglets() {
     assert_eq!(cigar_mut_slice.remove_clipping_back(), 0);
     assert_eq!(ciglet_iterator.remove_clipping_back(), 0);
 
-    assert_eq!(cigar_slice.next_ciglet_if_op(|op| op == b'P'), None);
-    assert_eq!(cigar_mut_slice.next_ciglet_if_op(|op| op == b'P'), None);
-    assert_eq!(ciglet_iterator.next_ciglet_if_op(|op| op == b'P'), None);
-    assert_eq!(cigar_slice.next_ciglet_back_if_op(|op| op == b'P'), None);
-    assert_eq!(cigar_mut_slice.next_ciglet_back_if_op(|op| op == b'P'), None);
-    assert_eq!(ciglet_iterator.next_ciglet_back_if_op(|op| op == b'P'), None);
+    assert_eq!(cigar_slice.next_ciglet_if_op(|op| op == AlignOp::P), None);
+    assert_eq!(cigar_mut_slice.next_ciglet_if_op(|op| op == AlignOp::P), None);
+    assert_eq!(ciglet_iterator.next_ciglet_if_op(|op| op == AlignOp::P), None);
+    assert_eq!(cigar_slice.next_ciglet_back_if_op(|op| op == AlignOp::P), None);
+    assert_eq!(cigar_mut_slice.next_ciglet_back_if_op(|op| op == AlignOp::P), None);
+    assert_eq!(ciglet_iterator.next_ciglet_back_if_op(|op| op == AlignOp::P), None);
 
     assert_eq!(
-        cigar_slice.next_ciglet_if_op(|op| op == b'M'),
-        Some(Ciglet { inc: 10, op: b'M' })
+        cigar_slice.next_ciglet_if_op(|op| op == AlignOp::M),
+        Some(Ciglet {
+            inc: 10,
+            op:  AlignOp::M,
+        })
     );
     assert_eq!(
-        cigar_mut_slice.next_ciglet_if_op(|op| op == b'M'),
-        Some(Ciglet { inc: 10, op: b'M' })
+        cigar_mut_slice.next_ciglet_if_op(|op| op == AlignOp::M),
+        Some(Ciglet {
+            inc: 10,
+            op:  AlignOp::M,
+        })
     );
     assert_eq!(
-        ciglet_iterator.next_ciglet_if_op(|op| op == b'M'),
-        Some(Ciglet { inc: 10, op: b'M' })
+        ciglet_iterator.next_ciglet_if_op(|op| op == AlignOp::M),
+        Some(Ciglet {
+            inc: 10,
+            op:  AlignOp::M,
+        })
     );
     assert_eq!(
-        cigar_slice.next_ciglet_back_if_op(|op| op == b'N'),
-        Some(Ciglet { inc: 10, op: b'N' })
+        cigar_slice.next_ciglet_back_if_op(|op| op == AlignOp::N),
+        Some(Ciglet {
+            inc: 10,
+            op:  AlignOp::N,
+        })
     );
     assert_eq!(
-        cigar_mut_slice.next_ciglet_back_if_op(|op| op == b'N'),
-        Some(Ciglet { inc: 10, op: b'N' })
+        cigar_mut_slice.next_ciglet_back_if_op(|op| op == AlignOp::N),
+        Some(Ciglet {
+            inc: 10,
+            op:  AlignOp::N,
+        })
     );
     assert_eq!(
-        ciglet_iterator.next_ciglet_back_if_op(|op| op == b'N'),
-        Some(Ciglet { inc: 10, op: b'N' })
+        ciglet_iterator.next_ciglet_back_if_op(|op| op == AlignOp::N),
+        Some(Ciglet {
+            inc: 10,
+            op:  AlignOp::N,
+        })
     );
 
     assert_eq!(cigar_slice.next_ciglet(), None);
@@ -317,11 +358,23 @@ fn states_sequence_zero_ciglets() {
 #[test]
 #[allow(deprecated)]
 fn align_with_cigar() {
-    let data: [(usize, Cigar, [AminoAcids; 4]); 1] = [(
-        2,
-        Cigar::from_slice_unchecked("4M"),
-        [b"PLEASANTLY".into(), b"MEANLY".into(), b"LEAS".into(), b"MEAN".into()],
-    )];
+    let data: [(usize, Cigar, [AminoAcids; 4]); 2] = [
+        (
+            2,
+            Cigar::from_slice_unchecked("4M"),
+            [b"PLEASANTLY".into(), b"MEANLY".into(), b"LEAS".into(), b"MEAN".into()],
+        ),
+        (
+            2,
+            Cigar::from_slice_unchecked("1H2S3M4I5D6N7P6=5X3S2H"),
+            [
+                b"ABCDEFGHIJKLMNOPQRSTUVWXYZ".into(),
+                b"ABCDEFGHIJKLMNOPQRSTUVW".into(),
+                b"BCD----EFGHIJKLMNOPQRSTUVWXYZ".into(),
+                b"CDEFGHI-----NNNNNNJKLMNOPQRST".into(),
+            ],
+        ),
+    ];
 
     for (rpos, cig, [ref_input, query_input, ref_output, query_ouptut]) in data {
         assert_eq!(
@@ -335,9 +388,15 @@ fn align_with_cigar() {
 fn collect_ciglets() {
     assert!(
         AlignmentStates::from_ciglets_unchecked(vec![
-            Ciglet { inc: 10, op: b'M' },
-            Ciglet { inc: 5, op: b'I' },
-            Ciglet { inc: 12, op: b'D' }
+            Ciglet {
+                inc: 10,
+                op:  AlignOp::M,
+            },
+            Ciglet { inc: 5, op: AlignOp::I },
+            Ciglet {
+                inc: 12,
+                op:  AlignOp::D,
+            }
         ])
         .iter()
         .copied()
@@ -346,9 +405,15 @@ fn collect_ciglets() {
     );
     assert_eq!(
         AlignmentStates::from_ciglets_unchecked(vec![
-            Ciglet { inc: 10, op: b'M' },
-            Ciglet { inc: 0, op: b'I' },
-            Ciglet { inc: 12, op: b'D' }
+            Ciglet {
+                inc: 10,
+                op:  AlignOp::M,
+            },
+            Ciglet { inc: 0, op: AlignOp::I },
+            Ciglet {
+                inc: 12,
+                op:  AlignOp::D,
+            }
         ])
         .iter()
         .copied()
@@ -357,46 +422,39 @@ fn collect_ciglets() {
     );
     assert_eq!(
         AlignmentStates::from_ciglets_unchecked(vec![
-            Ciglet { inc: 10, op: b'M' },
-            Ciglet { inc: 5, op: b'I' },
-            Ciglet { inc: 12, op: b'Q' }
-        ])
-        .iter()
-        .copied()
-        .collect::<Result<AlignmentStates, _>>(),
-        Err(CigarError::InvalidOperation)
-    );
-    assert_eq!(
-        AlignmentStates::from_ciglets_unchecked(vec![
-            Ciglet { inc: 10, op: b'M' },
-            Ciglet { inc: 5, op: b'I' },
-            Ciglet { inc: 12, op: b'I' },
+            Ciglet {
+                inc: 10,
+                op:  AlignOp::M,
+            },
+            Ciglet { inc: 5, op: AlignOp::I },
+            Ciglet {
+                inc: 12,
+                op:  AlignOp::I,
+            },
         ])
         .iter()
         .copied()
         .collect::<Result<AlignmentStates, _>>(),
         Ok(AlignmentStates::from_ciglets_unchecked(vec![
-            Ciglet { inc: 10, op: b'M' },
-            Ciglet { inc: 17, op: b'I' },
+            Ciglet {
+                inc: 10,
+                op:  AlignOp::M,
+            },
+            Ciglet {
+                inc: 17,
+                op:  AlignOp::I,
+            },
         ]))
-    );
-    assert_eq!(
-        AlignmentStates::from_ciglets_unchecked(vec![
-            Ciglet { inc: 10, op: 0 },
-            Ciglet { inc: 5, op: b'I' },
-            Ciglet { inc: 12, op: b'D' }
-        ])
-        .iter()
-        .copied()
-        .collect::<Result<AlignmentStates, _>>(),
-        Err(CigarError::InvalidOperation)
     );
 }
 
 #[test]
 fn test_eq_states_cigar() {
     let mut states = AlignmentStates::new();
-    states.add_ciglet(Ciglet { inc: 10, op: b'M' });
+    states.add_ciglet(Ciglet {
+        inc: 10,
+        op:  AlignOp::M,
+    });
 
     let cigar = Cigar::from_slice_unchecked(b"10M3D");
     assert_ne!(states, cigar);
@@ -421,10 +479,10 @@ fn test_eq_states_cigar() {
 fn overflow_merging_add_ciglet() {
     let mut states = AlignmentStates::from_ciglets_unchecked([Ciglet {
         inc: usize::MAX,
-        op:  b'M',
+        op:  AlignOp::M,
     }]);
 
-    states.add_ciglet(Ciglet { inc: 1, op: b'M' });
+    states.add_ciglet(Ciglet { inc: 1, op: AlignOp::M });
 }
 
 #[test]
@@ -432,10 +490,10 @@ fn overflow_merging_add_ciglet() {
 fn overflow_merging_add_state() {
     let mut states = AlignmentStates::from_ciglets_unchecked([Ciglet {
         inc: usize::MAX,
-        op:  b'M',
+        op:  AlignOp::M,
     }]);
 
-    states.add_state(b'M');
+    states.add_state(AlignOp::M);
 }
 
 #[test]
@@ -443,10 +501,10 @@ fn overflow_merging_add_state() {
 fn overflow_merging_add_inc_op() {
     let mut states = AlignmentStates::from_ciglets_unchecked([Ciglet {
         inc: usize::MAX,
-        op:  b'M',
+        op:  AlignOp::M,
     }]);
 
-    states.add_inc_op(1, b'M');
+    states.add_inc_op(1, AlignOp::M);
 }
 
 #[test]
@@ -454,10 +512,10 @@ fn overflow_merging_add_inc_op() {
 fn overflow_merging_prepend_ciglet() {
     let mut states = AlignmentStates::from_ciglets_unchecked([Ciglet {
         inc: usize::MAX,
-        op:  b'M',
+        op:  AlignOp::M,
     }]);
 
-    states.prepend_ciglet(Ciglet { inc: 1, op: b'M' });
+    states.prepend_ciglet(Ciglet { inc: 1, op: AlignOp::M });
 }
 
 #[test]
@@ -465,10 +523,10 @@ fn overflow_merging_prepend_ciglet() {
 fn overflow_merging_prepend_state() {
     let mut states = AlignmentStates::from_ciglets_unchecked([Ciglet {
         inc: usize::MAX,
-        op:  b'M',
+        op:  AlignOp::M,
     }]);
 
-    states.prepend_state(b'M');
+    states.prepend_state(AlignOp::M);
 }
 
 #[test]
@@ -476,10 +534,10 @@ fn overflow_merging_prepend_state() {
 fn overflow_merging_prepend_inc_op() {
     let mut states = AlignmentStates::from_ciglets_unchecked([Ciglet {
         inc: usize::MAX,
-        op:  b'M',
+        op:  AlignOp::M,
     }]);
 
-    states.prepend_inc_op(1, b'M');
+    states.prepend_inc_op(1, AlignOp::M);
 }
 
 #[test]
@@ -487,7 +545,7 @@ fn overflow_merging_prepend_inc_op() {
 fn overflow_merging_add_soft() {
     let mut states = AlignmentStates::from_ciglets_unchecked([Ciglet {
         inc: usize::MAX,
-        op:  b'S',
+        op:  AlignOp::S,
     }]);
 
     states.soft_clip(1);
@@ -498,7 +556,7 @@ fn overflow_merging_add_soft() {
 fn overflow_merging_prepend_soft() {
     let mut states = AlignmentStates::from_ciglets_unchecked([Ciglet {
         inc: usize::MAX,
-        op:  b'S',
+        op:  AlignOp::S,
     }]);
 
     states.prepend_soft_clip(1);
@@ -509,9 +567,9 @@ fn overflow_collect() {
     let states = AlignmentStates::from_ciglets_unchecked([
         Ciglet {
             inc: usize::MAX,
-            op:  b'M',
+            op:  AlignOp::M,
         },
-        Ciglet { inc: 1, op: b'M' },
+        Ciglet { inc: 1, op: AlignOp::M },
     ]);
 
     let result = states.into_iter().collect::<Result<AlignmentStates, _>>();
@@ -524,9 +582,9 @@ fn overflow_try_from() {
     let states = AlignmentStates::from_ciglets_unchecked([
         Ciglet {
             inc: usize::MAX,
-            op:  b'M',
+            op:  AlignOp::M,
         },
-        Ciglet { inc: 1, op: b'M' },
+        Ciglet { inc: 1, op: AlignOp::M },
     ]);
 
     let cigar = states.to_cigar_unchecked();

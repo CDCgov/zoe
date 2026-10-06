@@ -17,7 +17,7 @@ use crate::{
             },
         },
     },
-    data::ByteIndexMap,
+    data::{ByteIndexMap, cigar::AlignOp},
     math::sample_one_weighted,
 };
 use rand::{
@@ -139,9 +139,9 @@ where
         }
 
         let op = match state {
-            PhmmState::Match => b'M',
-            PhmmState::Delete => b'D',
-            PhmmState::Insert => b'I',
+            PhmmState::Match => AlignOp::M,
+            PhmmState::Delete => AlignOp::D,
+            PhmmState::Insert => AlignOp::I,
         };
         self.states.add_state(op);
 
@@ -198,7 +198,7 @@ where
             Ok(EndInsert::End)
         } else {
             self.ins_len += 1;
-            self.states.add_state(b'I');
+            self.states.add_state(AlignOp::I);
             Ok(EndInsert::Insert)
         }
     }
@@ -221,12 +221,12 @@ where
         })?;
 
         match state {
-            PhmmStateOrModule::Match => self.states.add_state(b'M'),
-            PhmmStateOrModule::Delete => self.states.add_state(b'D'),
+            PhmmStateOrModule::Match => self.states.add_state(AlignOp::M),
+            PhmmStateOrModule::Delete => self.states.add_state(AlignOp::D),
             PhmmStateOrModule::Insert => {
                 // We are transitioning from MATCH, so ins_len is currently 0
                 self.ins_len = 1;
-                self.states.add_state(b'I');
+                self.states.add_state(AlignOp::I);
             }
             PhmmStateOrModule::Module => {}
         }
@@ -264,7 +264,7 @@ where
             1 => {
                 // We are transitioning from MATCH, so ins_len is currently 0
                 self.ins_len = 1;
-                self.states.add_state(b'I');
+                self.states.add_state(AlignOp::I);
                 Ok(EndInsertExit::Insert)
             }
             _ => Ok(EndInsertExit::Exit),
@@ -289,7 +289,7 @@ where
 
         // Only add match state if not entering BEGIN or END
         if (1..params.len() - 1).contains(&idx) {
-            self.states.add_state(b'M');
+            self.states.add_state(AlignOp::M);
         }
 
         Ok(DpIndex(idx))
@@ -310,7 +310,7 @@ where
         })?;
 
         self.seq.push(map.to_byte(idx));
-        self.states.add_state(b'S');
+        self.states.add_state(AlignOp::S);
 
         Ok(idx)
     }

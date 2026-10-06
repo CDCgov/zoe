@@ -1,4 +1,7 @@
-use crate::{alignment::ScalarProfile, data::cigar::Ciglet};
+use crate::{
+    alignment::ScalarProfile,
+    data::cigar::{AlignOp, Ciglet},
+};
 use std::{
     cmp::Ordering::{Equal, Greater, Less},
     error::Error,
@@ -33,7 +36,7 @@ pub fn nw_score_from_path<const S: usize>(
 
     for Ciglet { inc, op } in ciglets {
         match op {
-            b'M' | b'=' | b'X' => {
+            AlignOp::M | AlignOp::Eq | AlignOp::X => {
                 for _ in 0..inc {
                     let Some(reference_base) = reference.get(r).copied() else {
                         return Err(NwScoringError::ReferenceEnded);
@@ -46,19 +49,20 @@ pub fn nw_score_from_path<const S: usize>(
                     r += 1;
                 }
             }
-            b'I' => {
+            AlignOp::I => {
                 score += query.gap_open + query.gap_extend * (inc - 1) as i32;
                 q += inc;
             }
-            b'D' => {
+            AlignOp::D => {
                 score += query.gap_open + query.gap_extend * (inc - 1) as i32;
                 r += inc;
             }
-            b'N' => r += inc,
-            b'P' => {}
-            op => return Err(NwScoringError::InvalidCigarOp(op)),
+            AlignOp::N => r += inc,
+            AlignOp::P => {}
+            AlignOp::H | AlignOp::S => return Err(NwScoringError::Clipping),
         }
     }
+
     match q.cmp(&query.seq.len()) {
         Less => return Err(NwScoringError::FullQueryNotUsed),
         Greater => return Err(NwScoringError::QueryEnded),
@@ -89,8 +93,8 @@ pub enum NwScoringError {
     /// Failed to consume the full, provided reference, which was expected to
     /// contain only the aligned region of the original reference
     FullReferenceNotUsed,
-    /// Unsupported CIGAR opcode used in argument
-    InvalidCigarOp(u8),
+    /// Clipping was found inside the global alignment
+    Clipping,
 }
 
 impl Display for NwScoringError {
@@ -109,7 +113,7 @@ impl Display for NwScoringError {
                     "Failed to consume the full, provided reference, which was expected to contain only the aligned region of the original reference"
                 )
             }
-            NwScoringError::InvalidCigarOp(op) => write!(f, "An unsupported CIGAR opcode was encountered: {op}"),
+            NwScoringError::Clipping => write!(f, "Clipping was found inside the CIGAR string"),
         }
     }
 }

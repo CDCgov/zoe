@@ -2,19 +2,68 @@ use super::*;
 use crate::alignment::AlignmentStates;
 
 #[test]
+#[allow(clippy::too_many_lines)]
 fn test_iter() {
     let cigar = Cigar::from_slice_unchecked("1M22I333D4444N55555S6666H777P88X9=");
     let mut cigar = cigar.iter_unchecked();
 
-    assert_eq!(cigar.next(), Some(Ciglet { op: b'M', inc: 1 }));
-    assert_eq!(cigar.next(), Some(Ciglet { op: b'I', inc: 22 }));
-    assert_eq!(cigar.next(), Some(Ciglet { op: b'D', inc: 333 }));
-    assert_eq!(cigar.next(), Some(Ciglet { op: b'N', inc: 4444 }));
-    assert_eq!(cigar.next(), Some(Ciglet { op: b'S', inc: 55555 }));
-    assert_eq!(cigar.next(), Some(Ciglet { op: b'H', inc: 6666 }));
-    assert_eq!(cigar.next(), Some(Ciglet { op: b'P', inc: 777 }));
-    assert_eq!(cigar.next(), Some(Ciglet { op: b'X', inc: 88 }));
-    assert_eq!(cigar.next(), Some(Ciglet { op: b'=', inc: 9 }));
+    assert_eq!(cigar.next(), Some(Ciglet { op: AlignOp::M, inc: 1 }));
+    assert_eq!(
+        cigar.next(),
+        Some(Ciglet {
+            op:  AlignOp::I,
+            inc: 22,
+        })
+    );
+    assert_eq!(
+        cigar.next(),
+        Some(Ciglet {
+            op:  AlignOp::D,
+            inc: 333,
+        })
+    );
+    assert_eq!(
+        cigar.next(),
+        Some(Ciglet {
+            op:  AlignOp::N,
+            inc: 4444,
+        })
+    );
+    assert_eq!(
+        cigar.next(),
+        Some(Ciglet {
+            op:  AlignOp::S,
+            inc: 55555,
+        })
+    );
+    assert_eq!(
+        cigar.next(),
+        Some(Ciglet {
+            op:  AlignOp::H,
+            inc: 6666,
+        })
+    );
+    assert_eq!(
+        cigar.next(),
+        Some(Ciglet {
+            op:  AlignOp::P,
+            inc: 777,
+        })
+    );
+    assert_eq!(
+        cigar.next(),
+        Some(Ciglet {
+            op:  AlignOp::X,
+            inc: 88,
+        })
+    );
+    assert_eq!(
+        cigar.next(),
+        Some(Ciglet {
+            op:  AlignOp::Eq,
+            inc: 9,
+        })
+    );
     assert_eq!(cigar.next(), None);
 
     // Illegal cigar op
@@ -23,7 +72,13 @@ fn test_iter() {
 
     // Leading zeroes don't matter
     let cigar = Cigar::from_slice_unchecked("000000000000000000000000000000155M");
-    assert_eq!(cigar.iter_unchecked().next(), Some(Ciglet { op: b'M', inc: 155 }));
+    assert_eq!(
+        cigar.iter_unchecked().next(),
+        Some(Ciglet {
+            op:  AlignOp::M,
+            inc: 155,
+        })
+    );
 
     // Overflows
     let cigar = Cigar::from_slice_unchecked("100000000000000000000000000000155M");
@@ -39,7 +94,7 @@ fn test_iter() {
         assert_eq!(
             cigar.iter_unchecked().next(),
             Some(Ciglet {
-                op:  b'M',
+                op:  AlignOp::M,
                 inc: 18_446_744_073_709_551_615,
             })
         );
@@ -48,7 +103,7 @@ fn test_iter() {
         assert_eq!(
             cigar.iter_unchecked().next(),
             Some(Ciglet {
-                op:  b'M',
+                op:  AlignOp::M,
                 inc: 1_234_567_890_123_456_789,
             })
         );
@@ -57,8 +112,8 @@ fn test_iter() {
     // Missing increment
     let cigar = Cigar::from_slice_unchecked("3M2DM5H");
     let mut iter = cigar.iter_unchecked();
-    assert_eq!(iter.next(), Some(Ciglet { inc: 3, op: b'M' }));
-    assert_eq!(iter.next(), Some(Ciglet { inc: 2, op: b'D' }));
+    assert_eq!(iter.next(), Some(Ciglet { inc: 3, op: AlignOp::M }));
+    assert_eq!(iter.next(), Some(Ciglet { inc: 2, op: AlignOp::D }));
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
@@ -66,12 +121,12 @@ fn test_iter() {
     // Zero increment
     let cigar = Cigar::from_slice_unchecked("3M2D0M0M5H0S");
     let mut iter = cigar.iter_unchecked();
-    assert_eq!(iter.next(), Some(Ciglet { inc: 3, op: b'M' }));
-    assert_eq!(iter.next(), Some(Ciglet { inc: 2, op: b'D' }));
-    assert_eq!(iter.next(), Some(Ciglet { inc: 0, op: b'M' }));
-    assert_eq!(iter.next(), Some(Ciglet { inc: 0, op: b'M' }));
-    assert_eq!(iter.next(), Some(Ciglet { inc: 5, op: b'H' }));
-    assert_eq!(iter.next(), Some(Ciglet { inc: 0, op: b'S' }));
+    assert_eq!(iter.next(), Some(Ciglet { inc: 3, op: AlignOp::M }));
+    assert_eq!(iter.next(), Some(Ciglet { inc: 2, op: AlignOp::D }));
+    assert_eq!(iter.next(), Some(Ciglet { inc: 0, op: AlignOp::M }));
+    assert_eq!(iter.next(), Some(Ciglet { inc: 0, op: AlignOp::M }));
+    assert_eq!(iter.next(), Some(Ciglet { inc: 5, op: AlignOp::H }));
+    assert_eq!(iter.next(), Some(Ciglet { inc: 0, op: AlignOp::S }));
     assert_eq!(iter.next(), None);
 }
 
@@ -89,7 +144,18 @@ fn test_ref_len_in_alignment() {
     for (c, l) in cigars {
         let cigar = Cigar::from_slice_unchecked(c.as_bytes());
         assert_eq!(cigar.ref_len_in_alignment(), l);
+        assert_eq!(cigar.ref_len_in_alignment_checked(), Some(l));
     }
+
+    let overflowing = [
+        Ciglet {
+            inc: usize::MAX,
+            op:  AlignOp::M,
+        },
+        Ciglet { inc: 1, op: AlignOp::M },
+    ];
+
+    assert_eq!(overflowing.as_slice().ref_len_in_alignment_checked(), None);
 }
 
 #[test]
@@ -106,7 +172,18 @@ fn test_query_len_in_alignment() {
     for (c, l) in cigars {
         let cigar = Cigar::from_slice_unchecked(c.as_bytes());
         assert_eq!(cigar.query_len_in_alignment(), l);
+        assert_eq!(cigar.query_len_in_alignment_checked(), Some(l));
     }
+
+    let overflowing = [
+        Ciglet {
+            inc: usize::MAX,
+            op:  AlignOp::M,
+        },
+        Ciglet { inc: 1, op: AlignOp::S },
+    ];
+
+    assert_eq!(overflowing.as_slice().query_len_in_alignment_checked(), None);
 }
 
 #[test]
@@ -159,9 +236,21 @@ fn invalid_next_back() {
 
     assert_eq!(iter.next_back(), None);
     assert_eq!(iter.next_back(), None);
-    assert_eq!(iter.next(), Some(Ciglet { inc: 12, op: b'M' }));
-    assert_eq!(iter.next(), Some(Ciglet { inc: 16, op: b'H' }));
-    assert_eq!(iter.next(), Some(Ciglet { inc: 2, op: b'M' }));
+    assert_eq!(
+        iter.next(),
+        Some(Ciglet {
+            inc: 12,
+            op:  AlignOp::M,
+        })
+    );
+    assert_eq!(
+        iter.next(),
+        Some(Ciglet {
+            inc: 16,
+            op:  AlignOp::H,
+        })
+    );
+    assert_eq!(iter.next(), Some(Ciglet { inc: 2, op: AlignOp::M }));
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next(), None);
     assert_eq!(iter.next_back(), None);

@@ -8,7 +8,7 @@ use crate::{
             encoder::MAX_CIGAR_INC,
             error::{BamEncodingError, BamRecordError, NumberSizeTarget},
         },
-        cigar::{CigarError, ToCigletIterator},
+        cigar::ToCigletIterator,
         nucleotides::NucleotidesView,
         phred::{QScoreInt, QualityScoresView},
         sam::{OptArray, SamOptField, SamOptValue, ToOptFieldsIterator},
@@ -124,9 +124,9 @@ pub(super) struct CigarSpans {
 pub(super) fn encode_cigar(
     ciglets: Option<&impl ToCigletIterator>,
 ) -> Result<(Vec<u32>, Option<CigarSpans>), BamRecordError> {
-    /// CIGAR byte index map: `MIDNSHP=X` maps to `012345678`. `?` is used as a
-    /// catch-all for invalid CIGAR operations.
-    const CIGAR_MAP: ByteIndexMap<10> = ByteIndexMap::new(*b"MIDNSHP=X?", b'?');
+    /// CIGAR byte index map: `MIDNSHP=X` maps to `012345678`. Invalid
+    /// operations are not possible, so a catch-all of M is used
+    const CIGAR_MAP: ByteIndexMap<9> = ByteIndexMap::new(*b"MIDNSHP=X", b'M');
 
     let Some(ciglets) = ciglets else {
         return Ok((Vec::new(), None));
@@ -145,7 +145,7 @@ pub(super) fn encode_cigar(
                 target: NumberSizeTarget::MaxInclusive(u64::from(u32::MAX)),
             })?;
 
-            if ciglet.op_consumes_query() {
+            if ciglet.op.consumes_query() {
                 query_inc = query_inc
                     .checked_add(ciglet.inc)
                     .ok_or_else(|| BamEncodingError::SizeOverflow {
@@ -154,19 +154,14 @@ pub(super) fn encode_cigar(
                     })?;
             }
 
-            if ciglet.op_consumes_ref() {
+            if ciglet.op.consumes_ref() {
                 ref_inc = ref_inc.checked_add(cig_inc).ok_or_else(|| BamEncodingError::SizeOverflow {
                     field:  "reference-consuming CIGAR length",
                     target: NumberSizeTarget::MaxInclusive(u64::from(u32::MAX)),
                 })?;
             }
 
-            let mapped_op = CIGAR_MAP[ciglet.op];
-            if mapped_op == CIGAR_MAP[b'?'] {
-                return Err(BamRecordError::InvalidCigar {
-                    source: CigarError::InvalidOperation,
-                });
-            }
+            let mapped_op = CIGAR_MAP[ciglet.op as u8];
 
             if cig_inc > MAX_CIGAR_INC {
                 return Err(BamEncodingError::SizeOverflow {
@@ -178,7 +173,7 @@ pub(super) fn encode_cigar(
 
             Ok(cig_inc << 4 | u32::from(mapped_op))
         })
-        .collect::<Result<_, _>>()?;
+        .collect::<Result<_, BamRecordError>>()?;
 
     Ok((
         encoded,

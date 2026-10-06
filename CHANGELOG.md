@@ -19,6 +19,11 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ### Changed
 
+- Replaced `u8` with an enum `AlignOp` in `Ciglet`, resulting in better type
+  state and checking. This impacts methods of `AlignmentStates` and the traits
+  in pHMM traversal
+- Moved `Ciglet::op_consumes_query` to `AlignOp::consumes_query` and similarly
+  for `reference`
 - Iteration on `Cigar` and `CigarView` now produces a fallible checked iterator
   by default. To use unchecked and truncating iteration, use `iter_unchecked`
 - `SamOptRaw` now stores the tags using a tab-delimited `String` to improve
@@ -38,6 +43,12 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - `AlignmentIter` now has different generics
 - Improved performance and compilation-stability of banded Smith Waterman with
   several optimizations
+- Changed `NwScoringError::InvalidCigarOp` to `NnScoringError::Clipping` (behind
+  `alignment-diagnostics` feature gate)
+- Removed `SwScoringError::InvalidCigarOp` (behind `alignment-diagnostics`
+  feature gate)
+- Moved fields from `CigletSpecs` into new `AlignOpSpecs` (behind `fuzzing`
+  feature gate) 
 
 ### Fixed
 

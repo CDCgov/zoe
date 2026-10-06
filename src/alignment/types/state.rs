@@ -1,6 +1,9 @@
 use crate::{
     alignment::AlignmentIndices,
-    data::types::cigar::{Cigar, Ciglet},
+    data::{
+        cigar::AlignOp,
+        types::cigar::{Cigar, Ciglet},
+    },
 };
 use std::{
     iter::FusedIterator,
@@ -127,13 +130,13 @@ impl AlignmentStates {
 
     /// Adds a state to the rightmost end of the alignment, merging state where
     /// appropriate.
-    pub fn add_state(&mut self, op: u8) {
+    pub fn add_state(&mut self, op: AlignOp) {
         self.add_ciglet(Ciglet { inc: 1, op });
     }
 
     /// Adds a state to the leftmost end of the alignment, merging state where
     /// appropriate.
-    pub fn prepend_state(&mut self, op: u8) {
+    pub fn prepend_state(&mut self, op: AlignOp) {
         self.prepend_ciglet(Ciglet { inc: 1, op });
     }
 
@@ -176,7 +179,7 @@ impl AlignmentStates {
     /// [`add_state`]: AlignmentStates::add_state
     /// [`add_ciglet`]: AlignmentStates::add_ciglet
     #[inline]
-    pub fn add_inc_op(&mut self, inc: usize, op: u8) {
+    pub fn add_inc_op(&mut self, inc: usize, op: AlignOp) {
         self.add_ciglet(Ciglet { inc, op });
     }
 
@@ -191,7 +194,7 @@ impl AlignmentStates {
     /// [`prepend_state`]: AlignmentStates::prepend_state
     /// [`prepend_ciglet`]: AlignmentStates::prepend_ciglet
     #[inline]
-    pub fn prepend_inc_op(&mut self, inc: usize, op: u8) {
+    pub fn prepend_inc_op(&mut self, inc: usize, op: AlignOp) {
         self.prepend_ciglet(Ciglet { inc, op });
     }
 
@@ -202,7 +205,7 @@ impl AlignmentStates {
         let mut states = AlignmentStates::with_capacity(3);
 
         states.soft_clip(aligned_range.start);
-        states.add_inc_op(aligned_range.end - aligned_range.start, b'M');
+        states.add_inc_op(aligned_range.end - aligned_range.start, AlignOp::M);
         states.soft_clip(query_len - aligned_range.end);
         states
     }
@@ -230,7 +233,7 @@ impl AlignmentStates {
     /// If the rightmost operation is `S`, `inc` is added to its `increment`. If
     /// `inc` is 0, no change occurs.
     pub fn soft_clip(&mut self, inc: usize) {
-        self.add_ciglet(Ciglet { inc, op: b'S' });
+        self.add_ciglet(Ciglet { inc, op: AlignOp::S });
     }
 
     /// Adds soft clipping `S` to the start of the alignment `inc` times.
@@ -238,7 +241,7 @@ impl AlignmentStates {
     /// If the leftmost operation is `S`, `inc` is added to its `increment`. If
     /// `inc` is 0, no change occurs.
     pub fn prepend_soft_clip(&mut self, inc: usize) {
-        self.prepend_ciglet(Ciglet { inc, op: b'S' });
+        self.prepend_ciglet(Ciglet { inc, op: AlignOp::S });
     }
 
     /// Converts the [`AlignmentStates`] struct to a [`Cigar`] string, without
@@ -322,12 +325,12 @@ impl AlignmentStates {
         let mut query_index = 0;
 
         for ciglet in self {
-            if ciglet.op == b'M' {
+            if ciglet.op == AlignOp::M {
                 let query_slice = &query[query_index..query_index + ciglet.inc];
                 let ref_slice = &reference[ref_index..ref_index + ciglet.inc];
 
                 for (query_base, ref_base) in query_slice.iter().zip(ref_slice) {
-                    out.add_state(if query_base == ref_base { b'=' } else { b'X' });
+                    out.add_state(if query_base == ref_base { AlignOp::Eq } else { AlignOp::X });
                 }
 
                 query_index += ciglet.inc;
@@ -356,7 +359,7 @@ where
     query:     Q,
     ciglets:   I,
     inc:       usize,
-    op:        u8,
+    op:        AlignOp,
 }
 
 impl<I, R, Q> AlignmentIter<I, R, Q>
@@ -378,7 +381,7 @@ where
 
         let mut ciglets = ciglets.into_iter();
         // If no valid ciglets, initialize with inc at 0 so that iterator is empty
-        let Ciglet { inc, op } = ciglets.next().unwrap_or(Ciglet { inc: 0, op: b'M' });
+        let Ciglet { inc, op } = ciglets.next().unwrap_or(Ciglet { inc: 0, op: AlignOp::M });
 
         AlignmentIter {
             reference,
@@ -394,7 +397,7 @@ where
     /// reached its end.
     #[inline]
     #[must_use]
-    fn get_next_op(&mut self) -> Option<u8> {
+    fn get_next_op(&mut self) -> Option<AlignOp> {
         if self.inc > 0 {
             self.inc -= 1;
             Some(self.op)
@@ -456,10 +459,10 @@ where
         let op = self.get_next_op()?;
 
         match op {
-            b'M' | b'=' | b'X' => Some((Some(self.advance_reference()), Some(self.advance_query()))),
-            b'D' => Some((Some(self.advance_reference()), None)),
-            b'I' => Some((None, Some(self.advance_query()))),
-            b'S' => {
+            AlignOp::M | AlignOp::Eq | AlignOp::X => Some((Some(self.advance_reference()), Some(self.advance_query()))),
+            AlignOp::D => Some((Some(self.advance_reference()), None)),
+            AlignOp::I => Some((None, Some(self.advance_query()))),
+            AlignOp::S => {
                 // Skip that many residues in the query. Advanced by inc+1
                 // instead of inc since inc was decremented in get_next_op. This
                 // should use an efficient nth implementation since Q is either
@@ -470,13 +473,12 @@ where
                 self.skip_to_next_ciglet()?;
                 self.next()
             }
-            b'N' => Some((Some(self.advance_reference()), Some(b'N'))),
-            b'H' | b'P' => {
+            AlignOp::N => Some((Some(self.advance_reference()), Some(b'N'))),
+            AlignOp::H | AlignOp::P => {
                 // Skip this Ciglet without modifying either buffer
                 self.skip_to_next_ciglet()?;
                 self.next()
             }
-            _ => panic!("CIGAR op '{op}' not supported.\n"),
         }
     }
 }
@@ -490,12 +492,12 @@ pub trait PeekOp {
     /// Peeks at the operation for the next ciglet without consuming it. Empty
     /// ciglets are skipped and may be removed.
     #[must_use]
-    fn peek_op(&mut self) -> Option<u8>;
+    fn peek_op(&mut self) -> Option<AlignOp>;
 
     /// Peeks at the operation for the last ciglet without consuming it. Empty
     /// ciglets are skipped and may be removed.
     #[must_use]
-    fn peek_op_back(&mut self) -> Option<u8>;
+    fn peek_op_back(&mut self) -> Option<AlignOp>;
 }
 
 /// An extension trait for alignment-like data that enables a single increment
@@ -507,18 +509,18 @@ pub trait TakeOp: PeekOp {
     /// Removes and returns one increment of the next operation from the
     /// alignment states.
     #[must_use]
-    fn take_op(&mut self) -> Option<u8>;
+    fn take_op(&mut self) -> Option<AlignOp>;
 
     /// Removes and returns one increment of the last operation from the
     /// alignment states.
     #[must_use]
-    fn take_op_back(&mut self) -> Option<u8>;
+    fn take_op_back(&mut self) -> Option<AlignOp>;
 
     /// Removes and returns the next operation if it meets the specified
     /// predicate, otherwise `self` is not modified (aside from possibly
     /// removing empty ciglets).
     #[inline]
-    fn take_op_if(&mut self, f: impl FnOnce(u8) -> bool) -> Option<u8> {
+    fn take_op_if(&mut self, f: impl FnOnce(AlignOp) -> bool) -> Option<AlignOp> {
         if f(self.peek_op()?) { self.take_op() } else { None }
     }
 
@@ -526,7 +528,7 @@ pub trait TakeOp: PeekOp {
     /// predicate, otherwise `self` is not modified (aside from possibly
     /// removing empty ciglets).
     #[inline]
-    fn take_op_back_if(&mut self, f: impl FnOnce(u8) -> bool) -> Option<u8> {
+    fn take_op_back_if(&mut self, f: impl FnOnce(AlignOp) -> bool) -> Option<AlignOp> {
         if f(self.peek_op_back()?) { self.take_op_back() } else { None }
     }
 }
@@ -576,14 +578,14 @@ pub trait NextCiglet: PeekOp {
     /// Gets the next ciglet if the operation meets the specified predicate,
     /// otherwise `self` is not modified (aside from skipping empty ciglets).
     #[inline]
-    fn next_ciglet_if_op(&mut self, f: impl FnOnce(u8) -> bool) -> Option<Ciglet> {
+    fn next_ciglet_if_op(&mut self, f: impl FnOnce(AlignOp) -> bool) -> Option<Ciglet> {
         if f(self.peek_op()?) { self.next_ciglet() } else { None }
     }
 
     /// Gets the last ciglet if the operation meets the specified predicate,
     /// otherwise `self` is not modified (aside from skipping empty ciglets).
     #[inline]
-    fn next_ciglet_back_if_op(&mut self, f: impl FnOnce(u8) -> bool) -> Option<Ciglet> {
+    fn next_ciglet_back_if_op(&mut self, f: impl FnOnce(AlignOp) -> bool) -> Option<Ciglet> {
         if f(self.peek_op_back()?) {
             self.next_ciglet_back()
         } else {
@@ -598,8 +600,8 @@ pub trait NextCiglet: PeekOp {
     /// is returned.
     #[inline]
     fn remove_clipping_front(&mut self) -> usize {
-        let hard_clipping = self.next_ciglet_if_op(|op| op == b'H').map_or(0, |ciglet| ciglet.inc);
-        let soft_clipping = self.next_ciglet_if_op(|op| op == b'S').map_or(0, |ciglet| ciglet.inc);
+        let hard_clipping = self.next_ciglet_if_op(|op| op == AlignOp::H).map_or(0, |ciglet| ciglet.inc);
+        let soft_clipping = self.next_ciglet_if_op(|op| op == AlignOp::S).map_or(0, |ciglet| ciglet.inc);
         hard_clipping + soft_clipping
     }
 
@@ -610,8 +612,12 @@ pub trait NextCiglet: PeekOp {
     /// is returned.
     #[inline]
     fn remove_clipping_back(&mut self) -> usize {
-        let hard_clipping = self.next_ciglet_back_if_op(|op| op == b'H').map_or(0, |ciglet| ciglet.inc);
-        let soft_clipping = self.next_ciglet_back_if_op(|op| op == b'S').map_or(0, |ciglet| ciglet.inc);
+        let hard_clipping = self
+            .next_ciglet_back_if_op(|op| op == AlignOp::H)
+            .map_or(0, |ciglet| ciglet.inc);
+        let soft_clipping = self
+            .next_ciglet_back_if_op(|op| op == AlignOp::S)
+            .map_or(0, |ciglet| ciglet.inc);
         hard_clipping + soft_clipping
     }
 }
@@ -635,7 +641,7 @@ pub trait NextCigletMut<'a>: NextCiglet {
     /// specified predicate, otherwise `self` is not mutated (aside from
     /// possibly removing empty ciglets).
     #[inline]
-    fn next_ciglet_if_op_mut(&mut self, f: impl FnOnce(u8) -> bool) -> Option<&'a mut Ciglet> {
+    fn next_ciglet_if_op_mut(&mut self, f: impl FnOnce(AlignOp) -> bool) -> Option<&'a mut Ciglet> {
         if f(self.peek_op()?) { self.next_ciglet_mut() } else { None }
     }
 
@@ -643,7 +649,7 @@ pub trait NextCigletMut<'a>: NextCiglet {
     /// specified predicate, otherwise `self` is not mutated (aside from
     /// possibly removing empty ciglets).
     #[inline]
-    fn next_ciglet_back_if_op_mut(&mut self, f: impl FnOnce(u8) -> bool) -> Option<&'a mut Ciglet> {
+    fn next_ciglet_back_if_op_mut(&mut self, f: impl FnOnce(AlignOp) -> bool) -> Option<&'a mut Ciglet> {
         if f(self.peek_op_back()?) {
             self.next_ciglet_back_mut()
         } else {
@@ -654,12 +660,12 @@ pub trait NextCigletMut<'a>: NextCiglet {
 
 impl PeekOp for &[Ciglet] {
     #[inline]
-    fn peek_op(&mut self) -> Option<u8> {
+    fn peek_op(&mut self) -> Option<AlignOp> {
         self.peek_ciglet().map(|ciglet| ciglet.op)
     }
 
     #[inline]
-    fn peek_op_back(&mut self) -> Option<u8> {
+    fn peek_op_back(&mut self) -> Option<AlignOp> {
         self.peek_ciglet_back().map(|ciglet| ciglet.op)
     }
 }
@@ -716,18 +722,18 @@ impl NextCiglet for &[Ciglet] {
 
 impl PeekOp for &mut [Ciglet] {
     #[inline]
-    fn peek_op(&mut self) -> Option<u8> {
+    fn peek_op(&mut self) -> Option<AlignOp> {
         self.peek_ciglet().map(|ciglet| ciglet.op)
     }
 
     #[inline]
-    fn peek_op_back(&mut self) -> Option<u8> {
+    fn peek_op_back(&mut self) -> Option<AlignOp> {
         self.peek_ciglet_back().map(|ciglet| ciglet.op)
     }
 }
 
 impl TakeOp for &mut [Ciglet] {
-    fn take_op(&mut self) -> Option<u8> {
+    fn take_op(&mut self) -> Option<AlignOp> {
         loop {
             let ciglet = self.first_mut()?;
 
@@ -740,7 +746,7 @@ impl TakeOp for &mut [Ciglet] {
         }
     }
 
-    fn take_op_back(&mut self) -> Option<u8> {
+    fn take_op_back(&mut self) -> Option<AlignOp> {
         loop {
             let ciglet = self.last_mut()?;
 
@@ -843,11 +849,11 @@ impl<'a> NextCigletMut<'a> for &'a mut [Ciglet] {
 }
 
 impl PeekOp for std::slice::Iter<'_, Ciglet> {
-    fn peek_op(&mut self) -> Option<u8> {
+    fn peek_op(&mut self) -> Option<AlignOp> {
         self.as_slice().peek_op()
     }
 
-    fn peek_op_back(&mut self) -> Option<u8> {
+    fn peek_op_back(&mut self) -> Option<AlignOp> {
         self.as_slice().peek_op_back()
     }
 }
@@ -901,8 +907,8 @@ impl<'a> CigletOpIter<'a> {
         A: AsRef<[Ciglet]> + ?Sized, {
         Self {
             ciglets:     ciglets.as_ref().iter(),
-            ciglet:      Ciglet { inc: 0, op: b'M' },
-            ciglet_back: Ciglet { inc: 0, op: b'M' },
+            ciglet:      Ciglet { inc: 0, op: AlignOp::M },
+            ciglet_back: Ciglet { inc: 0, op: AlignOp::M },
         }
     }
 
@@ -938,23 +944,23 @@ impl<'a> CigletOpIter<'a> {
 }
 
 impl PeekOp for CigletOpIter<'_> {
-    fn peek_op(&mut self) -> Option<u8> {
+    fn peek_op(&mut self) -> Option<AlignOp> {
         self.peek_ciglet().map(|ciglet| ciglet.op)
     }
 
-    fn peek_op_back(&mut self) -> Option<u8> {
+    fn peek_op_back(&mut self) -> Option<AlignOp> {
         self.peek_ciglet_back().map(|ciglet| ciglet.op)
     }
 }
 
 impl TakeOp for CigletOpIter<'_> {
-    fn take_op(&mut self) -> Option<u8> {
+    fn take_op(&mut self) -> Option<AlignOp> {
         let ciglet = self.load_ciglet()?;
         ciglet.inc -= 1;
         Some(ciglet.op)
     }
 
-    fn take_op_back(&mut self) -> Option<u8> {
+    fn take_op_back(&mut self) -> Option<AlignOp> {
         let ciglet = self.load_ciglet_back()?;
         ciglet.inc -= 1;
         Some(ciglet.op)
@@ -973,16 +979,16 @@ impl PeekCiglet for CigletOpIter<'_> {
 
 impl NextCiglet for CigletOpIter<'_> {
     fn next_ciglet(&mut self) -> Option<Ciglet> {
-        Some(std::mem::replace(self.load_ciglet()?, Ciglet { inc: 0, op: b'M' }))
+        Some(std::mem::replace(self.load_ciglet()?, Ciglet { inc: 0, op: AlignOp::M }))
     }
 
     fn next_ciglet_back(&mut self) -> Option<Ciglet> {
-        Some(std::mem::replace(self.load_ciglet_back()?, Ciglet { inc: 0, op: b'M' }))
+        Some(std::mem::replace(self.load_ciglet_back()?, Ciglet { inc: 0, op: AlignOp::M }))
     }
 }
 
 impl Iterator for CigletOpIter<'_> {
-    type Item = u8;
+    type Item = AlignOp;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.take_op()

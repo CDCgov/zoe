@@ -1,7 +1,7 @@
 use crate::{
     alignment::AlignmentIter,
     data::{
-        cigar::Ciglet,
+        cigar::{AlignOp, Ciglet},
         types::{amino_acids::AminoAcids, nucleotides::Nucleotides},
     },
     private::Sealed,
@@ -33,31 +33,29 @@ pub fn pairwise_align_with(
 
     for Ciglet { inc, op } in ciglets {
         match op {
-            b'M' | b'=' | b'X' => {
+            AlignOp::M | AlignOp::Eq | AlignOp::X => {
                 ref_aln.extend_from_slice(&reference[ref_index..ref_index + inc]);
                 query_aln.extend_from_slice(&query[query_index..query_index + inc]);
                 ref_index += inc;
                 query_index += inc;
             }
-            b'D' => {
+            AlignOp::D => {
                 ref_aln.extend_from_slice(&reference[ref_index..ref_index + inc]);
                 query_aln.extend(std::iter::repeat_n(b'-', inc));
                 ref_index += inc;
             }
-            b'I' => {
+            AlignOp::I => {
                 ref_aln.extend(std::iter::repeat_n(b'-', inc));
                 query_aln.extend_from_slice(&query[query_index..query_index + inc]);
                 query_index += inc;
             }
-            b'S' => query_index += inc,
-            b'N' => {
+            AlignOp::S => query_index += inc,
+            AlignOp::N => {
                 ref_aln.extend_from_slice(&reference[ref_index..ref_index + inc]);
                 query_aln.extend(std::iter::repeat_n(b'N', inc));
                 ref_index += inc;
             }
-            b'H' | b'P' => {}
-            // TODO: Could ignore if we allow only valid CIGAR by default.
-            _ => panic!("CIGAR op '{op}' not supported.\n"),
+            AlignOp::H | AlignOp::P => {}
         }
     }
 

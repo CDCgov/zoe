@@ -2,7 +2,7 @@ use crate::{
     alignment::{AlignmentIter, AlignmentStates, pairwise_align_with},
     data::{
         amino_acids::{AminoAcids, AminoAcidsView, AminoAcidsViewMut},
-        cigar::Ciglet,
+        cigar::{AlignOp, Ciglet},
         nucleotides::{Nucleotides, NucleotidesView, NucleotidesViewMut},
         views::{AssocOwnedType, IndexAdjustable, ToView},
     },
@@ -436,21 +436,19 @@ impl<T> Alignment<T> {
 
         for Ciglet { inc, op } in &self.states {
             match op {
-                b'M' | b'=' | b'X' | b'I' => {
+                AlignOp::M | AlignOp::Eq | AlignOp::X | AlignOp::I => {
                     query_aln.extend_from_slice(&query[query_index..query_index + inc]);
                     query_index += inc;
                 }
-                b'D' => {
+                AlignOp::D => {
                     query_aln.extend(std::iter::repeat_n(b'-', inc));
                 }
 
-                b'S' => query_index += inc,
-                b'N' => {
+                AlignOp::S => query_index += inc,
+                AlignOp::N => {
                     query_aln.extend(std::iter::repeat_n(b'N', inc));
                 }
-                b'H' | b'P' => {}
-                // TODO: Could ignore if we allow only valid CIGAR by default.
-                _ => panic!("CIGAR op '{op}' not supported.\n"),
+                AlignOp::H | AlignOp::P => {}
             }
         }
 
@@ -518,19 +516,24 @@ impl<T> Alignment<T> {
 
 impl<T: Copy> Alignment<T> {
     /// Gets the alignment for when the query and reference are swapped.
+    ///
+    /// ## Validity
+    ///
+    /// The alignment should not contain any [`AlignOp::N`] operations, since
+    /// there is not a corresponding operation for skipped regions from a query.
     #[must_use]
     pub fn invert(&self) -> Self {
         let mut states = AlignmentStates::new();
         states.soft_clip(self.ref_range.start);
         let inverted_ciglets = self.states.0.iter().filter_map(|&ciglet| match ciglet.op {
-            b'S' | b'H' => None,
-            b'D' => Some(Ciglet {
+            AlignOp::S | AlignOp::H => None,
+            AlignOp::D => Some(Ciglet {
                 inc: ciglet.inc,
-                op:  b'I',
+                op:  AlignOp::I,
             }),
-            b'I' => Some(Ciglet {
+            AlignOp::I => Some(Ciglet {
                 inc: ciglet.inc,
-                op:  b'D',
+                op:  AlignOp::D,
             }),
             _ => Some(ciglet),
         });
@@ -790,10 +793,10 @@ impl AlignmentIndices for (usize, usize) {
     fn increment_idxs_by(self, ciglet: Ciglet) -> Self {
         let (query_idx, ref_idx) = self;
         match ciglet.op {
-            b'M' | b'=' | b'X' => (query_idx + ciglet.inc, ref_idx + ciglet.inc),
-            b'D' | b'N' => (query_idx, ref_idx + ciglet.inc),
-            b'I' | b'S' => (query_idx + ciglet.inc, ref_idx),
-            _ => (query_idx, ref_idx),
+            AlignOp::M | AlignOp::Eq | AlignOp::X => (query_idx + ciglet.inc, ref_idx + ciglet.inc),
+            AlignOp::D | AlignOp::N => (query_idx, ref_idx + ciglet.inc),
+            AlignOp::I | AlignOp::S => (query_idx + ciglet.inc, ref_idx),
+            AlignOp::H | AlignOp::P => (query_idx, ref_idx),
         }
     }
 
@@ -801,10 +804,10 @@ impl AlignmentIndices for (usize, usize) {
     fn decrement_idxs_by(self, ciglet: Ciglet) -> Self {
         let (query_idx, ref_idx) = self;
         match ciglet.op {
-            b'M' | b'=' | b'X' => (query_idx - ciglet.inc, ref_idx - ciglet.inc),
-            b'D' | b'N' => (query_idx, ref_idx - ciglet.inc),
-            b'I' | b'S' => (query_idx - ciglet.inc, ref_idx),
-            _ => (query_idx, ref_idx),
+            AlignOp::M | AlignOp::Eq | AlignOp::X => (query_idx - ciglet.inc, ref_idx - ciglet.inc),
+            AlignOp::D | AlignOp::N => (query_idx, ref_idx - ciglet.inc),
+            AlignOp::I | AlignOp::S => (query_idx - ciglet.inc, ref_idx),
+            AlignOp::H | AlignOp::P => (query_idx, ref_idx),
         }
     }
 }

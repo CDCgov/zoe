@@ -17,7 +17,10 @@ use crate::{
             },
         },
     },
-    data::{ByteIndexMap, cigar::Ciglet},
+    data::{
+        ByteIndexMap,
+        cigar::{AlignOp, Ciglet},
+    },
 };
 use std::ops::{Range, RangeInclusive};
 
@@ -354,7 +357,7 @@ where
 
         let next_op = match next_op {
             // Handle an empty alignment, which will ignore ref_start
-            None | Some(b'S') => {
+            None | Some(AlignOp::S) => {
                 let score_through_begin =
                     self.inner.score + module.score(Begin) + phmm.end().semilocal_params().score(Begin);
                 let score_through_end = self.inner.score + module.score(End) + phmm.end().semilocal_params().score(End);
@@ -832,8 +835,10 @@ where
 
         let mut states = states.as_slice();
 
-        let begin_residues_len = states.next_ciglet_if_op(|op| op == b'S').map_or(0, |ciglet| ciglet.inc);
-        let end_residues_len = states.next_ciglet_back_if_op(|op| op == b'S').map_or(0, |ciglet| ciglet.inc);
+        let begin_residues_len = states.next_ciglet_if_op(|op| op == AlignOp::S).map_or(0, |ciglet| ciglet.inc);
+        let end_residues_len = states
+            .next_ciglet_back_if_op(|op| op == AlignOp::S)
+            .map_or(0, |ciglet| ciglet.inc);
 
         // Finish initializing context
         context.skipped_start = begin_residues_len;
@@ -925,7 +930,7 @@ where
     fn choose_end_or_insert(
         &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: &DomainPhmm<T, S>,
     ) -> Result<EndInsert, DomainTraverseFromAlignError> {
-        if self.inner.op_iter.peek_op() == Some(b'S') {
+        if self.inner.op_iter.peek_op() == Some(AlignOp::S) {
             self.inner.score += params[(exiting, PhmmState::Match)];
             return Ok(EndInsert::End);
         }
@@ -1098,7 +1103,7 @@ where
 
         // Determine whether the alignment is entirely clipping
         let all_clipping_states = &[Ciglet {
-            op:  b'S',
+            op:  AlignOp::S,
             inc: query.len(),
         }];
 
@@ -1155,8 +1160,10 @@ where
 
             (best_begin_residues, best_end_residues, Some(empty_info))
         } else {
-            let begin_residues_len = states.next_ciglet_if_op(|op| op == b'S').map_or(0, |ciglet| ciglet.inc);
-            let end_residues_len = states.next_ciglet_back_if_op(|op| op == b'S').map_or(0, |ciglet| ciglet.inc);
+            let begin_residues_len = states.next_ciglet_if_op(|op| op == AlignOp::S).map_or(0, |ciglet| ciglet.inc);
+            let end_residues_len = states
+                .next_ciglet_back_if_op(|op| op == AlignOp::S)
+                .map_or(0, |ciglet| ciglet.inc);
 
             context.skipped_start = begin_residues_len;
             context.skipped_end = end_residues_len;
@@ -1266,7 +1273,7 @@ where
     fn choose_end_or_insert(
         &mut self, layer: DpIndex, exiting: PhmmState, params: &TransitionParams<T>, _phmm: &LocalPhmm<T, S>,
     ) -> Result<EndInsert, LocalTraverseFromAlignError> {
-        if self.inner.inner.op_iter.peek_op() == Some(b'S') {
+        if self.inner.inner.op_iter.peek_op() == Some(AlignOp::S) {
             self.inner.inner.score += params[(exiting, PhmmState::Match)];
             return Ok(EndInsert::End);
         }
@@ -1512,11 +1519,11 @@ impl PhmmState {
     /// Converts a CIGAR-style operation to a [`PhmmState`], return `None` if it
     /// is not in `MDI=X`.
     #[inline]
-    pub(crate) fn from_op(op: u8) -> Option<Self> {
+    pub(crate) fn from_op(op: AlignOp) -> Option<Self> {
         match op {
-            b'M' | b'=' | b'X' => Some(PhmmState::Match),
-            b'D' => Some(PhmmState::Delete),
-            b'I' => Some(PhmmState::Insert),
+            AlignOp::M | AlignOp::Eq | AlignOp::X => Some(PhmmState::Match),
+            AlignOp::D => Some(PhmmState::Delete),
+            AlignOp::I => Some(PhmmState::Insert),
             _ => None,
         }
     }
@@ -1526,12 +1533,12 @@ impl PhmmStateOrModule {
     /// Converts a CIGAR-style operation to a [`PhmmState`], return `None` if it
     /// is not in `MDIS=X`.
     #[inline]
-    pub(crate) fn from_op(op: u8) -> Option<Self> {
+    pub(crate) fn from_op(op: AlignOp) -> Option<Self> {
         match op {
-            b'M' | b'=' | b'X' => Some(PhmmStateOrModule::Match),
-            b'D' => Some(PhmmStateOrModule::Delete),
-            b'I' => Some(PhmmStateOrModule::Insert),
-            b'S' => Some(PhmmStateOrModule::Module),
+            AlignOp::M | AlignOp::Eq | AlignOp::X => Some(PhmmStateOrModule::Match),
+            AlignOp::D => Some(PhmmStateOrModule::Delete),
+            AlignOp::I => Some(PhmmStateOrModule::Insert),
+            AlignOp::S => Some(PhmmStateOrModule::Module),
             _ => None,
         }
     }

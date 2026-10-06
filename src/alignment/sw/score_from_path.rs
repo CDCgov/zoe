@@ -1,4 +1,7 @@
-use crate::{alignment::ScalarProfile, data::cigar::Ciglet};
+use crate::{
+    alignment::ScalarProfile,
+    data::cigar::{AlignOp, Ciglet},
+};
 use std::{
     cmp::Ordering::{Equal, Greater, Less},
     error::Error,
@@ -25,6 +28,8 @@ use std::{
 /// ## Panics
 ///
 /// - All increments must be nonzero.
+///
+/// [`Alignment::ref_range`]: crate::alignment::types::Alignment::ref_range
 pub fn sw_score_from_path<const S: usize>(
     ciglets: impl IntoIterator<Item = Ciglet>, ref_in_alignment: &[u8], query: &ScalarProfile<S>,
 ) -> Result<u32, SwScoringError> {
@@ -34,7 +39,7 @@ pub fn sw_score_from_path<const S: usize>(
 
     for Ciglet { inc, op } in ciglets {
         match op {
-            b'M' | b'=' | b'X' => {
+            AlignOp::M | AlignOp::Eq | AlignOp::X => {
                 for _ in 0..inc {
                     let Some(reference_base) = ref_in_alignment.get(r).copied() else {
                         return Err(SwScoringError::ReferenceEnded);
@@ -47,18 +52,17 @@ pub fn sw_score_from_path<const S: usize>(
                     r += 1;
                 }
             }
-            b'I' => {
+            AlignOp::I => {
                 score += query.gap_open + query.gap_extend * (inc - 1) as i32;
                 q += inc;
             }
-            b'D' => {
+            AlignOp::D => {
                 score += query.gap_open + query.gap_extend * (inc - 1) as i32;
                 r += inc;
             }
-            b'S' => q += inc,
-            b'N' => r += inc,
-            b'H' | b'P' => {}
-            op => return Err(SwScoringError::InvalidCigarOp(op)),
+            AlignOp::S => q += inc,
+            AlignOp::N => r += inc,
+            AlignOp::H | AlignOp::P => {}
         }
     }
 
@@ -98,8 +102,6 @@ pub enum SwScoringError {
     /// Failed to consume the full, provided reference, which was expected to
     /// contain only the aligned region of the original reference
     FullReferenceNotUsed,
-    /// Unsupported CIGAR opcode used in argument
-    InvalidCigarOp(u8),
 }
 
 impl Display for SwScoringError {
@@ -119,7 +121,6 @@ impl Display for SwScoringError {
                     "Failed to consume the full, provided reference, which was expected to contain only the aligned region of the original reference"
                 )
             }
-            SwScoringError::InvalidCigarOp(op) => write!(f, "An unsupported CIGAR opcode was encountered: {op}"),
         }
     }
 }

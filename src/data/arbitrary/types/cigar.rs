@@ -4,19 +4,37 @@
 use crate::{
     alignment::{AlignmentStates, NextCiglet},
     data::{
-        arbitrary::{ArbitrarySpecs, ByteSet},
-        cigar::{Cigar, Ciglet, FormatCigletForCigarVec, LenInAlignment},
+        arbitrary::ArbitrarySpecs,
+        cigar::{AlignOp, Cigar, Ciglet, FormatCigletForCigarVec, LenInAlignment},
     },
 };
 use arbitrary::{Arbitrary, Result, Unstructured};
 use std::cmp::Ordering;
+
+impl<'a> Arbitrary<'a> for AlignOp {
+    #[inline]
+    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
+        match u.int_in_range(0..=8)? {
+            0 => Ok(AlignOp::M),
+            1 => Ok(AlignOp::I),
+            2 => Ok(AlignOp::D),
+            3 => Ok(AlignOp::N),
+            4 => Ok(AlignOp::S),
+            5 => Ok(AlignOp::H),
+            6 => Ok(AlignOp::P),
+            7 => Ok(AlignOp::Eq),
+            8 => Ok(AlignOp::X),
+            _ => unreachable!(),
+        }
+    }
+}
 
 impl<'a> Arbitrary<'a> for Ciglet {
     #[inline]
     fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
         Ok(Ciglet {
             inc: usize::arbitrary(u)?,
-            op:  u8::arbitrary(u)?,
+            op:  AlignOp::arbitrary(u)?,
         })
     }
 }
@@ -35,19 +53,10 @@ impl<'a> Arbitrary<'a> for AlignmentStates {
     }
 }
 
-/// Specifications for generating an arbitrary [`Ciglet`].
-#[allow(clippy::struct_excessive_bools)]
+/// Specifications for generating an arbitrary [`AlignOp`].
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
-pub struct CigletSpecs {
-    /// Whether to restrict the increment to be non-zero.
-    pub nonzero_inc: bool,
-
-    /// The maximum increment to allow.
-    pub max_inc: usize,
-
-    /// Whether to restrict the operation to `MIDNSHP=X`.
-    pub valid_op: bool,
-
+#[allow(clippy::struct_excessive_bools)]
+pub struct AlignOpSpecs {
     /// Whether to allow `M` as an operation.
     pub include_m: bool,
 
@@ -76,67 +85,86 @@ pub struct CigletSpecs {
     pub include_x: bool,
 }
 
-impl Default for CigletSpecs {
+impl Default for AlignOpSpecs {
     fn default() -> Self {
         Self {
-            nonzero_inc: false,
-            max_inc:     usize::MAX,
-            valid_op:    false,
-            include_m:   true,
-            include_i:   true,
-            include_d:   true,
-            include_n:   true,
-            include_s:   true,
-            include_h:   true,
-            include_p:   true,
-            include_eq:  true,
-            include_x:   true,
+            include_m:  true,
+            include_i:  true,
+            include_d:  true,
+            include_n:  true,
+            include_s:  true,
+            include_h:  true,
+            include_p:  true,
+            include_eq: true,
+            include_x:  true,
         }
     }
 }
 
-impl CigletSpecs {
-    /// Builds the [`ByteSet`] corresponding to the operation.
-    fn op_byte_set(&self) -> ByteSet {
-        let include_op = [
-            (b'M', self.include_m),
-            (b'I', self.include_i),
-            (b'D', self.include_d),
-            (b'N', self.include_n),
-            (b'S', self.include_s),
-            (b'H', self.include_h),
-            (b'P', self.include_p),
-            (b'=', self.include_eq),
-            (b'X', self.include_x),
+impl<'a> ArbitrarySpecs<'a> for AlignOpSpecs {
+    type Output = AlignOp;
+
+    /// Generates an arbitrary [`AlignOp`] conforming to the given
+    /// specifications.
+    ///
+    /// ## Errors
+    ///
+    /// - If all `include_*` fields are `false`, [`EmptyChoose`] is returned
+    /// - Any errors from the underlying [`arbitrary`] calls are propagated
+    ///
+    /// [`arbitrary`]: arbitrary::Arbitrary::arbitrary
+    /// [`EmptyChoose`]: arbitrary::Error::EmptyChoose
+    fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {
+        // The implementation is designed to work with arrays and slices to
+        // avoid allocation
+
+        let mut ops = [
+            (AlignOp::M, self.include_m),
+            (AlignOp::I, self.include_i),
+            (AlignOp::D, self.include_d),
+            (AlignOp::N, self.include_n),
+            (AlignOp::S, self.include_s),
+            (AlignOp::H, self.include_h),
+            (AlignOp::P, self.include_p),
+            (AlignOp::Eq, self.include_eq),
+            (AlignOp::X, self.include_x),
         ];
 
-        if self.valid_op {
-            // This is the common case, so make it more efficient by
-            // initializing a vector up front with specified capacity and
-            // linearly building up ByteSet
+        // Move included operations to the beginning, using unstable sort for
+        // efficiency
+        ops.sort_unstable_by_key(|(_, include)| !include);
 
-            let mut options = Vec::with_capacity(include_op.len());
+        // Get the number of enabled choices
+        let num_choices = ops.iter().take_while(|(_, include)| *include).count();
 
-            for (op, include) in include_op {
-                if include {
-                    options.push(op);
-                }
-            }
+        // Form a slice of included operations, which is an ExactSizeIterator
+        // and thus works with choose_iter
+        let choices = &ops[..num_choices];
 
-            ByteSet::from(options)
-        } else {
-            // This is an uncommon case, if any include fields are false. In
-            // that case, we run in quadratic time when building the ByteSet
+        Ok(u.choose_iter(choices)?.0)
+    }
+}
 
-            let mut byte_set = ByteSet::Any;
+/// Specifications for generating an arbitrary [`Ciglet`].
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+pub struct CigletSpecs {
+    /// Whether to restrict the increment to be non-zero.
+    pub nonzero_inc: bool,
 
-            for (byte, include) in include_op {
-                if !include {
-                    byte_set.remove(byte);
-                }
-            }
+    /// The maximum increment to allow.
+    pub max_inc: usize,
 
-            byte_set
+    /// The specs for picking the operation.
+    pub op: AlignOpSpecs,
+}
+
+impl Default for CigletSpecs {
+    #[inline]
+    fn default() -> Self {
+        Self {
+            nonzero_inc: false,
+            max_inc:     usize::MAX,
+            op:          AlignOpSpecs::default(),
         }
     }
 }
@@ -149,16 +177,14 @@ impl<'a> ArbitrarySpecs<'a> for CigletSpecs {
     ///
     /// ## Errors
     ///
-    /// - Any errors from the underlying [`arbitrary`] calls are propagated.
-    /// - If `valid_op` is `true` and all `include_*` fields are `false`,
-    ///   [`EmptyChoose`] is returned.
+    /// Any errors from the underlying [`arbitrary`] calls or from
+    /// [`CigarOpSpecs::make_arbitrary`] are propagated.
     ///
     /// ## Panics
     ///
     /// This panics if `nonzero_inc` is true and `max_inc` is 0.
     ///
     /// [`arbitrary`]: arbitrary::Arbitrary::arbitrary
-    /// [`EmptyChoose`]: arbitrary::Error::EmptyChoose
     #[inline]
     fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {
         let min_inc = usize::from(self.nonzero_inc);
@@ -168,8 +194,7 @@ impl<'a> ArbitrarySpecs<'a> for CigletSpecs {
             Ordering::Greater => panic!("max_inc was 0 and nonzero_inc was true"),
         };
 
-        let byte_set = self.op_byte_set();
-        let op = byte_set.make_arbitrary(u)?;
+        let op = self.op.make_arbitrary(u)?;
 
         Ok(Ciglet { inc, op })
     }
@@ -228,15 +253,15 @@ impl<'a> ArbitrarySpecs<'a> for AlignmentStatesSpecs {
         if self.avoid_middle_hard_clipping {
             let mut iter = vec.iter();
 
-            let hard_clip_start = iter.by_ref().take_while(|ciglet| ciglet.op == b'H').count();
-            let hard_clip_back = iter.by_ref().rev().take_while(|ciglet| ciglet.op == b'H').count();
+            let hard_clip_start = iter.by_ref().take_while(|ciglet| ciglet.op == AlignOp::H).count();
+            let hard_clip_back = iter.by_ref().rev().take_while(|ciglet| ciglet.op == AlignOp::H).count();
 
             let start = hard_clip_start;
             let end = vec.len() - hard_clip_back;
 
             let mut i = 0;
             vec.retain(|ciglet| {
-                let keep = !(start..end).contains(&i) || ciglet.op != b'H';
+                let keep = !(start..end).contains(&i) || ciglet.op != AlignOp::H;
                 i += 1;
                 keep
             });
@@ -246,13 +271,13 @@ impl<'a> ArbitrarySpecs<'a> for AlignmentStatesSpecs {
             let mut iter = vec.iter();
 
             let clip_start = {
-                let mut clipping_op = b'H';
+                let mut clipping_op = AlignOp::H;
                 iter.by_ref()
                     .take_while(|ciglet| {
                         if ciglet.op == clipping_op {
                             true
-                        } else if ciglet.op == b'S' && clipping_op == b'H' {
-                            clipping_op = b'S';
+                        } else if ciglet.op == AlignOp::S && clipping_op == AlignOp::H {
+                            clipping_op = AlignOp::S;
                             true
                         } else {
                             false
@@ -262,14 +287,14 @@ impl<'a> ArbitrarySpecs<'a> for AlignmentStatesSpecs {
             };
 
             let clip_back = {
-                let mut clipping_op = b'H';
+                let mut clipping_op = AlignOp::H;
                 iter.by_ref()
                     .rev()
                     .take_while(|ciglet| {
                         if ciglet.op == clipping_op {
                             true
-                        } else if ciglet.op == b'S' && clipping_op == b'H' {
-                            clipping_op = b'S';
+                        } else if ciglet.op == AlignOp::S && clipping_op == AlignOp::H {
+                            clipping_op = AlignOp::S;
                             true
                         } else {
                             false
@@ -283,7 +308,7 @@ impl<'a> ArbitrarySpecs<'a> for AlignmentStatesSpecs {
 
             let mut i = 0;
             vec.retain(|ciglet| {
-                let keep = !(start..end).contains(&i) || ciglet.op != b'S';
+                let keep = !(start..end).contains(&i) || ciglet.op != AlignOp::S;
                 i += 1;
                 keep
             });
@@ -429,7 +454,7 @@ impl ClampAlignment for AlignmentStates {
             let mut new_vec = Vec::new();
             let mut query_len = 0usize;
             for ciglet in self.iter().copied() {
-                if matches!(ciglet.op, b'M' | b'I' | b'S' | b'=' | b'X') {
+                if matches!(ciglet.op, AlignOp::M | AlignOp::I | AlignOp::S | AlignOp::Eq | AlignOp::X) {
                     query_len = match query_len.checked_add(ciglet.inc) {
                         Some(query_len) => query_len,
                         None => break,
@@ -450,8 +475,8 @@ impl ClampAlignment for AlignmentStates {
 
         // Remove clipping without risk of overflow when adding the amounts
         // clipped
-        ciglets.next_ciglet_back_if_op(|op| op == b'H');
-        ciglets.next_ciglet_back_if_op(|op| op == b'S');
+        ciglets.next_ciglet_back_if_op(|op| op == AlignOp::H);
+        ciglets.next_ciglet_back_if_op(|op| op == AlignOp::S);
 
         let needs_shrink = match ciglets.query_len_in_alignment_checked() {
             Some(query_len) => query_len > max_query_len,
@@ -470,7 +495,7 @@ impl ClampAlignment for AlignmentStates {
             let mut ciglets = self.as_slice();
 
             while let Some(ciglet) = ciglets.next_ciglet() {
-                if ciglet.op == b'S' {
+                if ciglet.op == AlignOp::S {
                     // Add any previous soft clipping to the count, since it is
                     // no longer at the end
                     query_len = match query_len.checked_add(clipping_len) {
@@ -484,10 +509,10 @@ impl ClampAlignment for AlignmentStates {
                     clipping_len = ciglet.inc;
                     // Push soft and hard clipping ciglets
                     new_vec.push(ciglet);
-                    new_vec.extend(ciglets.next_ciglet_if_op(|op| op == b'H'));
+                    new_vec.extend(ciglets.next_ciglet_if_op(|op| op == AlignOp::H));
                 } else {
                     // The number of residues in the query consumed by this ciglet
-                    let ciglet_query_len = if matches!(ciglet.op, b'M' | b'I' | b'=' | b'X') {
+                    let ciglet_query_len = if matches!(ciglet.op, AlignOp::M | AlignOp::I | AlignOp::Eq | AlignOp::X) {
                         ciglet.inc
                     } else {
                         0
@@ -527,7 +552,7 @@ impl ClampAlignment for AlignmentStates {
             let mut new_vec = Vec::new();
             let mut match_len = 0usize;
             for ciglet in self.iter().copied() {
-                if matches!(ciglet.op, b'M' | b'D' | b'N' | b'=' | b'X') {
+                if matches!(ciglet.op, AlignOp::M | AlignOp::D | AlignOp::N | AlignOp::Eq | AlignOp::X) {
                     match_len = match match_len.checked_add(ciglet.inc) {
                         Some(match_len) => match_len,
                         None => break,
@@ -583,7 +608,7 @@ impl ClampAlignment for Cigar {
             let mut new_vec = Vec::new();
             let mut query_len = 0usize;
             for ciglet in self.iter_unchecked() {
-                if matches!(ciglet.op, b'M' | b'I' | b'S' | b'=' | b'X') {
+                if matches!(ciglet.op, AlignOp::M | AlignOp::I | AlignOp::S | AlignOp::Eq | AlignOp::X) {
                     query_len = match query_len.checked_add(ciglet.inc) {
                         Some(query_len) => query_len,
                         None => break,
@@ -624,7 +649,7 @@ impl ClampAlignment for Cigar {
             let mut ciglets = self.iter_unchecked();
 
             while let Some(ciglet) = ciglets.next_ciglet() {
-                if ciglet.op == b'S' {
+                if ciglet.op == AlignOp::S {
                     // Add any previous soft clipping to the count, since it is
                     // no longer at the end
                     query_len = match query_len.checked_add(clipping_len) {
@@ -638,12 +663,12 @@ impl ClampAlignment for Cigar {
                     clipping_len = ciglet.inc;
                     // Push soft and hard clipping ciglets
                     new_vec.push_formatted_ciglet(ciglet);
-                    if let Some(ciglet) = ciglets.next_ciglet_if_op(|op| op == b'H') {
+                    if let Some(ciglet) = ciglets.next_ciglet_if_op(|op| op == AlignOp::H) {
                         new_vec.push_formatted_ciglet(ciglet);
                     }
                 } else {
                     // The number of residues in the query consumed by this ciglet
-                    let ciglet_query_len = if matches!(ciglet.op, b'M' | b'I' | b'=' | b'X') {
+                    let ciglet_query_len = if matches!(ciglet.op, AlignOp::M | AlignOp::I | AlignOp::Eq | AlignOp::X) {
                         ciglet.inc
                     } else {
                         0
@@ -683,7 +708,7 @@ impl ClampAlignment for Cigar {
             let mut new_vec = Vec::new();
             let mut match_len = 0usize;
             for ciglet in self.iter_unchecked() {
-                if matches!(ciglet.op, b'M' | b'D' | b'N' | b'=' | b'X') {
+                if matches!(ciglet.op, AlignOp::M | AlignOp::D | AlignOp::N | AlignOp::Eq | AlignOp::X) {
                     match_len = match match_len.checked_add(ciglet.inc) {
                         Some(match_len) => match_len,
                         None => break,

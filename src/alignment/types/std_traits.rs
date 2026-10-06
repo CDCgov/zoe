@@ -1,7 +1,7 @@
 use crate::{
     alignment::{Alignment, MaybeAligned, types::AlignmentStates},
     data::{
-        cigar::{CigarView, is_valid_op},
+        cigar::CigarView,
         types::cigar::{Cigar, CigarError, Ciglet, CigletIteratorChecked},
     },
 };
@@ -46,7 +46,7 @@ impl IntoIterator for AlignmentStates {
 impl FromIterator<Ciglet> for Result<AlignmentStates, CigarError> {
     #[inline]
     fn from_iter<T: IntoIterator<Item = Ciglet>>(iter: T) -> Self {
-        let mut last_op = 0;
+        let mut last_op = None;
         let mut repeated_op = false;
 
         // We do not expect repeated operations, so use collect and its
@@ -57,13 +57,13 @@ impl FromIterator<Ciglet> for Result<AlignmentStates, CigarError> {
             .map(|ciglet| {
                 if ciglet.inc == 0 {
                     Err(CigarError::IncZero)
-                } else if !is_valid_op(ciglet.op) {
-                    Err(CigarError::InvalidOperation)
-                } else if ciglet.op == last_op {
+                } else if let Some(last_op) = last_op
+                    && ciglet.op == last_op
+                {
                     repeated_op = true;
                     Ok(ciglet)
                 } else {
-                    last_op = ciglet.op;
+                    last_op = Some(ciglet.op);
                     Ok(ciglet)
                 }
             })
@@ -101,7 +101,9 @@ impl FromIterator<Ciglet> for Result<AlignmentStates, CigarError> {
 
 impl std::fmt::Debug for AlignmentStates {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_list().entries(self.0.iter().map(|c| (c.inc, c.op as char))).finish()
+        f.debug_list()
+            .entries(self.0.iter().map(|c| (c.inc, c.op.as_char())))
+            .finish()
     }
 }
 
@@ -110,7 +112,7 @@ impl std::fmt::Display for AlignmentStates {
         let mut buff = core::fmt::NumBuffer::new();
         for Ciglet { inc, op } in self {
             f.write_str(inc.format_into(&mut buff))?;
-            f.write_char(op as char)?;
+            f.write_char(op.as_char())?;
         }
         Ok(())
     }

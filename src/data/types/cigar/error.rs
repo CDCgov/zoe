@@ -1,7 +1,11 @@
 //! Error types for CIGAR strings.
 
-use std::{error::Error, fmt};
+use std::{
+    error::Error,
+    fmt::{self, Display},
+};
 
+// TODO: Could eventually have InvalidOperation hold InvalidCigarOpErr
 #[non_exhaustive]
 #[derive(Clone, Eq, PartialEq, Copy, Hash)]
 /// Custom error type for constructing CIGAR strings.
@@ -47,3 +51,26 @@ impl fmt::Debug for CigarError {
 }
 
 impl Error for CigarError {}
+
+/// An error for an invalid operation while parsing a CIGAR string.
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
+#[repr(transparent)]
+pub struct InvalidCigarOpErr(pub u8);
+
+impl Display for InvalidCigarOpErr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "An invalid CIGAR operation was found: '{}' (expected one of M, I, D, N, S, H, P, X, =)",
+            self.0 as char
+        )
+    }
+}
+
+impl Error for InvalidCigarOpErr {}
+
+impl From<InvalidCigarOpErr> for CigarError {
+    fn from(_value: InvalidCigarOpErr) -> Self {
+        CigarError::InvalidOperation
+    }
+}

@@ -5,7 +5,7 @@
 use crate::{
     alignment::{Alignment, AlignmentStates, MaybeAligned, NextCiglet},
     data::{
-        cigar::LenInAlignment,
+        cigar::{AlignOp, LenInAlignment},
         types::cigar::{Cigar, CigarView},
     },
     math::AnyInt,
@@ -310,7 +310,6 @@ impl SamData {
     /// For any mapped read:
     ///
     /// - The `seq` field of the record must be populated (i.e., not `*`).
-    /// - The CIGAR operations must be among `M, I, D, N, S, H, P, X, =`
     /// - Every operation in the CIGAR string must have a preceding increment
     /// - Every increment must be followed by an operation
     /// - The increment for each operation must be non-zero and less than
@@ -342,10 +341,10 @@ impl SamData {
         let ref_range = ref_range_start..ref_range_end;
 
         let mut ciglets = self.cigar.iter_unchecked();
-        ciglets.next_ciglet_if_op(|op| op == b'H');
-        let soft_clipping_front = ciglets.next_ciglet_if_op(|op| op == b'S').map_or(0, |c| c.inc);
-        ciglets.next_ciglet_back_if_op(|op| op == b'H');
-        let soft_clipping_back = ciglets.next_ciglet_back_if_op(|op| op == b'S').map_or(0, |c| c.inc);
+        ciglets.next_ciglet_if_op(|op| op == AlignOp::H);
+        let soft_clipping_front = ciglets.next_ciglet_if_op(|op| op == AlignOp::S).map_or(0, |c| c.inc);
+        ciglets.next_ciglet_back_if_op(|op| op == AlignOp::H);
+        let soft_clipping_back = ciglets.next_ciglet_back_if_op(|op| op == AlignOp::S).map_or(0, |c| c.inc);
 
         let soft_clipping = soft_clipping_front + soft_clipping_back;
 

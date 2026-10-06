@@ -38,7 +38,7 @@ use crate::{
             state::{PhmmState, PhmmStateOrModule},
         },
     },
-    data::cigar::LenInAlignment,
+    data::cigar::{AlignOp, LenInAlignment},
 };
 use std::{error::Error, fmt::Display};
 
@@ -50,7 +50,7 @@ pub enum GlobalTraverseFromAlignError {
     /// An error caused by an invalid model.
     InvalidModel(InvalidModelError),
     /// Unsupported CIGAR operation outside of `MDI=X`.
-    InvalidCigarOp(u8),
+    InvalidCigarOp(AlignOp),
     /// The length of the reference as implied by the model and the alignment
     /// disagree.
     ModelLenMismatch {
@@ -79,7 +79,7 @@ pub enum SemiLocalTraverseFromAlignError {
     /// An error caused by an invalid model.
     InvalidModel(InvalidModelError),
     /// Unsupported CIGAR operation outside of `MDI=X`.
-    InvalidCigarOp(u8),
+    InvalidCigarOp(AlignOp),
     /// The length of the reference as implied by the model is shorter than
     /// what is implied by the alignment.
     ModelLenMismatch {
@@ -99,14 +99,14 @@ pub enum SemiLocalTraverseFromAlignError {
     MissingMatchOp {
         ref_len:   usize,
         ref_coord: usize,
-        op:        u8,
+        op:        AlignOp,
     },
     /// After directly entering the END state from the [`SemiLocalModule`] at
     /// the beginning of the pHMM, an operation in the CIGAR string was
     /// encountered.
     ///
     /// [`SemiLocalModule`]: crate::alignment::phmm::modules::SemiLocalModule
-    OpAfterEnteringEnd { op: u8 },
+    OpAfterEnteringEnd { op: AlignOp },
     /// The starting index of the alignment within reference coordinates was out
     /// of bounds for the model.
     RefStartOutOfBounds { ref_start: usize, ref_len: usize },
@@ -133,7 +133,7 @@ pub enum DomainTraverseFromAlignError {
     /// An error caused by an invalid model.
     InvalidModel(InvalidModelError),
     /// Unsupported CIGAR operation outside of `MDIS=X`.
-    InvalidCigarOp(u8),
+    InvalidCigarOp(AlignOp),
     /// Found soft clipping in the middle of the alignment.
     InternalClipping,
     /// Two adjacent ciglets have the same operation.
@@ -168,7 +168,7 @@ pub enum LocalTraverseFromAlignError {
     /// An error caused by an invalid model.
     InvalidModel(InvalidModelError),
     /// Unsupported CIGAR operation outside of `MDIS=X`.
-    InvalidCigarOp(u8),
+    InvalidCigarOp(AlignOp),
     /// Found soft clipping in the middle of the alignment.
     InternalClipping,
     /// Two adjacent ciglets have the same operation.
@@ -194,14 +194,14 @@ pub enum LocalTraverseFromAlignError {
     MissingMatchOp {
         ref_len:   usize,
         ref_coord: usize,
-        op:        u8,
+        op:        AlignOp,
     },
     /// After directly entering the END state from the [`SemiLocalModule`] at
     /// the beginning of the pHMM, an operation in the CIGAR string was
     /// encountered.
     ///
     /// [`SemiLocalModule`]: crate::alignment::phmm::modules::SemiLocalModule
-    OpAfterEnteringEnd { op: u8 },
+    OpAfterEnteringEnd { op: AlignOp },
     /// The starting index of the alignment within reference coordinates was out
     /// of bounds for the model.
     RefStartOutOfBounds { ref_start: usize, ref_len: usize },
@@ -225,11 +225,9 @@ impl Display for GlobalTraverseFromAlignError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match *self {
             GlobalTraverseFromAlignError::InvalidModel(err) => write!(f, "{err}"),
-            GlobalTraverseFromAlignError::InvalidCigarOp(op) => write!(
-                f,
-                "An invalid CIGAR operation was found ({}). Expected one of MDI=X.",
-                op as char
-            ),
+            GlobalTraverseFromAlignError::InvalidCigarOp(op) => {
+                write!(f, "An invalid CIGAR operation was found ({op}). Expected one of MDI=X.")
+            }
             GlobalTraverseFromAlignError::ModelLenMismatch {
                 ref_len,
                 ref_len_in_alignment,
@@ -261,11 +259,9 @@ impl Display for SemiLocalTraverseFromAlignError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match *self {
             SemiLocalTraverseFromAlignError::InvalidModel(err) => write!(f, "{err}"),
-            SemiLocalTraverseFromAlignError::InvalidCigarOp(op) => write!(
-                f,
-                "An invalid CIGAR operation was found ({}). Expected one of MDI=X.",
-                op as char
-            ),
+            SemiLocalTraverseFromAlignError::InvalidCigarOp(op) => {
+                write!(f, "An invalid CIGAR operation was found ({op}). Expected one of MDI=X.")
+            }
             SemiLocalTraverseFromAlignError::ModelLenMismatch {
                 ref_len,
                 ref_start,
@@ -292,13 +288,11 @@ impl Display for SemiLocalTraverseFromAlignError {
             ),
             SemiLocalTraverseFromAlignError::MissingMatchOp { ref_len, ref_coord, op } => write!(
                 f,
-                "The alignment enters the MATCH state corresponding to reference coordinate {ref_coord} (out of a total reference length of {ref_len}). Instead of finding a match, the operation {op} was found.",
-                op = op as char
+                "The alignment enters the MATCH state corresponding to reference coordinate {ref_coord} (out of a total reference length of {ref_len}). Instead of finding a match, the operation {op} was found."
             ),
             SemiLocalTraverseFromAlignError::OpAfterEnteringEnd { op } => write!(
                 f,
-                "After directly entering the END state from the beginning of the pHMM, the operation {op} was found.",
-                op = op as char
+                "After directly entering the END state from the beginning of the pHMM, the operation {op} was found."
             ),
             SemiLocalTraverseFromAlignError::RefStartOutOfBounds { ref_start, ref_len } => write!(
                 f,
@@ -328,11 +322,9 @@ impl Display for DomainTraverseFromAlignError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match *self {
             DomainTraverseFromAlignError::InvalidModel(err) => write!(f, "{err}"),
-            DomainTraverseFromAlignError::InvalidCigarOp(op) => write!(
-                f,
-                "An invalid CIGAR operation was found ({}). Expected one of MDIS=X.",
-                op as char
-            ),
+            DomainTraverseFromAlignError::InvalidCigarOp(op) => {
+                write!(f, "An invalid CIGAR operation was found ({op}). Expected one of MDIS=X.")
+            }
             DomainTraverseFromAlignError::InternalClipping => {
                 write!(f, "Soft clipping was found in the middle of the alignment.")
             }
@@ -372,11 +364,9 @@ impl Display for LocalTraverseFromAlignError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match *self {
             LocalTraverseFromAlignError::InvalidModel(err) => write!(f, "{err}"),
-            LocalTraverseFromAlignError::InvalidCigarOp(op) => write!(
-                f,
-                "An invalid CIGAR operation was found ({}). Expected one of MDIS=X.",
-                op as char
-            ),
+            LocalTraverseFromAlignError::InvalidCigarOp(op) => {
+                write!(f, "An invalid CIGAR operation was found ({op}). Expected one of MDIS=X.")
+            }
             LocalTraverseFromAlignError::InternalClipping => {
                 write!(f, "Soft clipping was found in the middle of the alignment.")
             }
@@ -411,13 +401,11 @@ impl Display for LocalTraverseFromAlignError {
             ),
             LocalTraverseFromAlignError::MissingMatchOp { ref_len, ref_coord, op } => write!(
                 f,
-                "The alignment enters the MATCH state corresponding to reference coordinate {ref_coord} (out of a total reference length of {ref_len}). Instead of finding a match, the operation {op} was found.",
-                op = op as char
+                "The alignment enters the MATCH state corresponding to reference coordinate {ref_coord} (out of a total reference length of {ref_len}). Instead of finding a match, the operation {op} was found."
             ),
             LocalTraverseFromAlignError::OpAfterEnteringEnd { op } => write!(
                 f,
-                "After directly entering the END state from the beginning of the pHMM, the operation {op} was found.",
-                op = op as char
+                "After directly entering the END state from the beginning of the pHMM, the operation {op} was found."
             ),
             LocalTraverseFromAlignError::RefStartOutOfBounds { ref_start, ref_len } => write!(
                 f,
@@ -464,14 +452,14 @@ pub(super) trait CoreContextToErr {
     /// Constructs an error when a alignment operation is not legal for the
     /// given pHMM type (i.e., not corresponding to variants of [`PhmmState`]
     /// for global/semilocal or [`PhmmStateOrModule`] for domain/local).
-    fn invalid_op(&self, op: u8) -> Self::Error;
+    fn invalid_op(&self, op: AlignOp) -> Self::Error;
 
     /// Constructs the appropriate error when `op` cannot be converted into
     /// [`PhmmState`] by [`choose_core_transition`].
     ///
     /// [`choose_core_transition`]:
     ///     crate::alignment::phmm::traverse::alignment::CoreAlignmentVisitor::choose_core_transition
-    fn core_transition_op_error(&self, op: u8, layer: DpIndex, exiting: PhmmState) -> Self::Error;
+    fn core_transition_op_error(&self, op: AlignOp, layer: DpIndex, exiting: PhmmState) -> Self::Error;
 
     /// Constructs the appropriate error when the operation iterator runs out
     /// during [`choose_core_transition`].
@@ -485,7 +473,7 @@ pub(super) trait CoreContextToErr {
     ///
     /// [`choose_end_or_insert`]:
     ///     crate::alignment::phmm::traverse::alignment::CoreAlignmentVisitor::choose_end_or_insert
-    fn choose_end_or_insert_op_error(&self, op: u8, layer: DpIndex, exiting: PhmmState) -> Self::Error;
+    fn choose_end_or_insert_op_error(&self, op: AlignOp, layer: DpIndex, exiting: PhmmState) -> Self::Error;
 }
 
 /// A trait unifying the context types for pHMMs with semilocal transitions
@@ -493,12 +481,12 @@ pub(super) trait CoreContextToErr {
 pub(super) trait CoreContextWithExitToErr: CoreContextToErr {
     /// Constructs an error when the operation following the last match state is
     /// not `I` or `S` (for `LocalAlignmentVisitor`).
-    fn choose_end_insert_or_exit_op_error(&self, op: u8, layer: DpIndex) -> Self::Error;
+    fn choose_end_insert_or_exit_op_error(&self, op: AlignOp, layer: DpIndex) -> Self::Error;
 
     /// Constructs an error caused by a match operation not being present,
     /// despite entering into a layer other than the BEGIN or END layer from the
     /// starting module.
-    fn no_match_after_enter(&self, op: u8) -> Self::Error;
+    fn no_match_after_enter(&self, op: AlignOp) -> Self::Error;
 
     /// Constructs an error caused by the starting index of the alignment within
     /// reference coordinates being out of bounds for the model.
@@ -598,11 +586,11 @@ impl CoreContextToErr for GlobalContext<'_> {
         }
     }
 
-    fn invalid_op(&self, op: u8) -> Self::Error {
+    fn invalid_op(&self, op: AlignOp) -> Self::Error {
         GlobalTraverseFromAlignError::InvalidCigarOp(op)
     }
 
-    fn core_transition_op_error(&self, op: u8, _layer: DpIndex, _exiting: PhmmState) -> Self::Error {
+    fn core_transition_op_error(&self, op: AlignOp, _layer: DpIndex, _exiting: PhmmState) -> Self::Error {
         // A global pHMM only accepts MDI=X, which correspond exactly to
         // PhmmState, so core_transition_op_error is always an invalid_op error
         self.invalid_op(op)
@@ -615,7 +603,7 @@ impl CoreContextToErr for GlobalContext<'_> {
         self.model_len_mismatch()
     }
 
-    fn choose_end_or_insert_op_error(&self, op: u8, _layer: DpIndex, _exiting: PhmmState) -> Self::Error {
+    fn choose_end_or_insert_op_error(&self, op: AlignOp, _layer: DpIndex, _exiting: PhmmState) -> Self::Error {
         // Confirm that the operation is MDI=X, or return invalid operation
         if PhmmState::from_op(op).is_none() {
             return self.invalid_op(op);
@@ -654,11 +642,11 @@ impl CoreContextToErr for SemiLocalContext<'_> {
         }
     }
 
-    fn invalid_op(&self, op: u8) -> Self::Error {
+    fn invalid_op(&self, op: AlignOp) -> Self::Error {
         SemiLocalTraverseFromAlignError::InvalidCigarOp(op)
     }
 
-    fn core_transition_op_error(&self, op: u8, _layer: DpIndex, _exiting: PhmmState) -> Self::Error {
+    fn core_transition_op_error(&self, op: AlignOp, _layer: DpIndex, _exiting: PhmmState) -> Self::Error {
         // A semilocal pHMM only accepts MDI=X, which correspond exactly to
         // PhmmState, so core_transition_op_error is always an invalid_op error
         self.invalid_op(op)
@@ -675,7 +663,7 @@ impl CoreContextToErr for SemiLocalContext<'_> {
         }
     }
 
-    fn choose_end_or_insert_op_error(&self, op: u8, layer: DpIndex, _exiting: PhmmState) -> Self::Error {
+    fn choose_end_or_insert_op_error(&self, op: AlignOp, layer: DpIndex, _exiting: PhmmState) -> Self::Error {
         // For semilocal pHMMs, the only way early exiting is implied is via the
         // operation iterator ending, since soft clipping is not permitted.
         // However, the operation iterator did not end if this function is being
@@ -686,7 +674,7 @@ impl CoreContextToErr for SemiLocalContext<'_> {
 }
 
 impl CoreContextWithExitToErr for SemiLocalContext<'_> {
-    fn choose_end_insert_or_exit_op_error(&self, op: u8, _layer: DpIndex) -> Self::Error {
+    fn choose_end_insert_or_exit_op_error(&self, op: AlignOp, _layer: DpIndex) -> Self::Error {
         // This function is only called when the operation is not I or S.
         // Confirm that the operation is in MD=X, or return invalid operation
         if PhmmState::from_op(op).is_none() {
@@ -699,7 +687,7 @@ impl CoreContextWithExitToErr for SemiLocalContext<'_> {
         self.model_len_mismatch()
     }
 
-    fn no_match_after_enter(&self, op: u8) -> Self::Error {
+    fn no_match_after_enter(&self, op: AlignOp) -> Self::Error {
         SemiLocalTraverseFromAlignError::MissingMatchOp {
             ref_len: self.ref_len,
             ref_coord: self.ref_start,
@@ -742,14 +730,14 @@ impl CoreContextToErr for DomainContext<'_> {
         }
     }
 
-    fn invalid_op(&self, op: u8) -> Self::Error {
+    fn invalid_op(&self, op: AlignOp) -> Self::Error {
         DomainTraverseFromAlignError::InvalidCigarOp(op)
     }
 
-    fn core_transition_op_error(&self, op: u8, _layer: DpIndex, _exiting: PhmmState) -> Self::Error {
+    fn core_transition_op_error(&self, op: AlignOp, _layer: DpIndex, _exiting: PhmmState) -> Self::Error {
         // The operation is not MDI=X, so if it is also not S, then it is
         // invalid
-        if op != b'S' {
+        if op != AlignOp::S {
             return self.invalid_op(op);
         }
 
@@ -773,7 +761,7 @@ impl CoreContextToErr for DomainContext<'_> {
         self.model_len_mismatch()
     }
 
-    fn choose_end_or_insert_op_error(&self, op: u8, _layer: DpIndex, _exiting: PhmmState) -> Self::Error {
+    fn choose_end_or_insert_op_error(&self, op: AlignOp, _layer: DpIndex, _exiting: PhmmState) -> Self::Error {
         // Confirm that the operation is MDI=X, or return invalid operation
         if PhmmState::from_op(op).is_none() {
             return self.invalid_op(op);
@@ -793,7 +781,7 @@ impl DomainContext<'_> {
     /// [`DomainAlignmentVisitor`]:
     ///     crate::alignment::phmm::traverse::alignment::DomainAlignmentVisitor
     /// [`finalize`]: crate::alignment::phmm::traverse::DomainVisitor::finalize
-    pub(super) fn remaining_op_error(&self, op: u8) -> DomainTraverseFromAlignError {
+    pub(super) fn remaining_op_error(&self, op: AlignOp) -> DomainTraverseFromAlignError {
         // Validate that the operation is in MDIS=X
         if PhmmStateOrModule::from_op(op).is_none() {
             return self.invalid_op(op);
@@ -809,7 +797,7 @@ impl DomainContext<'_> {
         let mut inner_states = self.states.as_slice();
         inner_states.split_off_first();
         inner_states.split_off_last();
-        if inner_states.iter().any(|ciglet| ciglet.op == b'S' && ciglet.inc > 0) {
+        if inner_states.iter().any(|ciglet| ciglet.op == AlignOp::S && ciglet.inc > 0) {
             return DomainTraverseFromAlignError::InternalClipping;
         }
 
@@ -849,14 +837,14 @@ impl CoreContextToErr for LocalContext<'_> {
         }
     }
 
-    fn invalid_op(&self, op: u8) -> Self::Error {
+    fn invalid_op(&self, op: AlignOp) -> Self::Error {
         LocalTraverseFromAlignError::InvalidCigarOp(op)
     }
 
-    fn core_transition_op_error(&self, op: u8, _layer: DpIndex, _exiting: PhmmState) -> Self::Error {
+    fn core_transition_op_error(&self, op: AlignOp, _layer: DpIndex, _exiting: PhmmState) -> Self::Error {
         // PhmmState::from_op rejected op, and for a local pHMM, S is the only
         // additional valid operation.
-        if op != b'S' {
+        if op != AlignOp::S {
             return self.invalid_op(op);
         }
 
@@ -884,7 +872,7 @@ impl CoreContextToErr for LocalContext<'_> {
         }
     }
 
-    fn choose_end_or_insert_op_error(&self, op: u8, _layer: DpIndex, _exiting: PhmmState) -> Self::Error {
+    fn choose_end_or_insert_op_error(&self, op: AlignOp, _layer: DpIndex, _exiting: PhmmState) -> Self::Error {
         // Confirm that the operation is MDI=X, or return invalid operation
         if PhmmState::from_op(op).is_none() {
             return self.invalid_op(op);
@@ -904,7 +892,7 @@ impl LocalContext<'_> {
     /// [`LocalAlignmentVisitor`]:
     ///     crate::alignment::phmm::traverse::alignment::LocalAlignmentVisitor
     /// [`finalize`]: crate::alignment::phmm::traverse::LocalVisitor::finalize
-    pub(super) fn remaining_op_error(&self, op: u8) -> LocalTraverseFromAlignError {
+    pub(super) fn remaining_op_error(&self, op: AlignOp) -> LocalTraverseFromAlignError {
         // Validate that the operation is in MDIS=X
         if PhmmStateOrModule::from_op(op).is_none() {
             return self.invalid_op(op);
@@ -920,7 +908,7 @@ impl LocalContext<'_> {
         let mut inner_states = self.states.as_slice();
         inner_states.split_off_first();
         inner_states.split_off_last();
-        if inner_states.iter().any(|ciglet| ciglet.op == b'S' && ciglet.inc > 0) {
+        if inner_states.iter().any(|ciglet| ciglet.op == AlignOp::S && ciglet.inc > 0) {
             return LocalTraverseFromAlignError::InternalClipping;
         }
 
@@ -933,7 +921,7 @@ impl LocalContext<'_> {
 }
 
 impl CoreContextWithExitToErr for LocalContext<'_> {
-    fn choose_end_insert_or_exit_op_error(&self, op: u8, _layer: DpIndex) -> Self::Error {
+    fn choose_end_insert_or_exit_op_error(&self, op: AlignOp, _layer: DpIndex) -> Self::Error {
         // This function is only called when the operation is not I or S.
         // Confirm that the operation is in MD=X, or return invalid operation
         if PhmmState::from_op(op).is_none() {
@@ -946,7 +934,7 @@ impl CoreContextWithExitToErr for LocalContext<'_> {
         self.model_len_mismatch()
     }
 
-    fn no_match_after_enter(&self, op: u8) -> Self::Error {
+    fn no_match_after_enter(&self, op: AlignOp) -> Self::Error {
         LocalTraverseFromAlignError::MissingMatchOp {
             ref_len: self.ref_len,
             ref_coord: self.ref_start,
