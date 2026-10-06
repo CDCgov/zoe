@@ -125,13 +125,6 @@ mod private {
     impl<T: Sealed> Sealed for RangeToInclusive<T> {}
 
     #[cfg(feature = "dev-generic-fasta")]
-    sealed!(
-        crate::data::fasta::generic::Taxon,
-        crate::data::fasta::generic::TaxonView<'_>,
-        crate::data::fasta::generic::TaxonViewMut<'_>,
-    );
-
-    #[cfg(feature = "dev-generic-fasta")]
     impl<S> Sealed for crate::data::fasta::generic::Fasta<S> {}
 
     #[cfg(feature = "dev-generic-fasta")]
@@ -139,15 +132,6 @@ mod private {
 
     #[cfg(feature = "dev-generic-fasta")]
     impl<S: AssocViewMutType> Sealed for crate::data::fasta::generic::FastaViewMut<'_, S> {}
-
-    #[cfg(feature = "dev-generic-fasta")]
-    impl<M, S> Sealed for crate::data::fasta::generic::FastaAnnot<M, S> {}
-
-    #[cfg(feature = "dev-generic-fasta")]
-    impl<M: AssocViewType, S: AssocViewType> Sealed for crate::data::fasta::generic::FastaAnnotView<'_, M, S> {}
-
-    #[cfg(feature = "dev-generic-fasta")]
-    impl<M: AssocViewMutType, S: AssocViewMutType> Sealed for crate::data::fasta::generic::FastaAnnotViewMut<'_, M, S> {}
 
     sealed!(
         AminoAcids,

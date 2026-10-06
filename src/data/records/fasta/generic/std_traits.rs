@@ -1,5 +1,5 @@
 use crate::data::{
-    fasta::generic::{Fasta, FastaAnnotView, FastaView, FastaViewMut},
+    fasta::generic::{Fasta, FastaView, FastaViewMut},
     validation::SimdDisplay,
     views::{AssocViewMutType, AssocViewType},
 };
@@ -45,27 +45,3 @@ where
 }
 
 impl<'a, S> Copy for FastaView<'a, S> where S: AssocViewType<View<'a>: Copy> {}
-
-// A non-derived impl is needed since M and S may not implement clone (but
-// S::View and M::View do)
-impl<'a, M, S> Clone for FastaAnnotView<'a, M, S>
-where
-    M: AssocViewType<View<'a>: Clone>,
-    S: AssocViewType<View<'a>: Clone>,
-{
-    #[inline]
-    fn clone(&self) -> Self {
-        Self {
-            header:   self.header,
-            sequence: self.sequence.clone(),
-            annot:    self.annot.clone(),
-        }
-    }
-}
-
-impl<'a, M, S> Copy for FastaAnnotView<'a, M, S>
-where
-    M: AssocViewType<View<'a>: Copy>,
-    S: AssocViewType<View<'a>: Copy>,
-{
-}
