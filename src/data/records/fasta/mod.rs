@@ -4,10 +4,10 @@ use crate::data::{
         amino_acids::AminoAcids,
         nucleotides::{self, Nucleotides, ToDNA, Translate},
     },
-    validation::SimdDisplay,
 };
 
 mod reader;
+mod std_traits;
 
 pub use reader::*;
 
@@ -146,23 +146,5 @@ impl FastaAA {
     #[must_use]
     pub fn get_id_taxon(&self) -> Option<(&str, &str)> {
         self.name.get_id_taxon()
-    }
-}
-
-impl std::fmt::Display for FastaSeq {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, ">{}\n{}\n", self.name, self.sequence.display_ascii_or_lossy())
-    }
-}
-
-impl std::fmt::Display for FastaNT {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, ">{}\n{}\n", self.name, self.sequence)
-    }
-}
-
-impl std::fmt::Display for FastaAA {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, ">{}\n{}\n", self.name, self.sequence)
     }
 }
