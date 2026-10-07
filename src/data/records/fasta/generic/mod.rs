@@ -9,6 +9,7 @@ use crate::{
     prelude::{AminoAcidsView, NucleotidesView},
 };
 
+mod conversions;
 mod reader;
 mod std_traits;
 mod view_traits;
