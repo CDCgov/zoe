@@ -1,10 +1,29 @@
-//! An arbitrary implementations and specification struct for [`QualityScores`].
+//! An arbitrary implementation and specification struct for [`QualityScores`].
 
 use crate::{
     data::arbitrary::{ArbitrarySpecs, ByteSet, ByteSpecs, Case, VecSpecs},
     prelude::QualityScores,
 };
 use arbitrary::{Arbitrary, Result, Unstructured};
+
+impl<'a> Arbitrary<'a> for QualityScores {
+    #[inline]
+    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
+        let specs = VecSpecs {
+            element_specs: ByteSpecs {
+                set:  ByteSet::AsciiGraphic,
+                case: Case::Any,
+            },
+            min_len:       0,
+            len:           None,
+            max_len:       usize::MAX,
+        };
+
+        // Validity: The bytes will only contain graphic ASCII characters per
+        // above.
+        Ok(QualityScores::try_from(specs.make_arbitrary(u)?).unwrap())
+    }
+}
 
 /// Specifications for generating arbitrary [`QualityScores`].
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
@@ -43,25 +62,6 @@ impl QualityScoresSpecs {
     pub const fn with_len(mut self, len: usize) -> Self {
         self.len = Some(len);
         self
-    }
-}
-
-impl<'a> Arbitrary<'a> for QualityScores {
-    #[inline]
-    fn arbitrary(u: &mut Unstructured<'a>) -> Result<Self> {
-        let specs = VecSpecs {
-            element_specs: ByteSpecs {
-                set:  ByteSet::AsciiGraphic,
-                case: Case::Any,
-            },
-            min_len:       0,
-            len:           None,
-            max_len:       usize::MAX,
-        };
-
-        // Validity: The bytes will only contain graphic ASCII characters per
-        // above.
-        Ok(QualityScores::try_from(specs.make_arbitrary(u)?).unwrap())
     }
 }
 

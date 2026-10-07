@@ -9,6 +9,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 ### Added
 
 - Added `from_bufreader` constructor for `SAMReader`
+- Added additional options for generating arbitrary nucleotide and amino acid
+  data (behind `fuzzing` feature gate)
 
 ### Changed
 

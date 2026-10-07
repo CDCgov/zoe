@@ -61,7 +61,7 @@ where
     fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {
         let Some(len_range) = self.max_len.checked_sub(self.min_len) else {
             panic!(
-                "The min_len field must be less than or equal to the max_len field for VecSpecs (found min_len={min_len} and max_len={max_len}",
+                "The min_len field must be less than or equal to the max_len field for VecSpecs (found min_len={min_len} and max_len={max_len})",
                 min_len = self.min_len,
                 max_len = self.max_len
             );
