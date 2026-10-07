@@ -117,7 +117,8 @@ where
     T: PhmmNumber + 'static, {
     let mut num_emitted = num_emitted_begin_module;
 
-    // If this is true or false, we check for out of bounds enter_layer either way
+    // If this is true or false, we check for out of bounds enter_layer either
+    // way
     if enter_layer.eq_index(End, &phmm) {
         let Some(exit_param) = phmm.end().semilocal_params().get_score(enter_layer) else {
             panic!("The requested layer for entering the pHMM is out of bounds")
@@ -189,10 +190,12 @@ where
                 EndInsertExit::Exit => break,
             }
         } else {
-            let exit_param = phmm.end().semilocal_params().score_unchecked(layer_idx);
             let next_state = phmm.choose_end_or_insert(visitor, layer_idx, state, &layer.transition)?;
             match next_state {
                 EndInsert::End => {
+                    // Advance layer_idx to End
+                    layer_idx += 1;
+                    let exit_param = phmm.end().semilocal_params().score_unchecked(layer_idx);
                     phmm.exit_core_from_end(visitor, End.to_dp_index(phmm), exit_param)?;
                     break;
                 }

@@ -22,6 +22,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ### Fixed
 
+- Fixed bug with incorrect score being used in `LocalPhmm` traversal code at the
+  end of the pHMM
 - Improved the performance of `FastQReader` to avoid unnecessary allocations
 - `FastQReader::from_bufreader` now retries automatically on
   `ErrorKind::Interrupted`
