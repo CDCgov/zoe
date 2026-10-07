@@ -1,30 +1,31 @@
 use crate::data::{
     fasta::generic::{Fasta, FastaAnnotView, FastaView, FastaViewMut},
+    validation::SimdDisplay,
     views::{AssocViewMutType, AssocViewType},
 };
 use std::fmt::Display;
 
-impl<S: Display> Display for Fasta<S> {
+impl<S: AsRef<[u8]>> Display for Fasta<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, ">{}\n{}\n", self.header, self.sequence)
+        write!(f, ">{}\n{}\n", self.header, self.sequence.display_ascii_or_lossy())
     }
 }
 
 impl<'a, S> Display for FastaView<'a, S>
 where
-    S: AssocViewType<View<'a>: Display>,
+    S: AssocViewType<View<'a>: AsRef<[u8]>>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, ">{}\n{}\n", self.header, self.sequence)
+        write!(f, ">{}\n{}\n", self.header, self.sequence.display_ascii_or_lossy())
     }
 }
 
 impl<'a, S> Display for FastaViewMut<'a, S>
 where
-    S: AssocViewMutType<ViewMut<'a>: Display>,
+    S: AssocViewMutType<ViewMut<'a>: AsRef<[u8]>>,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, ">{}\n{}\n", self.header, self.sequence)
+        write!(f, ">{}\n{}\n", self.header, self.sequence.display_ascii_or_lossy())
     }
 }
 
