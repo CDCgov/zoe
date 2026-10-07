@@ -408,39 +408,33 @@ macro_rules! impl_std_traits_for_sequence {
         impl std::fmt::Display for $owned {
             #[inline]
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                if $crate::data::validation::check::CheckSequence::is_ascii_simd::<16>(&self.0) {
-                    // SAFETY: we just checked it is ASCII using our fast SIMD function.
-                    // ASCII is valid UTF8.
-                    f.write_str(unsafe { std::str::from_utf8_unchecked(&self.0) })
-                } else {
-                    f.write_str(&String::from_utf8_lossy(&self.0))
-                }
+                write!(
+                    f,
+                    "{}",
+                    $crate::data::validation::check::SimdDisplay::display_ascii_or_lossy(&self.0)
+                )
             }
         }
 
         impl std::fmt::Display for $view<'_> {
             #[inline]
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                if $crate::data::validation::check::CheckSequence::is_ascii_simd::<16>(&self.0) {
-                    // SAFETY: we just checked it is ASCII using our fast SIMD function.
-                    // ASCII is valid UTF8.
-                    f.write_str(unsafe { std::str::from_utf8_unchecked(self.0) })
-                } else {
-                    f.write_str(&String::from_utf8_lossy(self.0))
-                }
+                write!(
+                    f,
+                    "{}",
+                    $crate::data::validation::check::SimdDisplay::display_ascii_or_lossy(&self.0)
+                )
             }
         }
 
         impl std::fmt::Display for $viewmut<'_> {
             #[inline]
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                if $crate::data::validation::check::CheckSequence::is_ascii_simd::<16>(&self.0) {
-                    // SAFETY: we just checked it is ASCII using our fast SIMD function.
-                    // ASCII is valid UTF8.
-                    f.write_str(unsafe { std::str::from_utf8_unchecked(self.0) })
-                } else {
-                    f.write_str(&String::from_utf8_lossy(self.0))
-                }
+                write!(
+                    f,
+                    "{}",
+                    $crate::data::validation::check::SimdDisplay::display_ascii_or_lossy(&self.0)
+                )
             }
         }
     };

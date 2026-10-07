@@ -7,7 +7,7 @@ use crate::{
             amino_acids::AminoAcids,
             nucleotides::{self, Nucleotides, ToDNA, Translate},
         },
-        validation::CheckSequence,
+        validation::SimdDisplay,
         vec_types::{ChopLineBreak, StripLineBreak},
     },
     search::ByteSplitIter,
@@ -386,15 +386,7 @@ impl<R: std::io::Read> Iterator for FastaReader<R> {
 
 impl std::fmt::Display for FastaSeq {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        if self.sequence.is_ascii_simd::<16>() {
-            // SAFETY: we just checked it is ASCII using our fast SIMD function.
-            // ASCII is valid UTF8.
-            write!(f, ">{}\n{}\n", self.name, unsafe {
-                std::str::from_utf8_unchecked(&self.sequence)
-            })
-        } else {
-            write!(f, ">{}\n{}\n", self.name, String::from_utf8_lossy(&self.sequence))
-        }
+        write!(f, ">{}\n{}\n", self.name, self.sequence.display_ascii_or_lossy())
     }
 }
 
