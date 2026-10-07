@@ -10,7 +10,7 @@ use crate::{
 };
 use std::{
     fs::File,
-    io::{BufRead, BufReader, ErrorKind},
+    io::{BufRead, BufReader, ErrorKind, Read},
     path::Path,
 };
 
@@ -24,13 +24,13 @@ use std::{
 /// `R`: The type of data being read, which is wrapped in a [`BufReader`] before
 ///  use
 #[derive(Debug)]
-pub struct FastaReader<R: std::io::Read> {
+pub struct FastaReader<R: Read> {
     reader:       BufReader<R>,
     buffer:       Vec<u8>,
     first_record: bool,
 }
 
-impl<R: std::io::Read> FastaReader<R> {
+impl<R: Read> FastaReader<R> {
     /// Creates an iterator over FASTA data, wrapping the input in a buffered
     /// reader.
     ///
@@ -58,7 +58,7 @@ impl<R: std::io::Read> FastaReader<R> {
         FastaReader::from_bufreader(BufReader::new(read))
     }
 
-    /// Creates an iterator over FASTA data from a `BufReader`.
+    /// Creates an iterator over FASTA data from a [`BufReader`].
     ///
     /// ## Errors
     ///
@@ -157,7 +157,7 @@ impl<R: std::io::Read> FastaReader<R> {
     }
 }
 
-impl FastaReader<std::fs::File> {
+impl FastaReader<File> {
     /// Creates an iterator over the FASTA data contained in a path, using a
     /// buffered reader.
     ///
@@ -175,9 +175,7 @@ impl FastaReader<std::fs::File> {
     }
 }
 
-/// An iterator for buffered reading of
-/// [FASTA](https://en.wikipedia.org/wiki/FASTA_format) files.
-impl<R: std::io::Read> Iterator for FastaReader<R> {
+impl<R: Read> Iterator for FastaReader<R> {
     type Item = std::io::Result<Fasta>;
 
     fn next(&mut self) -> Option<Self::Item> {
