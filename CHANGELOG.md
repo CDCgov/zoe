@@ -42,6 +42,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ### Removed
 
+- Deprecated `PairwiseSequence` in favor of similar methods on `Alignment`
 - Removed the deprecated API: `FastaNTAnnot`, `SamDataViewMut`,
   `SamData::is_unmapped`, and `KmerEncoder::encode_kmer_checked`
 

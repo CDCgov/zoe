@@ -1,3 +1,4 @@
+#[allow(deprecated)]
 use crate::{
     alignment::{
         Alignment, AlignmentStates, NextCiglet, NextCigletMut, PairwiseSequence, PeekOp, profile::ScalarProfile,
@@ -314,6 +315,7 @@ fn states_sequence_zero_ciglets() {
 }
 
 #[test]
+#[allow(deprecated)]
 fn align_with_cigar() {
     let data: [(usize, Cigar, [AminoAcids; 4]); 1] = [(
         2,

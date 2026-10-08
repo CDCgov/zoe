@@ -65,6 +65,8 @@ pub fn pairwise_align_with(
 }
 
 /// Enables sequence expansion based on alignment information.
+#[allow(deprecated)]
+#[deprecated(since = "0.0.35", note = "Use similar methods on Alignment struct instead")]
 pub trait PairwiseSequence: AsRef<[u8]> + Sealed {
     type Output: From<Vec<u8>>;
 
@@ -77,6 +79,10 @@ pub trait PairwiseSequence: AsRef<[u8]> + Sealed {
     /// - The reference and query must be at least as long as the length
     ///   specified in the alignment states.
     #[inline]
+    #[deprecated(
+        since = "0.0.35",
+        note = "Use Alignment::get_aligned_seqs instead, which offers better ergonomics and correctness"
+    )]
     fn align_and_collect(
         &self, query: &Self, ciglets: impl IntoIterator<Item = Ciglet>, position: usize,
     ) -> (Self::Output, Self::Output) {
@@ -103,6 +109,10 @@ pub trait PairwiseSequence: AsRef<[u8]> + Sealed {
     /// [`align_and_collect`]: PairwiseSequence::align_and_collect
     /// [`align_iter`]: PairwiseSequence::align_iter
     #[inline]
+    #[deprecated(
+        since = "0.0.35",
+        note = "Use Alignment::get_aligned_iter instead, which offers better ergonomics and correctness"
+    )]
     fn align_iter<'a, I>(
         &'a self, query: &'a Self, ciglets: I, position: usize,
     ) -> AlignmentIter<I, std::iter::Copied<std::slice::Iter<'a, u8>>, std::iter::Copied<std::slice::Iter<'a, u8>>>
@@ -117,18 +127,22 @@ pub trait PairwiseSequence: AsRef<[u8]> + Sealed {
     }
 }
 
+#[allow(deprecated)]
 impl PairwiseSequence for Vec<u8> {
     type Output = Self;
 }
 
+#[allow(deprecated)]
 impl PairwiseSequence for &[u8] {
     type Output = Vec<u8>;
 }
 
+#[allow(deprecated)]
 impl PairwiseSequence for Nucleotides {
     type Output = Self;
 }
 
+#[allow(deprecated)]
 impl PairwiseSequence for AminoAcids {
     type Output = Self;
 }
