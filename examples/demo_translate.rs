@@ -1,7 +1,10 @@
 use std::env;
-use zoe::prelude::*;
+use zoe::{
+    data::err::{ErrorWithContext, ResultWithErrorContext},
+    prelude::*,
+};
 
-fn main() {
+fn main() -> Result<(), ErrorWithContext> {
     let args: Vec<String> = env::args().collect();
 
     let path = if args.len() == 2 {
@@ -10,9 +13,13 @@ fn main() {
         "examples/example.fasta".to_owned()
     };
 
-    FastaReader::from_path(path)
-        .unwrap_or_fail()
-        .flatten()
-        .map(|r| r.translate())
-        .for_each(|fasta_record| print!("{fasta_record}"));
+    let reader = FastaReader::from_path(&path).with_path_context("Failed to open FASTA file", path)?;
+
+    for record in reader {
+        let record = record?;
+        let translated = record.translate();
+        print!("{translated}")
+    }
+
+    Ok(())
 }

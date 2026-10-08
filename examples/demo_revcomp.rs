@@ -1,7 +1,7 @@
 use std::env;
-use zoe::prelude::*;
+use zoe::{data::err::ErrorWithContext, prelude::*};
 
-fn main() {
+fn main() -> Result<(), ErrorWithContext> {
     let args: Vec<String> = env::args().collect();
 
     let path = if args.len() == 2 {
@@ -10,11 +10,13 @@ fn main() {
         "examples/example.fasta".to_owned()
     };
 
-    let fasta_reader = FastaReader::from_path(path).unwrap_or_fail();
+    let fasta_reader = FastaReader::from_path(path)?;
 
     for record in fasta_reader {
-        let mut record = record.unwrap_or_die("RevComp FastaReader error.");
+        let mut record = record?;
         record.reverse_complement();
         print!("{record}");
     }
+
+    Ok(())
 }

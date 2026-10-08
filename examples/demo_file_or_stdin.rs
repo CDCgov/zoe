@@ -4,6 +4,7 @@ use std::{
     io::{Read, stdin},
 };
 use zoe::{
+    data::err::ErrorWithContext,
     define_whichever,
     prelude::{FastQReader, Len},
 };
@@ -13,9 +14,7 @@ use zoe::{
 // this easier.
 
 define_whichever! {
-    // This is similar to the excellent `Either` crate, but here you can define
-    // as many variants as you like.
-    #[doc = "An enum allowing either reading from a path or from stdin"]
+    /// An enum allowing either reading from a path or from stdin
     pub(crate) enum ReadFileStdin {
         File(std::fs::File),
         Stdin(std::io::Stdin),
@@ -25,7 +24,7 @@ define_whichever! {
     impl Read for ReadFileStdin {}
 }
 
-fn main() -> std::io::Result<()> {
+fn main() -> Result<(), ErrorWithContext> {
     let args: Vec<String> = env::args().collect();
 
     let reader = if args.len() == 2 {

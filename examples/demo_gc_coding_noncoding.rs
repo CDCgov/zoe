@@ -1,5 +1,8 @@
 use std::{env, ops::Range};
-use zoe::{data::mappings::StdGeneticCode, prelude::*};
+use zoe::{
+    data::{err::ErrorWithContext, mappings::StdGeneticCode},
+    prelude::*,
+};
 
 // Given a FASTQ file containing sequences, calculate the percent GC content of
 // the coding regions (anywhere between a start and stop codon, or after a start
@@ -27,7 +30,7 @@ fn find_stop_codon(sequence: NucleotidesView) -> Option<Range<usize>> {
         })
 }
 
-fn main() {
+fn main() -> Result<(), ErrorWithContext> {
     let args: Vec<String> = env::args().collect();
 
     let path = if args.len() == 2 {
@@ -41,14 +44,17 @@ fn main() {
     let mut gc_noncoding = 0;
     let mut total_noncoding = 0;
 
-    let iterator = FastQReader::from_path(path).unwrap_or_fail().flatten();
+    let fastq_reader = FastQReader::from_path(path)?;
 
-    for mut fastq_record in iterator {
+    for record in fastq_reader {
+        let mut record = record?;
+
+        record.recode_dna_reads();
+
         // Create a view, whose bounds we will change to reflect the portion of
         // the sequence we are considering (this avoids needing to have an
         // indexing variable)
-        fastq_record.recode_dna_reads();
-        let mut sequence = fastq_record.sequence.as_view();
+        let mut sequence = record.sequence.as_view();
 
         // Each execution of the loop represents one coding region
         while let Some(start_codon_position) = find_start_codon(sequence) {
@@ -84,4 +90,6 @@ fn main() {
 
     println!("Percent GC Coding: {percent_gc_coding}");
     println!("Percent GC Non-Coding: {percent_gc_noncoding}");
+
+    Ok(())
 }

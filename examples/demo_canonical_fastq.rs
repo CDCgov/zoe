@@ -1,7 +1,7 @@
 use std::env;
-use zoe::prelude::*;
+use zoe::{data::err::ErrorWithContext, prelude::*};
 
-fn main() {
+fn main() -> Result<(), ErrorWithContext> {
     let args: Vec<String> = env::args().collect();
 
     let path = if args.len() == 2 {
@@ -10,10 +10,13 @@ fn main() {
         "examples/example.fastq".to_owned()
     };
 
-    let fastq_reader = FastQReader::from_path(path).unwrap_or_fail().flatten();
+    let fastq_reader = FastQReader::from_path(path)?;
 
-    for mut record in fastq_reader {
+    for record in fastq_reader {
+        let mut record = record?;
         record.recode_dna_reads();
         print!("{record}");
     }
+
+    Ok(())
 }

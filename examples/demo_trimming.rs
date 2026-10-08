@@ -1,5 +1,5 @@
 use std::env;
-use zoe::{kmer::encoders::three_bit::ThreeBitKmerSet, prelude::*};
+use zoe::{data::err::ErrorWithContext, kmer::encoders::three_bit::ThreeBitKmerSet, prelude::*};
 
 // A toy example for performing several subsequent trimming operations cheaply
 // using views:
@@ -8,7 +8,7 @@ use zoe::{kmer::encoders::three_bit::ThreeBitKmerSet, prelude::*};
 // 3. Search for a 17-mers of a primer within the first 30 bases, and trim
 //    everything before the last such occurrence
 
-fn main() {
+fn main() -> Result<(), ErrorWithContext> {
     let args: Vec<String> = env::args().collect();
 
     let path = if args.len() == 2 {
@@ -21,9 +21,10 @@ fn main() {
     let mut kmer_set = ThreeBitKmerSet::<17>::new(17).unwrap();
     kmer_set.insert_from_sequence_with_variants::<1>(primer);
 
-    let iterator = FastQReader::from_path(path).unwrap_or_fail().flatten();
+    let reader = FastQReader::from_path(path)?;
 
-    for fastq_record in iterator {
+    for fastq_record in reader {
+        let fastq_record = fastq_record?;
         let mut fastq_view = fastq_record.as_view();
 
         let num_g_start = fastq_view.sequence.iter().take_while(|&&x| x == b'G').count();
@@ -48,4 +49,6 @@ fn main() {
 
         println!("{fastq_view}")
     }
+
+    Ok(())
 }

@@ -13,6 +13,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 ### Changed
 
 - `CigletIteratorChecked` now returns `None` after any error is yielded
+- Updated internal examples to use `ErrorWithContext`
 
 ### Fixed
 
