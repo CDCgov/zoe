@@ -62,6 +62,27 @@ impl HeaderReadable for FastaAA {
     }
 }
 
+#[cfg(feature = "dev-generic-fasta")]
+impl HeaderReadable for crate::data::fasta::generic::Fasta {
+    fn header(&self) -> &str {
+        &self.header
+    }
+}
+
+#[cfg(feature = "dev-generic-fasta")]
+impl HeaderReadable for crate::data::fasta::generic::FastaView<'_> {
+    fn header(&self) -> &str {
+        self.header
+    }
+}
+
+#[cfg(feature = "dev-generic-fasta")]
+impl HeaderReadable for crate::data::fasta::generic::FastaViewMut<'_> {
+    fn header(&self) -> &str {
+        self.header
+    }
+}
+
 /// Getter trait for structures providing mutable access to a header/name.
 pub trait HeaderMutable {
     /// Gets the header from the record.
@@ -101,6 +122,20 @@ impl HeaderMutable for FastaAA {
     #[inline]
     fn header_mut(&mut self) -> &mut String {
         &mut self.name
+    }
+}
+
+#[cfg(feature = "dev-generic-fasta")]
+impl HeaderMutable for crate::data::fasta::generic::Fasta {
+    fn header_mut(&mut self) -> &mut String {
+        &mut self.header
+    }
+}
+
+#[cfg(feature = "dev-generic-fasta")]
+impl HeaderMutable for crate::data::fasta::generic::FastaViewMut<'_> {
+    fn header_mut(&mut self) -> &mut String {
+        self.header
     }
 }
 
@@ -195,6 +230,27 @@ impl SequenceReadable for FastaNT {
     #[inline]
     fn sequence_bytes(&self) -> &[u8] {
         self.sequence.as_ref()
+    }
+}
+
+#[cfg(feature = "dev-generic-fasta")]
+impl SequenceReadable for crate::data::fasta::generic::Fasta {
+    fn sequence_bytes(&self) -> &[u8] {
+        &self.sequence
+    }
+}
+
+#[cfg(feature = "dev-generic-fasta")]
+impl SequenceReadable for crate::data::fasta::generic::FastaView<'_> {
+    fn sequence_bytes(&self) -> &[u8] {
+        self.sequence
+    }
+}
+
+#[cfg(feature = "dev-generic-fasta")]
+impl SequenceReadable for crate::data::fasta::generic::FastaViewMut<'_> {
+    fn sequence_bytes(&self) -> &[u8] {
+        self.sequence
     }
 }
 
