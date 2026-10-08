@@ -270,6 +270,10 @@ impl SamData {
     /// Converts the [`SamData`] record into an [`Alignment`] struct (wrapped in
     /// [`MaybeAligned`]).
     ///
+    /// If the entire CIGAR string is empty or consists solely of clipping, or if
+    /// [`SamData::flag`] has the unmapped flag set, then
+    /// [`MaybeAligned::Unmapped`] is returned.
+    ///
     /// Any hard clipped bases in the query are not included in the resulting
     /// `query_range` or `query_len`. The `query_len` field is equal to the
     /// length of the incoming `seq` field in the SAM record, and `query_range`
@@ -327,7 +331,7 @@ impl SamData {
     pub fn to_alignment<T: AnyInt>(&self, score: T, ref_len: usize) -> std::io::Result<MaybeAligned<Alignment<T>>> {
         let states = AlignmentStates::try_from(&self.cigar).map_err(std::io::Error::other)?;
 
-        if self.flag.is_unmapped() || states.is_empty() {
+        if self.flag.is_unmapped() {
             return Ok(MaybeAligned::Unmapped);
         }
 
@@ -348,6 +352,10 @@ impl SamData {
         let soft_clipping_front = ciglets.next_ciglet_if_op(|op| op == AlignOp::S).map_or(0, |c| c.inc);
         ciglets.next_ciglet_back_if_op(|op| op == AlignOp::H);
         let soft_clipping_back = ciglets.next_ciglet_back_if_op(|op| op == AlignOp::S).map_or(0, |c| c.inc);
+
+        if ciglets.next().is_none() {
+            return Ok(MaybeAligned::Unmapped);
+        }
 
         let soft_clipping = soft_clipping_front + soft_clipping_back;
 

@@ -14,6 +14,11 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 - `CigletIteratorChecked` now returns `None` after any error is yielded
 
+### Fixed
+
+- `SamData::to_alignment` now properly returns `Unmapped` when the CIGAR string
+  is all clipping
+
 ### Removed
 
 - Removed the deprecated `CigarViewMut`
