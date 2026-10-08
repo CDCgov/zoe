@@ -103,10 +103,17 @@ pub trait PairwiseSequence: AsRef<[u8]> + Sealed {
     /// [`align_and_collect`]: PairwiseSequence::align_and_collect
     /// [`align_iter`]: PairwiseSequence::align_iter
     #[inline]
-    fn align_iter<'a, I>(&'a self, query: &'a Self, ciglets: I, position: usize) -> AlignmentIter<'a, I>
+    fn align_iter<'a, I>(
+        &'a self, query: &'a Self, ciglets: I, position: usize,
+    ) -> AlignmentIter<I, std::iter::Copied<std::slice::Iter<'a, u8>>, std::iter::Copied<std::slice::Iter<'a, u8>>>
     where
         I: Iterator<Item = Ciglet>, {
-        AlignmentIter::new(self.as_ref(), query.as_ref(), ciglets, position - 1)
+        AlignmentIter::new(
+            self.as_ref().iter().copied(),
+            query.as_ref().iter().copied(),
+            ciglets,
+            position - 1,
+        )
     }
 }
 

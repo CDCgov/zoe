@@ -1,26 +1,27 @@
 use crate::{
     alignment::{
-        profile::ScalarProfile, sw::sw_scalar_align, Alignment, AlignmentStates, NextCiglet, NextCigletMut,
-        PairwiseSequence, PeekOp,
+        Alignment, AlignmentStates, NextCiglet, NextCigletMut, PairwiseSequence, PeekOp, profile::ScalarProfile,
+        sw::sw_scalar_align,
     },
     data::{
-        amino_acids::AminoAcids,
+        amino_acids::{AminoAcids, AminoAcidsView},
         cigar::CigarError,
         matrices::WeightMatrix,
+        nucleotides::{Nucleotides, NucleotidesView},
         types::cigar::{Cigar, Ciglet},
     },
 };
+
+const EXAMPLE_REFERENCE: &[u8] = b"GGCCACAGGATTGAGC";
+const EXAMPLE_QUERY: &[u8] = b"TCTCAGATTGCAGTTT";
 
 fn example_alignment() -> Alignment<u32> {
     const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
     const GAP_OPEN: i8 = -3;
     const GAP_EXTEND: i8 = -1;
 
-    let reference: &[u8] = b"GGCCACAGGATTGAGC";
-    let query: &[u8] = b"TCTCAGATTGCAGTTT";
-
-    let profile = ScalarProfile::<5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-    sw_scalar_align(reference, &profile).unwrap()
+    let profile = ScalarProfile::<5>::new(EXAMPLE_QUERY, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+    sw_scalar_align(EXAMPLE_REFERENCE, &profile).unwrap()
 }
 
 #[test]
@@ -330,15 +331,17 @@ fn align_with_cigar() {
 
 #[test]
 fn collect_ciglets() {
-    assert!(AlignmentStates::from_ciglets_unchecked(vec![
-        Ciglet { inc: 10, op: b'M' },
-        Ciglet { inc: 5, op: b'I' },
-        Ciglet { inc: 12, op: b'D' }
-    ])
-    .iter()
-    .copied()
-    .collect::<Result<AlignmentStates, _>>()
-    .is_ok());
+    assert!(
+        AlignmentStates::from_ciglets_unchecked(vec![
+            Ciglet { inc: 10, op: b'M' },
+            Ciglet { inc: 5, op: b'I' },
+            Ciglet { inc: 12, op: b'D' }
+        ])
+        .iter()
+        .copied()
+        .collect::<Result<AlignmentStates, _>>()
+        .is_ok()
+    );
     assert_eq!(
         AlignmentStates::from_ciglets_unchecked(vec![
             Ciglet { inc: 10, op: b'M' },
@@ -529,4 +532,35 @@ fn overflow_try_from() {
     let result = AlignmentStates::try_from(cigar);
 
     assert_eq!(result, Err(CigarError::MergeIncOverflow));
+}
+
+#[test]
+fn get_aligned_seqs_generics() {
+    let alignment = example_alignment();
+
+    let _: (Vec<u8>, Vec<u8>) = alignment.get_aligned_seqs(EXAMPLE_REFERENCE, EXAMPLE_QUERY);
+    let _: (Vec<u8>, Vec<u8>) = alignment.get_aligned_seqs(&EXAMPLE_REFERENCE, &EXAMPLE_QUERY);
+    let _: (Vec<u8>, Vec<u8>) = alignment.get_aligned_seqs(&&EXAMPLE_REFERENCE, &&EXAMPLE_QUERY);
+
+    let _: (Nucleotides, Nucleotides) =
+        alignment.get_aligned_seqs(NucleotidesView::from(EXAMPLE_REFERENCE), NucleotidesView::from(EXAMPLE_QUERY));
+    let _: (Nucleotides, Nucleotides) = alignment.get_aligned_seqs(
+        &NucleotidesView::from(EXAMPLE_REFERENCE),
+        &NucleotidesView::from(EXAMPLE_QUERY),
+    );
+
+    let _: (Nucleotides, Nucleotides) =
+        alignment.get_aligned_seqs(Nucleotides::from(EXAMPLE_REFERENCE), Nucleotides::from(EXAMPLE_QUERY));
+    let _: (Nucleotides, Nucleotides) =
+        alignment.get_aligned_seqs(&Nucleotides::from(EXAMPLE_REFERENCE), &Nucleotides::from(EXAMPLE_QUERY));
+
+    let _: (AminoAcids, AminoAcids) =
+        alignment.get_aligned_seqs(AminoAcidsView::from(EXAMPLE_REFERENCE), AminoAcidsView::from(EXAMPLE_QUERY));
+    let _: (AminoAcids, AminoAcids) =
+        alignment.get_aligned_seqs(&AminoAcidsView::from(EXAMPLE_REFERENCE), &AminoAcidsView::from(EXAMPLE_QUERY));
+
+    let _: (AminoAcids, AminoAcids) =
+        alignment.get_aligned_seqs(AminoAcids::from(EXAMPLE_REFERENCE), AminoAcids::from(EXAMPLE_QUERY));
+    let _: (AminoAcids, AminoAcids) =
+        alignment.get_aligned_seqs(&AminoAcids::from(EXAMPLE_REFERENCE), &AminoAcids::from(EXAMPLE_QUERY));
 }

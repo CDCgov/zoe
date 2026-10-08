@@ -1,8 +1,13 @@
 use crate::{
     alignment::{AlignmentIter, AlignmentStates, pairwise_align_with},
-    data::{cigar::Ciglet, views::IndexAdjustable},
+    data::{
+        amino_acids::{AminoAcids, AminoAcidsView, AminoAcidsViewMut},
+        cigar::Ciglet,
+        nucleotides::{Nucleotides, NucleotidesView, NucleotidesViewMut},
+        views::{AssocOwnedType, IndexAdjustable, ToView},
+    },
 };
-use std::ops::Range;
+use std::ops::{Deref, Range};
 
 /// The output of an alignment algorithm, allowing unmapped and overflowed
 /// alignments to be represented.
@@ -317,8 +322,9 @@ impl<T> Alignment<T> {
     ///   by the alignment operations (and the start of `self.ref_range`).
     #[inline]
     #[must_use]
-    pub fn get_aligned_seqs(&self, reference: &[u8], query: &[u8]) -> (Vec<u8>, Vec<u8>) {
-        pairwise_align_with(reference, query, &self.states, self.ref_range.start)
+    pub fn get_aligned_seqs<R: ByteSeq, Q: ByteSeq>(&self, reference: R, query: Q) -> (R::Owned, Q::Owned) {
+        let (reference, query) = pairwise_align_with(reference.as_ref(), query.as_ref(), &self.states, self.ref_range.start);
+        (reference.into(), query.into())
     }
 
     /// Returns an iterator over the pairs of aligned bases in `reference` and
@@ -336,10 +342,15 @@ impl<T> Alignment<T> {
     /// [`get_aligned_iter`]: Alignment::get_aligned_iter
     #[inline]
     #[must_use]
-    pub fn get_aligned_iter<'a>(
-        &'a self, reference: &'a [u8], query: &'a [u8],
-    ) -> AlignmentIter<'a, std::iter::Copied<std::slice::Iter<'a, Ciglet>>> {
-        AlignmentIter::new(reference, query, &self.states, self.ref_range.start)
+    pub fn get_aligned_iter<R: ByteSeq, Q: ByteSeq>(
+        &self, reference: R, query: Q,
+    ) -> AlignmentIter<std::iter::Copied<std::slice::Iter<'_, Ciglet>>, R::IntoIter, Q::IntoIter> {
+        AlignmentIter::new(
+            reference.into_bytes_iter(),
+            query.into_bytes_iter(),
+            &self.states,
+            self.ref_range.start,
+        )
     }
 
     /// Given the output of an alignment algorithm, generate the aligned query,
@@ -362,7 +373,8 @@ impl<T> Alignment<T> {
     ///   alignment operations.
     ///
     /// [`get_aligned_seqs`]: Alignment::get_aligned_seqs
-    pub fn get_aligned_query(&self, query: &[u8]) -> Vec<u8> {
+    pub fn get_aligned_query<Q: ByteSeq>(&self, query: Q) -> Q::Owned {
+        let query = query.as_ref();
         let mut query_index = 0;
         let mut query_aln = Vec::with_capacity(query.len() + (self.ref_range.len() / 2));
 
@@ -386,7 +398,7 @@ impl<T> Alignment<T> {
             }
         }
 
-        query_aln
+        query_aln.into()
     }
 }
 
@@ -465,14 +477,14 @@ impl<T: Copy> Alignment<T> {
     /// the alignment, then this will panic due to out of bounds indexing.
     #[inline]
     #[must_use]
-    pub fn to_verbose_sequence_matching(&self, reference: &[u8], query: &[u8]) -> Self {
+    pub fn to_verbose_sequence_matching<R: ByteSeq, Q: ByteSeq>(&self, reference: R, query: Q) -> Self {
         Self {
             score:       self.score,
             ref_range:   self.ref_range.clone(),
             query_range: self.query_range.clone(),
             states:      self
                 .states
-                .to_verbose_sequence_matching(reference, query, self.ref_range.start),
+                .to_verbose_sequence_matching(reference.as_ref(), query.as_ref(), self.ref_range.start),
             ref_len:     self.ref_len,
             query_len:   self.query_len,
         }
@@ -680,5 +692,175 @@ impl AlignmentIndices for (usize, usize) {
             b'I' | b'S' => (query_idx - ciglet.inc, ref_idx),
             _ => (query_idx, ref_idx),
         }
+    }
+}
+
+/// A trait unifying different byte sequence types, like `Vec<u8>`, `&[u8]`,
+/// [`Nucleotides`], [`AminoAcids`], and view types.
+///
+/// Specifically, this is a type which can be viewed as `&[u8]` and from which
+/// an owned version can be created from a `Vec<u8>`. It also can be converted
+/// into either `&[u8]` (for borrowed data) or `Vec<u8>` (for owned data) with
+/// [`into_bytes`], and can be converted into an iterator of `u8` with
+/// [`into_bytes_iter`].
+///
+/// [`Nucleotides`]: crate::data::types::nucleotides::Nucleotides
+/// [`AminoAcids`]: crate::data::types::amino_acids::AminoAcids
+/// [`into_bytes`]: ByteSeq::into_bytes
+/// [`into_bytes_iter`]: ByteSeq::into_bytes_iter
+pub trait ByteSeq: AsRef<[u8]> + AssocOwnedType<Owned: From<Vec<u8>>> {
+    /// The contained bytes within the [`ByteSeq`], either `&[u8]` or `Vec<u8>`.
+    type Bytes: Deref<Target = [u8]>;
+    /// An iterator over the bytes in [`ByteSeq`].
+    type IntoIter: Iterator<Item = u8>;
+
+    /// Extracts the bytes from the [`ByteSeq`] without cloning, returning
+    /// either `&[u8]` for borrowed data or `Vec<u8>` for owned data.
+    fn into_bytes(self) -> Self::Bytes;
+
+    /// Returns an iterator of the bytes within the [`ByteSeq`].
+    fn into_bytes_iter(self) -> Self::IntoIter;
+}
+
+impl<'a, T: ByteSeq> ByteSeq for &'a T {
+    type Bytes = &'a [u8];
+    type IntoIter = std::iter::Copied<std::slice::Iter<'a, u8>>;
+
+    fn into_bytes(self) -> Self::Bytes {
+        self.as_ref()
+    }
+
+    fn into_bytes_iter(self) -> Self::IntoIter {
+        self.as_ref().iter().copied()
+    }
+}
+
+impl<'a, T: ByteSeq> ByteSeq for &'a mut T {
+    type Bytes = &'a [u8];
+    type IntoIter = std::iter::Copied<std::slice::Iter<'a, u8>>;
+
+    fn into_bytes(self) -> Self::Bytes {
+        (&*self).into_bytes()
+    }
+
+    fn into_bytes_iter(self) -> Self::IntoIter {
+        (&*self).into_bytes_iter()
+    }
+}
+
+impl ByteSeq for Vec<u8> {
+    type Bytes = Vec<u8>;
+    type IntoIter = std::vec::IntoIter<u8>;
+
+    fn into_bytes(self) -> Self::Bytes {
+        self
+    }
+
+    fn into_bytes_iter(self) -> Self::IntoIter {
+        self.into_iter()
+    }
+}
+
+impl<'a> ByteSeq for &'a [u8] {
+    type Bytes = &'a [u8];
+    type IntoIter = std::iter::Copied<std::slice::Iter<'a, u8>>;
+
+    fn into_bytes(self) -> Self::Bytes {
+        self
+    }
+
+    fn into_bytes_iter(self) -> Self::IntoIter {
+        self.iter().copied()
+    }
+}
+
+impl<'a> ByteSeq for &'a mut [u8] {
+    type Bytes = &'a [u8];
+    type IntoIter = std::iter::Copied<std::slice::Iter<'a, u8>>;
+
+    fn into_bytes(self) -> Self::Bytes {
+        self
+    }
+
+    fn into_bytes_iter(self) -> Self::IntoIter {
+        self.iter().copied()
+    }
+}
+
+impl ByteSeq for Nucleotides {
+    type Bytes = Vec<u8>;
+    type IntoIter = std::vec::IntoIter<u8>;
+
+    fn into_bytes(self) -> Self::Bytes {
+        self.into()
+    }
+
+    fn into_bytes_iter(self) -> Self::IntoIter {
+        self.into_iter()
+    }
+}
+
+impl<'a> ByteSeq for NucleotidesView<'a> {
+    type Bytes = &'a [u8];
+    type IntoIter = std::iter::Copied<std::slice::Iter<'a, u8>>;
+
+    fn into_bytes(self) -> Self::Bytes {
+        self.into()
+    }
+
+    fn into_bytes_iter(self) -> Self::IntoIter {
+        self.iter().copied()
+    }
+}
+
+impl<'a> ByteSeq for NucleotidesViewMut<'a> {
+    type Bytes = &'a [u8];
+    type IntoIter = std::iter::Copied<std::slice::Iter<'a, u8>>;
+
+    fn into_bytes(self) -> Self::Bytes {
+        self.to_view().into()
+    }
+
+    fn into_bytes_iter(self) -> Self::IntoIter {
+        <&mut [_]>::from(self).iter().copied()
+    }
+}
+
+impl ByteSeq for AminoAcids {
+    type Bytes = Vec<u8>;
+    type IntoIter = std::vec::IntoIter<u8>;
+
+    fn into_bytes(self) -> Self::Bytes {
+        self.into()
+    }
+
+    fn into_bytes_iter(self) -> Self::IntoIter {
+        self.into_iter()
+    }
+}
+
+impl<'a> ByteSeq for AminoAcidsView<'a> {
+    type Bytes = &'a [u8];
+    type IntoIter = std::iter::Copied<std::slice::Iter<'a, u8>>;
+
+    fn into_bytes(self) -> Self::Bytes {
+        self.into()
+    }
+
+    fn into_bytes_iter(self) -> Self::IntoIter {
+        self.iter().copied()
+    }
+}
+
+impl<'a> ByteSeq for AminoAcidsViewMut<'a> {
+    type Bytes = &'a [u8];
+    type IntoIter = std::iter::Copied<std::slice::Iter<'a, u8>>;
+
+    fn into_bytes(self) -> Self::Bytes {
+        self.to_view().into()
+    }
+
+    fn into_bytes_iter(self) -> Self::IntoIter {
+        <&mut [_]>::from(self).iter().copied()
     }
 }

@@ -100,15 +100,13 @@ mod private {
 
     pub trait Sealed {}
 
-    impl<T: Sealed> Sealed for &T {}
-    impl<T: Sealed> Sealed for &mut T {}
+    impl<T: Sealed + ?Sized> Sealed for &T {}
+    impl<T: Sealed + ?Sized> Sealed for &mut T {}
     impl<A: Sealed, B: Sealed> Sealed for (A, B) {}
 
     sealed!(String, str, Box<[u8]>);
     impl<T> Sealed for Vec<T> {}
     impl<T> Sealed for [T] {}
-    impl<T> Sealed for &[T] {}
-    impl<T> Sealed for &mut [T] {}
     impl<T, const N: usize> Sealed for [T; N] {}
     impl<Q: ?Sized> Sealed for crate::search::RangeSearch<'_, Q> {}
     impl<T: SimdElement, const N: usize> Sealed for Simd<T, N> {}

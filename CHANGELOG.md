@@ -12,6 +12,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `From<Cigar> for Vec<u8>` implementation to access inner bytes
 - Added additional options for generating arbitrary nucleotide and amino acid
   data (behind `fuzzing` feature gate)
+- Expanded implementations for `AssocOwnedType`, `AssocViewType`, and
+  `AssocViewMutType`
 
 ### Changed
 
@@ -20,8 +22,15 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - `SamOptRaw` now stores the tags using a tab-delimited `String` to improve
   performance and reduce allocations. Some methods return different concrete
   iterator types
+- `Alignment` methods `get_aligned_seqs`, `get_aligned_iter`,
+  `get_aligned_query`, and `to_verbose_sequence_matching` now accept a generic
+  byte-sequence type via the trait `ByteSeq`, and produce owned corresponding
+  types (e.g., passing `NucleotidesView` causes a `Nucleotides` to be returned).
+  These methods no longer directly support `Box<[u8]>` or `[u8; N]` without
+  first converting to a slice
 - MSRV is now 1.100 to default to the new borrow checker.
 - Deprecated `ScoringError` in favor of `SwScoringError` and `NwScoringError`, separate enums for each function
+- `AlignmentIter` now has different generics
 
 ### Fixed
 

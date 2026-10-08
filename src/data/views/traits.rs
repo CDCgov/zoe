@@ -161,6 +161,30 @@ impl Len for &mut [u8] {
     }
 }
 
+impl<T: AssocOwnedType + ?Sized> AssocOwnedType for &T {
+    type Owned = T::Owned;
+}
+
+impl<T: AssocViewType + ?Sized> AssocViewType for &T {
+    type View<'a> = T::View<'a>;
+}
+
+impl<T: AssocViewMutType + ?Sized> AssocViewMutType for &T {
+    type ViewMut<'a> = T::ViewMut<'a>;
+}
+
+impl<T: AssocOwnedType + ?Sized> AssocOwnedType for &mut T {
+    type Owned = T::Owned;
+}
+
+impl<T: AssocViewType + ?Sized> AssocViewType for &mut T {
+    type View<'a> = T::View<'a>;
+}
+
+impl<T: AssocViewMutType + ?Sized> AssocViewMutType for &mut T {
+    type ViewMut<'a> = T::ViewMut<'a>;
+}
+
 impl AssocOwnedType for Vec<u8> {
     type Owned = Vec<u8>;
 }
@@ -173,27 +197,15 @@ impl AssocViewMutType for Vec<u8> {
     type ViewMut<'a> = &'a mut [u8];
 }
 
-impl AssocOwnedType for &[u8] {
+impl AssocOwnedType for [u8] {
     type Owned = Vec<u8>;
 }
 
-impl AssocViewType for &[u8] {
+impl AssocViewType for [u8] {
     type View<'a> = &'a [u8];
 }
 
-impl AssocViewMutType for &[u8] {
-    type ViewMut<'a> = &'a mut [u8];
-}
-
-impl AssocOwnedType for &mut [u8] {
-    type Owned = Vec<u8>;
-}
-
-impl AssocViewType for &mut [u8] {
-    type View<'a> = &'a [u8];
-}
-
-impl AssocViewMutType for &mut [u8] {
+impl AssocViewMutType for [u8] {
     type ViewMut<'a> = &'a mut [u8];
 }
 

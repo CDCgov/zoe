@@ -347,36 +347,42 @@ impl AlignmentStates {
 ///
 /// The first base is from the reference, and the second base is from the query.
 /// Gaps are represented by `None`.
-pub struct AlignmentIter<'a, I>
-where
-    I: Iterator<Item = Ciglet>, {
-    reference_buffer: &'a [u8],
-    query_buffer:     &'a [u8],
-    ciglets:          I,
-    inc:              usize,
-    op:               u8,
-}
-
-impl<'a, I> AlignmentIter<'a, I>
+pub struct AlignmentIter<I, R, Q>
 where
     I: Iterator<Item = Ciglet>,
+    R: Iterator<Item = u8>,
+    Q: Iterator<Item = u8>, {
+    reference: R,
+    query:     Q,
+    ciglets:   I,
+    inc:       usize,
+    op:        u8,
+}
+
+impl<I, R, Q> AlignmentIter<I, R, Q>
+where
+    I: Iterator<Item = Ciglet>,
+    R: Iterator<Item = u8>,
+    Q: Iterator<Item = u8>,
 {
     /// Creates a new [`AlignmentIter`] from a reference, query, cigar
     /// string, and reference position.
     #[inline]
     #[must_use]
     pub(crate) fn new(
-        reference: &'a [u8], query: &'a [u8], ciglets: impl IntoIterator<Item = Ciglet, IntoIter = I>, ref_index: usize,
+        mut reference: R, query: Q, ciglets: impl IntoIterator<Item = Ciglet, IntoIter = I>, ref_index: usize,
     ) -> Self {
-        let reference_buffer = &reference[ref_index..];
-        let query_buffer = query;
+        if let Some(ref_skipped) = ref_index.checked_sub(1) {
+            reference.nth(ref_skipped);
+        }
+
         let mut ciglets = ciglets.into_iter();
         // If no valid ciglets, initialize with inc at 0 so that iterator is empty
         let Ciglet { inc, op } = ciglets.next().unwrap_or(Ciglet { inc: 0, op: b'M' });
 
         AlignmentIter {
-            reference_buffer,
-            query_buffer,
+            reference,
+            query,
             ciglets,
             inc,
             op,
@@ -418,9 +424,7 @@ where
     #[inline]
     #[must_use]
     fn advance_reference(&mut self) -> u8 {
-        let out = self.reference_buffer[0];
-        self.reference_buffer = &self.reference_buffer[1..];
-        out
+        self.reference.next().unwrap()
     }
 
     /// Remove a base from the beginning of the query buffer.
@@ -431,15 +435,15 @@ where
     #[inline]
     #[must_use]
     fn advance_query(&mut self) -> u8 {
-        let out = self.query_buffer[0];
-        self.query_buffer = &self.query_buffer[1..];
-        out
+        self.query.next().unwrap()
     }
 }
 
-impl<I> Iterator for AlignmentIter<'_, I>
+impl<I, R, Q> Iterator for AlignmentIter<I, R, Q>
 where
     I: Iterator<Item = Ciglet>,
+    R: Iterator<Item = u8>,
+    Q: Iterator<Item = u8>,
 {
     type Item = (Option<u8>, Option<u8>);
 
@@ -456,9 +460,13 @@ where
             b'D' => Some((Some(self.advance_reference()), None)),
             b'I' => Some((None, Some(self.advance_query()))),
             b'S' => {
-                // Skip this Ciglet. The query buffer is advanced by inc+1 since
-                // inc was decremented in get_next_op
-                self.query_buffer = &self.query_buffer[self.inc + 1..];
+                // Skip that many residues in the query. Advanced by inc+1
+                // instead of inc since inc was decremented in get_next_op. This
+                // should use an efficient nth implementation since Q is either
+                // vec::IntoIter or slice::Iter, but eventually this could get
+                // removed when PairwiseSeq is deleted (TODO)
+                self.query.nth(self.inc);
+
                 self.skip_to_next_ciglet()?;
                 self.next()
             }
