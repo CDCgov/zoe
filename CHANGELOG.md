@@ -18,6 +18,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `StrictAlignmentStatesSpecs` for generating arbitrary `AlignmentStates`
   containing only M/D/I operations but allowing configuration of exact query,
   reference, or total increments (behind `fuzzing` feature gate) 
+- Added implementation for forward algorithm to `GlobalPhmm` (for scoring all
+  paths)
 
 ### Changed
 
