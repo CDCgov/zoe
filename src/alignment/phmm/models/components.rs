@@ -13,11 +13,13 @@ use std::ops::{Index, IndexMut};
 /// The parameters are stored in log space (see
 /// [here](crate::alignment::phmm#log-space-parameters) for more details). They
 /// are arranged in the format:
+///
 /// ```text
 /// [[m->m, d->m, i->m]
 ///  [m->d, d->d, i->d]
 ///  [m->i, d->i, i->i]]
 /// ```
+///
 /// This means the first element is the transition probabilities into the match
 /// state, the second element is the probabilities into the delete state, and
 /// the third element is the probabilities into the insert state.
@@ -38,6 +40,15 @@ impl<T: Copy> TransitionParams<T> {
             self[(state, PhmmState::Delete)],
             self[(state, PhmmState::Insert)],
         ])
+    }
+
+    /// Sets the parameters for exiting to `state` into those specified in
+    /// `vals`.
+    #[inline]
+    pub(crate) fn set_exiting_params(&mut self, state: PhmmState, vals: PhmmStateArr<T>) {
+        self[(state, PhmmState::Match)] = vals[PhmmState::Match];
+        self[(state, PhmmState::Delete)] = vals[PhmmState::Delete];
+        self[(state, PhmmState::Insert)] = vals[PhmmState::Insert];
     }
 
     /// Retrieves an array containing the three parameters for entering `state`

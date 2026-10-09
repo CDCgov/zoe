@@ -395,3 +395,10 @@ impl<T> IndexMut<PhmmStateOrModule> for PhmmStateOrModuleArr<T> {
         &mut self.0[index as usize]
     }
 }
+
+impl<T> From<PhmmStateOrModuleArr<T>> for PhmmStateArr<T> {
+    fn from(value: PhmmStateOrModuleArr<T>) -> Self {
+        let [match_val, delete_val, insert_val, _] = value.0;
+        PhmmStateArr([match_val, delete_val, insert_val])
+    }
+}

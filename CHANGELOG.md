@@ -9,6 +9,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 ### Added
 
 - Implemented `DoubleEndedIterator` for `CigletIteratorChecked`
+- Added `normalize` methods to pHMMs to normalize the parameters so that they
+  correspond to a true probability distribution
 
 ### Changed
 
