@@ -231,6 +231,25 @@ pub struct ScoreAndRanges<T> {
 /// A struct representing the information for an alignment, such as its score
 /// and where in the sequences it occurs.
 ///
+/// ## Validity and Panics
+///
+/// [`Alignment`] contains many fields that are related to each other. The
+/// fields should generally not be mutated or overwritten, unless care is taken
+/// to ensure all state remains consistent. API involving [`Alignment`] may
+/// panic if assumptions are invalidated. The particular requirements are:
+///
+/// - All operations must be valid state (bytes in `MIDNSHP=X`)
+/// - `ref_range` must have `start <= end` and `end <= ref_len`
+/// - `query_range` must have `start <= end` and `end <= query_len`
+/// - The length of `ref_range` must equal [`ref_len_in_alignment`] called on
+///   `states`
+/// - The length of `query_range` must equal [`query_len_in_alignment`] called
+///   on `states`, excluding soft clipping
+/// - Only hard clipping is allowed to exist between soft clipping and an end of
+///   `states`
+///
+/// ## Conversion to SAM format
+///
 /// To convert this to a [`SamData`] record, see [`SamData::from_alignment`].
 /// Some additional information will need to be provided, such as any flags, the
 /// query sequence and quality scores if present, etc.
@@ -313,17 +332,30 @@ impl<T> Alignment<T> {
     ///
     /// ## Panics
     ///
-    /// This function requires the following assumptions to avoid panicking.
-    /// Note that any [`Alignment`] struct returned by a *Zoe* alignment
-    /// function will satisfy these.
-    ///
-    /// - All operations must be valid state, e.g, bytes in `MIDNSHP=X`.
-    /// - The query and reference must be at least as long as the length implied
-    ///   by the alignment operations (and the start of `self.ref_range`).
+    /// In addition to the requirements in [Validity and
+    /// Panics](Alignment#validity-and-panics), the query and reference must be
+    /// the proper length for the alignment.
     #[inline]
     #[must_use]
     pub fn get_aligned_seqs<R: ByteSeq, Q: ByteSeq>(&self, reference: R, query: Q) -> (R::Owned, Q::Owned) {
-        let (reference, query) = pairwise_align_with(reference.as_ref(), query.as_ref(), &self.states, self.ref_range.start);
+        let reference = reference.as_ref();
+        let query = query.as_ref();
+
+        assert!(
+            reference.len() == self.ref_len,
+            "Expected reference length {expected}, but found {actual}",
+            expected = self.ref_len,
+            actual = reference.len()
+        );
+
+        assert!(
+            query.len() == self.query_len,
+            "Expected query length {expected}, but found {actual}",
+            expected = self.query_len,
+            actual = query.len()
+        );
+
+        let (reference, query) = pairwise_align_with(reference, query, &self.states, self.ref_range.start);
         (reference.into(), query.into())
     }
 
@@ -335,8 +367,11 @@ impl<T> Alignment<T> {
     /// [`get_aligned_iter`] avoids allocations and may offer a more convenient
     /// syntax for handling gaps.
     ///
-    /// The same conditions are required as [`get_aligned_seqs`] in order for
-    /// the iterator to be non-panicking.
+    /// ## Panics
+    ///
+    /// In addition to the requirements in [Validity and
+    /// Panics](Alignment#validity-and-panics), the query and reference must be
+    /// the proper length for the alignment.
     ///
     /// [`get_aligned_seqs`]: Alignment::get_aligned_seqs
     /// [`get_aligned_iter`]: Alignment::get_aligned_iter
@@ -345,6 +380,23 @@ impl<T> Alignment<T> {
     pub fn get_aligned_iter<R: ByteSeq, Q: ByteSeq>(
         &self, reference: R, query: Q,
     ) -> AlignmentIter<std::iter::Copied<std::slice::Iter<'_, Ciglet>>, R::IntoIter, Q::IntoIter> {
+        let reference_bytes = reference.as_ref();
+        let query_bytes = query.as_ref();
+
+        assert!(
+            reference_bytes.len() == self.ref_len,
+            "Expected reference length {expected}, but found {actual}",
+            expected = self.ref_len,
+            actual = reference_bytes.len()
+        );
+
+        assert!(
+            query_bytes.len() == self.query_len,
+            "Expected query length {expected}, but found {actual}",
+            expected = self.query_len,
+            actual = query_bytes.len()
+        );
+
         AlignmentIter::new(
             reference.into_bytes_iter(),
             query.into_bytes_iter(),
@@ -364,17 +416,21 @@ impl<T> Alignment<T> {
     ///
     /// ## Panics
     ///
-    /// This function requires the following assumptions to avoid panicking.
-    /// Note that any [`Alignment`] struct returned by a *Zoe* alignment
-    /// function will satisfy these.
-    ///
-    /// - All operations must be valid state (bytes in `MIDNSHP=X`).
-    /// - The query must be at least as long as the length implied by the
-    ///   alignment operations.
+    /// In addition to the requirements in [Validity and
+    /// Panics](Alignment#validity-and-panics), the query must be the proper
+    /// length for the alignment.
     ///
     /// [`get_aligned_seqs`]: Alignment::get_aligned_seqs
     pub fn get_aligned_query<Q: ByteSeq>(&self, query: Q) -> Q::Owned {
         let query = query.as_ref();
+
+        assert!(
+            query.len() == self.query_len,
+            "Expected query length {expected}, but found {actual}",
+            expected = self.query_len,
+            actual = query.len()
+        );
+
         let mut query_index = 0;
         let mut query_aln = Vec::with_capacity(query.len() + (self.ref_range.len() / 2));
 

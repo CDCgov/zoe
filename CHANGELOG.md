@@ -28,6 +28,9 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
   types (e.g., passing `NucleotidesView` causes a `Nucleotides` to be returned).
   These methods no longer directly support `Box<[u8]>` or `[u8; N]` without
   first converting to a slice
+- The same `Alignment` methods now panic explicitly if incorrect query or
+  reference lengths are passed. Previously, sequences that were longer than
+  expected were silently accepted
 - MSRV is now 1.100 to default to the new borrow checker.
 - Deprecated `ScoringError` in favor of `SwScoringError` and `NwScoringError`, separate enums for each function
 - `AlignmentIter` now has different generics
