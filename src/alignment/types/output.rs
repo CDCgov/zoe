@@ -456,6 +456,64 @@ impl<T> Alignment<T> {
 
         query_aln.into()
     }
+
+    /// Returns the number of bases at the start of the query that did not
+    /// align.
+    ///
+    /// If the entire alignment is unmapped, then the query length is split
+    /// between [`unaligned_query_start`] and [`unaligned_query_end`] based on
+    /// the `query_range` field.
+    ///
+    /// [`unaligned_query_start`]: Alignment::unaligned_query_start
+    /// [`unaligned_query_end`]: Alignment::unaligned_query_end
+    pub fn unaligned_query_start(&self) -> usize {
+        self.query_range.start
+    }
+
+    /// Returns the number of bases at the end of the query that did not align.
+    ///
+    /// If the entire alignment is unmapped, then the query length is split
+    /// between [`unaligned_query_start`] and [`unaligned_query_end`] based on
+    /// the `query_range` field.
+    ///
+    /// [`unaligned_query_start`]: Alignment::unaligned_query_start
+    /// [`unaligned_query_end`]: Alignment::unaligned_query_end
+    pub fn unaligned_query_end(&self) -> usize {
+        self.query_len - self.query_range.end
+    }
+
+    /// Returns the number of bases at the start of the reference that did not
+    /// align.
+    ///
+    /// If the entire alignment is unmapped, then the reference length is split
+    /// between [`unaligned_ref_start`] and [`unaligned_ref_end`] based on the
+    /// `ref_range` field.
+    ///
+    /// [`unaligned_ref_start`]: Alignment::unaligned_ref_start
+    /// [`unaligned_ref_end`]: Alignment::unaligned_ref_end
+    pub fn unaligned_ref_start(&self) -> usize {
+        self.ref_range.start
+    }
+
+    /// Returns the number of bases at the end of the reference that did not
+    /// align.
+    ///
+    /// If the entire alignment is unmapped, then the reference length is split
+    /// between [`unaligned_ref_start`] and [`unaligned_ref_end`] based on the
+    /// `ref_range` field.
+    ///
+    /// [`unaligned_ref_start`]: Alignment::unaligned_ref_start
+    /// [`unaligned_ref_end`]: Alignment::unaligned_ref_end
+    pub fn unaligned_ref_end(&self) -> usize {
+        self.ref_len - self.ref_range.end
+    }
+
+    /// Returns whether the alignment is unmapped.
+    ///
+    /// This is based on whether the `ref_range` field is empty.
+    pub fn is_unmapped(&self) -> bool {
+        self.ref_range.is_empty()
+    }
 }
 
 impl<T: Copy> Alignment<T> {

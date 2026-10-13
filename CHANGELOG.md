@@ -14,6 +14,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
   data (behind `fuzzing` feature gate)
 - Expanded implementations for `AssocOwnedType`, `AssocViewType`, and
   `AssocViewMutType`
+- Added `unaligned_query_start`, `unaligned_query_end`, `unaligned_ref_start`,
+  `unaligned_ref_end`, and `is_unmapped` to `Alignment`
 
 ### Changed
 
