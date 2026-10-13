@@ -180,6 +180,13 @@ impl std::fmt::Debug for Cigar {
     }
 }
 
+impl From<Cigar> for Vec<u8> {
+    #[inline]
+    fn from(value: Cigar) -> Self {
+        value.0
+    }
+}
+
 impl TryFrom<String> for Cigar {
     type Error = CigarError;
 
