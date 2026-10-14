@@ -1,4 +1,4 @@
-use crate::alignment::{Alignment, BackTrackable, BandedBacktrackMatrix, MaybeAligned, ScalarProfile};
+use crate::alignment::{Alignment, BackTrackable, BandedBacktrackMatrix, MaybeAligned, ScalarProfile, ScoreParams};
 use std::ops::Add;
 
 /// Banded Smith-Waterman algorithm, yielding a local alignment.
@@ -17,34 +17,41 @@ use std::ops::Add;
 ///
 /// ```
 /// # use zoe::{
-/// #     alignment::{Alignment, ScalarProfile, sw::sw_banded_align},
+/// #     alignment::{Alignment, ScalarProfile, ScoreParams, sw::sw_banded_align},
 /// #     data::{matrices::WeightMatrix, cigar::Cigar}
 /// # };
+/// // match, mismatch, gap open, gap extend, and ignored base
+/// let params = ScoreParams::new_dna_params(4, -2, -3, -1, Some(b'N')).unwrap();
+/// let band_width = 5;
+///
 /// let reference: &[u8] = b"GGCCACAGGATTGAG";
 /// let query: &[u8] = b"CTCAGATTG";
 ///
-/// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
-/// const GAP_OPEN: i8 = -3;
-/// const GAP_EXTEND: i8 = -1;
-/// const BAND_WIDTH: usize = 5;
-///
-/// let profile = ScalarProfile::<5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-/// let alignment = sw_banded_align(reference, &profile, BAND_WIDTH).unwrap();
+/// let profile = ScalarProfile::<5>::new(query, &params);
+/// let alignment = sw_banded_align(reference, &profile, band_width).unwrap();
 /// ```
 #[must_use]
 #[allow(clippy::cast_sign_loss)]
 pub fn sw_banded_align<const S: usize>(
     reference: &[u8], query: &ScalarProfile<S>, band_width: usize,
 ) -> MaybeAligned<Alignment<u32>> {
+    let ScoreParams {
+        ref matrix,
+        gap_open,
+        gap_extend,
+    } = query.params;
+    let [gap_open, gap_extend] = [gap_open, gap_extend].map(i32::from);
+    let (query, matrix) = (query.seq.as_ref(), matrix.as_ref());
+
     if reference.is_empty() || query.is_empty() {
         return MaybeAligned::Unmapped;
     }
 
     let (mut best_score, mut r_end, mut c_end) = (0, 0, 0);
-    let q_len = query.seq.len();
+    let q_len = query.len();
 
     let mut h_row = vec![0i32; q_len];
-    let mut e_row = vec![query.gap_open; q_len];
+    let mut e_row = vec![gap_open; q_len];
     let mut backtrack = BandedBacktrackMatrix::new(reference.len(), band_width);
 
     // The previous value of h in the row above and the furthest left column
@@ -52,7 +59,7 @@ pub fn sw_banded_align<const S: usize>(
     let mut h_store = 0;
 
     for ((r, reference_base), backtrack_row) in reference.iter().copied().enumerate().zip(backtrack.rows_mut()) {
-        let mut f = query.gap_open;
+        let mut f = gap_open;
         // Initialize h to the value of h one above and one left, or to 0 if
         // this is out of bounds
         let mut h = h_store;
@@ -64,10 +71,10 @@ pub fn sw_banded_align<const S: usize>(
             break;
         }
 
-        let weights = query.matrix.get_row(reference_base);
+        let weights = matrix.get_row(reference_base);
 
         if start_col + band_width == r {
-            let match_score = i32::from(weights.get_weight(query.seq[start_col]));
+            let match_score = i32::from(weights.get_weight(query[start_col]));
             let e = e_row[start_col];
             // Cannot be reached via f, since that is out of the band
             h_store = (h + match_score).max(e).max(0);
@@ -75,7 +82,7 @@ pub fn sw_banded_align<const S: usize>(
 
         for (c, backtrack_cell) in (start_col..end_col).zip(backtrack_row) {
             // matching is the default direction
-            let match_score = i32::from(weights.get_weight(query.seq[c]));
+            let match_score = i32::from(weights.get_weight(query[c]));
             h += match_score;
 
             let mut e = e_row[c];
@@ -100,11 +107,11 @@ pub fn sw_banded_align<const S: usize>(
             let next_diag = h_row[c];
             h_row[c] = h;
 
-            h += query.gap_open;
-            e = e.add(query.gap_extend).max(h);
-            f = f.add(query.gap_extend).max(h);
+            h += gap_open;
+            e = e.add(gap_extend).max(h);
+            f = f.add(gap_extend).max(h);
 
-            if h != query.gap_open {
+            if h != gap_open {
                 flags |= u8::from(e > h) * BandedBacktrackMatrix::UP_EXTENDING;
                 flags |= u8::from(f > h) * BandedBacktrackMatrix::LEFT_EXTENDING;
             }

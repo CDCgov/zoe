@@ -1,7 +1,7 @@
 use crate::{
     DEFAULT_SIMD_LANES,
-    alignment::{LocalProfiles, ProfileError, SharedProfiles},
-    data::{CheckSequence, matrices::WeightMatrix, types::impl_std_traits_for_sequence},
+    alignment::{LocalProfiles, ScoreParams, SharedProfiles},
+    data::{CheckSequence, types::impl_std_traits_for_sequence},
     prelude::*,
 };
 
@@ -235,69 +235,57 @@ impl Nucleotides {
 
     /// Creates a [`LocalProfiles`] for alignment.
     ///
-    /// ## Errors
-    ///
-    /// Returns an [`ProfileError`] if the profile creation fails due to invalid
-    /// sequence data or unsupported parameters.
-    ///
     /// ## Example
     ///
     /// ```
     /// # use zoe::{
-    /// #    alignment::{ProfileSets, SeqSrc},
-    /// #    data::matrices::WeightMatrix,
+    /// #    alignment::{ProfileSets, ScoreParams, SeqSrc},
     /// #    prelude::Nucleotides
     /// # };
+    /// // match, mismatch, gap open, gap extend, and ignored base
+    /// let params = ScoreParams::new_dna_params(4, -2, -3, -1, Some(b'N')).unwrap();
+    ///
     /// let reference: &[u8] = b"GGCCACAGGATTGAG";
     /// let query: Nucleotides = b"CTCAGATTG".into();
     ///
-    /// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
-    /// const GAP_OPEN: i8 = -3;
-    /// const GAP_EXTEND: i8 = -1;
-    ///
-    /// let profile = query.into_local_profile(&WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+    /// let profile = query.into_local_profile(&params);
     /// let score = profile.sw_score_from_i8(reference).unwrap();
     /// assert_eq!(score, 27);
     /// ```
     #[inline]
+    #[must_use]
     pub fn into_local_profile<'a, const S: usize>(
-        &'a self, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
-    ) -> Result<LocalProfiles<'a, 32, 16, 8, S>, ProfileError> {
-        LocalProfiles::new_with_w256(&self.0, matrix, gap_open, gap_extend)
+        &'a self, params: &'a ScoreParams<i8, S>,
+    ) -> LocalProfiles<'a, 32, 16, 8, S> {
+        LocalProfiles::new_with_w256(&self.0, params)
     }
 
     /// Creates a [`SharedProfiles`] for alignment.
     ///
-    /// ## Errors
-    ///
-    /// Returns an [`ProfileError`] if the profile creation fails due to invalid
-    /// sequence data or unsupported parameters.
-    ///
     /// ## Example
     ///
     /// ```
     /// # use zoe::{
-    /// #    alignment::{ProfileSets, SeqSrc},
-    /// #    data::matrices::WeightMatrix,
+    /// #    alignment::{ProfileSets, ScoreParams, SeqSrc},
     /// #    prelude::Nucleotides
     /// # };
+    /// // match, mismatch, gap open, gap extend, and ignored base
+    /// let params = ScoreParams::new_dna_params(4, -2, -3, -1, Some(b'N')).unwrap();
+    ///
     /// let reference: &[u8] = b"GGCCACAGGATTGAG";
     /// let query: Nucleotides = b"CTCAGATTG".into();
     ///
-    /// const WEIGHTS: WeightMatrix<i8,5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
-    /// const GAP_OPEN: i8 = -3;
-    /// const GAP_EXTEND: i8 = -1;
-    ///
-    /// let profile = query.into_shared_profile(&WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+    /// let profile = query.into_shared_profile(&params);
     /// let score = profile.sw_score_from_i8(reference).unwrap();
     /// assert_eq!(score, 27);
     /// ```
     #[inline]
+    #[must_use]
     pub fn into_shared_profile<'a, const S: usize>(
-        &'a self, matrix: &'a WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
-    ) -> Result<SharedProfiles<'a, 32, 16, 8, S>, ProfileError>
+        &'a self, params: &'a ScoreParams<i8, S>,
+    ) -> SharedProfiles<'a, 32, 16, 8, S>
 where {
-        SharedProfiles::new_with_w256(self.as_bytes(), matrix, gap_open, gap_extend)
+        SharedProfiles::new_with_w256(self.as_bytes(), params)
     }
 
     /// Returns the reverse complement of the sequence as a new record.

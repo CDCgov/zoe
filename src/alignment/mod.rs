@@ -22,6 +22,7 @@ mod errors;
 mod pairwise;
 mod profile;
 mod profile_set;
+mod scoring;
 mod sneaky_snake;
 mod std_traits;
 mod types;
@@ -30,6 +31,7 @@ pub use errors::*;
 pub use pairwise::*;
 pub use profile::*;
 pub use profile_set::*;
+pub use scoring::*;
 pub use sneaky_snake::*;
 pub use types::*;
 

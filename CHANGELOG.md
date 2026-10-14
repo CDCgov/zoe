@@ -15,6 +15,10 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ### Changed
 
+- When constructing profiles for sequence alignment, `ScoreParams` is now
+  passed, which combines a weight matrix and the affine gap parameters.
+  Construction of `ScoreParams` is fallible, but profile construction is no
+  longer fallible
 - Empty `ScalarProfile`, `StripedProfile`, and profile sets can now be created
   and passed safely to alignment algorithms
 - `with_context`, `with_subitem`, and `with_path_context` now accept a generic

@@ -1,12 +1,12 @@
 use crate::{
     alignment::{
-        Alignment, MaybeAligned, ProfileError, ScoreAndRanges, ScoreEnds, ScoreStarts, SeqSrc, TracebackBuffer,
+        Alignment, MaybeAligned, ProfileError, ScoreAndRanges, ScoreEnds, ScoreParams, ScoreStarts, SeqSrc, TracebackBuffer,
         sw::{
             sw_align_3pass, sw_scalar_align, sw_scalar_score, sw_simd_align, sw_simd_align_with_buf, sw_simd_score,
             sw_simd_score_ends, sw_simd_score_ends_reverse, sw_simd_score_ranges,
         },
     },
-    data::{mappings::ByteIndexMap, matrices::WeightMatrix},
+    data::mappings::ByteIndexMap,
     math::{AlignableIntWidth, AnyInt, FromSameSignedness},
     simd::SimdAnyInt,
 };
@@ -28,10 +28,10 @@ use std::{
 ///   and 0, inclusive
 /// - [`ProfileError::BadGapWeights`] if `gap_extend` is less than `gap_open`
 #[inline]
-pub(crate) fn validate_profile_args(gap_open: i8, gap_extend: i8) -> Result<(), ProfileError> {
-    if !(-127..=0).contains(&gap_open) {
+pub(crate) const fn validate_profile_args(gap_open: i8, gap_extend: i8) -> Result<(), ProfileError> {
+    if gap_open < -127 || gap_open > 0 {
         Err(ProfileError::GapOpenOutOfRange { gap_open })
-    } else if !(-127..=0).contains(&gap_extend) {
+    } else if gap_extend < -127 || gap_extend > 0 {
         Err(ProfileError::GapExtendOutOfRange { gap_extend })
     } else if gap_extend < gap_open {
         Err(ProfileError::BadGapWeights { gap_open, gap_extend })
@@ -51,10 +51,8 @@ pub(crate) fn validate_profile_args(gap_open: i8, gap_extend: i8) -> Result<(), 
 /// `S`: The size of the alphabet (usually 5 for DNA including *N*)
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct ScalarProfile<'a, const S: usize> {
-    pub(crate) seq:        Cow<'a, [u8]>,
-    pub(crate) matrix:     &'a WeightMatrix<'a, i8, S>,
-    pub(crate) gap_open:   i32,
-    pub(crate) gap_extend: i32,
+    pub(crate) seq:    Cow<'a, [u8]>,
+    pub(crate) params: ScoreParams<'a, i8, S>,
 }
 
 impl<'a, const S: usize> ScalarProfile<'a, S> {
@@ -62,50 +60,16 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     ///
     /// ## Validity
     ///
-    /// The [`WeightMatrix`] is asymmetric, then `seq` must correspond to the
-    /// query sequence. Otherwise, the scores for `A → B` and `B → A` will be
-    /// erroneously swapped.
+    /// If the [`ScoreParams`] contains an asymmetric [`WeightMatrix`], then
+    /// `seq` must correspond to the query sequence. Otherwise, the scores for
+    /// `A → B` and `B → A` will be erroneously swapped.
     ///
-    /// ## Errors
-    ///
-    /// - [`ProfileError::GapOpenOutOfRange`] if `gap_open` is not between -127
-    ///   and 0, inclusive
-    /// - [`ProfileError::GapExtendOutOfRange`] if `gap_extend` is not between
-    ///   -127 and 0, inclusive
-    /// - [`ProfileError::BadGapWeights`] if `gap_extend` is less than
-    ///   `gap_open`
+    /// [`WeightMatrix`]: crate::data::WeightMatrix
     #[inline]
-    pub fn new(
-        seq: impl Into<Cow<'a, [u8]>>, matrix: &'a WeightMatrix<'a, i8, S>, gap_open: i8, gap_extend: i8,
-    ) -> Result<Self, ProfileError> {
-        let seq = seq.into();
-        validate_profile_args(gap_open, gap_extend)?;
-
-        // Validity: validate_profile_args has checked our assumptions
-        Ok(Self::new_unchecked(seq, matrix, gap_open, gap_extend))
-    }
-
-    /// Creates a new profile for use with the scalar alignment algorithm
-    /// without checking for validity of the arguments.
-    ///
-    /// ## Validity
-    ///
-    /// - `gap_open` and `gap_extend` must be in the range `-127..=0`
-    /// - `gap_extend` must be greater than or equal to `gap_open` (`gap_open`
-    ///   must be a worse penalty)
-    /// - The [`WeightMatrix`] is asymmetric, then `seq` must correspond to the
-    ///   query sequence. Otherwise, the scores for `A → B` and `B → A` will be
-    ///   erroneously swapped.
-    #[inline]
-    #[must_use]
-    pub fn new_unchecked(
-        seq: impl Into<Cow<'a, [u8]>>, matrix: &'a WeightMatrix<'a, i8, S>, gap_open: i8, gap_extend: i8,
-    ) -> Self {
+    pub fn new(seq: impl Into<Cow<'a, [u8]>>, params: &'a ScoreParams<i8, S>) -> Self {
         ScalarProfile {
-            seq: seq.into(),
-            matrix,
-            gap_open: i32::from(gap_open),
-            gap_extend: i32::from(gap_extend),
+            seq:    seq.into(),
+            params: params.into(),
         }
     }
 
@@ -123,18 +87,14 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// ## Example
     ///
     /// ```
-    /// # use zoe::{
-    /// #    alignment::{ScalarProfile, SeqSrc, sw::sw_scalar_score},
-    /// #    data::matrices::WeightMatrix
-    /// # };
+    /// # use zoe::alignment::{ScalarProfile, ScoreParams, SeqSrc, sw::sw_scalar_score};
+    /// // match, mismatch, gap open, gap extend, and ignored base
+    /// let params = ScoreParams::new_dna_params(4, -2, -3, -1, Some(b'N')).unwrap();
+    ///
     /// let reference: &[u8] = b"GGCCACAGGATTGAG";
     /// let query: &[u8] = b"CTCAGATTG";
     ///
-    /// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
-    /// const GAP_OPEN: i8 = -3;
-    /// const GAP_EXTEND: i8 = -1;
-    ///
-    /// let profile = ScalarProfile::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+    /// let profile = ScalarProfile::new(query, &params);
     /// let score = profile.sw_score(reference).unwrap();
     /// assert_eq!(score, 27);
     /// ```
@@ -154,21 +114,17 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     /// ## Example
     ///
     /// ```
-    /// # use zoe::{
-    /// #     alignment::{Alignment, ScalarProfile, SeqSrc, sw::sw_scalar_score},
-    /// #     data::{matrices::WeightMatrix, cigar::Cigar}
-    /// # };
+    /// # use zoe::alignment::{Alignment, AlignmentStates, ScalarProfile, ScoreParams, SeqSrc, sw::sw_scalar_score};
+    /// // match, mismatch, gap open, gap extend, and ignored base
+    /// let params = ScoreParams::new_dna_params(4, -2, -3, -1, Some(b'N')).unwrap();
+    ///
     /// let reference: &[u8] = b"GGCCACAGGATTGAG";
     /// let query: &[u8] = b"CTCAGATTG";
     ///
-    /// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
-    /// const GAP_OPEN: i8 = -3;
-    /// const GAP_EXTEND: i8 = -1;
-    ///
-    /// let profile = ScalarProfile::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+    /// let profile = ScalarProfile::new(query, &params);
     /// let alignment = profile.sw_align(SeqSrc::Reference(reference)).unwrap();
     /// assert_eq!(alignment.ref_range.start, 3);
-    /// assert_eq!(alignment.states, Cigar::from_slice_unchecked("5M1D4M"));
+    /// assert_eq!(alignment.states, AlignmentStates::try_from("5M1D4M").unwrap());
     /// assert_eq!(alignment.score, 27);
     /// ```
     #[inline]
@@ -212,37 +168,30 @@ where
 {
     /// Creates a new striped profile from a sequence.
     ///
-    /// If the SIMD integer type `T` being used is signed, then [`WeightMatrix`]
-    /// should contain signed parameters. Otherwise, a biased weight matrix must
-    /// be passed, which is obtained by calling [`to_biased_matrix`] on a
-    /// regular signed weight matrix (or using the constructor
-    /// [`new_biased_dna_matrix`] if using a simple DNA weight matrix).
+    /// If the SIMD integer type `T` being used is signed, then [`ScoreParams`]
+    /// should have `i8` parameters (corresponding to unbiased
+    /// [`WeightMatrix`]). Otherwise, [`ScoreParams`] should have `u8`
+    /// parameters (corresponding to a biased [`WeightMatrix`]). This can be
+    /// formed with [`ScoreParams::new_biased_dna_params`] (for a simple DNA
+    /// weight matrix), or by passing a biased [`WeightMatrix`] to
+    /// [`ScoreParams::new`]. A biased weight matrix can be formed by calling
+    /// [`to_biased_matrix`] on a regular signed weight matrix.
     ///
     /// ## Validity
     ///
-    /// The [`WeightMatrix`] is asymmetric, then `seq` must correspond to the
+    /// If the [`WeightMatrix`] is asymmetric, then `seq` must correspond to the
     /// query sequence. Otherwise, the scores for `A → B` and `B → A` will be
     /// erroneously swapped.
     ///
-    /// ## Errors
-    ///
-    /// - [`ProfileError::GapOpenOutOfRange`] if `gap_open` is not between -127
-    ///   and 0, inclusive
-    /// - [`ProfileError::GapExtendOutOfRange`] if `gap_extend` is not between
-    ///   -127 and 0, inclusive
-    /// - [`ProfileError::BadGapWeights`] if `gap_extend` is less than
-    ///   `gap_open`
-    ///
-    /// [`to_biased_matrix`]: WeightMatrix::to_biased_matrix
-    /// [`new_biased_dna_matrix`]: WeightMatrix::new_biased_dna_matrix
-    pub fn new<U>(seq: &[u8], matrix: &WeightMatrix<'a, U, S>, gap_open: i8, gap_extend: i8) -> Result<Self, ProfileError>
+    /// [`WeightMatrix`]: crate::data::WeightMatrix
+    /// [`to_biased_matrix`]: crate::data::WeightMatrix::to_biased_matrix
+    pub fn new<U>(seq: &[u8], params: &ScoreParams<'a, U, S>) -> Self
     where
         T: FromSameSignedness<U> + AlignableIntWidth,
         U: AnyInt, {
-        validate_profile_args(gap_open, gap_extend)?;
         // Validity: we validated the required assumptions with
         // validate_profile_args
-        Ok(Self::new_unchecked(seq, matrix, gap_open, gap_extend))
+        Self::new_unchecked(seq, params)
     }
 
     /// Creates a new striped profile from a sequence, without checking the
@@ -256,19 +205,25 @@ where
     ///
     /// ## Validity
     ///
-    /// - `gap_open` and `gap_extend` must be in the range `-127..=0`
-    /// - `gap_extend` must be greater than or equal to `gap_open` (`gap_open`
-    ///   must be a worse penalty)
-    /// - The [`WeightMatrix`] is asymmetric, then `seq` must correspond to the
-    ///   query sequence. Otherwise, the scores for `A → B` and `B → A` will be
-    ///   erroneously swapped.
+    /// If the [`WeightMatrix`] is asymmetric, then `seq` must correspond to the
+    /// query sequence. Otherwise, the scores for `A → B` and `B → A` will be
+    /// erroneously swapped.
     ///
-    /// [`to_biased_matrix`]: WeightMatrix::to_biased_matrix
-    /// [`new_biased_dna_matrix`]: WeightMatrix::new_biased_dna_matrix
-    pub fn new_unchecked<U>(seq: &[u8], matrix: &WeightMatrix<'a, U, S>, gap_open: i8, gap_extend: i8) -> Self
+    /// [`WeightMatrix`]: crate::data::WeightMatrix
+    /// [`to_biased_matrix`]: crate::data::WeightMatrix::to_biased_matrix
+    /// [`new_biased_dna_matrix`]:
+    ///     crate::data::WeightMatrix::new_biased_dna_matrix
+    pub fn new_unchecked<U>(seq: &[u8], params: &ScoreParams<'a, U, S>) -> Self
     where
         T: From<U>,
         U: AnyInt, {
+        let ScoreParams {
+            matrix,
+            gap_open,
+            gap_extend,
+        } = params;
+        let matrix = matrix.as_ref();
+
         // A SIMD vector cannot presently be of length 0
         let number_vectors = seq.len().div_ceil(N);
         let total_lanes = N * number_vectors;
@@ -421,18 +376,14 @@ where
     /// ## Example
     ///
     /// ```
-    /// # use zoe::{
-    /// #    alignment::{SeqSrc, StripedProfile, sw::sw_simd_score},
-    /// #    data::matrices::WeightMatrix
-    /// # };
+    /// # use zoe::alignment::{SeqSrc, ScoreParams, StripedProfile, sw::sw_simd_score};
+    /// // match, mismatch, gap open, gap extend, and ignored base
+    /// let params = ScoreParams::new_biased_dna_params(4, -2, -3, -1, Some(b'N')).unwrap();
+    ///
     /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///
-    /// const WEIGHTS: WeightMatrix<u8, 5> = WeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
-    /// const GAP_OPEN: i8 = -3;
-    /// const GAP_EXTEND: i8 = -1;
-    ///
-    /// let profile = StripedProfile::<u8, 32, 5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+    /// let profile = StripedProfile::<u8, 32, 5>::new(query, &params);
     /// let score = profile.sw_score(reference).unwrap();
     /// assert_eq!(score, 26);
     /// ```
@@ -496,18 +447,14 @@ where
     /// ## Example
     ///
     /// ```
-    /// # use zoe::{
-    /// #     alignment::{StripedProfile, SeqSrc, sw::sw_simd_score},
-    /// #     data::matrices::WeightMatrix
-    /// # };
+    /// # use zoe::alignment::{StripedProfile, SeqSrc, ScoreParams, sw::sw_simd_score};
+    /// // match, mismatch, gap open, gap extend, and ignored base
+    /// let params = ScoreParams::new_biased_dna_params(4, -2, -3, -1, Some(b'N')).unwrap();
+    ///
     /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///
-    /// const WEIGHTS: WeightMatrix<u8, 5> = WeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
-    /// const GAP_OPEN: i8 = -3;
-    /// const GAP_EXTEND: i8 = -1;
-    ///
-    /// let profile = StripedProfile::<u8, 32, 5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+    /// let profile = StripedProfile::<u8, 32, 5>::new(query, &params);
     /// let alignment = profile.sw_align(SeqSrc::Reference(reference)).unwrap();
     /// // alignment contains ref_range, states (cigar), and score
     /// ```
@@ -562,11 +509,11 @@ where
     #[inline]
     #[must_use]
     pub(crate) fn sw_align_3pass<Q>(
-        &self, seq: SeqSrc<&Q>, profile_seq: &[u8], matrix: &WeightMatrix<i8, S>, gap_open: i8, gap_extend: i8,
+        &self, seq: SeqSrc<&Q>, profile_seq: &[u8], params: &ScoreParams<i8, S>,
     ) -> MaybeAligned<Alignment<u32>>
     where
         Q: AsRef<[u8]> + ?Sized, {
-        seq.make_alignment(|reference| sw_align_3pass(reference.as_ref(), self, profile_seq, matrix, gap_open, gap_extend))
+        seq.make_alignment(|reference| sw_align_3pass(reference.as_ref(), self, profile_seq, params))
     }
 }
 
@@ -576,29 +523,35 @@ mod bench {
     extern crate test;
     use super::*;
     use crate::{
-        alignment::sw::test_data::{GAP_EXTEND, GAP_OPEN},
+        alignment::{
+            sw::test_data::{GAP_EXTEND, GAP_OPEN},
+            unwrap_params,
+        },
         data::{constants::mappings::DNA_PROFILE_MAP, matrices::WeightMatrix},
     };
     pub(crate) static DATA: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/KJ907631.1.txt")); // H5 HA, complete CDS
-    pub(crate) static MATRIX: WeightMatrix<u8, 5> =
-        WeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N')).to_biased_matrix();
+    pub(crate) static PARAMS: ScoreParams<u8, 5> = unwrap_params(ScoreParams::new_owned(
+        WeightMatrix::new(&DNA_PROFILE_MAP, 2, -5, Some(b'N')).to_biased_matrix(),
+        GAP_OPEN,
+        GAP_EXTEND,
+    ));
 
     #[bench]
     fn build_profile_u8(b: &mut Bencher) {
-        b.iter(|| std::hint::black_box(StripedProfile::<u8, 32, 5>::new(DATA, &MATRIX, GAP_OPEN, GAP_EXTEND)));
+        b.iter(|| std::hint::black_box(StripedProfile::<u8, 32, 5>::new(DATA, &PARAMS)));
     }
 
     #[bench]
     fn build_profile_u8_rev_half_recreate(b: &mut Bencher) {
         b.iter(|| {
             let data_rev: Vec<u8> = DATA[..DATA.len() / 2].iter().copied().rev().collect();
-            std::hint::black_box(StripedProfile::<u8, 32, 5>::new(&data_rev, &MATRIX, GAP_OPEN, GAP_EXTEND))
+            std::hint::black_box(StripedProfile::<u8, 32, 5>::new(&data_rev, &PARAMS))
         });
     }
 
     #[bench]
     fn build_profile_u8_rev_half_mapping(b: &mut Bencher) {
-        let prof = StripedProfile::<u8, 32, 5>::new(DATA, &MATRIX, GAP_OPEN, GAP_EXTEND).unwrap();
+        let prof = StripedProfile::<u8, 32, 5>::new(DATA, &PARAMS);
 
         b.iter(|| std::hint::black_box(prof.reverse_from_forward(DATA.len() / 2)));
     }

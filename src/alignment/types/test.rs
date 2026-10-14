@@ -1,11 +1,11 @@
 use crate::{
     alignment::{
-        AlignOp, Alignment, AlignmentStates, NextCiglet, NextCigletMut, PeekOp, profile::ScalarProfile, sw::sw_scalar_align,
+        AlignOp, Alignment, AlignmentStates, NextCiglet, NextCigletMut, PeekOp, ScoreParams, profile::ScalarProfile,
+        sw::sw_scalar_align, unwrap_params,
     },
     data::{
         amino_acids::{AminoAcids, AminoAcidsView},
         cigar::CigarError,
-        matrices::WeightMatrix,
         nucleotides::{Nucleotides, NucleotidesView},
         types::cigar::{Cigar, Ciglet},
     },
@@ -15,11 +15,9 @@ const EXAMPLE_REFERENCE: &[u8] = b"GGCCACAGGATTGAGC";
 const EXAMPLE_QUERY: &[u8] = b"TCTCAGATTGCAGTTT";
 
 fn example_alignment() -> Alignment<u32> {
-    const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
-    const GAP_OPEN: i8 = -3;
-    const GAP_EXTEND: i8 = -1;
+    const PARAMS: ScoreParams<i8, 5> = unwrap_params(ScoreParams::new_dna_params(4, -2, -3, -1, Some(b'N')));
 
-    let profile = ScalarProfile::<5>::new(EXAMPLE_QUERY, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+    let profile = ScalarProfile::<5>::new(EXAMPLE_QUERY, &PARAMS);
     sw_scalar_align(EXAMPLE_REFERENCE, &profile).unwrap()
 }
 

@@ -1,5 +1,5 @@
 use crate::{
-    alignment::{AlignOp, ScalarProfile},
+    alignment::{AlignOp, ScalarProfile, ScoreParams},
     data::cigar::Ciglet,
 };
 use std::{
@@ -33,6 +33,14 @@ use std::{
 pub fn sw_score_from_path<const S: usize>(
     ciglets: impl IntoIterator<Item = Ciglet>, ref_in_alignment: &[u8], query: &ScalarProfile<S>,
 ) -> Result<u32, SwScoringError> {
+    let ScoreParams {
+        ref matrix,
+        gap_open,
+        gap_extend,
+    } = query.params;
+    let [gap_open, gap_extend] = [gap_open, gap_extend].map(i32::from);
+    let (query, matrix) = (query.seq.as_ref(), matrix.as_ref());
+
     let mut score = 0;
     let mut r = 0;
     let mut q = 0;
@@ -44,20 +52,20 @@ pub fn sw_score_from_path<const S: usize>(
                     let Some(reference_base) = ref_in_alignment.get(r).copied() else {
                         return Err(SwScoringError::ReferenceEnded);
                     };
-                    let Some(query_base) = query.seq.get(q).copied() else {
+                    let Some(query_base) = query.get(q).copied() else {
                         return Err(SwScoringError::QueryEnded);
                     };
-                    score += i32::from(query.matrix.get_weight(reference_base, query_base));
+                    score += i32::from(matrix.get_weight(reference_base, query_base));
                     q += 1;
                     r += 1;
                 }
             }
             AlignOp::I => {
-                score += query.gap_open + query.gap_extend * (inc - 1) as i32;
+                score += gap_open + gap_extend * (inc - 1) as i32;
                 q += inc;
             }
             AlignOp::D => {
-                score += query.gap_open + query.gap_extend * (inc - 1) as i32;
+                score += gap_open + gap_extend * (inc - 1) as i32;
                 r += inc;
             }
             AlignOp::S => q += inc,
@@ -66,7 +74,7 @@ pub fn sw_score_from_path<const S: usize>(
         }
     }
 
-    match q.cmp(&query.seq.len()) {
+    match q.cmp(&query.len()) {
         Less => return Err(SwScoringError::FullQueryNotUsed),
         Greater => return Err(SwScoringError::QueryEnded),
         Equal => {}

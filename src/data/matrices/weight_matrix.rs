@@ -11,6 +11,10 @@ use std::{borrow::Cow, fmt::Display};
 /// A weight matrix representing the scores for various matches and mismatches
 /// when performing sequence alignment.
 ///
+/// Many common protein substitution matrices are automatically available in
+/// *Zoe*, such as BLOSUM and PAM. See [`matrices`](crate::data::matrices) for
+/// more details.
+///
 /// Often, a signed weight matrix is needed, in which case `T` should be `i8`.
 /// To construct a new signed weight matrix, use [`new`] or [`new_dna_matrix`].
 ///
@@ -20,10 +24,25 @@ use std::{borrow::Cow, fmt::Display};
 /// in the matrix to become nonnegative, and then store the resulting shift. One
 /// can also use [`new_biased_dna_matrix`].
 ///
+/// See [here](crate::data::ByteIndexMap) for more details on constructing a
+/// custom alphabet. Otherwise, [`DNA_PROFILE_MAP`] and [`AA_PROFILE_MAP`] are
+/// available for nucleotides and amino acids.
+///
+/// ## Parameters
+///
+/// - `'a`: The liftime of the alphabet corresponding to the weight matrix. If
+///   this is available at compile-time, `'static` can be used.
+/// - `T`: The type of parameter stored for each pair of residues. This is
+///   typically `i8` (for signed weight matrices) but may also be `u8` for
+///   unsigned/biased weights.
+/// - `S`: The number of residues in the alphabet. See
+///   [`ByteIndexMap`](ByteIndexMap#parameters).
+///
 /// [`new`]: WeightMatrix::new
 /// [`new_dna_matrix`]: WeightMatrix::new_dna_matrix
 /// [`new_biased_dna_matrix`]: WeightMatrix::new_biased_dna_matrix
 /// [`to_biased_matrix`]: WeightMatrix::to_biased_matrix
+/// [`AA_PROFILE_MAP`]: crate::data::AA_PROFILE_MAP
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub struct WeightMatrix<'a, T: AnyInt, const S: usize> {
     pub weights:     [[T; S]; S],

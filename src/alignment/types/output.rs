@@ -629,18 +629,16 @@ impl<T: Copy> Alignment<T> {
     ///
     /// ```
     /// # use zoe::{
-    /// #     alignment::{AlignmentStates, ScalarProfile, SeqSrc},
-    /// #     data::WeightMatrix,
+    /// #     alignment::{AlignmentStates, ScalarProfile, ScoreParams, SeqSrc},
     /// #     prelude::*,
     /// # };
-    /// const MATRIX: WeightMatrix<'_, i8, 5> = WeightMatrix::new_dna_matrix(1, -1, None);
-    /// const GAP_OPEN: i8 = -3;
-    /// const GAP_EXTEND: i8 = -1;
+    /// // match, mismatch, gap open, gap extend, and ignored base
+    /// let params = ScoreParams::new_dna_params(1, -1, -3, -1, None).unwrap();
     ///
     /// let reference = Nucleotides::from(b"GATAATCACATGTGTTGCACGTTGTAAGGTAGCATGCCTTGA");
     /// let query = Nucleotides::from(b"GATATCAAATGCGTGCTTGCACGATGTAAGGTAGC");
     ///
-    /// let profile = ScalarProfile::new(&query, &MATRIX, GAP_OPEN, GAP_EXTEND).unwrap();
+    /// let profile = ScalarProfile::new(&query, &params);
     /// let alignment = profile.sw_align(SeqSrc::Reference(&reference)).unwrap();
     ///
     /// assert_eq!(alignment.states, AlignmentStates::try_from(b"4M1D10M3I18M").unwrap());

@@ -1,10 +1,4 @@
-use crate::{
-    alignment::{
-        Alignment, MaybeAligned, ProfileError, ScoreAndRanges, SeqSrc, StripedProfile, TracebackBuffer,
-        validate_profile_args,
-    },
-    data::matrices::WeightMatrix,
-};
+use crate::alignment::{Alignment, MaybeAligned, ScoreAndRanges, ScoreParams, SeqSrc, StripedProfile, TracebackBuffer};
 use std::{borrow::Cow, cell::OnceCell, sync::OnceLock};
 
 /// A trait supporting sets of striped alignment profiles.
@@ -15,6 +9,8 @@ use std::{borrow::Cow, cell::OnceCell, sync::OnceLock};
 ///
 /// ## Parameters
 ///
+/// - `'a`: The lifetime of the stored sequence and the [`ScoreParams`], if
+///   borrowed. Otherwise, `'static` can be used.
 /// - `M`: The number of SIMD lanes for `i8` profiles.
 /// - `N`: The number of SIMD lanes for `i16` profiles.
 /// - `O`: The number of SIMD lanes for `i32` profiles.
@@ -35,17 +31,11 @@ pub trait ProfileSets<'a, const M: usize, const N: usize, const O: usize, const 
     /// Retrieves the sequence from which the profiles are built.
     fn sequence(&self) -> &[u8];
 
-    /// Retrieves the gap open score being used.
-    fn gap_open(&self) -> i8;
+    /// Retrieves the scoring parameters being used.
+    fn params(&self) -> &ScoreParams<'a, i8, S>;
 
-    /// Retrieves the gap extend score being used.
-    fn gap_extend(&self) -> i8;
-
-    /// Retrieves the weight matrix being used.
-    fn matrix(&self) -> &WeightMatrix<'a, i8, S>;
-
-    /// Lazily execute [`StripedProfile::sw_score`] starting with
-    /// the `i8` profile.
+    /// Lazily execute [`StripedProfile::sw_score`] starting with the `i8`
+    /// profile.
     ///
     /// Lazily initializes the profiles and works its way up to the `i32`
     /// profile. Execution stops when the score returned no longer overflows the
@@ -54,18 +44,14 @@ pub trait ProfileSets<'a, const M: usize, const N: usize, const O: usize, const 
     /// ## Example
     ///
     /// ```
-    /// # use zoe::{
-    /// #    alignment::{LocalProfiles, ProfileSets, SeqSrc, sw::sw_simd_score},
-    /// #    data::matrices::WeightMatrix
-    /// # };
+    /// # use zoe::alignment::{LocalProfiles, ProfileSets, ScoreParams, SeqSrc, sw::sw_simd_score};
+    /// // match, mismatch, gap open, gap extend, and ignored base
+    /// let params = ScoreParams::new_dna_params(4, -2, -3, -1, Some(b'N')).unwrap();
+    ///
     /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///
-    /// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
-    /// const GAP_OPEN: i8 = -3;
-    /// const GAP_EXTEND: i8 = -1;
-    ///
-    /// let profile = LocalProfiles::new_with_w256(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+    /// let profile = LocalProfiles::new_with_w256(query, &params);
     /// let score = profile.sw_score_from_i8(reference).unwrap();
     /// assert_eq!(score, 26);
     /// ```
@@ -110,8 +96,8 @@ pub trait ProfileSets<'a, const M: usize, const N: usize, const O: usize, const 
         self.get_i32().sw_score(seq)
     }
 
-    /// Lazily execute [`StripedProfile::sw_align`] starting
-    /// with the `i8` profile.
+    /// Lazily execute [`StripedProfile::sw_align`] starting with the `i8`
+    /// profile.
     ///
     /// Lazily initializes the profiles and works its way up to the `i32`
     /// profile. Execution stops when the alignment returned no longer overflows
@@ -120,18 +106,14 @@ pub trait ProfileSets<'a, const M: usize, const N: usize, const O: usize, const 
     /// ## Example
     ///
     /// ```
-    /// # use zoe::{
-    /// #     alignment::{LocalProfiles, ProfileSets, SeqSrc, sw::sw_simd_score},
-    /// #     data::matrices::WeightMatrix
-    /// # };
+    /// # use zoe::alignment::{LocalProfiles, ProfileSets, ScoreParams, SeqSrc, sw::sw_simd_score};
+    /// // match, mismatch, gap open, gap extend, and ignored base
+    /// let params = ScoreParams::new_dna_params(4, -2, -3, -1, Some(b'N')).unwrap();
+    ///
     /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///
-    /// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
-    /// const GAP_OPEN: i8 = -3;
-    /// const GAP_EXTEND: i8 = -1;
-    ///
-    /// let profile = LocalProfiles::new_with_w256(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+    /// let profile = LocalProfiles::new_with_w256(query, &params);
     /// let alignment = profile.sw_align_from_i8(SeqSrc::Reference(reference)).unwrap();
     /// ```
     #[inline]
@@ -190,21 +172,17 @@ pub trait ProfileSets<'a, const M: usize, const N: usize, const O: usize, const 
     /// ## Example
     ///
     /// ```
-    /// # use zoe::{
-    /// #     alignment::{LocalProfiles, ProfileSets, SeqSrc, TracebackBuffer},
-    /// #     data::matrices::WeightMatrix
-    /// # };
+    /// # use zoe::alignment::{LocalProfiles, ProfileSets, ScoreParams, SeqSrc, TracebackBuffer};
+    /// // match, mismatch, gap open, gap extend, and ignored base
+    /// let params = ScoreParams::new_dna_params(4, -2, -3, -1, Some(b'N')).unwrap();
+    ///
     /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
     /// let queries: [&[u8]; 2] = [b"CGTTCGCCATAAAGGGGG", b"GGCCGATCGATCGATGCAT"];
-    ///
-    /// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
-    /// const GAP_OPEN: i8 = -3;
-    /// const GAP_EXTEND: i8 = -1;
     ///
     /// let mut buffer = TracebackBuffer::new();
     ///
     /// for query in queries {
-    ///     let profile = LocalProfiles::new_with_w256(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+    ///     let profile = LocalProfiles::new_with_w256(query, &params);
     ///     let alignment = profile.sw_align_from_i8_with_buf(SeqSrc::Reference(reference), &mut buffer);
     ///     assert_eq!(alignment, profile.sw_align_from_i8(SeqSrc::Reference(reference)));
     /// }
@@ -273,18 +251,14 @@ pub trait ProfileSets<'a, const M: usize, const N: usize, const O: usize, const 
     /// ## Example
     ///
     /// ```
-    /// # use zoe::{
-    /// #    alignment::{LocalProfiles, ProfileSets, SeqSrc, sw::sw_simd_score},
-    /// #    data::matrices::WeightMatrix
-    /// # };
+    /// # use zoe::alignment::{LocalProfiles, ProfileSets, ScoreParams, SeqSrc, sw::sw_simd_score};
+    /// // match, mismatch, gap open, gap extend, and ignored base
+    /// let params = ScoreParams::new_dna_params(4, -2, -3, -1, Some(b'N')).unwrap();
+    ///
     /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///
-    /// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
-    /// const GAP_OPEN: i8 = -3;
-    /// const GAP_EXTEND: i8 = -1;
-    ///
-    /// let profile = LocalProfiles::new_with_w256(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+    /// let profile = LocalProfiles::new_with_w256(query, &params);
     /// let score = profile.sw_align_from_i8_3pass(SeqSrc::Reference(reference)).unwrap().score;
     /// assert_eq!(score, 26);
     /// ```
@@ -298,15 +272,9 @@ pub trait ProfileSets<'a, const M: usize, const N: usize, const O: usize, const 
         let seq = seq.map(AsRef::as_ref);
 
         self.get_i8()
-            .sw_align_3pass(seq, self.sequence(), self.matrix(), self.gap_open(), self.gap_extend())
-            .or_else_overflowed(|| {
-                self.get_i16()
-                    .sw_align_3pass(seq, self.sequence(), self.matrix(), self.gap_open(), self.gap_extend())
-            })
-            .or_else_overflowed(|| {
-                self.get_i32()
-                    .sw_align_3pass(seq, self.sequence(), self.matrix(), self.gap_open(), self.gap_extend())
-            })
+            .sw_align_3pass(seq, self.sequence(), self.params())
+            .or_else_overflowed(|| self.get_i16().sw_align_3pass(seq, self.sequence(), self.params()))
+            .or_else_overflowed(|| self.get_i32().sw_align_3pass(seq, self.sequence(), self.params()))
     }
 
     // TODO: we will add dispatching instead if the method needs to be hybrid based on size considerations
@@ -331,11 +299,8 @@ pub trait ProfileSets<'a, const M: usize, const N: usize, const O: usize, const 
         let seq = seq.map(AsRef::as_ref);
 
         self.get_i16()
-            .sw_align_3pass(seq, self.sequence(), self.matrix(), self.gap_open(), self.gap_extend())
-            .or_else_overflowed(|| {
-                self.get_i32()
-                    .sw_align_3pass(seq, self.sequence(), self.matrix(), self.gap_open(), self.gap_extend())
-            })
+            .sw_align_3pass(seq, self.sequence(), self.params())
+            .or_else_overflowed(|| self.get_i32().sw_align_3pass(seq, self.sequence(), self.params()))
     }
 
     // TODO: we will add dispatching instead if the method needs to be hybrid based on size considerations
@@ -359,8 +324,7 @@ pub trait ProfileSets<'a, const M: usize, const N: usize, const O: usize, const 
         T: AsRef<[u8]> + ?Sized, {
         let seq = seq.map(AsRef::as_ref);
 
-        self.get_i32()
-            .sw_align_3pass(seq, self.sequence(), self.matrix(), self.gap_open(), self.gap_extend())
+        self.get_i32().sw_align_3pass(seq, self.sequence(), self.params())
     }
 
     /// Lazily execute [`StripedProfile::sw_score_ranges`] starting
@@ -373,18 +337,14 @@ pub trait ProfileSets<'a, const M: usize, const N: usize, const O: usize, const 
     /// ## Example
     ///
     /// ```
-    /// # use zoe::{
-    /// #     alignment::{LocalProfiles, ProfileSets, SeqSrc, sw::sw_simd_score},
-    /// #     data::matrices::WeightMatrix
-    /// # };
+    /// # use zoe::alignment::{LocalProfiles, ProfileSets, ScoreParams, SeqSrc, sw::sw_simd_score};
+    /// // match, mismatch, gap open, gap extend, and ignored base
+    /// let params = ScoreParams::new_dna_params(4, -2, -3, -1, Some(b'N')).unwrap();
+    ///
     /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
     /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
     ///
-    /// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
-    /// const GAP_OPEN: i8 = -3;
-    /// const GAP_EXTEND: i8 = -1;
-    ///
-    /// let profile = LocalProfiles::new_with_w256(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+    /// let profile = LocalProfiles::new_with_w256(query, &params);
     /// let scores_and_ranges = profile.sw_score_ranges_from_i8(SeqSrc::Reference(reference)).unwrap();
     /// assert_eq!(scores_and_ranges.score, 26);
     /// assert_eq!(scores_and_ranges.query_range, 0..15);
@@ -452,24 +412,18 @@ pub trait ProfileSets<'a, const M: usize, const N: usize, const O: usize, const 
 ///
 /// ## Parameters
 ///
-/// - `'a`: The lifetime of the stored sequence, the [`WeightMatrix`], and the
-///   alphabet ([`ByteIndexMap`]). An owned sequence can also be stored.
+/// - `'a`: The lifetime of the stored sequence and the [`ScoreParams`], if
+///   borrowed. Otherwise, `'static` can be used.
 /// - `M`: The number of SIMD lanes for `i8` profiles.
 /// - `N`: The number of SIMD lanes for `i16` profiles.
 /// - `O`: The number of SIMD lanes for `i32` profiles.
 /// - `S`: The size of the alphabet (usually 5 for DNA including `N`).
-///
-/// [`ByteIndexMap`]: crate::data::ByteIndexMap
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub struct LocalProfiles<'a, const M: usize, const N: usize, const O: usize, const S: usize> {
     /// The sequence being preprocessed into the profiles, stored in a [`Cow`]
     /// to allow for both references and owned data.
     pub(crate) seq:         Cow<'a, [u8]>,
-    /// The weight matrix, stored in a [`Cow`] to allow for both references and
-    /// owned data.
-    pub(crate) matrix:      Cow<'a, WeightMatrix<'a, i8, S>>,
-    pub(crate) gap_open:    i8,
-    pub(crate) gap_extend:  i8,
+    pub(crate) params:      ScoreParams<'a, i8, S>,
     pub(crate) profile_i8:  OnceCell<StripedProfile<'a, i8, M, S>>,
     pub(crate) profile_i16: OnceCell<StripedProfile<'a, i16, N, S>>,
     pub(crate) profile_i32: OnceCell<StripedProfile<'a, i32, O, S>>,
@@ -486,43 +440,28 @@ impl<'a, const M: usize, const N: usize, const O: usize, const S: usize> LocalPr
     ///
     /// ## Parameters
     ///
-    /// - `Q`: The sequence being preprocessed into a profile. This can be
-    ///   borrowed (`&[u8]`, [`NucleotidesView`], [`AminoAcidsView`]) or owned
-    ///   (`Vec<u8>`, [`Nucleotides`], [`AminoAcids`]).
-    /// - `W`: The weight matrix. This can be either a reference `&WeightMatrix`
-    ///   or an owned [`WeightMatrix`]
+    /// `Q`: The sequence being preprocessed into a profile. This can be
+    /// borrowed (`&[u8]`, [`NucleotidesView`], [`AminoAcidsView`]) or owned
+    /// (`Vec<u8>`, [`Nucleotides`], [`AminoAcids`]).
     ///
-    /// ## Errors
-    ///
-    /// - [`ProfileError::GapOpenOutOfRange`] if `gap_open` is not between -127
-    ///   and 0, inclusive
-    /// - [`ProfileError::GapExtendOutOfRange`] if `gap_extend` is not between
-    ///   -127 and 0, inclusive
-    /// - [`ProfileError::BadGapWeights`] if `gap_extend` is less than
-    ///   `gap_open`
-    ///
+    /// [`Nucleotides`]: crate::prelude::Nucleotides
+    /// [`AminoAcids`]: crate::prelude::AminoAcids
+    /// [`NucleotidesView`]: crate::prelude::NucleotidesView
+    /// [`AminoAcidsView`]: crate::prelude::AminoAcidsView
     /// [`new_with_w128`]: LocalProfiles::new_with_w128
     /// [`new_with_w256`]: LocalProfiles::new_with_w256
     /// [`new_with_w512`]: LocalProfiles::new_with_w512
     #[inline]
-    pub fn new<Q, W>(seq: Q, matrix: W, gap_open: i8, gap_extend: i8) -> Result<Self, ProfileError>
+    pub fn new<Q>(seq: Q, params: &'a ScoreParams<i8, S>) -> Self
     where
-        Q: Into<Cow<'a, [u8]>>,
-        W: Into<Cow<'a, WeightMatrix<'a, i8, S>>>, {
-        let seq = seq.into();
-        let matrix = matrix.into();
-
-        validate_profile_args(gap_open, gap_extend)?;
-
-        Ok(LocalProfiles {
-            seq,
-            matrix,
-            gap_open,
-            gap_extend,
-            profile_i8: OnceCell::new(),
+        Q: Into<Cow<'a, [u8]>>, {
+        LocalProfiles {
+            seq:         seq.into(),
+            params:      params.into(),
+            profile_i8:  OnceCell::new(),
             profile_i16: OnceCell::new(),
             profile_i32: OnceCell::new(),
-        })
+        }
     }
 }
 
@@ -531,16 +470,11 @@ impl<'a, const S: usize> LocalProfiles<'a, 16, 8, 4, S> {
     ///
     /// This sets `M=16`, `N=8`, and `O=4` for `i8`, `i16`, and `i32` profiles
     /// respectively. See [`LocalProfiles::new`] for more details.
-    ///
-    /// ## Errors
-    ///
-    /// Same as [`LocalProfiles::new`].
     #[inline]
-    pub fn new_with_w128<Q, W>(seq: Q, matrix: W, gap_open: i8, gap_extend: i8) -> Result<Self, ProfileError>
+    pub fn new_with_w128<Q>(seq: Q, params: &'a ScoreParams<i8, S>) -> Self
     where
-        Q: Into<Cow<'a, [u8]>>,
-        W: Into<Cow<'a, WeightMatrix<'a, i8, S>>>, {
-        Self::new(seq, matrix, gap_open, gap_extend)
+        Q: Into<Cow<'a, [u8]>>, {
+        Self::new(seq, params)
     }
 }
 
@@ -549,16 +483,11 @@ impl<'a, const S: usize> LocalProfiles<'a, 32, 16, 8, S> {
     ///
     /// This sets `M=32`, `N=16`, and `O=8` for `i8`, `i16`, and `i32` profiles
     /// respectively. See [`LocalProfiles::new`] for more details.
-    ///
-    /// ## Errors
-    ///
-    /// Same as [`LocalProfiles::new`].
     #[inline]
-    pub fn new_with_w256<Q, W>(seq: Q, matrix: W, gap_open: i8, gap_extend: i8) -> Result<Self, ProfileError>
+    pub fn new_with_w256<Q>(seq: Q, params: &'a ScoreParams<i8, S>) -> Self
     where
-        Q: Into<Cow<'a, [u8]>>,
-        W: Into<Cow<'a, WeightMatrix<'a, i8, S>>>, {
-        Self::new(seq, matrix, gap_open, gap_extend)
+        Q: Into<Cow<'a, [u8]>>, {
+        Self::new(seq, params)
     }
 }
 
@@ -567,16 +496,11 @@ impl<'a, const S: usize> LocalProfiles<'a, 64, 32, 16, S> {
     ///
     /// This sets `M=64`, `N=32`, and `O=16` for `i8`, `i16`, and `i32` profiles
     /// respectively. See [`LocalProfiles::new`] for more details.
-    ///
-    /// ## Errors
-    ///
-    /// Same as [`LocalProfiles::new`].
     #[inline]
-    pub fn new_with_w512<Q, W>(seq: Q, matrix: W, gap_open: i8, gap_extend: i8) -> Result<Self, ProfileError>
+    pub fn new_with_w512<Q>(seq: Q, params: &'a ScoreParams<i8, S>) -> Self
     where
-        Q: Into<Cow<'a, [u8]>>,
-        W: Into<Cow<'a, WeightMatrix<'a, i8, S>>>, {
-        Self::new(seq, matrix, gap_open, gap_extend)
+        Q: Into<Cow<'a, [u8]>>, {
+        Self::new(seq, params)
     }
 }
 
@@ -587,21 +511,21 @@ impl<'a, const M: usize, const N: usize, const O: usize, const S: usize> Profile
     fn get_i8(&self) -> &StripedProfile<'a, i8, M, S> {
         // Validity: We already validated profile
         self.profile_i8
-            .get_or_init(|| StripedProfile::new_unchecked(&self.seq, &self.matrix, self.gap_open, self.gap_extend))
+            .get_or_init(|| StripedProfile::new_unchecked(&self.seq, self.params()))
     }
 
     #[inline]
     fn get_i16(&self) -> &StripedProfile<'a, i16, N, S> {
         // Validity: We already validated profile
         self.profile_i16
-            .get_or_init(|| StripedProfile::new_unchecked(&self.seq, &self.matrix, self.gap_open, self.gap_extend))
+            .get_or_init(|| StripedProfile::new_unchecked(&self.seq, &self.params))
     }
 
     #[inline]
     fn get_i32(&self) -> &StripedProfile<'a, i32, O, S> {
         // Validity: We already validated profile
         self.profile_i32
-            .get_or_init(|| StripedProfile::new_unchecked(&self.seq, &self.matrix, self.gap_open, self.gap_extend))
+            .get_or_init(|| StripedProfile::new_unchecked(&self.seq, &self.params))
     }
 
     #[inline]
@@ -610,18 +534,8 @@ impl<'a, const M: usize, const N: usize, const O: usize, const S: usize> Profile
     }
 
     #[inline]
-    fn gap_open(&self) -> i8 {
-        self.gap_open
-    }
-
-    #[inline]
-    fn gap_extend(&self) -> i8 {
-        self.gap_extend
-    }
-
-    #[inline]
-    fn matrix(&self) -> &WeightMatrix<'a, i8, S> {
-        &self.matrix
+    fn params(&self) -> &ScoreParams<'a, i8, S> {
+        &self.params
     }
 }
 
@@ -638,24 +552,18 @@ impl<'a, const M: usize, const N: usize, const O: usize, const S: usize> Profile
 ///
 /// ## Parameters
 ///
-/// - `'a`: The lifetime of the stored sequence, the [`WeightMatrix`], and the
-///   alphabet ([`ByteIndexMap`]). An owned sequence can also be stored.
+/// - `'a`: The lifetime of the stored sequence and the [`ScoreParams`], if
+///   borrowed. Otherwise, `'static` can be used.
 /// - `M`: The number of SIMD lanes for `i8` profiles
 /// - `N`: The number of SIMD lanes for `i16` profiles
 /// - `O`: The number of SIMD lanes for `i32` profiles
 /// - `S`: The size of the alphabet (usually 5 for DNA including *N*)
-///
-/// [`ByteIndexMap`]: crate::data::ByteIndexMap
 #[derive(Debug, Clone)]
 pub struct SharedProfiles<'a, const M: usize, const N: usize, const O: usize, const S: usize> {
     /// The sequence being preprocessed into the profiles, stored in a [`Cow`]
     /// to allow for both references and owned data.
     pub(crate) seq:         Cow<'a, [u8]>,
-    /// The weight matrix, stored in a [`Cow`] to allow for both references and
-    /// owned data.
-    pub(crate) matrix:      Cow<'a, WeightMatrix<'a, i8, S>>,
-    pub(crate) gap_open:    i8,
-    pub(crate) gap_extend:  i8,
+    pub(crate) params:      ScoreParams<'a, i8, S>,
     pub(crate) profile_i8:  OnceLock<StripedProfile<'a, i8, M, S>>,
     pub(crate) profile_i16: OnceLock<StripedProfile<'a, i16, N, S>>,
     pub(crate) profile_i32: OnceLock<StripedProfile<'a, i32, O, S>>,
@@ -672,43 +580,28 @@ impl<'a, const M: usize, const N: usize, const O: usize, const S: usize> SharedP
     ///
     /// ## Parameters
     ///
-    /// - `Q`: The sequence being preprocessed into a profile. This can be
-    ///   borrowed (`&[u8]`, [`NucleotidesView`], [`AminoAcidsView`]) or owned
-    ///   (`Vec<u8>`, [`Nucleotides`], [`AminoAcids`]).
-    /// - `W`: The weight matrix. This can be either a reference `&WeightMatrix`
-    ///   or an owned [`WeightMatrix`]
+    /// `Q`: The sequence being preprocessed into a profile. This can be
+    /// borrowed (`&[u8]`, [`NucleotidesView`], [`AminoAcidsView`]) or owned
+    /// (`Vec<u8>`, [`Nucleotides`], [`AminoAcids`]).
     ///
-    /// ## Errors
-    ///
-    /// - [`ProfileError::GapOpenOutOfRange`] if `gap_open` is not between -127
-    ///   and 0, inclusive
-    /// - [`ProfileError::GapExtendOutOfRange`] if `gap_extend` is not between
-    ///   -127 and 0, inclusive
-    /// - [`ProfileError::BadGapWeights`] if `gap_extend` is less than
-    ///   `gap_open`
-    ///
+    /// [`Nucleotides`]: crate::prelude::Nucleotides
+    /// [`AminoAcids`]: crate::prelude::AminoAcids
+    /// [`NucleotidesView`]: crate::prelude::NucleotidesView
+    /// [`AminoAcidsView`]: crate::prelude::AminoAcidsView
     /// [`new_with_w128`]: SharedProfiles::new_with_w128
     /// [`new_with_w256`]: SharedProfiles::new_with_w256
     /// [`new_with_w512`]: SharedProfiles::new_with_w512
     #[inline]
-    pub fn new<Q, W>(seq: Q, matrix: W, gap_open: i8, gap_extend: i8) -> Result<Self, ProfileError>
+    pub fn new<Q>(seq: Q, params: &'a ScoreParams<i8, S>) -> Self
     where
-        Q: Into<Cow<'a, [u8]>>,
-        W: Into<Cow<'a, WeightMatrix<'a, i8, S>>>, {
-        let seq = seq.into();
-        let matrix = matrix.into();
-
-        validate_profile_args(gap_open, gap_extend)?;
-
-        Ok(SharedProfiles {
-            seq,
-            matrix,
-            gap_open,
-            gap_extend,
-            profile_i8: OnceLock::new(),
+        Q: Into<Cow<'a, [u8]>>, {
+        SharedProfiles {
+            seq:         seq.into(),
+            params:      params.into(),
+            profile_i8:  OnceLock::new(),
             profile_i16: OnceLock::new(),
             profile_i32: OnceLock::new(),
-        })
+        }
     }
 }
 
@@ -717,18 +610,11 @@ impl<'a, const S: usize> SharedProfiles<'a, 16, 8, 4, S> {
     ///
     /// This sets `M=16`, `N=8`, and `O=4` for `i8`, `i16`, and `i32` profiles
     /// respectively. See [`SharedProfiles::new`] for more details.
-    ///
-    /// ## Errors
-    ///
-    /// Same as [`SharedProfiles::new`].
     #[inline]
-    pub fn new_with_w128<Q, W>(
-        seq: Q, matrix: W, gap_open: i8, gap_extend: i8,
-    ) -> Result<SharedProfiles<'a, 16, 8, 4, S>, ProfileError>
+    pub fn new_with_w128<Q>(seq: Q, params: &'a ScoreParams<i8, S>) -> SharedProfiles<'a, 16, 8, 4, S>
     where
-        Q: Into<Cow<'a, [u8]>>,
-        W: Into<Cow<'a, WeightMatrix<'a, i8, S>>>, {
-        Self::new(seq, matrix, gap_open, gap_extend)
+        Q: Into<Cow<'a, [u8]>>, {
+        Self::new(seq, params)
     }
 }
 
@@ -737,18 +623,11 @@ impl<'a, const S: usize> SharedProfiles<'a, 32, 16, 8, S> {
     ///
     /// This sets `M=32`, `N=16`, and `O=8` for `i8`, `i16`, and `i32` profiles
     /// respectively. See [`SharedProfiles::new`] for more details.
-    ///
-    /// ## Errors
-    ///
-    /// Same as [`SharedProfiles::new`].
     #[inline]
-    pub fn new_with_w256<Q, W>(
-        seq: Q, matrix: W, gap_open: i8, gap_extend: i8,
-    ) -> Result<SharedProfiles<'a, 32, 16, 8, S>, ProfileError>
+    pub fn new_with_w256<Q>(seq: Q, params: &'a ScoreParams<i8, S>) -> SharedProfiles<'a, 32, 16, 8, S>
     where
-        Q: Into<Cow<'a, [u8]>>,
-        W: Into<Cow<'a, WeightMatrix<'a, i8, S>>>, {
-        Self::new(seq, matrix, gap_open, gap_extend)
+        Q: Into<Cow<'a, [u8]>>, {
+        Self::new(seq, params)
     }
 }
 
@@ -757,18 +636,11 @@ impl<'a, const S: usize> SharedProfiles<'a, 64, 32, 16, S> {
     ///
     /// This sets `M=64`, `N=32`, and `O=16` for `i8`, `i16`, and `i32` profiles
     /// respectively. See [`SharedProfiles::new`] for more details.
-    ///
-    /// ## Errors
-    ///
-    /// Same as [`SharedProfiles::new`].
     #[inline]
-    pub fn new_with_w512<Q, W>(
-        seq: Q, matrix: W, gap_open: i8, gap_extend: i8,
-    ) -> Result<SharedProfiles<'a, 64, 32, 16, S>, ProfileError>
+    pub fn new_with_w512<Q>(seq: Q, params: &'a ScoreParams<i8, S>) -> SharedProfiles<'a, 64, 32, 16, S>
     where
-        Q: Into<Cow<'a, [u8]>>,
-        W: Into<Cow<'a, WeightMatrix<'a, i8, S>>>, {
-        Self::new(seq, matrix, gap_open, gap_extend)
+        Q: Into<Cow<'a, [u8]>>, {
+        Self::new(seq, params)
     }
 }
 
@@ -779,21 +651,21 @@ impl<'a, const M: usize, const N: usize, const O: usize, const S: usize> Profile
     fn get_i8(&self) -> &StripedProfile<'a, i8, M, S> {
         // Validity: We already validated profile
         self.profile_i8
-            .get_or_init(|| StripedProfile::new_unchecked(&self.seq, &self.matrix, self.gap_open, self.gap_extend))
+            .get_or_init(|| StripedProfile::new_unchecked(&self.seq, &self.params))
     }
 
     #[inline]
     fn get_i16(&self) -> &StripedProfile<'a, i16, N, S> {
         // Validity: We already validated profile
         self.profile_i16
-            .get_or_init(|| StripedProfile::new_unchecked(&self.seq, &self.matrix, self.gap_open, self.gap_extend))
+            .get_or_init(|| StripedProfile::new_unchecked(&self.seq, &self.params))
     }
 
     #[inline]
     fn get_i32(&self) -> &StripedProfile<'a, i32, O, S> {
         // Validity: We already validated profile
         self.profile_i32
-            .get_or_init(|| StripedProfile::new_unchecked(&self.seq, &self.matrix, self.gap_open, self.gap_extend))
+            .get_or_init(|| StripedProfile::new_unchecked(&self.seq, &self.params))
     }
 
     #[inline]
@@ -802,33 +674,23 @@ impl<'a, const M: usize, const N: usize, const O: usize, const S: usize> Profile
     }
 
     #[inline]
-    fn gap_open(&self) -> i8 {
-        self.gap_open
-    }
-
-    #[inline]
-    fn gap_extend(&self) -> i8 {
-        self.gap_extend
-    }
-
-    #[inline]
-    fn matrix(&self) -> &WeightMatrix<'a, i8, S> {
-        &self.matrix
+    fn params(&self) -> &ScoreParams<'a, i8, S> {
+        &self.params
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::alignment::sw::test_data::{GAP_EXTEND, GAP_OPEN, WEIGHTS};
+    use crate::alignment::sw::test_data::PARAMS;
 
     #[allow(clippy::cast_possible_wrap)]
     #[test]
     fn sw_simd_profile_set() {
         let v: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/CY137594.txt"));
-        let profiles = LocalProfiles::new_with_w256(v, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+        let profiles = LocalProfiles::new_with_w256(v, &PARAMS);
         let profile1 = profiles.get_i8();
-        let profile2 = StripedProfile::<i8, 32, 5>::new(v, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+        let profile2 = StripedProfile::<i8, 32, 5>::new(v, &PARAMS);
         assert_eq!(profile1, &profile2);
     }
 
@@ -841,7 +703,7 @@ mod test {
         // Vary both sequences so reuse covers growth, prefixes, fewer lanes
         // (long self-alignments overflow `i8`), and stale flags
         for query in [short, long, short] {
-            let profiles = LocalProfiles::new_with_w256(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+            let profiles = LocalProfiles::new_with_w256(query, &PARAMS);
             for seq in [short, long, short] {
                 for seq in [SeqSrc::Reference(seq), SeqSrc::Query(seq)] {
                     let from_i8 = profiles.sw_align_from_i8_with_buf(seq, &mut buffer);

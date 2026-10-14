@@ -1,9 +1,6 @@
-use crate::{
-    alignment::{
-        Alignment, AlignmentStates, ScalarProfile,
-        nw::{nw_scalar_align, nw_scalar_score},
-    },
-    data::WeightMatrix,
+use crate::alignment::{
+    Alignment, AlignmentStates, ScalarProfile, ScoreParams,
+    nw::{nw_scalar_align, nw_scalar_score},
 };
 
 #[test]
@@ -11,11 +8,9 @@ fn nw_empty_ref() {
     let query = b"ACGT";
     let reference = b"";
 
-    let weights: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(2, -5, Some(b'N'));
-    let gap_open = -10;
-    let gap_extend = -1;
+    let params = ScoreParams::new_dna_params(2, -5, -10, -1, Some(b'N')).unwrap();
 
-    let profile = ScalarProfile::new(query, &weights, gap_open, gap_extend).unwrap();
+    let profile = ScalarProfile::new(query, &params);
 
     let score = nw_scalar_score(reference, &profile);
     assert_eq!(score, -13);
@@ -42,11 +37,9 @@ fn nw_empty_query() {
     let query = b"";
     let reference = b"ACGT";
 
-    let weights: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(2, -5, Some(b'N'));
-    let gap_open = -10;
-    let gap_extend = -1;
+    let params = ScoreParams::new_dna_params(2, -5, -10, -1, Some(b'N')).unwrap();
 
-    let profile = ScalarProfile::new(query, &weights, gap_open, gap_extend).unwrap();
+    let profile = ScalarProfile::new(query, &params);
 
     let score = nw_scalar_score(reference, &profile);
     assert_eq!(score, -13);
@@ -73,11 +66,9 @@ fn nw_empty_both() {
     let query = b"";
     let reference = b"";
 
-    let weights: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(2, -5, Some(b'N'));
-    let gap_open = -10;
-    let gap_extend = -1;
+    let params = ScoreParams::new_dna_params(2, -5, -10, -1, Some(b'N')).unwrap();
 
-    let profile = ScalarProfile::new(query, &weights, gap_open, gap_extend).unwrap();
+    let profile = ScalarProfile::new(query, &params);
 
     let score = nw_scalar_score(reference, &profile);
     assert_eq!(score, 0);

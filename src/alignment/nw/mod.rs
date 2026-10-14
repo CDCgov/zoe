@@ -15,40 +15,37 @@
 //!
 //! ### Usage Note
 //!
-//! The following steps may be needed to perform an alignment:
+//! #### 1. Define Scoring Parameters
 //!
-//! 1. Choose an alphabet. *Zoe* provides an easy interface to work with DNA,
-//!    assuming the bases `ACGT` are case-insensitive and `N` is used as a
-//!    catch-all. Otherwise, you can define your own alphabet using
-//!    [`ByteIndexMap::new`].
+//! Alignment requires an alphabet, a weight matrix for scoring matches and
+//! mismatches, and affine gap penalties. These are all stored in
+//! [`ScoreParams`]. [`ScoreParams::new_dna_params`] and the more flexible
+//! [`ScoreParams::new`] can be used, in addition to other constructors listed
+//! [here](ScoreParams).
 //!
-//! 2. Specify the [`WeightMatrix`] used for scoring matches and mismatches. For
-//!    DNA, [`new_dna_matrix`] is a convenient constructor.
+//! #### 2. Build a Sequence Profile
 //!
-//! 3. Build the query profile with [`ScalarProfile::new`]. This step combines
-//!    the query, matrix of weights, and gap open and gap extend penalties. This
-//!    step also performs some basic checks, and if any of the inputs are
-//!    invalid, a [`ProfileError`] is returned.
+//! Build the query profile with [`ScalarProfile::new`]. Striped algorithms do
+//! not yet exist in *Zoe* for global alignment.
 //!
-//! 4. Use the query profile to align against any number of different references
-//!    using [`nw_scalar_score`] or [`nw_scalar_align`].
+//! #### 3. Perform the Alignment
 //!
-//! Below is an example using DNA. We use a match score of 4 and a mismatch
-//! score of -2, as defined in `WEIGHTS`.
+//! Use the query profile to align against any number of different references
+//! using [`nw_scalar_score`] or [`nw_scalar_align`].
+//!
+//! ### Examples
+//!
+//! Below is an example using DNA:
 //!
 //! ```
-//! # use zoe::{
-//! #     alignment::{Alignment, AlignmentStates, ScalarProfile, nw::nw_scalar_align},
-//! #     data::matrices::WeightMatrix
-//! # };
+//! # use zoe::alignment::{Alignment, AlignmentStates, ScalarProfile, ScoreParams, nw::nw_scalar_align};
+//! // match, mismatch, gap open, gap extend, and ignored base
+//! let params = ScoreParams::new_dna_params(4, -2, -3, -1, Some(b'N')).unwrap();
+//!
 //! let reference: &[u8] = b"GGCCACAGGATTGAG";
 //! let query: &[u8] = b"TACCACAGTATTAG";
 //!
-//! const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
-//! const GAP_OPEN: i8 = -3;
-//! const GAP_EXTEND: i8 = -1;
-//!
-//! let profile = ScalarProfile::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+//! let profile = ScalarProfile::new(query, &params);
 //! let alignment = nw_scalar_align(&reference, &profile);
 //!
 //! let Alignment {
@@ -70,7 +67,7 @@
 //! [`Alignment`]: super::Alignment
 //! [`Alignment::get_aligned_seqs`]: super::Alignment::get_aligned_seqs
 
-use crate::alignment::{AlignOp, Alignment, AlignmentStates, BackTrackable, BacktrackMatrix, ScalarProfile};
+use crate::alignment::{AlignOp, Alignment, AlignmentStates, BackTrackable, BacktrackMatrix, ScalarProfile, ScoreParams};
 use std::ops::Add;
 
 #[cfg(feature = "alignment-diagnostics")]
@@ -103,19 +100,15 @@ mod test;
 /// ## Example
 ///
 /// ```
-/// # use zoe::{
-/// #     alignment::{Alignment, AlignmentStates, ScalarProfile, nw::nw_scalar_score},
-/// #     data::matrices::WeightMatrix
-/// # };
+/// # use zoe::alignment::{Alignment, AlignmentStates, ScalarProfile, ScoreParams, nw::nw_scalar_score};
+/// // match, mismatch, gap open, gap extend, and ignored base
+/// let params = ScoreParams::new_dna_params(4, -2, -3, -1, Some(b'N')).unwrap();
+///
 /// let reference: &[u8] = b"GGCCACAGGATTGAG";
 /// let query: &[u8] = b"TACCACAGTATTAG";
 ///
-/// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
-/// const GAP_OPEN: i8 = -3;
-/// const GAP_EXTEND: i8 = -1;
-///
-/// let profile = ScalarProfile::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-/// let score = nw_scalar_score(&reference, &profile);
+/// let profile = ScalarProfile::new(query, &params);
+/// let score = nw_scalar_score(reference, &profile);
 ///
 /// assert_eq!(score, 35);
 /// ```
@@ -124,6 +117,14 @@ mod test;
 #[must_use]
 #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
 pub fn nw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S>) -> i32 {
+    let ScoreParams {
+        ref matrix,
+        gap_open,
+        gap_extend,
+    } = query.params;
+    let [gap_open, gap_extend] = [gap_open, gap_extend].map(i32::from);
+    let (query, matrix) = (query.seq.as_ref(), matrix.as_ref());
+
     // Definitions:
     // * Q[c] = c-th base in the query, zero-indexed
     // * R[r] = r-th base in the reference, zero-indexed
@@ -140,28 +141,28 @@ pub fn nw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
             return 0;
         };
 
-        return query.gap_open + (query.gap_extend * gap_extend_mul as i32);
+        return gap_open + (gap_extend * gap_extend_mul as i32);
     }
 
     // A row H[r, ..] of H. Initialized for row -1 (no bases in the reference
     // consumed). H[-1, 0] is gap_open (consuming one base of query). Each
     // subsequent value adds gap_extend to the previous.
-    let mut h_row = vec![0; query.seq.len()];
-    let mut h = query.gap_open;
+    let mut h_row = vec![0; query.len()];
+    let mut h = gap_open;
     for h_val in &mut h_row {
         *h_val = h;
-        h += query.gap_extend;
+        h += gap_extend;
     }
 
     // A row E[r, ..] of E. Initialized for row 0 (one base in the reference
     // consumed, via a gap). E[0,0] is only reached by consuming a base in the
     // query via a gap_open, then conuming a base in the reference via a
     // gap_open. Each subsequent value adds gap_extend to the previous.
-    let mut e_row = vec![0; query.seq.len()];
-    let mut e = 2 * query.gap_open;
+    let mut e_row = vec![0; query.len()];
+    let mut e = 2 * gap_open;
     for e_val in &mut e_row {
         *e_val = e;
-        e += query.gap_extend;
+        e += gap_extend;
     }
 
     // Iterate over R (index=r)
@@ -169,7 +170,7 @@ pub fn nw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
         // A value in F, initialized to F[r,0]. F[r,0] is reached by consuming
         // r+1 bases in the reference via a gap, then consuming a base in the
         // query via a gap.
-        let mut f = 2 * query.gap_open + r as i32 * query.gap_extend;
+        let mut f = 2 * gap_open + r as i32 * gap_extend;
         // A value of H. Initialized to H[r-1,-1] (r bases consumed in R and no
         // bases consumed in Q)
         let mut h = if r == 0 {
@@ -178,13 +179,13 @@ pub fn nw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
             0
         } else {
             // H[r-1,-1]: Reached by a gap in the reference consuming r bases
-            query.gap_open + query.gap_extend * (r - 1) as i32
+            gap_open + gap_extend * (r - 1) as i32
         };
 
         // Iterate over Q (index=c). Assumes that h contains H[r-1,c-1].
-        for c in 0..query.seq.len() {
+        for c in 0..query.len() {
             // W[r,c]
-            let match_score = i32::from(query.matrix.get_weight(reference_base, query.seq[c]));
+            let match_score = i32::from(matrix.get_weight(reference_base, query[c]));
             // Temporarily update to H[r-1,c-1] + W[r,c]
             h += match_score;
 
@@ -195,9 +196,9 @@ pub fn nw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
             h = h.max(e).max(f);
 
             // Update E[r,c] to E[r,c+1]
-            e = e.add(query.gap_extend).max(h + query.gap_open);
+            e = e.add(gap_extend).max(h + gap_open);
             // Update F[r,c] to F[r,c+1]
-            f = f.add(query.gap_extend).max(h + query.gap_open);
+            f = f.add(gap_extend).max(h + gap_open);
 
             // Update H[r,c] in h_row, and set h to H[r-1,c] (becomes H[r-1,c-1]
             // next iteration)
@@ -230,19 +231,15 @@ pub fn nw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 /// ## Example
 ///
 /// ```
-/// # use zoe::{
-/// #     alignment::{Alignment, AlignmentStates, ScalarProfile, nw::nw_scalar_align},
-/// #     data::matrices::WeightMatrix
-/// # };
+/// # use zoe::alignment::{Alignment, AlignmentStates, ScalarProfile, ScoreParams, nw::nw_scalar_align};
+/// // match, mismatch, gap open, gap extend, and ignored base
+/// let params = ScoreParams::new_dna_params(4, -2, -3, -1, Some(b'N')).unwrap();
+///
 /// let reference: &[u8] = b"GGCCACAGGATTGAG";
 /// let query: &[u8] = b"TACCACAGTATTAG";
 ///
-/// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
-/// const GAP_OPEN: i8 = -3;
-/// const GAP_EXTEND: i8 = -1;
-///
-/// let profile = ScalarProfile::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-/// let alignment = nw_scalar_align(&reference, &profile);
+/// let profile = ScalarProfile::new(query, &params);
+/// let alignment = nw_scalar_align(reference, &profile);
 ///
 /// let Alignment {
 ///     score,
@@ -259,6 +256,14 @@ pub fn nw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 #[must_use]
 #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
 pub fn nw_scalar_align<const S: usize>(reference: &[u8], query: &ScalarProfile<S>) -> Alignment<i32> {
+    let ScoreParams {
+        ref matrix,
+        gap_open,
+        gap_extend,
+    } = query.params;
+    let [gap_open, gap_extend] = [gap_open, gap_extend].map(i32::from);
+    let (query, matrix) = (query.seq.as_ref(), matrix.as_ref());
+
     // See dev comments in nw_scalar_score for more details
 
     if query.is_empty() {
@@ -270,42 +275,33 @@ pub fn nw_scalar_align<const S: usize>(reference: &[u8], query: &ScalarProfile<S
         let mut states = AlignmentStates::with_capacity(1);
         states.add_inc_op(reference.len(), AlignOp::D);
 
-        return Alignment::new_global(
-            query.gap_open + (query.gap_extend * gap_extend_mul as i32),
-            states,
-            reference.len(),
-            0,
-        );
+        return Alignment::new_global(gap_open + (gap_extend * gap_extend_mul as i32), states, reference.len(), 0);
     }
 
-    let mut h_row = vec![0; query.seq.len()];
-    let mut h = query.gap_open;
+    let mut h_row = vec![0; query.len()];
+    let mut h = gap_open;
     for h_val in &mut h_row {
         *h_val = h;
-        h += query.gap_extend;
+        h += gap_extend;
     }
 
-    let mut e_row = vec![0; query.seq.len()];
-    let mut e = 2 * query.gap_open;
+    let mut e_row = vec![0; query.len()];
+    let mut e = 2 * gap_open;
     for e_val in &mut e_row {
         *e_val = e;
-        e += query.gap_extend;
+        e += gap_extend;
     }
 
-    let mut backtrack = BacktrackMatrix::new(reference.len(), query.seq.len());
+    let mut backtrack = BacktrackMatrix::new(reference.len(), query.len());
 
     for (r, reference_base) in reference.iter().copied().enumerate() {
-        let mut f = 2 * query.gap_open + r as i32 * query.gap_extend;
-        let mut h = if r == 0 {
-            0
-        } else {
-            query.gap_open + query.gap_extend * (r - 1) as i32
-        };
+        let mut f = 2 * gap_open + r as i32 * gap_extend;
+        let mut h = if r == 0 { 0 } else { gap_open + gap_extend * (r - 1) as i32 };
 
-        for c in 0..query.seq.len() {
+        for c in 0..query.len() {
             backtrack.move_to(r, c);
 
-            let match_score = i32::from(query.matrix.get_weight(reference_base, query.seq[c]));
+            let match_score = i32::from(matrix.get_weight(reference_base, query[c]));
             h += match_score;
 
             let mut e = e_row[c];
@@ -325,13 +321,13 @@ pub fn nw_scalar_align<const S: usize>(reference: &[u8], query: &ScalarProfile<S
             h_row[c] = h;
 
             // Temporarily store H[r,c]+go in h
-            h += query.gap_open;
+            h += gap_open;
             // Update E[r,c] to E[r,c+1] by computing the maximum of E[r,c]+ge
             // and H[r,c]+go
-            e = e.add(query.gap_extend).max(h);
+            e = e.add(gap_extend).max(h);
             // Update F[r,c] to F[r,c+1] by computing the maximum of F[r,c]+ge
             // and F[r,c]+go
-            f = f.add(query.gap_extend).max(h);
+            f = f.add(gap_extend).max(h);
 
             // Mark the backtrack as up_extending only if it cannot be reached
             // via opening a gap. This check ensures E[r,c+1] > H[r,c]+go, so
@@ -353,5 +349,5 @@ pub fn nw_scalar_align<const S: usize>(reference: &[u8], query: &ScalarProfile<S
         }
     }
 
-    backtrack.to_alignment_global(h_row[h_row.len() - 1], reference.len(), query.seq.len())
+    backtrack.to_alignment_global(h_row[h_row.len() - 1], reference.len(), query.len())
 }

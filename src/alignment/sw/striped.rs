@@ -42,15 +42,17 @@ use std::simd::{
 /// ## Example
 ///
 /// ```
-/// # use zoe::{alignment::{StripedProfile, sw::sw_simd_score}, data::matrices::WeightMatrix};
+/// # use zoe::{
+/// #     alignment::{StripedProfile, ScoreParams, sw::sw_simd_score},
+/// #     data::matrices::WeightMatrix
+/// # };
+/// // match, mismatch, gap open, gap extend, and ignored base
+/// let params = ScoreParams::new_biased_dna_params(4, -2, -3, -1, Some(b'N')).unwrap();
+///
 /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
 /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
 ///
-/// const WEIGHTS: WeightMatrix<u8, 5> = WeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
-/// const GAP_OPEN: i8 = -3;
-/// const GAP_EXTEND: i8 = -1;
-///
-/// let profile = StripedProfile::<u8, 32, 5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+/// let profile = StripedProfile::<u8, 32, 5>::new(query, &params);
 /// let score = sw_simd_score(&reference, &profile).unwrap();
 /// assert_eq!(score, 26);
 /// ```
@@ -420,17 +422,14 @@ where
 /// ## Example
 ///
 /// ```
-/// # use zoe::{
-/// #     alignment::{Alignment, AlignmentStates, StripedProfile, sw::sw_simd_align},
-/// #     data::matrices::WeightMatrix,
-/// # };
+/// # use zoe::alignment::{Alignment, AlignmentStates, ScoreParams, StripedProfile, sw::sw_simd_align};
+/// // match, mismatch, gap open, gap extend, and ignored base
+/// let params = ScoreParams::new_biased_dna_params(4, -2, -3, -1, Some(b'N')).unwrap();
 ///
 /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
 /// let query: &[u8] = b"CGTTCGCCATAAAGGGGG";
-/// const WEIGHTS: WeightMatrix<u8, 5> = WeightMatrix::new_biased_dna_matrix(4, -2, Some(b'N'));
-/// const GAP_OPEN: i8 = -3;
-/// const GAP_EXTEND: i8 = -1;
-/// let profile = StripedProfile::<u8, 8, 5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+///
+/// let profile = StripedProfile::<u8, 8, 5>::new(query, &params);
 /// let alignment = sw_simd_align(reference, &profile).unwrap();
 ///
 /// let Alignment {

@@ -221,12 +221,20 @@ impl ByteMap {
 /// For example, this could be a map from DNA bases to profile indices, such as
 /// [`DNA_PROFILE_MAP`].
 ///
+/// To construct a [`ByteIndexMap`], call [`new`] or [`new_ignoring_case`].
+/// Then, specify any synonyms (e.g., `U` could be a synonym for `T`) via
+/// [`add_synonym`] or [`add_synonym_ignore_case`].
+///
 /// ## Parameters
 ///
 /// `S`: The number of unique indices in the output of the mapping (such as 5
 /// for DNA including *N*)
 ///
 /// [`DNA_PROFILE_MAP`]: super::DNA_PROFILE_MAP
+/// [`new`]: ByteIndexMap::new
+/// [`new_ignoring_case`]: ByteIndexMap::new_ignoring_case
+/// [`add_synonym`]: ByteIndexMap::add_synonym
+/// [`add_synonym_ignore_case`]: ByteIndexMap::add_synonym_ignore_case
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct ByteIndexMap<const S: usize> {
     index_map: ByteMap,

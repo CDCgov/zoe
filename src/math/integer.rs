@@ -204,7 +204,7 @@ impl_int!(i8, i16, i32, i64, isize, i128, u8, u16, u32, u64, usize, u128);
 impl_xint!(Uint; u8, u16, u32, u64, usize, u128);
 impl_xint!(Int; i8, i16, i32, i64, isize, i128);
 
-/// A marker trait for integer types fo the same sign.
+/// A marker trait for integer types of the same sign.
 pub trait FromSameSignedness<T>: From<T> + Sealed {}
 
 /// A macro for implementing [`FromSameSignedness`] on primitive types.

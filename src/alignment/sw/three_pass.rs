@@ -1,9 +1,9 @@
 use crate::{
     alignment::{
-        Alignment, AlignmentStates, MaybeAligned, ScalarProfile, ScoreAndRanges, StripedProfile,
+        Alignment, AlignmentStates, MaybeAligned, ScalarProfile, ScoreAndRanges, ScoreParams, StripedProfile,
         sw::{sw_banded_align, sw_scalar_align, sw_simd_score_ranges},
     },
-    data::{WeightMatrix, views::IndexAdjustable},
+    data::views::IndexAdjustable,
     math::{AlignableIntWidth, SimdAnyInt},
 };
 use std::simd::Simd;
@@ -19,18 +19,20 @@ use std::simd::Simd;
 #[inline]
 #[must_use]
 pub fn sw_align_3pass<T, const N: usize, const S: usize>(
-    reference: &[u8], query_profile: &StripedProfile<T, N, S>, query: &[u8], matrix: &WeightMatrix<i8, S>, gap_open: i8,
-    gap_extend: i8,
+    reference: &[u8], query_profile: &StripedProfile<T, N, S>, query: &[u8], params: &ScoreParams<i8, S>,
 ) -> MaybeAligned<Alignment<u32>>
 where
     T: AlignableIntWidth,
     Simd<T, N>: SimdAnyInt<T, N>, {
+    let ScoreParams { matrix, .. } = params;
+
     sw_simd_score_ranges(reference, query_profile).and_then(|score_and_ranges| {
         let ScoreAndRanges {
             score,
             ref_range,
             query_range,
         } = score_and_ranges;
+        let matrix = matrix.as_ref();
 
         if query_range.is_empty() {
             return MaybeAligned::Unmapped;
@@ -57,7 +59,7 @@ where
         }
 
         // Validity: weights are same as those in self
-        let query_new = ScalarProfile::new_unchecked(&query[query_range.clone()], matrix, gap_open, gap_extend);
+        let query_new = ScalarProfile::new(&query[query_range.clone()], params);
         let reference_new = &reference[ref_range.clone()];
 
         let mut band_width = ref_range.len().abs_diff(query_range.len()) + 1;

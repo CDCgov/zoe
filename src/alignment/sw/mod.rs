@@ -42,33 +42,21 @@
 //!
 //! ### Usage Steps
 //!
-//! #### 1. Pick an Alphabet
+//! #### 1. Define Scoring Parameters
 //!
-//! *Zoe* includes the DNA alphabet [`DNA_PROFILE_MAP`] and the protein alphabet
-//! [`AA_PROFILE_MAP`]. You can also define your own alphabet using
-//! [`ByteIndexMap::new`] or [`ByteIndexMap::new_ignoring_case`] if other
-//! combinations of unique symbols are needed.
+//! Alignment requires an alphabet, a weight matrix for scoring matches and
+//! mismatches, and affine gap penalties. These are all stored in
+//! [`ScoreParams`]. [`ScoreParams::new_dna_params`] and the more flexible
+//! [`ScoreParams::new`] can be used, in addition to other constructors listed
+//! [here](ScoreParams).
 //!
-//! #### 2. Specify the Weight Matrix
-//!
-//! The weight matrix is used to score matches and mismatches. For DNA,
-//! [`new_dna_matrix`] is a convenient constructor. For protein alignment, *Zoe*
-//! provides many weight matrices in the [`matrices`] module.
-//! [`WeightMatrix::new_custom`] can also be called for full flexibility,
-//! allowing any pair of residues in the previously chosen alphabet to have a
-//! custom score.
-//!
-//! #### 3. Build a Sequence Profile
+//! #### 2. Build a Sequence Profile
 //!
 //! *Zoe*'s alignment functions first involve preprocessing one of the
 //! sequences. This allows for more efficient algorithms to be used (e.g.,
 //! striped Smith Waterman with SIMD). It also allows the preprocessing to be
 //! done once and reused for many alignments, if the same query or reference is
 //! used.
-//!
-//! Creating the profile also combines the sequence, matrix of weights, and gap
-//! open and gap extend penalties. This step performs some basic checks, and if
-//! any of the inputs are invalid, a [`ProfileError`] is returned.
 //!
 //! For general applications, *Zoe* encourages the use of [`LocalProfiles`] (if
 //! the profile is used solely within a single thread) or [`SharedProfiles`] (if
@@ -106,7 +94,7 @@
 //!   count can be chosen by dividing the register width by the number of bits
 //!   in the chosen integer type.
 //!
-//! #### 4. Perform the Alignment
+//! #### 3. Perform the Alignment
 //!
 //! While the standalone functions such as [`sw_simd_score`] and
 //! [`sw_simd_align`] provide a basic interface, methods on profiles and profile
@@ -156,24 +144,18 @@
 //! ### Examples
 //!
 //! Below is an example using DNA and a manually-created [`StripedProfile`]. We
-//! use a match score of 4 and a mismatch score of -2, as defined in `WEIGHTS`.
-//! We also choose to use a [`StripedProfile`] (so that the SIMD algorithm is
-//! used) with integer type `i8` and 32 lanes (corresponding to a 256-bit
-//! register).
+//! also choose to use a [`StripedProfile`] (so that the SIMD algorithm is used)
+//! with integer type `i8` and 32 lanes (corresponding to a 256-bit register).
 //!
 //! ```
-//! # use zoe::{
-//! #     alignment::{Alignment, AlignmentStates, SeqSrc, StripedProfile},
-//! #     data::matrices::WeightMatrix
-//! # };
+//! # use zoe::alignment::{Alignment, AlignmentStates, ScoreParams, SeqSrc, StripedProfile};
+//! // match, mismatch, gap open, gap extend, and ignored base
+//! let params = ScoreParams::new_dna_params(4, -2, -3, -1, Some(b'N')).unwrap();
+//!
 //! let reference: &[u8] = b"GGCCACAGGATTGAG";
 //! let query: &[u8] = b"CTCAGATTG";
 //!
-//! const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
-//! const GAP_OPEN: i8 = -3;
-//! const GAP_EXTEND: i8 = -1;
-//!
-//! let profile = StripedProfile::<i8, 32, 5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+//! let profile = StripedProfile::<i8, 32, 5>::new(query, &params);
 //! let alignment = profile.sw_align(SeqSrc::Reference(reference)).unwrap();
 //!
 //! let Alignment {
@@ -187,23 +169,24 @@
 //! assert_eq!(states, AlignmentStates::try_from(b"5M1D4M").unwrap());
 //! ```
 //!
-//! Below is an example using a different alphabet. Matches are given a score of
-//! 1 and mismatches are given a score of -1.
+//! Below is an example using a different alphabet:
 //!
 //! ```
 //! # use zoe::{
-//! #     alignment::{Alignment, AlignmentStates, SeqSrc, StripedProfile},
+//! #     alignment::{Alignment, AlignmentStates, ScoreParams, SeqSrc, StripedProfile},
 //! #     data::{matrices::WeightMatrix, mappings::ByteIndexMap},
 //! # };
 //! let reference: &[u8] = b"BDAACAABDDDB";
 //! let query: &[u8] = b"AABDDAB";
 //!
 //! const MAPPING: ByteIndexMap<4> = ByteIndexMap::new(*b"ABCD", b'A');
+//! // mapping, match, mismatch, and ignored base
 //! const WEIGHTS: WeightMatrix<i8, 4> = WeightMatrix::new(&MAPPING, 1, -1, None);
-//! const GAP_OPEN: i8 = -4;
-//! const GAP_EXTEND: i8 = -2;
 //!
-//! let profile = StripedProfile::<i8, 32, 4>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+//! // weights, gap open, and gap extend
+//! let params = ScoreParams::new(&WEIGHTS, -4, -2).unwrap();
+//!
+//! let profile = StripedProfile::<i8, 32, 4>::new(query, &params);
 //! let alignment = profile.sw_align(SeqSrc::Reference(reference)).unwrap();
 //!
 //! let Alignment {
@@ -221,18 +204,16 @@
 //!
 //! ```
 //! # use zoe::{
-//! #     alignment::{Alignment, AlignmentStates, ProfileSets, SeqSrc},
-//! #     data::matrices::WeightMatrix,
+//! #     alignment::{Alignment, AlignmentStates, ProfileSets, ScoreParams, SeqSrc},
 //! #     prelude::Nucleotides
 //! # };
+//! // match, mismatch, gap open, gap extend, and ignored base
+//! let params = ScoreParams::new_dna_params(4, -2, -3, -1, Some(b'N')).unwrap();
+//!
 //! let reference: &[u8] = b"GGCCACAGGATTGAG";
 //! let query: Nucleotides = b"CTCAGATTG".into();
 //!
-//! const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
-//! const GAP_OPEN: i8 = -3;
-//! const GAP_EXTEND: i8 = -1;
-//!
-//! let profile = query.into_local_profile(&WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+//! let profile = query.into_local_profile(&params);
 //! let alignment = profile.sw_align_from_i8(SeqSrc::Reference(reference)).unwrap();
 //!
 //! let Alignment {
@@ -250,18 +231,20 @@
 //!
 //! ```
 //! # use zoe::{
-//! #     alignment::{Alignment, AlignmentStates, LocalProfiles, ProfileSets, SeqSrc},
+//! #     alignment::{Alignment, AlignmentStates, LocalProfiles, ProfileSets, ScoreParams, SeqSrc},
 //! #     data::{matrices::WeightMatrix, mappings::ByteIndexMap},
 //! # };
 //! let reference: &[u8] = b"BDAACAABDDDB";
 //! let query: &[u8] = b"AABDDAB";
 //!
 //! const MAPPING: ByteIndexMap<4> = ByteIndexMap::new(*b"ABCD", b'A');
+//! // mapping, match, mismatch, and ignored base
 //! const WEIGHTS: WeightMatrix<i8, 4> = WeightMatrix::new(&MAPPING, 1, -1, None);
-//! const GAP_OPEN: i8 = -4;
-//! const GAP_EXTEND: i8 = -2;
 //!
-//! let profile = LocalProfiles::new_with_w256(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+//! // weights, gap open, and gap extend
+//! let params = ScoreParams::new(&WEIGHTS, -4, -2).unwrap();
+//!
+//! let profile = LocalProfiles::new_with_w256(query, &params);
 //! let alignment = profile.sw_align_from_i8(SeqSrc::Reference(reference)).unwrap();
 //!
 //! let Alignment {
@@ -378,8 +361,10 @@ use super::*;
 
 #[cfg(test)]
 pub(crate) mod test_data {
-    use super::ScalarProfile;
-    use crate::data::matrices::WeightMatrix;
+    use crate::{
+        alignment::{ScalarProfile, ScoreParams, unwrap_params},
+        data::matrices::WeightMatrix,
+    };
     use std::sync::LazyLock;
 
     pub(crate) static H5_HA_SEQ: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/NC_007362.1.txt")); // H5 HA
@@ -387,11 +372,14 @@ pub(crate) mod test_data {
 
     pub(crate) static WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(2, -5, Some(b'N'));
     pub(crate) static BIASED_WEIGHTS: WeightMatrix<u8, 5> = WEIGHTS.to_biased_matrix();
-    pub(crate) static SCALAR_PROFILE: LazyLock<ScalarProfile<5>> =
-        LazyLock::new(|| ScalarProfile::new(H1_HA_SEQ, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap());
+    pub(crate) static SCALAR_PROFILE: LazyLock<ScalarProfile<5>> = LazyLock::new(|| ScalarProfile::new(H1_HA_SEQ, &PARAMS));
 
     pub(crate) const GAP_OPEN: i8 = -10;
     pub(crate) const GAP_EXTEND: i8 = -1;
+
+    pub(crate) const PARAMS: ScoreParams<i8, 5> = unwrap_params(ScoreParams::new_borrowed(&WEIGHTS, GAP_OPEN, GAP_EXTEND));
+    pub(crate) const BIASED_PARAMS: ScoreParams<u8, 5> =
+        unwrap_params(ScoreParams::new_borrowed(&BIASED_WEIGHTS, GAP_OPEN, GAP_EXTEND));
 }
 
 #[cfg(test)]

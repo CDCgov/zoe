@@ -38,21 +38,28 @@ use std::ops::Add;
 /// ## Example
 ///
 /// ```
-/// # use zoe::{alignment::{ScalarProfile, sw::sw_scalar_score}, data::matrices::WeightMatrix};
+/// # use zoe::alignment::{ScalarProfile, ScoreParams, sw::sw_scalar_score};
+/// // match, mismatch, gap open, gap extend, and ignored base
+/// let params = ScoreParams::new_dna_params(4, -2, -3, -1, Some(b'N')).unwrap();
+///
 /// let reference: &[u8] = b"GGCCACAGGATTGAG";
 /// let query: &[u8] = b"CTCAGATTG";
 ///
-/// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
-/// const GAP_OPEN: i8 = -3;
-/// const GAP_EXTEND: i8 = -1;
-///
-/// let profile = ScalarProfile::<5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-/// let score = sw_scalar_score(&reference, &profile).unwrap();
+/// let profile = ScalarProfile::<5>::new(query, &params);
+/// let score = sw_scalar_score(reference, &profile).unwrap();
 /// assert_eq!(score, 27);
 /// ```
 #[must_use]
 #[allow(clippy::cast_sign_loss)]
 pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S>) -> MaybeAligned<u32> {
+    let ScoreParams {
+        ref matrix,
+        gap_open,
+        gap_extend,
+    } = query.params;
+    let [gap_open, gap_extend] = [gap_open, gap_extend].map(i32::from);
+    let (query, matrix) = (query.seq.as_ref(), matrix.as_ref());
+
     // Definitions:
     // * Q[c] = c-th base in the query, zero-indexed
     // * R[r] = r-th base in the reference, zero-indexed
@@ -72,24 +79,24 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
     let mut best_score = 0;
     // A row H[r, ..] of H. Initialized for row -1 (no bases in the reference
     // consumed)
-    let mut h_row = vec![0; query.seq.len()];
+    let mut h_row = vec![0; query.len()];
     // A row E[r, ..] of E. Initialized for row 0 (one base in the reference
     // consumed, via a gap)
-    let mut e_row = vec![query.gap_open; query.seq.len()];
+    let mut e_row = vec![gap_open; query.len()];
 
     // Iterate over R (index=r)
     for reference_base in reference.iter().copied() {
         // A value in F, initialized to F[0,0]. F[0,0] is reached by excluding
         // R[0] from the alignment, then consuming Q[0] via a gap
-        let mut f = query.gap_open;
+        let mut f = gap_open;
         // A value of H. Initialized to H[r-1,-1] (r bases consumed in R and no
         // bases consumed in Q)
         let mut h = 0;
 
         // Iterate over Q (index=c). Assumes that h contains H[r-1,c-1].
-        for c in 0..query.seq.len() {
+        for c in 0..query.len() {
             // W[r,c]
-            let match_score = i32::from(query.matrix.get_weight(reference_base, query.seq[c]));
+            let match_score = i32::from(matrix.get_weight(reference_base, query[c]));
             // Temporarily update to H[r-1,c-1] + W[r,c]
             h += match_score;
 
@@ -103,9 +110,9 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
             best_score = best_score.max(h);
 
             // Update E[r,c] to E[r,c+1]
-            e = e.add(query.gap_extend).max(h + query.gap_open);
+            e = e.add(gap_extend).max(h + gap_open);
             // Update F[r,c] to F[r,c+1]
-            f = f.add(query.gap_extend).max(h + query.gap_open);
+            f = f.add(gap_extend).max(h + gap_open);
 
             // Update H[r,c] in h_row, and set h to H[r-1,c] (becomes H[r-1,c-1]
             // next iteration)
@@ -155,26 +162,30 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 /// ## Example
 ///
 ///  ```
-/// # use zoe::{
-/// #     alignment::{Alignment, ScalarProfile, sw::sw_scalar_align},
-/// #     data::{matrices::WeightMatrix, cigar::Cigar}
-/// # };
+/// # use zoe::alignment::{Alignment, AlignmentStates, ScalarProfile, ScoreParams, sw::sw_scalar_align};
+/// // match, mismatch, gap open, gap extend, and ignored base
+/// let params = ScoreParams::new_dna_params(4, -2, -3, -1, Some(b'N')).unwrap();
+///
 /// let reference: &[u8] = b"GGCCACAGGATTGAG";
 /// let query: &[u8] = b"CTCAGATTG";
 ///
-/// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
-/// const GAP_OPEN: i8 = -3;
-/// const GAP_EXTEND: i8 = -1;
-///
-/// let profile = ScalarProfile::<5>::new(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
-/// let alignment = sw_scalar_align(&reference, &profile).unwrap();
+/// let profile = ScalarProfile::<5>::new(query, &params);
+/// let alignment = sw_scalar_align(reference, &profile).unwrap();
 /// assert_eq!(alignment.ref_range.start, 3);
-/// assert_eq!(alignment.states, Cigar::from_slice_unchecked("5M1D4M"));
+/// assert_eq!(alignment.states, AlignmentStates::try_from("5M1D4M").unwrap());
 /// assert_eq!(alignment.score, 27);
 /// ```
 #[must_use]
 #[allow(clippy::cast_sign_loss)]
 pub fn sw_scalar_align<const S: usize>(reference: &[u8], query: &ScalarProfile<S>) -> MaybeAligned<Alignment<u32>> {
+    let ScoreParams {
+        ref matrix,
+        gap_open,
+        gap_extend,
+    } = query.params;
+    let [gap_open, gap_extend] = [gap_open, gap_extend].map(i32::from);
+    let (query, matrix) = (query.seq.as_ref(), matrix.as_ref());
+
     // See dev comments in sw_scalar_score for more details
 
     if reference.is_empty() || query.is_empty() {
@@ -187,19 +198,19 @@ pub fn sw_scalar_align<const S: usize>(reference: &[u8], query: &ScalarProfile<S
     // best_score is updated, or they won't be accessed (since best_score==0
     // returns Unmapped)
     let (mut r_end, mut c_end) = (0, 0);
-    let mut h_row = vec![0; query.seq.len()];
-    let mut e_row = vec![query.gap_open; query.seq.len()];
+    let mut h_row = vec![0; query.len()];
+    let mut e_row = vec![gap_open; query.len()];
 
-    let mut backtrack = BacktrackMatrix::new(reference.len(), query.seq.len());
+    let mut backtrack = BacktrackMatrix::new(reference.len(), query.len());
 
     for (r, reference_base) in reference.iter().copied().enumerate() {
-        let mut f = query.gap_open;
+        let mut f = gap_open;
         let mut h = 0;
 
-        for c in 0..query.seq.len() {
+        for c in 0..query.len() {
             backtrack.move_to(r, c);
 
-            let match_score = i32::from(query.matrix.get_weight(reference_base, query.seq[c]));
+            let match_score = i32::from(matrix.get_weight(reference_base, query[c]));
             h += match_score;
 
             let mut e = e_row[c];
@@ -230,16 +241,16 @@ pub fn sw_scalar_align<const S: usize>(reference: &[u8], query: &ScalarProfile<S
             h_row[c] = h;
 
             // Temporarily store H[r,c]+go in h
-            h += query.gap_open;
+            h += gap_open;
             // Update E[r,c] to E[r,c+1] by computing the maximum of E[r,c]+ge
             // and H[r,c]+go
-            e = e.add(query.gap_extend).max(h);
+            e = e.add(gap_extend).max(h);
             // Update F[r,c] to F[r,c+1] by computing the maximum of F[r,c]+ge
             // and F[r,c]+go
-            f = f.add(query.gap_extend).max(h);
+            f = f.add(gap_extend).max(h);
 
             // Check H[r,c]≠0
-            if h != query.gap_open {
+            if h != gap_open {
                 // Mark the backtrack as up_extending only if it cannot be
                 // reached another way. It cannot be reached via clipping since
                 // H[r,c]≠0. This check ensures E[r,c+1] > H[r,c]+go, so that
@@ -268,7 +279,7 @@ pub fn sw_scalar_align<const S: usize>(reference: &[u8], query: &ScalarProfile<S
     } else {
         // score is i32 and is non-negative due to this algorithm, so this is a
         // valid cast
-        MaybeAligned::Some(backtrack.to_alignment(best_score as u32, r_end, c_end, reference.len(), query.seq.len()))
+        MaybeAligned::Some(backtrack.to_alignment(best_score as u32, r_end, c_end, reference.len(), query.len()))
     }
 }
 
@@ -285,25 +296,33 @@ pub fn sw_scalar_align_override<F, const S: usize>(
 ) -> MaybeAligned<Alignment<u32>>
 where
     F: FnMut(usize, usize, i32) -> i32, {
+    let ScoreParams {
+        ref matrix,
+        gap_open,
+        gap_extend,
+    } = query.params;
+    let [gap_open, gap_extend] = [gap_open, gap_extend].map(i32::from);
+    let (query, matrix) = (query.seq.as_ref(), matrix.as_ref());
+
     if reference.is_empty() || query.is_empty() {
         return MaybeAligned::Unmapped;
     }
 
     let (mut best_score, mut r_end, mut c_end) = (0, 0, 0);
-    let mut h_row = vec![0; query.seq.len()];
-    let mut e_row = vec![query.gap_open; query.seq.len()];
+    let mut h_row = vec![0; query.len()];
+    let mut e_row = vec![gap_open; query.len()];
 
-    let mut backtrack = BacktrackMatrix::new(reference.len(), query.seq.len());
+    let mut backtrack = BacktrackMatrix::new(reference.len(), query.len());
 
     for (r, reference_base) in reference.iter().copied().enumerate() {
-        let mut f = query.gap_open;
+        let mut f = gap_open;
         let mut h = 0;
 
-        for c in 0..query.seq.len() {
+        for c in 0..query.len() {
             backtrack.move_to(r, c);
 
             // matching is the default direction
-            let match_score = i32::from(query.matrix.get_weight(reference_base, query.seq[c]));
+            let match_score = i32::from(matrix.get_weight(reference_base, query[c]));
             h += match_score;
 
             let mut e = e_row[c];
@@ -331,11 +350,11 @@ where
             let next_diag = h_row[c];
             h_row[c] = h;
 
-            h += query.gap_open;
-            e = e.add(query.gap_extend).max(h);
-            f = f.add(query.gap_extend).max(h);
+            h += gap_open;
+            e = e.add(gap_extend).max(h);
+            f = f.add(gap_extend).max(h);
 
-            if h != query.gap_open {
+            if h != gap_open {
                 if e > h {
                     backtrack.up_extending();
                 }
@@ -355,6 +374,6 @@ where
     } else {
         // score is i32 and is non-negative due to this algorithm, so this is a
         // valid cast
-        MaybeAligned::Some(backtrack.to_alignment(best_score as u32, r_end, c_end, reference.len(), query.seq.len()))
+        MaybeAligned::Some(backtrack.to_alignment(best_score as u32, r_end, c_end, reference.len(), query.len()))
     }
 }
