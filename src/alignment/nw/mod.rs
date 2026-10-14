@@ -70,7 +70,7 @@
 //! [`Alignment`]: super::Alignment
 //! [`Alignment::get_aligned_seqs`]: super::Alignment::get_aligned_seqs
 
-use crate::alignment::{Alignment, BackTrackable, BacktrackMatrix, ScalarProfile};
+use crate::alignment::{AlignOp, Alignment, AlignmentStates, BackTrackable, BacktrackMatrix, ScalarProfile};
 use std::ops::Add;
 
 #[cfg(feature = "alignment-diagnostics")]
@@ -78,6 +78,9 @@ mod score_from_path;
 
 #[cfg(feature = "alignment-diagnostics")]
 pub use score_from_path::*;
+
+#[cfg(test)]
+mod test;
 
 /// Needleman–Wunsch algorithm (non-vectorized), yielding the optimal score.
 ///
@@ -130,6 +133,15 @@ pub fn nw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
     //   alignment ends with a gap consuming a base in the reference
     // * F[r,c] = maximum score for aligning Q[0..c] to R[0..r] such that the
     //   alignment ends with a gap consuming a base in the query
+
+    if query.is_empty() {
+        let Some(gap_extend_mul) = reference.len().checked_sub(1) else {
+            // Query and reference are empty, causing a score of 0
+            return 0;
+        };
+
+        return query.gap_open + (query.gap_extend * gap_extend_mul as i32);
+    }
 
     // A row H[r, ..] of H. Initialized for row -1 (no bases in the reference
     // consumed). H[-1, 0] is gap_open (consuming one base of query). Each
@@ -248,6 +260,23 @@ pub fn nw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
 pub fn nw_scalar_align<const S: usize>(reference: &[u8], query: &ScalarProfile<S>) -> Alignment<i32> {
     // See dev comments in nw_scalar_score for more details
+
+    if query.is_empty() {
+        let Some(gap_extend_mul) = reference.len().checked_sub(1) else {
+            // Query and reference are empty, causing a score of 0
+            return Alignment::default();
+        };
+
+        let mut states = AlignmentStates::with_capacity(1);
+        states.add_inc_op(reference.len(), AlignOp::D);
+
+        return Alignment::new_global(
+            query.gap_open + (query.gap_extend * gap_extend_mul as i32),
+            states,
+            reference.len(),
+            0,
+        );
+    }
 
     let mut h_row = vec![0; query.seq.len()];
     let mut h = query.gap_open;

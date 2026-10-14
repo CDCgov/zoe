@@ -22,17 +22,14 @@ use std::{
 ///
 /// ## Errors
 ///
-/// - [`ProfileError::EmptySequence`] if `seq` is empty
 /// - [`ProfileError::GapOpenOutOfRange`] if `gap_open` is not between -127 and
 ///   0, inclusive
 /// - [`ProfileError::GapExtendOutOfRange`] if `gap_extend` is not between -127
 ///   and 0, inclusive
 /// - [`ProfileError::BadGapWeights`] if `gap_extend` is less than `gap_open`
 #[inline]
-pub(crate) fn validate_profile_args(seq: &[u8], gap_open: i8, gap_extend: i8) -> Result<(), ProfileError> {
-    if seq.as_ref().is_empty() {
-        Err(ProfileError::EmptySequence)
-    } else if !(-127..=0).contains(&gap_open) {
+pub(crate) fn validate_profile_args(gap_open: i8, gap_extend: i8) -> Result<(), ProfileError> {
+    if !(-127..=0).contains(&gap_open) {
         Err(ProfileError::GapOpenOutOfRange { gap_open })
     } else if !(-127..=0).contains(&gap_extend) {
         Err(ProfileError::GapExtendOutOfRange { gap_extend })
@@ -71,7 +68,6 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     ///
     /// ## Errors
     ///
-    /// - [`ProfileError::EmptySequence`] if `seq` is empty
     /// - [`ProfileError::GapOpenOutOfRange`] if `gap_open` is not between -127
     ///   and 0, inclusive
     /// - [`ProfileError::GapExtendOutOfRange`] if `gap_extend` is not between
@@ -83,8 +79,7 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
         seq: impl Into<Cow<'a, [u8]>>, matrix: &'a WeightMatrix<'a, i8, S>, gap_open: i8, gap_extend: i8,
     ) -> Result<Self, ProfileError> {
         let seq = seq.into();
-
-        validate_profile_args(&seq, gap_open, gap_extend)?;
+        validate_profile_args(gap_open, gap_extend)?;
 
         // Validity: validate_profile_args has checked our assumptions
         Ok(Self::new_unchecked(seq, matrix, gap_open, gap_extend))
@@ -95,7 +90,6 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
     ///
     /// ## Validity
     ///
-    /// - `seq` should be non-empty
     /// - `gap_open` and `gap_extend` must be in the range `-127..=0`
     /// - `gap_extend` must be greater than or equal to `gap_open` (`gap_open`
     ///   must be a worse penalty)
@@ -113,6 +107,12 @@ impl<'a, const S: usize> ScalarProfile<'a, S> {
             gap_open: i32::from(gap_open),
             gap_extend: i32::from(gap_extend),
         }
+    }
+
+    /// Returns whether the [`ScalarProfile`] corresponds to an empty sequence.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.seq.is_empty()
     }
 
     /// Computes the Smith-Waterman local alignment score between the profile
@@ -226,7 +226,6 @@ where
     ///
     /// ## Errors
     ///
-    /// - [`ProfileError::EmptySequence`] if `seq` is empty
     /// - [`ProfileError::GapOpenOutOfRange`] if `gap_open` is not between -127
     ///   and 0, inclusive
     /// - [`ProfileError::GapExtendOutOfRange`] if `gap_extend` is not between
@@ -240,7 +239,7 @@ where
     where
         T: FromSameSignedness<U> + AlignableIntWidth,
         U: AnyInt, {
-        validate_profile_args(seq, gap_open, gap_extend)?;
+        validate_profile_args(gap_open, gap_extend)?;
         // Validity: we validated the required assumptions with
         // validate_profile_args
         Ok(Self::new_unchecked(seq, matrix, gap_open, gap_extend))
@@ -257,7 +256,6 @@ where
     ///
     /// ## Validity
     ///
-    /// - `seq` should be non-empty
     /// - `gap_open` and `gap_extend` must be in the range `-127..=0`
     /// - `gap_extend` must be greater than or equal to `gap_open` (`gap_open`
     ///   must be a worse penalty)
@@ -303,6 +301,12 @@ where
             mapping: matrix.mapping,
             seq_len: seq.len(),
         }
+    }
+
+    /// Returns whether the [`StripedProfile`] corresponds to an empty sequence.
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.seq_len == 0
     }
 
     /// Given a profile for a forward sequence, returns a reversed profile of a

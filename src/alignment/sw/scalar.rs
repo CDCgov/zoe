@@ -63,6 +63,10 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
     // * F[r,c] = maximum score for aligning Q[0..c] to R[0..r] such that the
     //   alignment ends with a gap consuming a base in the query
 
+    if reference.is_empty() || query.is_empty() {
+        return MaybeAligned::Unmapped;
+    }
+
     // The maximum value of H[r,c] for all r and c, to be updated during the
     // algorithm. Initialized to the minimum of 0
     let mut best_score = 0;
@@ -173,9 +177,7 @@ pub fn sw_scalar_score<const S: usize>(reference: &[u8], query: &ScalarProfile<S
 pub fn sw_scalar_align<const S: usize>(reference: &[u8], query: &ScalarProfile<S>) -> MaybeAligned<Alignment<u32>> {
     // See dev comments in sw_scalar_score for more details
 
-    // TODO: Potentially remove this, since it isn't necessary and isn't an
-    // expected case
-    if reference.is_empty() {
+    if reference.is_empty() || query.is_empty() {
         return MaybeAligned::Unmapped;
     }
 
@@ -283,7 +285,7 @@ pub fn sw_scalar_align_override<F, const S: usize>(
 ) -> MaybeAligned<Alignment<u32>>
 where
     F: FnMut(usize, usize, i32) -> i32, {
-    if reference.is_empty() {
+    if reference.is_empty() || query.is_empty() {
         return MaybeAligned::Unmapped;
     }
 

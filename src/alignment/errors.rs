@@ -4,6 +4,7 @@ use std::{error::Error, fmt};
 #[derive(Debug)]
 pub enum ProfileError {
     /// The provided sequence was empty.
+    #[deprecated(since = "0.0.37", note = "empty sequences are now supported")]
     EmptySequence,
     /// The gap open weight was out of range (must be between -127 and 0).
     GapOpenOutOfRange { gap_open: i8 },
@@ -14,6 +15,7 @@ pub enum ProfileError {
 }
 
 impl fmt::Display for ProfileError {
+    #[allow(deprecated)]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ProfileError::EmptySequence => write!(f, "The provided sequence was empty"),

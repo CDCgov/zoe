@@ -347,6 +347,115 @@ fn sw_banded_comparison() {
     println!("Small band (width={small_band}): {small_banded_alignment:?}");
 }
 
+#[test]
+fn sw_scalar_score_empty_sequences() {
+    let weights = WeightMatrix::new_dna_matrix(2, -1, Some(b'N'));
+
+    let profile = ScalarProfile::new(b"", &weights, -2, -1).unwrap();
+    let alignment = sw_scalar_score(b"ACGT", &profile);
+    assert_eq!(alignment, MaybeAligned::Unmapped);
+
+    let profile = ScalarProfile::new(b"ACGT", &weights, -2, -1).unwrap();
+    let alignment = sw_scalar_score(b"", &profile);
+    assert_eq!(alignment, MaybeAligned::Unmapped);
+
+    let profile = ScalarProfile::new(b"", &weights, -2, -1).unwrap();
+    let alignment = sw_scalar_score(b"", &profile);
+    assert_eq!(alignment, MaybeAligned::Unmapped);
+}
+
+#[test]
+fn sw_scalar_align_empty_sequences() {
+    let weights = WeightMatrix::new_dna_matrix(2, -1, Some(b'N'));
+
+    let profile = ScalarProfile::new(b"", &weights, -2, -1).unwrap();
+    let alignment = sw_scalar_align(b"ACGT", &profile);
+    assert_eq!(alignment, MaybeAligned::Unmapped);
+
+    let profile = ScalarProfile::new(b"ACGT", &weights, -2, -1).unwrap();
+    let alignment = sw_scalar_align(b"", &profile);
+    assert_eq!(alignment, MaybeAligned::Unmapped);
+
+    let profile = ScalarProfile::new(b"", &weights, -2, -1).unwrap();
+    let alignment = sw_scalar_align(b"", &profile);
+    assert_eq!(alignment, MaybeAligned::Unmapped);
+}
+
+#[test]
+fn sw_simd_score_empty_sequences() {
+    let weights = WeightMatrix::new_dna_matrix(2, -1, Some(b'N'));
+
+    let profile = LocalProfiles::new_with_w256(b"", &weights, -2, -1).unwrap();
+    let alignment = profile.sw_score_from_i8(b"ACGT");
+    assert_eq!(alignment, MaybeAligned::Unmapped);
+
+    let profile = LocalProfiles::new_with_w256(b"ACGT", &weights, -2, -1).unwrap();
+    let alignment = profile.sw_score_from_i8(b"");
+    assert_eq!(alignment, MaybeAligned::Unmapped);
+
+    let profile = LocalProfiles::new_with_w256(b"", &weights, -2, -1).unwrap();
+    let alignment = profile.sw_score_from_i8(b"");
+    assert_eq!(alignment, MaybeAligned::Unmapped);
+}
+
+#[test]
+fn sw_simd_align_empty_sequences() {
+    let weights = WeightMatrix::new_dna_matrix(2, -1, Some(b'N'));
+
+    let profile = LocalProfiles::new_with_w256(b"", &weights, -2, -1).unwrap();
+    let alignment = profile.sw_align_from_i8(SeqSrc::Query(b"ACGT"));
+    assert_eq!(alignment, MaybeAligned::Unmapped);
+
+    let profile = LocalProfiles::new_with_w256(b"", &weights, -2, -1).unwrap();
+    let alignment = profile.sw_align_from_i8(SeqSrc::Reference(b"ACGT"));
+    assert_eq!(alignment, MaybeAligned::Unmapped);
+
+    let profile = LocalProfiles::new_with_w256(b"ACGT", &weights, -2, -1).unwrap();
+    let alignment = profile.sw_align_from_i8(SeqSrc::Query(b""));
+    assert_eq!(alignment, MaybeAligned::Unmapped);
+
+    let profile = LocalProfiles::new_with_w256(b"ACGT", &weights, -2, -1).unwrap();
+    let alignment = profile.sw_align_from_i8(SeqSrc::Reference(b""));
+    assert_eq!(alignment, MaybeAligned::Unmapped);
+
+    let profile = LocalProfiles::new_with_w256(b"", &weights, -2, -1).unwrap();
+    let alignment = profile.sw_align_from_i8(SeqSrc::Query(b""));
+    assert_eq!(alignment, MaybeAligned::Unmapped);
+
+    let profile = LocalProfiles::new_with_w256(b"", &weights, -2, -1).unwrap();
+    let alignment = profile.sw_align_from_i8(SeqSrc::Reference(b""));
+    assert_eq!(alignment, MaybeAligned::Unmapped);
+}
+
+#[test]
+fn three_pass_empty_sequences() {
+    let weights = WeightMatrix::new_dna_matrix(2, -1, Some(b'N'));
+
+    let profile = LocalProfiles::new_with_w256(b"", &weights, -2, -1).unwrap();
+    let alignment = profile.sw_align_from_i8_3pass(SeqSrc::Query(b"ACGT"));
+    assert_eq!(alignment, MaybeAligned::Unmapped);
+
+    let profile = LocalProfiles::new_with_w256(b"", &weights, -2, -1).unwrap();
+    let alignment = profile.sw_align_from_i8_3pass(SeqSrc::Reference(b"ACGT"));
+    assert_eq!(alignment, MaybeAligned::Unmapped);
+
+    let profile = LocalProfiles::new_with_w256(b"ACGT", &weights, -2, -1).unwrap();
+    let alignment = profile.sw_align_from_i8_3pass(SeqSrc::Query(b""));
+    assert_eq!(alignment, MaybeAligned::Unmapped);
+
+    let profile = LocalProfiles::new_with_w256(b"ACGT", &weights, -2, -1).unwrap();
+    let alignment = profile.sw_align_from_i8_3pass(SeqSrc::Reference(b""));
+    assert_eq!(alignment, MaybeAligned::Unmapped);
+
+    let profile = LocalProfiles::new_with_w256(b"", &weights, -2, -1).unwrap();
+    let alignment = profile.sw_align_from_i8_3pass(SeqSrc::Query(b""));
+    assert_eq!(alignment, MaybeAligned::Unmapped);
+
+    let profile = LocalProfiles::new_with_w256(b"", &weights, -2, -1).unwrap();
+    let alignment = profile.sw_align_from_i8_3pass(SeqSrc::Reference(b""));
+    assert_eq!(alignment, MaybeAligned::Unmapped);
+}
+
 mod banded {
     use super::*;
 
@@ -371,10 +480,16 @@ mod banded {
     #[test]
     fn test_banded_empty_sequences() {
         let weights = WeightMatrix::new_dna_matrix(2, -1, Some(b'N'));
-        let profile = ScalarProfile::new(b"", &weights, -2, -1);
-        assert!(profile.is_err()); // Empty query should fail profile creation
+
+        let profile = ScalarProfile::new(b"", &weights, -2, -1).unwrap();
+        let alignment = sw_banded_align(b"ACGT", &profile, 3);
+        assert_eq!(alignment, MaybeAligned::Unmapped);
 
         let profile = ScalarProfile::new(b"ACGT", &weights, -2, -1).unwrap();
+        let alignment = sw_banded_align(b"", &profile, 3);
+        assert_eq!(alignment, MaybeAligned::Unmapped);
+
+        let profile = ScalarProfile::new(b"", &weights, -2, -1).unwrap();
         let alignment = sw_banded_align(b"", &profile, 3);
         assert_eq!(alignment, MaybeAligned::Unmapped);
     }

@@ -494,7 +494,6 @@ impl<'a, const M: usize, const N: usize, const O: usize, const S: usize> LocalPr
     ///
     /// ## Errors
     ///
-    /// - [`ProfileError::EmptySequence`] if `seq` is empty
     /// - [`ProfileError::GapOpenOutOfRange`] if `gap_open` is not between -127
     ///   and 0, inclusive
     /// - [`ProfileError::GapExtendOutOfRange`] if `gap_extend` is not between
@@ -513,7 +512,7 @@ impl<'a, const M: usize, const N: usize, const O: usize, const S: usize> LocalPr
         let seq = seq.into();
         let matrix = matrix.into();
 
-        validate_profile_args(&seq, gap_open, gap_extend)?;
+        validate_profile_args(gap_open, gap_extend)?;
 
         Ok(LocalProfiles {
             seq,
@@ -681,7 +680,6 @@ impl<'a, const M: usize, const N: usize, const O: usize, const S: usize> SharedP
     ///
     /// ## Errors
     ///
-    /// - [`ProfileError::EmptySequence`] if `seq` is empty
     /// - [`ProfileError::GapOpenOutOfRange`] if `gap_open` is not between -127
     ///   and 0, inclusive
     /// - [`ProfileError::GapExtendOutOfRange`] if `gap_extend` is not between
@@ -700,7 +698,7 @@ impl<'a, const M: usize, const N: usize, const O: usize, const S: usize> SharedP
         let seq = seq.into();
         let matrix = matrix.into();
 
-        validate_profile_args(&seq, gap_open, gap_extend)?;
+        validate_profile_args(gap_open, gap_extend)?;
 
         Ok(SharedProfiles {
             seq,

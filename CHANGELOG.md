@@ -15,6 +15,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ### Changed
 
+- Empty `ScalarProfile`, `StripedProfile`, and profile sets can now be created
+  and passed safely to alignment algorithms
 - `with_context`, `with_subitem`, and `with_path_context` now accept a generic
   `ErrorContext` instead of `Into<String>` or `Display`. Among the implementors,
   closures are implemented so that lazy context can be used to reduce
@@ -40,6 +42,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ### Removed
 
+- Deprecated `ProfileError::EmptySequence`
 - Removed deprecated API: `PairwiseSequence`, `SAMReader` with ignored optional
   fields, and `ScoringError`
 

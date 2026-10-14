@@ -8,14 +8,10 @@ use std::ops::Add;
 /// that this is a heuristic approach that may not find the globally optimal
 /// alignment due to the band constraint.
 ///
+/// `band_width` is the number of positions away from the diagonal to search.
+///
 /// Based on work by (9), see **[module
 /// citations](crate::alignment::sw#module-citations)**.
-///
-/// ## Arguments
-///
-/// - `reference` - The reference sequence
-/// - `query` - The query profile
-/// - `band_width` - Number of positions away from diagonal to search
 ///
 /// ## Example
 ///
@@ -40,7 +36,7 @@ use std::ops::Add;
 pub fn sw_banded_align<const S: usize>(
     reference: &[u8], query: &ScalarProfile<S>, band_width: usize,
 ) -> MaybeAligned<Alignment<u32>> {
-    if reference.is_empty() {
+    if reference.is_empty() || query.is_empty() {
         return MaybeAligned::Unmapped;
     }
 

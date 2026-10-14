@@ -68,6 +68,10 @@ pub fn sw_simd_score<T, const N: usize, const S: usize>(
 where
     T: AlignableIntWidth,
     Simd<T, N>: SimdAnyInt<T, N>, {
+    if reference.is_empty() || query.is_empty() {
+        return MaybeAligned::Unmapped;
+    }
+
     let num_vecs = query.number_vectors();
     let profile: &Vec<Simd<T, N>> = &query.profile;
 
@@ -216,7 +220,7 @@ fn sw_simd_score_ends_dir<T, const N: usize, const S: usize, const FORWARD: bool
 where
     T: AlignableIntWidth,
     Simd<T, N>: SimdAnyInt<T, N>, {
-    if reference.is_empty() {
+    if reference.is_empty() || query.is_empty() {
         return MaybeAligned::Unmapped;
     }
 
@@ -473,7 +477,7 @@ pub fn sw_simd_align_with_buf<T, const N: usize, const S: usize>(
 where
     T: AlignableIntWidth,
     Simd<T, N>: SimdAnyInt<T, N>, {
-    if reference.is_empty() {
+    if reference.is_empty() || query.is_empty() {
         return MaybeAligned::Unmapped;
     }
 

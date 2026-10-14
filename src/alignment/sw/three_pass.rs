@@ -56,8 +56,7 @@ where
             });
         }
 
-        // Validity: query_range is non-empty per check, and weights are
-        // same as those in self
+        // Validity: weights are same as those in self
         let query_new = ScalarProfile::new_unchecked(&query[query_range.clone()], matrix, gap_open, gap_extend);
         let reference_new = &reference[ref_range.clone()];
 
