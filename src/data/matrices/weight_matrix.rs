@@ -6,7 +6,7 @@ use crate::{
     },
     math::AnyInt,
 };
-use std::fmt::Display;
+use std::{borrow::Cow, fmt::Display};
 
 /// A weight matrix representing the scores for various matches and mismatches
 /// when performing sequence alignment.
@@ -351,5 +351,17 @@ impl<T: AnyInt, const S: usize> Display for WeightMatrix<'_, T, S> {
             write!(f, "Bias: {}", self.bias)?;
         }
         Ok(())
+    }
+}
+
+impl<'a, T: AnyInt, const S: usize> From<&'a WeightMatrix<'a, T, S>> for Cow<'a, WeightMatrix<'a, T, S>> {
+    fn from(value: &'a WeightMatrix<'a, T, S>) -> Self {
+        Cow::Borrowed(value)
+    }
+}
+
+impl<'a, T: AnyInt, const S: usize> From<WeightMatrix<'a, T, S>> for Cow<'a, WeightMatrix<'a, T, S>> {
+    fn from(value: WeightMatrix<'a, T, S>) -> Self {
+        Cow::Owned(value)
     }
 }
