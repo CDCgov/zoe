@@ -91,17 +91,15 @@ pub fn sw_banded_align<const S: usize>(
                 c_end = c;
             }
 
-            if e == h {
-                *backtrack_cell |= BandedBacktrackMatrix::UP;
-            }
-
-            if f == h {
-                *backtrack_cell |= BandedBacktrackMatrix::LEFT;
-            }
-
-            if h == 0 {
-                *backtrack_cell = BandedBacktrackMatrix::STOP;
-            }
+            // Build the traceback cell in a register, then write it once to the
+            // matrix
+            let mut flags = if h == 0 {
+                // Clear all flags
+                BandedBacktrackMatrix::STOP
+            } else {
+                // Set up and/or left
+                (u8::from(e == h) * BandedBacktrackMatrix::UP) | (u8::from(f == h) * BandedBacktrackMatrix::LEFT)
+            };
 
             let next_diag = h_row[c];
             h_row[c] = h;
@@ -111,15 +109,11 @@ pub fn sw_banded_align<const S: usize>(
             f = f.add(query.gap_extend).max(h);
 
             if h != query.gap_open {
-                if e > h {
-                    *backtrack_cell = BandedBacktrackMatrix::UP_EXTENDING;
-                }
-
-                if f > h {
-                    *backtrack_cell = BandedBacktrackMatrix::LEFT_EXTENDING;
-                }
+                flags |= u8::from(e > h) * BandedBacktrackMatrix::UP_EXTENDING;
+                flags |= u8::from(f > h) * BandedBacktrackMatrix::LEFT_EXTENDING;
             }
 
+            *backtrack_cell = flags;
             h = next_diag;
             e_row[c] = e;
         }
