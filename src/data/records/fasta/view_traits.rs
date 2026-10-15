@@ -1,6 +1,6 @@
 use crate::{
     data::{
-        fasta::generic::{Fasta, FastaView, FastaViewMut},
+        fasta::{Fasta, FastaView, FastaViewMut},
         views::{AsView, AsViewMut, AssocOwnedType, AssocViewMutType, AssocViewType, SliceRange, ToOwnedData, ToView},
     },
     prelude::{DataView, DataViewMut, Len, Restrict, Slice, SliceMut},

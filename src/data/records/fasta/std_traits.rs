@@ -1,23 +1,47 @@
 use crate::data::{
-    fasta::{FastaAA, FastaNT, FastaSeq},
+    fasta::{Fasta, FastaView, FastaViewMut},
     validation::SimdDisplay,
+    views::{AssocViewMutType, AssocViewType},
 };
 use std::fmt::Display;
 
-impl Display for FastaSeq {
+impl<S: AsRef<[u8]>> Display for Fasta<S> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, ">{}\n{}\n", self.name, self.sequence.display_ascii_or_lossy())
+        write!(f, ">{}\n{}\n", self.header, self.sequence.display_ascii_or_lossy())
     }
 }
 
-impl Display for FastaNT {
+impl<'a, S> Display for FastaView<'a, S>
+where
+    S: AssocViewType<View<'a>: AsRef<[u8]>>,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, ">{}\n{}\n", self.name, self.sequence)
+        write!(f, ">{}\n{}\n", self.header, self.sequence.display_ascii_or_lossy())
     }
 }
 
-impl Display for FastaAA {
+impl<'a, S> Display for FastaViewMut<'a, S>
+where
+    S: AssocViewMutType<ViewMut<'a>: AsRef<[u8]>>,
+{
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, ">{}\n{}\n", self.name, self.sequence)
+        write!(f, ">{}\n{}\n", self.header, self.sequence.display_ascii_or_lossy())
     }
 }
+
+// A non-derived impl is needed since S may not implement clone (but S::View
+// does)
+impl<'a, S> Clone for FastaView<'a, S>
+where
+    S: AssocViewType<View<'a>: Clone>,
+{
+    #[inline]
+    fn clone(&self) -> Self {
+        Self {
+            header:   self.header,
+            sequence: self.sequence.clone(),
+        }
+    }
+}
+
+impl<'a, S> Copy for FastaView<'a, S> where S: AssocViewType<View<'a>: Copy> {}

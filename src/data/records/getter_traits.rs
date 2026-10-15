@@ -5,9 +5,10 @@ use crate::{
     alignment::{LocalProfiles, SharedProfiles},
     data::{
         amino_acids::{AminoAcids, AminoAcidsView, AminoAcidsViewMut},
-        fasta::{FastaAA, FastaNT, FastaSeq},
+        fasta::{Fasta, FastaView, FastaViewMut},
         fastq::{FastQ, FastQView, FastQViewMut},
         nucleotides::{Nucleotides, NucleotidesView, NucleotidesViewMut},
+        views::{AssocViewMutType, AssocViewType},
     },
     search::ToStrRangeSearch,
 };
@@ -41,43 +42,19 @@ impl HeaderReadable for FastQViewMut<'_> {
     }
 }
 
-impl HeaderReadable for FastaSeq {
-    #[inline]
-    fn header(&self) -> &str {
-        &self.name
-    }
-}
-
-impl HeaderReadable for FastaNT {
-    #[inline]
-    fn header(&self) -> &str {
-        &self.name
-    }
-}
-
-impl HeaderReadable for FastaAA {
-    #[inline]
-    fn header(&self) -> &str {
-        &self.name
-    }
-}
-
-#[cfg(feature = "dev-generic-fasta")]
-impl HeaderReadable for crate::data::fasta::generic::Fasta {
+impl<S> HeaderReadable for Fasta<S> {
     fn header(&self) -> &str {
         &self.header
     }
 }
 
-#[cfg(feature = "dev-generic-fasta")]
-impl HeaderReadable for crate::data::fasta::generic::FastaView<'_> {
+impl<S: AssocViewType> HeaderReadable for FastaView<'_, S> {
     fn header(&self) -> &str {
         self.header
     }
 }
 
-#[cfg(feature = "dev-generic-fasta")]
-impl HeaderReadable for crate::data::fasta::generic::FastaViewMut<'_> {
+impl<S: AssocViewMutType> HeaderReadable for FastaViewMut<'_, S> {
     fn header(&self) -> &str {
         self.header
     }
@@ -104,36 +81,13 @@ impl HeaderMutable for FastQViewMut<'_> {
     }
 }
 
-impl HeaderMutable for FastaSeq {
-    #[inline]
-    fn header_mut(&mut self) -> &mut String {
-        &mut self.name
-    }
-}
-
-impl HeaderMutable for FastaNT {
-    #[inline]
-    fn header_mut(&mut self) -> &mut String {
-        &mut self.name
-    }
-}
-
-impl HeaderMutable for FastaAA {
-    #[inline]
-    fn header_mut(&mut self) -> &mut String {
-        &mut self.name
-    }
-}
-
-#[cfg(feature = "dev-generic-fasta")]
-impl HeaderMutable for crate::data::fasta::generic::Fasta {
+impl<S> HeaderMutable for Fasta<S> {
     fn header_mut(&mut self) -> &mut String {
         &mut self.header
     }
 }
 
-#[cfg(feature = "dev-generic-fasta")]
-impl HeaderMutable for crate::data::fasta::generic::FastaViewMut<'_> {
+impl<S: AssocViewMutType> HeaderMutable for FastaViewMut<'_, S> {
     fn header_mut(&mut self) -> &mut String {
         self.header
     }
@@ -212,45 +166,27 @@ impl SequenceReadable for FastQViewMut<'_> {
     }
 }
 
-impl SequenceReadable for FastaSeq {
-    #[inline]
+impl<S: AsRef<[u8]>> SequenceReadable for Fasta<S> {
     fn sequence_bytes(&self) -> &[u8] {
         self.sequence.as_ref()
     }
 }
 
-impl SequenceReadable for FastaAA {
-    #[inline]
+impl<S> SequenceReadable for FastaView<'_, S>
+where
+    for<'a> S: AssocViewType<View<'a>: AsRef<[u8]>>,
+{
     fn sequence_bytes(&self) -> &[u8] {
         self.sequence.as_ref()
     }
 }
 
-impl SequenceReadable for FastaNT {
-    #[inline]
+impl<S> SequenceReadable for FastaViewMut<'_, S>
+where
+    for<'a> S: AssocViewMutType<ViewMut<'a>: AsRef<[u8]>>,
+{
     fn sequence_bytes(&self) -> &[u8] {
         self.sequence.as_ref()
-    }
-}
-
-#[cfg(feature = "dev-generic-fasta")]
-impl SequenceReadable for crate::data::fasta::generic::Fasta {
-    fn sequence_bytes(&self) -> &[u8] {
-        &self.sequence
-    }
-}
-
-#[cfg(feature = "dev-generic-fasta")]
-impl SequenceReadable for crate::data::fasta::generic::FastaView<'_> {
-    fn sequence_bytes(&self) -> &[u8] {
-        self.sequence
-    }
-}
-
-#[cfg(feature = "dev-generic-fasta")]
-impl SequenceReadable for crate::data::fasta::generic::FastaViewMut<'_> {
-    fn sequence_bytes(&self) -> &[u8] {
-        self.sequence
     }
 }
 

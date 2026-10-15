@@ -2,7 +2,7 @@ use crate::{
     DEFAULT_SIMD_LANES,
     data::{
         err::ResultWithErrorContext,
-        fasta::FastaSeq,
+        fasta::Fasta,
         vec_types::{ChopLineBreak, StripLineBreak},
     },
     search::ByteSplitIter,
@@ -16,6 +16,8 @@ use std::{
 
 /// A buffered reader for reading
 /// [FASTA](https://en.wikipedia.org/wiki/FASTA_format) files.
+///
+/// The sequence type of the resulting [`Fasta`] record is `Vec<u8>`.
 ///
 /// ## Parameters
 ///
@@ -73,7 +75,7 @@ impl<R: Read> FastaReader<R> {
         })
     }
 
-    fn get_error(msg: &str, header: Option<&str>) -> std::io::Result<FastaSeq> {
+    fn get_error(msg: &str, header: Option<&str>) -> std::io::Result<Fasta> {
         if let Some(header) = header {
             Err(std::io::Error::new(
                 ErrorKind::InvalidData,
@@ -90,7 +92,7 @@ impl<R: Read> FastaReader<R> {
     /// If `Some(Ok(_))` is returned, then the leading `>` will already be
     /// consumed for the next record if present, and the buffer will contain the
     /// last sequence and trailing '>' if present).
-    fn read_first_record(&mut self) -> Option<std::io::Result<FastaSeq>> {
+    fn read_first_record(&mut self) -> Option<std::io::Result<Fasta>> {
         self.first_record = false;
 
         loop {
@@ -144,7 +146,7 @@ impl<R: Read> FastaReader<R> {
                     self.buffer.clear();
                 }
 
-                return Some(Ok(FastaSeq { name: header, sequence }));
+                return Some(Ok(Fasta { header, sequence }));
             } else if self.buffer.iter().all(u8::is_ascii_whitespace) {
                 // Clear the whitespace
                 self.buffer.clear();
@@ -174,7 +176,7 @@ impl FastaReader<File> {
 }
 
 impl<R: Read> Iterator for FastaReader<R> {
-    type Item = std::io::Result<FastaSeq>;
+    type Item = std::io::Result<Fasta>;
 
     fn next(&mut self) -> Option<Self::Item> {
         // Special case logic for first record to ensure we don't slurp file.
@@ -244,6 +246,6 @@ impl<R: Read> Iterator for FastaReader<R> {
             self.buffer.clear();
         }
 
-        Some(Ok(FastaSeq { name: header, sequence }))
+        Some(Ok(Fasta { header, sequence }))
     }
 }

@@ -2,8 +2,8 @@ use zoe::data::records::fasta::*;
 
 #[test]
 fn to_reverse() {
-    let mut s = FastaSeq {
-        name:     "s1".to_string(),
+    let mut s = Fasta {
+        header:   "s1".to_string(),
         sequence: b"AtgcnN-".to_vec(),
     };
 
@@ -13,8 +13,8 @@ fn to_reverse() {
 
 #[test]
 fn forward_rev_forward() {
-    let mut s = FastaSeq {
-        name:     "s1".to_string(),
+    let mut s = Fasta {
+        header:   "s1".to_string(),
         sequence: b"atgc".to_vec(),
     };
 

@@ -1,84 +1,231 @@
 use crate::data::{
+    amino_acids::AminoAcidsView,
     id_types::FastaIDs,
-    types::{
-        amino_acids::AminoAcids,
-        nucleotides::{self, Nucleotides, ToDNA, Translate},
-    },
+    nucleotides::{NucleotidesView, ToDNA, Translate, reverse_complement},
+    types::{amino_acids::AminoAcids, nucleotides::Nucleotides},
+    views::{AssocViewMutType, AssocViewType},
 };
 
 mod reader;
 mod std_traits;
+mod view_traits;
 
 pub use reader::*;
-
-#[cfg(feature = "dev-generic-fasta")]
-pub mod generic;
 
 #[cfg(test)]
 mod test;
 
-/// Provides a container struct for data from a generic
-/// [FASTA](https://en.wikipedia.org/wiki/FASTA_format) file.
+pub type FastaSeq = Fasta;
+pub type FastaNT = Fasta<Nucleotides>;
+pub type FastaAA = Fasta<AminoAcids>;
+
+/// A [FASTA](https://en.wikipedia.org/wiki/FASTA_format) record containing a
+/// header and a sequence.
+///
+/// ## Parameters
+///
+/// By default, [`Fasta`] holds `Vec<u8>` data, but it can also hold
+/// [`Nucleotides`] or [`AminoAcids`] by specifying this for `S`.
 #[derive(Clone, Eq, PartialEq, Hash, Debug, Default)]
-pub struct FastaSeq {
-    pub name:     String,
-    pub sequence: Vec<u8>,
+pub struct Fasta<S = Vec<u8>> {
+    pub header:   String,
+    pub sequence: S,
 }
 
-/// Similar to [`FastaSeq`] but assumes that the `sequence` contains valid
-/// [`Nucleotides`].
-#[derive(Clone, Eq, PartialEq, Hash, Debug, Default)]
-pub struct FastaNT {
-    pub name:     String,
-    pub sequence: Nucleotides,
+/// The corresponding immutable view type for [`Fasta`].
+///
+/// See [Views](crate::data#views) for more details.
+///
+/// ## Parameters
+///
+/// By default, [`FastaView`] holds arbitrary `&[u8]` data, but it can also hold
+/// [`NucleotidesView`] or [`AminoAcidsView`]. To specify these, set `S` to
+/// [`Nucleotides`] or [`AminoAcids`] (the owned data type).
+///
+/// [`NucleotidesView`]: crate::data::types::nucleotides::NucleotidesView
+/// [`AminoAcidsView`]: crate::data::types::amino_acids::AminoAcidsView
+#[derive(Eq, PartialEq, Hash, Debug, Default)]
+pub struct FastaView<'a, S = Vec<u8>>
+where
+    S: AssocViewType, {
+    pub header:   &'a str,
+    pub sequence: S::View<'a>,
 }
 
-/// Similar to [`FastaSeq`] but assumes that the `sequence` contains valid
-/// [`AminoAcids`].
-#[derive(Clone, Eq, PartialEq, Hash, Debug, Default)]
-pub struct FastaAA {
-    pub name:     String,
-    pub sequence: AminoAcids,
+/// The corresponding mutable view type for [`Fasta`].
+///
+/// See [Views](crate::data#views) for more details.
+///
+/// ## Parameters
+///
+/// By default, [`FastaView`] holds arbitrary `&mut [u8]` data, but it can also
+/// hold [`NucleotidesViewMut`] or [`AminoAcidsViewMut`]. To specify these, set
+/// `S` to [`Nucleotides`] or [`AminoAcids`] (the owned data type).
+///
+/// [`NucleotidesViewMut`]: crate::data::types::nucleotides::NucleotidesViewMut
+/// [`AminoAcidsViewMut`]: crate::data::types::amino_acids::AminoAcidsViewMut
+/// [`as_view_mut`]: crate::data::views::AsViewMut::as_view_mut
+#[derive(Eq, PartialEq, Hash, Debug)]
+pub struct FastaViewMut<'a, S = Vec<u8>>
+where
+    S: AssocViewMutType, {
+    pub header:   &'a mut String,
+    pub sequence: S::ViewMut<'a>,
 }
 
-impl FastaSeq {
-    /// Reverse complements the sequence stored in the struct using a new
-    /// buffer.
-    pub fn reverse_complement(&mut self) {
-        self.sequence = nucleotides::reverse_complement(&self.sequence);
-    }
-
-    /// Recodes to uppercase IUPAC DNA with corrected gaps, otherwise
-    /// mapping to `N`. Returns [`FastaNT`].
+impl Fasta<Vec<u8>> {
+    /// Creates a new [`Fasta`] empty object.
     #[inline]
     #[must_use]
-    pub fn recode_to_dna(self) -> FastaNT {
-        FastaNT {
-            name:     self.name,
-            sequence: self.sequence.recode_to_dna(),
+    pub fn new() -> Self {
+        Self {
+            header:   String::new(),
+            sequence: Vec::<u8>::new(),
         }
+    }
+}
+
+impl Fasta<Nucleotides> {
+    /// Creates a new [`Fasta`] empty object.
+    #[inline]
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            header:   String::new(),
+            sequence: Nucleotides::new(),
+        }
+    }
+}
+
+impl Fasta<AminoAcids> {
+    /// Creates a new [`Fasta`] empty object.
+    #[inline]
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            header:   String::new(),
+            sequence: AminoAcids::new(),
+        }
+    }
+}
+
+impl FastaView<'_, Vec<u8>> {
+    /// Creates a new [`FastaView`] empty object.
+    #[inline]
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            header:   "",
+            sequence: &[],
+        }
+    }
+}
+
+impl FastaView<'_, Nucleotides> {
+    /// Creates a new [`FastaView`] empty object.
+    #[inline]
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            header:   "",
+            sequence: NucleotidesView::new(),
+        }
+    }
+}
+
+impl FastaView<'_, AminoAcids> {
+    /// Creates a new [`FastaView`] empty object.
+    #[inline]
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            header:   "",
+            sequence: AminoAcidsView::new(),
+        }
+    }
+}
+
+impl<S> Fasta<S> {
+    /// Transforms the header in a [`Fasta`] record using a closure `f`.
+    #[inline]
+    #[must_use]
+    pub fn map_header<F>(self, f: F) -> Self
+    where
+        F: FnOnce(String) -> String, {
+        Self {
+            header:   f(self.header),
+            sequence: self.sequence,
+        }
+    }
+
+    /// Transforms the sequence in a [`Fasta`] record using a closure `f`.
+    ///
+    /// This may change the type of the sequence.
+    #[inline]
+    #[must_use]
+    pub fn map_sequence<U, F>(self, f: F) -> Fasta<U>
+    where
+        F: FnOnce(S) -> U, {
+        Fasta {
+            header:   self.header,
+            sequence: f(self.sequence),
+        }
+    }
+}
+
+impl Fasta<Vec<u8>> {
+    /// Recodes to uppercase IUPAC DNA with corrected gaps, otherwise mapping to
+    /// `N`. Returns the sequence as [`Nucleotides`].
+    #[inline]
+    #[must_use]
+    pub fn recode_to_dna(self) -> Fasta<Nucleotides> {
+        self.map_sequence(ToDNA::recode_to_dna)
     }
 
     /// Filters and recodes to uppercase IUPAC DNA with corrected gaps. Returns
-    /// [`FastaNT`].
+    /// the sequence as [`Nucleotides`].
     #[inline]
     #[must_use]
-    pub fn filter_to_dna(self) -> FastaNT {
-        FastaNT {
-            name:     self.name,
-            sequence: self.sequence.filter_to_dna(),
-        }
+    pub fn filter_to_dna(self) -> Fasta<Nucleotides> {
+        self.map_sequence(ToDNA::filter_to_dna)
     }
 
     /// Filters and recodes to uppercase IUPAC DNA without gaps. Returns
-    /// [`FastaNT`].
+    /// the sequence as [`Nucleotides`].
     #[inline]
     #[must_use]
-    pub fn filter_to_dna_unaligned(self) -> FastaNT {
-        FastaNT {
-            name:     self.name,
-            sequence: self.sequence.filter_to_dna_unaligned(),
-        }
+    pub fn filter_to_dna_unaligned(self) -> Fasta<Nucleotides> {
+        self.map_sequence(ToDNA::filter_to_dna_unaligned)
+    }
+
+    /// Converts the sequence type to [`Nucleotides`] without any checking.
+    #[inline]
+    #[must_use]
+    pub fn into_dna(self) -> Fasta<Nucleotides> {
+        self.map_sequence(Into::into)
+    }
+
+    /// Converts the sequence type to [`AminoAcids`] without any checking.
+    #[inline]
+    #[must_use]
+    pub fn into_aa(self) -> Fasta<AminoAcids> {
+        self.map_sequence(Into::into)
+    }
+
+    /// Interprets the sequence as DNA, then translates it to [`AminoAcids`].
+    ///
+    /// ## Limitations
+    ///
+    /// This uses a new buffer for the sequence.
+    #[must_use]
+    pub fn translate(self) -> Fasta<AminoAcids> {
+        self.map_sequence(|x| Translate::translate(&Nucleotides::from(x)))
+    }
+
+    /// Reverse complements the sequence stored in the struct using a new
+    /// buffer.
+    pub fn reverse_complement(&mut self) {
+        self.sequence = reverse_complement(&self.sequence);
     }
 
     /// For an annotated `FASTA` with format `id{annotation}` returns a tuple
@@ -86,37 +233,31 @@ impl FastaSeq {
     #[inline]
     #[must_use]
     pub fn get_id_taxon(&self) -> Option<(&str, &str)> {
-        self.name.get_id_taxon()
-    }
-
-    /// Translates the stored [`Vec<u8>`] to [`AminoAcids`] using a new buffer.
-    ///
-    /// See [`translate_sequence`] for more details.
-    ///
-    /// [`translate_sequence`]: nucleotides::translate_sequence
-    #[must_use]
-    pub fn translate(self) -> FastaAA {
-        FastaAA {
-            name:     self.name,
-            sequence: AminoAcids(nucleotides::translate_sequence(&self.sequence)),
-        }
+        self.header.get_id_taxon()
     }
 }
 
-impl FastaNT {
+impl Fasta<Nucleotides> {
+    /// Computes the reverse complement of the sequence in-place.
+    #[inline]
+    pub fn make_reverse_complement(&mut self) {
+        self.sequence.make_reverse_complement();
+    }
+
+    /// Translates the DNA sequence to [`AminoAcids`].
+    ///
+    /// ## Limitations
+    ///
+    /// This uses a new buffer for the sequence.
+    #[must_use]
+    pub fn translate(self) -> Fasta<AminoAcids> {
+        self.map_sequence(|x| Translate::translate(&x))
+    }
+
     /// Reverse complements the sequence stored in the struct using a new buffer.
     #[inline]
     pub fn reverse_complement(&mut self) {
         self.sequence.make_reverse_complement();
-    }
-
-    /// Translates the stored [`Nucleotides`] to [`AminoAcids`] using a new buffer.
-    #[must_use]
-    pub fn translate(self) -> FastaAA {
-        FastaAA {
-            name:     self.name,
-            sequence: self.sequence.translate(),
-        }
     }
 
     /// For an annotated FASTA file with format `id{annotation}` returns a tuple
@@ -124,27 +265,25 @@ impl FastaNT {
     #[inline]
     #[must_use]
     pub fn get_id_taxon(&self) -> Option<(&str, &str)> {
-        self.name.get_id_taxon()
+        self.header.get_id_taxon()
     }
 }
 
-/// Allows converting from [`FastaSeq`] to [`FastaNT`] without checks or
-/// filtering.
-impl From<FastaSeq> for FastaNT {
-    fn from(record: FastaSeq) -> Self {
-        FastaNT {
-            name:     record.name,
-            sequence: record.sequence.into(),
-        }
-    }
-}
-
-impl FastaAA {
+impl Fasta<AminoAcids> {
     /// For an annotated `FASTA` with format `id{annotation}` returns a tuple
     /// of the id and annotated taxon.
     #[inline]
     #[must_use]
     pub fn get_id_taxon(&self) -> Option<(&str, &str)> {
-        self.name.get_id_taxon()
+        self.header.get_id_taxon()
+    }
+}
+
+impl From<Fasta<Vec<u8>>> for Fasta<Nucleotides> {
+    fn from(record: Fasta<Vec<u8>>) -> Self {
+        Fasta {
+            header:   record.header,
+            sequence: record.sequence.into(),
+        }
     }
 }

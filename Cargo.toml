@@ -54,9 +54,6 @@ alignment-diagnostics = []
 # An optional feature enabling the max_score_for_int_type diagnostic function
 dev-max-score-for-type = []
 
-# An optional feature enabling a FASTA record generic over the sequence type
-dev-generic-fasta = []
-
 [dependencies]
 arbitrary = { version = "1", default-features = false, optional = true }
 multiversion = { version = "0.9", optional = true }

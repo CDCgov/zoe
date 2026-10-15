@@ -8,6 +8,9 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ### Added
 
+- Added `Fasta` containing a generic sequence type, defaulting to `Vec<u8>` but
+  also supporting `Nucleotides` and `AminoAcids`
+- Added generic view types for `Fasta`
 - Added `from_bufreader` constructor for `SAMReader`
 - Added `From<Cigar> for Vec<u8>` implementation to access inner bytes
 - Added additional options for generating arbitrary nucleotide and amino acid
@@ -22,6 +25,9 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Replaced `u8` with an enum `AlignOp` in `Ciglet`, resulting in better type
   state and checking. This impacts methods of `AlignmentStates` and the traits
   in pHMM traversal
+- `FastaSeq`, `FastaNT`, and `FastaAA` are now type aliases to `Fasta` with the
+  relevant generic
+- Changed the field `name` to `header` in FASTA types
 - Moved `Ciglet::op_consumes_query` to `AlignOp::consumes_query` and similarly
   for `reference`
 - Iteration on `Cigar` and `CigarView` now produces a fallible checked iterator

@@ -82,7 +82,9 @@ mod private {
         },
         data::{
             cigar::{Cigar, CigarView, CigarViewMut},
+            fasta::{Fasta, FastaView, FastaViewMut},
             sam::{SamData, SamDataView, SamOptRaw, SamOptRawView},
+            views::{AssocViewMutType, AssocViewType},
         },
         prelude::*,
     };
@@ -91,9 +93,6 @@ mod private {
         ops::{Bound, Range, RangeFrom, RangeInclusive, RangeTo, RangeToInclusive},
         simd::{Simd, SimdElement},
     };
-
-    #[cfg(feature = "dev-generic-fasta")]
-    use crate::data::views::{AssocViewMutType, AssocViewType};
 
     macro_rules! sealed {
         ($($t:ty),* $(,)?) => { $( impl Sealed for $t {} )* };
@@ -123,14 +122,9 @@ mod private {
     impl<T: Sealed> Sealed for RangeTo<T> {}
     impl<T: Sealed> Sealed for RangeToInclusive<T> {}
 
-    #[cfg(feature = "dev-generic-fasta")]
-    impl<S> Sealed for crate::data::fasta::generic::Fasta<S> {}
-
-    #[cfg(feature = "dev-generic-fasta")]
-    impl<S: AssocViewType> Sealed for crate::data::fasta::generic::FastaView<'_, S> {}
-
-    #[cfg(feature = "dev-generic-fasta")]
-    impl<S: AssocViewMutType> Sealed for crate::data::fasta::generic::FastaViewMut<'_, S> {}
+    impl<S> Sealed for Fasta<S> {}
+    impl<S: AssocViewType> Sealed for FastaView<'_, S> {}
+    impl<S: AssocViewMutType> Sealed for FastaViewMut<'_, S> {}
 
     sealed!(
         AminoAcids,
