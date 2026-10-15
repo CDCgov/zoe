@@ -2,6 +2,7 @@ use crate::{
     data::{
         array_types::{elem_max, is_subset},
         mappings::{ByteIndexMap, DNA_PROFILE_MAP},
+        matrices::weight_row::WeightRow,
     },
     math::AnyInt,
 };
@@ -31,7 +32,7 @@ pub struct WeightMatrix<'a, T: AnyInt, const S: usize> {
     pub(crate) bias: T,
 }
 
-impl<T: AnyInt, const S: usize> WeightMatrix<'_, T, S> {
+impl<'a, T: AnyInt, const S: usize> WeightMatrix<'a, T, S> {
     /// For a given `ref_residue` and `query_residue`, retrieves the weight
     /// stored in the matrix.
     #[inline]
@@ -48,9 +49,18 @@ impl<T: AnyInt, const S: usize> WeightMatrix<'_, T, S> {
         &mut self.weights[self.mapping.to_index(ref_residue)][self.mapping.to_index(query_residue)]
     }
 
+    #[inline]
+    #[must_use]
+    pub(crate) const fn get_row(&self, ref_residue: u8) -> WeightRow<'a, T, S> {
+        WeightRow {
+            weights: self.weights[self.mapping.to_index(ref_residue)],
+            mapping: self.mapping,
+        }
+    }
+
     /// Subsets the rows and columns of a weight matrix to only include the
     /// bytes in `subset`, without updating or recomputing the bias.
-    const fn get_subset_unadjusted<'a, const L: usize>(&self, subset: &'a ByteIndexMap<L>) -> WeightMatrix<'a, T, L> {
+    const fn get_subset_unadjusted<'b, const L: usize>(&self, subset: &'b ByteIndexMap<L>) -> WeightMatrix<'b, T, L> {
         assert!(
             is_subset(self.mapping.byte_keys(), subset.byte_keys()),
             "The provided keys are not a subset of the original weight matrix!"

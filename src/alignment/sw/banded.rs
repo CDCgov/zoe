@@ -68,8 +68,10 @@ pub fn sw_banded_align<const S: usize>(
             break;
         }
 
+        let weights = query.matrix.get_row(reference_base);
+
         if start_col + band_width == r {
-            let match_score = i32::from(query.matrix.get_weight(reference_base, query.seq[start_col]));
+            let match_score = i32::from(weights.get_weight(query.seq[start_col]));
             let e = e_row[start_col];
             // Cannot be reached via f, since that is out of the band
             h_store = (h + match_score).max(e).max(0);
@@ -79,7 +81,7 @@ pub fn sw_banded_align<const S: usize>(
             backtrack.move_to(r, c);
 
             // matching is the default direction
-            let match_score = i32::from(query.matrix.get_weight(reference_base, query.seq[c]));
+            let match_score = i32::from(weights.get_weight(query.seq[c]));
             h += match_score;
 
             let mut e = e_row[c];

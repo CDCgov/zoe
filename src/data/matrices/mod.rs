@@ -115,6 +115,7 @@
 pub(crate) mod aa;
 mod parse;
 mod weight_matrix;
+mod weight_row;
 
 pub use aa::*;
 pub use parse::*;
