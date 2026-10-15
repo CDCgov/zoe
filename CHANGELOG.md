@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file. The format
 is roughly based on [Keep a Changelog], and this project tries to adheres to
 [Semantic Versioning].
 
+## [0.0.36] - TBD
+
 ## [0.0.35] - 2026-10-16
 
 ### Added
@@ -778,6 +780,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - **Added**: Initial internal release. Provides various readers and types for bioinformatics data manipulation.
 
 <!-- Versions -->
+[0.0.36]: https://github.com/CDCgov/zoe/compare/v0.0.35...v0.0.36
 [0.0.35]: https://github.com/CDCgov/zoe/compare/v0.0.34...v0.0.35
 [0.0.34]: https://github.com/CDCgov/zoe/compare/v0.0.33...v0.0.34
 [0.0.33]: https://github.com/CDCgov/zoe/compare/v0.0.32...v0.0.33
