@@ -55,7 +55,7 @@ pub fn sw_banded_align<const S: usize>(
     // (column r-band_with, or 0 if this is outside of the DP table)
     let mut h_store = 0;
 
-    for (r, reference_base) in reference.iter().copied().enumerate() {
+    for ((r, reference_base), backtrack_row) in reference.iter().copied().enumerate().zip(backtrack.rows_mut()) {
         let mut f = query.gap_open;
         // Initialize h to the value of h one above and one left, or to 0 if
         // this is out of bounds
@@ -77,9 +77,7 @@ pub fn sw_banded_align<const S: usize>(
             h_store = (h + match_score).max(e).max(0);
         }
 
-        for c in start_col..end_col {
-            backtrack.move_to(r, c);
-
+        for (c, backtrack_cell) in (start_col..end_col).zip(backtrack_row) {
             // matching is the default direction
             let match_score = i32::from(weights.get_weight(query.seq[c]));
             h += match_score;
@@ -94,15 +92,15 @@ pub fn sw_banded_align<const S: usize>(
             }
 
             if e == h {
-                backtrack.up();
+                *backtrack_cell |= BandedBacktrackMatrix::UP;
             }
 
             if f == h {
-                backtrack.left();
+                *backtrack_cell |= BandedBacktrackMatrix::LEFT;
             }
 
             if h == 0 {
-                backtrack.stop();
+                *backtrack_cell = BandedBacktrackMatrix::STOP;
             }
 
             let next_diag = h_row[c];
@@ -114,11 +112,11 @@ pub fn sw_banded_align<const S: usize>(
 
             if h != query.gap_open {
                 if e > h {
-                    backtrack.up_extending();
+                    *backtrack_cell = BandedBacktrackMatrix::UP_EXTENDING;
                 }
 
                 if f > h {
-                    backtrack.left_extending();
+                    *backtrack_cell = BandedBacktrackMatrix::LEFT_EXTENDING;
                 }
             }
 

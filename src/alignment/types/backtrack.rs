@@ -546,23 +546,23 @@ pub(crate) struct BandedBacktrackMatrix {
 impl BandedBacktrackMatrix {
     /// The bitflag used to represent a score that can be reached via opening a
     /// gap from the cell above it
-    const UP: u8 = BacktrackMatrix::UP;
+    pub(crate) const UP: u8 = BacktrackMatrix::UP;
 
     /// The bitflag used to represent a score that can be reached via extending
     /// a gap from the cell above it
-    const UP_EXTENDING: u8 = BacktrackMatrix::UP_EXTENDING;
+    pub(crate) const UP_EXTENDING: u8 = BacktrackMatrix::UP_EXTENDING;
 
     /// The bitfag used to represent a score that can be reached via opening a
     /// gap from the cell left of it
-    const LEFT: u8 = BacktrackMatrix::LEFT;
+    pub(crate) const LEFT: u8 = BacktrackMatrix::LEFT;
 
     /// The bitflag used to represent a score that can be reached via extending
     /// a gap from the cell left of it
-    const LEFT_EXTENDING: u8 = BacktrackMatrix::LEFT_EXTENDING;
+    pub(crate) const LEFT_EXTENDING: u8 = BacktrackMatrix::LEFT_EXTENDING;
 
     /// The bitflag used to indicate that an alignment starts at a given cell
     /// (i.e., the traceback should stop at that cell)
-    const STOP: u8 = BacktrackMatrix::STOP;
+    pub(crate) const STOP: u8 = BacktrackMatrix::STOP;
 
     /// Create a new [`BandedBacktrackMatrix`] with the specified reference
     /// length and band width.
@@ -576,49 +576,12 @@ impl BandedBacktrackMatrix {
         }
     }
 
-    /// Sets the [`UP`] flag for the current cell in the
-    /// [`BandedBacktrackMatrix`].
-    ///
-    /// [`UP`]: Self::UP
+    /// Returns an iterator over the rows of the [`BandedBacktrackMatrix`], each
+    /// of which will have `2*band_width + 1` elements. Each row represents a
+    /// fixed position in the reference.
     #[inline]
-    pub(crate) fn up(&mut self) {
-        self.data[self.cursor] |= Self::UP;
-    }
-
-    /// Sets the [`LEFT`] flag for the current cell in the
-    /// [`BandedBacktrackMatrix`].
-    ///
-    /// [`LEFT`]: Self::LEFT
-    #[inline]
-    pub(crate) fn left(&mut self) {
-        self.data[self.cursor] |= Self::LEFT;
-    }
-
-    /// Sets the [`UP_EXTENDING`] flag for the current cell in the
-    /// [`BandedBacktrackMatrix`].
-    ///
-    /// [`UP_EXTENDING`]: Self::UP_EXTENDING
-    #[inline]
-    pub(crate) fn up_extending(&mut self) {
-        self.data[self.cursor] |= Self::UP_EXTENDING;
-    }
-
-    /// Sets the [`LEFT_EXTENDING`] flag for the current cell in the
-    /// [`BandedBacktrackMatrix`].
-    ///
-    /// [`LEFT_EXTENDING`]: Self::LEFT_EXTENDING
-    #[inline]
-    pub(crate) fn left_extending(&mut self) {
-        self.data[self.cursor] |= Self::LEFT_EXTENDING;
-    }
-
-    /// Clears all flags then sets the [`STOP`] flag for the current cell in the
-    /// [`BandedBacktrackMatrix`].
-    ///
-    /// [`STOP`]: Self::STOP
-    #[inline]
-    pub(crate) fn stop(&mut self) {
-        self.data[self.cursor] = Self::STOP;
+    pub(crate) fn rows_mut(&mut self) -> impl Iterator<Item = &mut [u8]> {
+        self.data.chunks_exact_mut(2 * self.band_width + 1)
     }
 }
 
