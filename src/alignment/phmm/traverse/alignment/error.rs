@@ -31,14 +31,14 @@
 
 use crate::{
     alignment::{
-        AlignmentStates,
+        AlignOp, AlignmentStates,
         phmm::{
             InvalidModelError,
             indexing::DpIndex,
             state::{PhmmState, PhmmStateOrModule},
         },
     },
-    data::cigar::{AlignOp, LenInAlignment},
+    data::cigar::LenInAlignment,
 };
 use std::{error::Error, fmt::Display};
 

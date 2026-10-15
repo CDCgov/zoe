@@ -1,6 +1,6 @@
 use crate::{
     alignment::{
-        Alignment, AlignmentStates,
+        AlignOp, Alignment, AlignmentStates,
         phmm::{
             DomainPhmm, GlobalPhmm, LocalPhmm, PhmmNumber, SemiLocalPhmm,
             components::{EmissionParams, TransitionParams},
@@ -17,7 +17,7 @@ use crate::{
             },
         },
     },
-    data::{ByteIndexMap, cigar::AlignOp},
+    data::ByteIndexMap,
     math::sample_one_weighted,
 };
 use rand::{

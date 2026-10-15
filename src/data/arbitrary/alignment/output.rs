@@ -5,10 +5,10 @@
 //! and [`AlignmentAndQuerySpecs`].
 
 use crate::{
-    alignment::{Alignment, AlignmentStates, NextCiglet, NextCigletMut},
+    alignment::{AlignOp, Alignment, AlignmentStates, NextCiglet, NextCigletMut},
     data::{
         arbitrary::{AlignmentStatesSpecs, ArbitrarySpecs, ByteSpecs, ClampAlignment, VecSpecs},
-        cigar::{AlignOp, LenInAlignment},
+        cigar::LenInAlignment,
     },
     prelude::Len,
 };

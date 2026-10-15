@@ -1,7 +1,7 @@
 use crate::{
-    alignment::AlignmentIter,
+    alignment::{AlignOp, AlignmentIter},
     data::{
-        cigar::{AlignOp, Ciglet},
+        cigar::Ciglet,
         types::{amino_acids::AminoAcids, nucleotides::Nucleotides},
     },
     private::Sealed,

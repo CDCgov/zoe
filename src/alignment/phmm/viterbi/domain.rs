@@ -1,23 +1,19 @@
-use crate::{
-    alignment::{
-        Alignment, AlignmentStates,
-        phmm::{
-            DomainPhmm, PhmmNumber,
-            components::LayerParams,
-            indexing::{
-                AlnIndex, AlnIndexRange, AlnIndexable, DpIndex, GetLayer, GetMapping, GetModule, IndexRangeInner,
-                LastResidue,
-            },
-            modules::PrecomputedDomainModule,
-            state::{
-                PhmmBacktrackFlags,
-                PhmmState::{self, Delete, Insert, Match},
-                PhmmTracebackState, best_state,
-            },
-            viterbi::{ViterbiError, ViterbiTraceback, update_delete, update_insert},
+use crate::alignment::{
+    AlignOp, Alignment, AlignmentStates,
+    phmm::{
+        DomainPhmm, PhmmNumber,
+        components::LayerParams,
+        indexing::{
+            AlnIndex, AlnIndexRange, AlnIndexable, DpIndex, GetLayer, GetMapping, GetModule, IndexRangeInner, LastResidue,
         },
+        modules::PrecomputedDomainModule,
+        state::{
+            PhmmBacktrackFlags,
+            PhmmState::{self, Delete, Insert, Match},
+            PhmmTracebackState, best_state,
+        },
+        viterbi::{ViterbiError, ViterbiTraceback, update_delete, update_insert},
     },
-    data::cigar::AlignOp,
 };
 use std::ops::Bound::{Excluded, Included};
 

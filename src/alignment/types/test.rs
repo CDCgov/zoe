@@ -2,12 +2,12 @@ use crate::data::amino_acids::AminoAcidsView;
 #[allow(deprecated)]
 use crate::{
     alignment::{
-        Alignment, AlignmentStates, NextCiglet, NextCigletMut, PairwiseSequence, PeekOp, profile::ScalarProfile,
+        AlignOp, Alignment, AlignmentStates, NextCiglet, NextCigletMut, PairwiseSequence, PeekOp, profile::ScalarProfile,
         sw::sw_scalar_align,
     },
     data::{
         amino_acids::AminoAcids,
-        cigar::{AlignOp, CigarError},
+        cigar::CigarError,
         matrices::WeightMatrix,
         nucleotides::{Nucleotides, NucleotidesView},
         types::cigar::{Cigar, Ciglet},

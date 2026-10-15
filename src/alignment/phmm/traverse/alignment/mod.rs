@@ -2,7 +2,7 @@
 
 use crate::{
     alignment::{
-        AlignmentStates, CigletOpIter, NextCiglet, PeekOp,
+        AlignOp, AlignmentStates, CigletOpIter, NextCiglet, PeekOp,
         phmm::{
             DomainPhmm, GlobalPhmm, LocalPhmm, PhmmNumber, SemiLocalPhmm,
             components::{EmissionParams, TransitionParams},
@@ -17,10 +17,7 @@ use crate::{
             },
         },
     },
-    data::{
-        ByteIndexMap,
-        cigar::{AlignOp, Ciglet},
-    },
+    data::{ByteIndexMap, cigar::Ciglet},
 };
 use std::ops::{Range, RangeInclusive};
 

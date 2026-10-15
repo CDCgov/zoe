@@ -1,23 +1,20 @@
-use crate::{
-    alignment::{
-        Alignment, AlignmentStates,
-        phmm::{
-            InvalidModelError, LocalPhmm, PhmmNumber,
-            components::LayerParams,
-            indexing::{
-                AlnIndex, AlnIndexRange, AlnIndexable, Begin, DpIndex, End, GetLayer, GetMapping, GetModule,
-                IndexRangeInner, LastResidue, PhmmLen,
-            },
-            modules::PrecomputedLocalModule,
-            state::{
-                PhmmBacktrackFlags,
-                PhmmState::{self, Delete, Insert, Match},
-                PhmmStateOrModule, PhmmTracebackState, best_state_or_enter,
-            },
-            viterbi::{ExitLocation, ViterbiError, ViterbiTraceback, update_delete, update_insert},
+use crate::alignment::{
+    AlignOp, Alignment, AlignmentStates,
+    phmm::{
+        InvalidModelError, LocalPhmm, PhmmNumber,
+        components::LayerParams,
+        indexing::{
+            AlnIndex, AlnIndexRange, AlnIndexable, Begin, DpIndex, End, GetLayer, GetMapping, GetModule, IndexRangeInner,
+            LastResidue, PhmmLen,
         },
+        modules::PrecomputedLocalModule,
+        state::{
+            PhmmBacktrackFlags,
+            PhmmState::{self, Delete, Insert, Match},
+            PhmmStateOrModule, PhmmTracebackState, best_state_or_enter,
+        },
+        viterbi::{ExitLocation, ViterbiError, ViterbiTraceback, update_delete, update_insert},
     },
-    data::cigar::AlignOp,
 };
 use std::ops::Bound::{Excluded, Included};
 

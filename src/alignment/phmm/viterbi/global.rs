@@ -1,19 +1,16 @@
-use crate::{
-    alignment::{
-        Alignment, AlignmentStates,
-        phmm::{
-            GlobalPhmm, PhmmNumber,
-            components::LayerParams,
-            indexing::{AlnIndexable, GetLayer, GetMapping},
-            state::{
-                PhmmBacktrackFlags,
-                PhmmState::{self, Delete, Insert, Match},
-                PhmmTracebackState, best_state,
-            },
-            viterbi::{ViterbiError, ViterbiTraceback, update_delete, update_insert},
+use crate::alignment::{
+    AlignOp, Alignment, AlignmentStates,
+    phmm::{
+        GlobalPhmm, PhmmNumber,
+        components::LayerParams,
+        indexing::{AlnIndexable, GetLayer, GetMapping},
+        state::{
+            PhmmBacktrackFlags,
+            PhmmState::{self, Delete, Insert, Match},
+            PhmmTracebackState, best_state,
         },
+        viterbi::{ViterbiError, ViterbiTraceback, update_delete, update_insert},
     },
-    data::cigar::AlignOp,
 };
 
 /// A tracker for the best score for the global Viterbi algorithm.

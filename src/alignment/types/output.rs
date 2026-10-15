@@ -1,8 +1,8 @@
 use crate::{
-    alignment::{AlignmentIter, AlignmentStates, pairwise_align_with},
+    alignment::{AlignOp, AlignmentIter, AlignmentStates, pairwise_align_with},
     data::{
         amino_acids::{AminoAcids, AminoAcidsView, AminoAcidsViewMut},
-        cigar::{AlignOp, Ciglet},
+        cigar::Ciglet,
         nucleotides::{Nucleotides, NucleotidesView, NucleotidesViewMut},
         views::{AssocOwnedType, IndexAdjustable, ToView},
     },

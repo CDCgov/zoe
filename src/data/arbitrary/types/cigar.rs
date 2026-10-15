@@ -2,10 +2,10 @@
 //! [`AlignmentStates`], and related structs.
 
 use crate::{
-    alignment::{AlignmentStates, NextCiglet},
+    alignment::{AlignOp, AlignmentStates, NextCiglet},
     data::{
         arbitrary::ArbitrarySpecs,
-        cigar::{AlignOp, Cigar, Ciglet, FormatCigletForCigarVec, LenInAlignment},
+        cigar::{Cigar, Ciglet, FormatCigletForCigarVec, LenInAlignment},
     },
 };
 use arbitrary::{Arbitrary, Result, Unstructured};

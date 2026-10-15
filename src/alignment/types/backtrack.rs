@@ -1,7 +1,4 @@
-use crate::{
-    alignment::{Alignment, AlignmentStates},
-    data::cigar::AlignOp,
-};
+use crate::alignment::{AlignOp, Alignment, AlignmentStates};
 use std::{
     mem::MaybeUninit,
     simd::{Select, prelude::*},

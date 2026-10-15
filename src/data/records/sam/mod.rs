@@ -3,9 +3,9 @@
 //! special-case functions used by [IRMA](https://wonder.cdc.gov/amd/flu/irma/).
 
 use crate::{
-    alignment::{Alignment, AlignmentStates, MaybeAligned, NextCiglet},
+    alignment::{AlignOp, Alignment, AlignmentStates, MaybeAligned, NextCiglet},
     data::{
-        cigar::{AlignOp, LenInAlignment},
+        cigar::LenInAlignment,
         types::cigar::{Cigar, CigarView},
     },
     math::AnyInt,

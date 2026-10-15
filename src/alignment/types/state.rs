@@ -1,9 +1,6 @@
 use crate::{
-    alignment::AlignmentIndices,
-    data::{
-        cigar::AlignOp,
-        types::cigar::{Cigar, Ciglet},
-    },
+    alignment::{AlignOp, AlignmentIndices},
+    data::types::cigar::{Cigar, Ciglet},
 };
 use std::{
     iter::FusedIterator,

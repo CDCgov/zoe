@@ -1,6 +1,6 @@
 use crate::{
-    alignment::ScalarProfile,
-    data::cigar::{AlignOp, Ciglet},
+    alignment::{AlignOp, ScalarProfile},
+    data::cigar::Ciglet,
 };
 use std::{
     cmp::Ordering::{Equal, Greater, Less},
