@@ -210,15 +210,16 @@ impl ReferenceIndex {
     }
 
     fn fill_linear_index_gaps(&mut self) {
-        let Some((next_offset, offsets)) = self.linear_index.split_last_mut() else {
+        let Some((last_offset, offsets)) = self.linear_index.split_last_mut() else {
             return;
         };
+        let mut next_offset = *last_offset;
 
         for offset in offsets.iter_mut().rev() {
             if *offset == EMPTY_LINEAR_OFFSET {
-                *offset = *next_offset;
+                *offset = next_offset;
             } else {
-                *next_offset = *offset;
+                next_offset = *offset;
             }
         }
 
