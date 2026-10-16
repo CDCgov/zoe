@@ -369,6 +369,56 @@ impl<T> ResultWithSubitem for Result<T, ErrorWithContext> {
     }
 }
 
+/// An extension trait for [`Error`] allowing it to be converted to
+/// [`ErrorWithContext`] without adding any additional context.
+pub trait WrapError: Sized + Error + Sync + Send + 'static {
+    /// Wraps the error inside an [`ErrorWithContext`] without adding any
+    /// context.
+    ///
+    /// For [`std::io::Error`], prefer calling [`Into::into`].
+    fn wrap(self) -> ErrorWithContext {
+        ErrorWithContext {
+            repr: Box::new(ErrorRepr::NoContext {
+                subitem: None,
+                error:   Box::new(self),
+            }),
+        }
+    }
+}
+
+impl<E: Error + Sync + Send + 'static> WrapError for E {}
+
+/// An extension trait for `Result<T, E>` allowing it to be converted to
+/// `Result<T, ErrorWithContext>` without adding any additional context.
+pub trait WrapResult {
+    /// The type of the [`Ok`] variant in the result.
+    type Ok;
+
+    /// Wraps any error inside an [`ErrorWithContext`] without adding any
+    /// context.
+    ///
+    /// If additional context should be added, use [`with_context`]. If the
+    /// error type is [`std::io::Error`], prefer calling `map_err(Into::into)`.
+    ///
+    /// ## Errors
+    ///
+    /// An error is returned solely if the input result contained an error.
+    ///
+    /// [`with_context`]: ResultWithErrorContext::with_context
+    fn wrap(self) -> Result<Self::Ok, ErrorWithContext>;
+}
+
+impl<Ok, E: WrapError> WrapResult for Result<Ok, E> {
+    type Ok = Ok;
+
+    fn wrap(self) -> Result<Ok, ErrorWithContext> {
+        self.map_err(|e| {
+            cold_path();
+            e.wrap()
+        })
+    }
+}
+
 impl From<ErrorWithContext> for std::io::Error {
     #[inline]
     fn from(error: ErrorWithContext) -> Self {

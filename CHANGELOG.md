@@ -20,6 +20,9 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
   reference, or total increments (behind `fuzzing` feature gate) 
 - Added implementation for forward algorithm to `GlobalPhmm` (for scoring all
   paths)
+- Added `wrap` method for errors and results to transparently wrap the errors in
+  `ErrorWithContext` (as compared to `with_context`, which adds a line to the
+  error stack)
 
 ### Changed
 
