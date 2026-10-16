@@ -390,8 +390,8 @@ pub trait LenInAlignment {
     #[must_use]
     fn ref_len_in_alignment(&self) -> usize;
 
-    /// Sums lengths for operations `M`, `I`, `S`, `X`, and `=`, which is the
-    /// length of the query that is included in the alignment.
+    /// Sums lengths for operations `M`, `I`, `S`, `X`, `=`, which is the length
+    /// of the query that is included in the alignment.
     #[must_use]
     fn query_len_in_alignment(&self) -> usize;
 

@@ -238,7 +238,6 @@ pub struct ScoreAndRanges<T> {
 /// to ensure all state remains consistent. API involving [`Alignment`] may
 /// panic if assumptions are invalidated. The particular requirements are:
 ///
-/// - All operations must be valid state (bytes in `MIDNSHP=X`)
 /// - `ref_range` must have `start <= end` and `end <= ref_len`
 /// - `query_range` must have `start <= end` and `end <= query_len`
 /// - The length of `ref_range` must equal [`ref_len_in_alignment`] called on
@@ -283,6 +282,10 @@ pub struct ScoreAndRanges<T> {
 /// [`SamData::from_alignment`]:
 ///     crate::data::records::sam::SamData::from_alignment
 /// [`WeightMatrix`]: crate::data::WeightMatrix
+/// [`ref_len_in_alignment`]:
+///     crate::data::types::cigar::LenInAlignment::ref_len_in_alignment
+/// [`query_len_in_alignment`]:
+///     crate::data::types::cigar::LenInAlignment::query_len_in_alignment
 #[non_exhaustive]
 #[derive(Clone, Eq, PartialEq, Debug, Default)]
 pub struct Alignment<T> {

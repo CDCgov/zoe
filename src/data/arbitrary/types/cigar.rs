@@ -57,31 +57,31 @@ impl<'a> Arbitrary<'a> for AlignmentStates {
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
 #[allow(clippy::struct_excessive_bools)]
 pub struct AlignOpSpecs {
-    /// Whether to allow `M` as an operation.
+    /// Whether to allow [`AlignOp::M`] as an operation.
     pub include_m: bool,
 
-    /// Whether to allow `I` as an operation.
+    /// Whether to allow [`AlignOp::I`] as an operation.
     pub include_i: bool,
 
-    /// Whether to allow `D` as an operation.
+    /// Whether to allow [`AlignOp::D`] as an operation.
     pub include_d: bool,
 
-    /// Whether to allow `N` as an operation.
+    /// Whether to allow [`AlignOp::N`] as an operation.
     pub include_n: bool,
 
-    /// Whether to allow `S` as an operation.
+    /// Whether to allow [`AlignOp::S`] as an operation.
     pub include_s: bool,
 
-    /// Whether to allow `H` as an operation.
+    /// Whether to allow [`AlignOp::H`] as an operation.
     pub include_h: bool,
 
-    /// Whether to allow `P` as an operation.
+    /// Whether to allow [`AlignOp::P`] as an operation.
     pub include_p: bool,
 
-    /// Whether to allow `=` as an operation.
+    /// Whether to allow [`AlignOp::Eq`] as an operation.
     pub include_eq: bool,
 
-    /// Whether to allow `X` as an operation.
+    /// Whether to allow [`AlignOp::X`] as an operation.
     pub include_x: bool,
 }
 
@@ -178,7 +178,7 @@ impl<'a> ArbitrarySpecs<'a> for CigletSpecs {
     /// ## Errors
     ///
     /// Any errors from the underlying [`arbitrary`] calls or from
-    /// [`CigarOpSpecs::make_arbitrary`] are propagated.
+    /// [`AlignOpSpecs::make_arbitrary`] are propagated.
     ///
     /// ## Panics
     ///

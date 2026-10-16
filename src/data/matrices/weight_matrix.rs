@@ -49,6 +49,8 @@ impl<'a, T: AnyInt, const S: usize> WeightMatrix<'a, T, S> {
         &mut self.weights[self.mapping.to_index(ref_residue)][self.mapping.to_index(query_residue)]
     }
 
+    /// Returns a single row of the [`WeightMatrix`], containing the weights for
+    /// comparing against the specified reference residue.
     #[inline]
     #[must_use]
     pub(crate) const fn get_row(&self, ref_residue: u8) -> WeightRow<'a, T, S> {

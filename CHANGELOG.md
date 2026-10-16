@@ -4,37 +4,31 @@ All notable changes to this project will be documented in this file. The format
 is roughly based on [Keep a Changelog], and this project tries to adheres to
 [Semantic Versioning].
 
-## [0.0.35] - TBD
+## [0.0.35] - 2026-10-16
 
 ### Added
 
-- Added `Fasta` containing a generic sequence type, defaulting to `Vec<u8>` but
-  also supporting `Nucleotides` and `AminoAcids`
-- Added generic view types for `Fasta`
-- Added `from_bufreader` constructor for `SAMReader`
-- Added `From<Cigar> for Vec<u8>` implementation to access inner bytes
-- Added additional options for generating arbitrary nucleotide and amino acid
-  data (behind `fuzzing` feature gate)
-- Expanded implementations for `AssocOwnedType`, `AssocViewType`, and
-  `AssocViewMutType`
+- Added `Fasta` and view types containing a generic sequence type, defaulting to
+  `Vec<u8>` but also supporting `Nucleotides` and `AminoAcids`
 - Added `unaligned_query_start`, `unaligned_query_end`, `unaligned_ref_start`,
   `unaligned_ref_end`, and `is_unmapped` to `Alignment`
+- Added `from_bufreader` constructor for `SAMReader`
+- Added `From<Cigar> for Vec<u8>` implementation to access inner bytes
+- Expanded implementations for `AssocOwnedType`, `AssocViewType`, and
+  `AssocViewMutType`
+- Added additional options for generating arbitrary nucleotide and amino acid
+  data (behind `fuzzing` feature gate)
 
 ### Changed
 
 - Replaced `u8` with an enum `AlignOp` in `Ciglet`, resulting in better type
   state and checking. This impacts methods of `AlignmentStates` and the traits
   in pHMM traversal
-- `FastaSeq`, `FastaNT`, and `FastaAA` are now type aliases to `Fasta` with the
-  relevant generic
-- Changed the field `name` to `header` in FASTA types
-- Moved `Ciglet::op_consumes_query` to `AlignOp::consumes_query` and similarly
-  for `reference`
 - Iteration on `Cigar` and `CigarView` now produces a fallible checked iterator
   by default. To use unchecked and truncating iteration, use `iter_unchecked`
-- `SamOptRaw` now stores the tags using a tab-delimited `String` to improve
-  performance and reduce allocations. Some methods return different concrete
-  iterator types
+- Changed the field `name` to `header` in FASTA types
+- `FastaSeq`, `FastaNT`, and `FastaAA` are now type aliases to `Fasta` with the
+  relevant generic
 - `Alignment` methods `get_aligned_seqs`, `get_aligned_iter`,
   `get_aligned_query`, and `to_verbose_sequence_matching` now accept a generic
   byte-sequence type via the trait `ByteSeq`, and produce owned corresponding
@@ -44,14 +38,17 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - The same `Alignment` methods now panic explicitly if incorrect query or
   reference lengths are passed. Previously, sequences that were longer than
   expected were silently accepted
+- `SamOptRaw` now stores the tags using a tab-delimited `String` to improve
+  performance and reduce allocations. Some methods return different concrete
+  iterator types
+- Moved `Ciglet::op_consumes_query` to `AlignOp::consumes_query` and similarly
+  for `reference`
 - MSRV is now 1.100 to default to the new borrow checker.
 - Deprecated `ScoringError` in favor of `SwScoringError` and `NwScoringError`, separate enums for each function
 - `AlignmentIter` now has different generics
-- Improved performance and compilation-stability of banded Smith Waterman with
-  several optimizations
-- Changed `NwScoringError::InvalidCigarOp` to `NnScoringError::Clipping` (behind
-  `alignment-diagnostics` feature gate)
-- Removed `SwScoringError::InvalidCigarOp` (behind `alignment-diagnostics`
+- Improved performance of banded Smith Waterman and `recode_dna_reads`
+- Changed `NwScoringError::InvalidCigarOp` to `NnScoringError::Clipping` and
+  removed `SwScoringError::InvalidCigarOp` (behind `alignment-diagnostics`
   feature gate)
 - Moved fields from `CigletSpecs` into new `AlignOpSpecs` (behind `fuzzing`
   feature gate)
@@ -60,14 +57,15 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 - Fixed bug with incorrect score being used in `LocalPhmm` traversal code at the
   end of the pHMM
-- Improved the performance of `FastQReader` to avoid unnecessary allocations
+- `BaiWriter` now correctly preserves the final linear index entry
 - `FastQReader::from_bufreader` now retries automatically on
   `ErrorKind::Interrupted`
-- `BaiWriter` now correctly preserves the final linear index entry
+- Improved the performance of `FastQReader` to avoid unnecessary allocations
 
 ### Removed
 
 - Deprecated `PairwiseSequence` in favor of similar methods on `Alignment`
+- Deprecated `SAMReader` constructors that ignore optional fields
 - Removed the deprecated API: `FastaNTAnnot`, `SamDataViewMut`,
   `SamData::is_unmapped`, and `KmerEncoder::encode_kmer_checked`
 

@@ -1,7 +1,19 @@
+//! Defines [`WeightRow`], representing a single row of a [`WeightMatrix`]
+//! (allowing alignment algorithms to avoid unnecessary indexing).
+//!
+//! [`WeightMatrix`]: super::WeightMatrix
+
 use crate::{data::ByteIndexMap, math::AnyInt};
 
+/// A single row of a [`WeightMatrix`], containing the weights when comparing
+/// against a fixed reference residue.
+///
+/// [`WeightMatrix`]: super::WeightMatrix
 pub(crate) struct WeightRow<'a, T: AnyInt, const S: usize> {
+    /// The row of weights
     pub(crate) weights: [T; S],
+
+    /// The mapping used to index into `weights`
     pub(crate) mapping: &'a ByteIndexMap<S>,
 }
 

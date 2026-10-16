@@ -10,8 +10,8 @@ use std::{
 
 /// Computes the score for a global alignment.
 ///
-/// When scoring an alignment, this function expects the `query` to be
-/// passed as a [`ScalarProfile`].
+/// When scoring an alignment, this function expects the `query` to be passed as
+/// a [`ScalarProfile`].
 ///
 /// ## Validity
 ///
@@ -20,8 +20,7 @@ use std::{
 ///
 /// ## Errors
 ///
-/// - The `ciglets` must contain valid operations in `MIDNP=X`,
-/// - All of `query`, `ref_in_alignment`, and `cigar` must be fully consumed.
+/// All of `query`, `ref_in_alignment`, and `cigar` must be fully consumed.
 ///
 /// ## Panics
 ///

@@ -15,8 +15,16 @@ pub use reader::*;
 #[cfg(test)]
 mod test;
 
+/// A type alias for [`Fasta`], allowing more backwards compatibility with older
+/// FASTA types.
 pub type FastaSeq = Fasta;
+
+/// A type alias for [`Fasta<Nucleotides>`], allowing more backwards
+/// compatibility with older FASTA types.
 pub type FastaNT = Fasta<Nucleotides>;
+
+/// A type alias for [`Fasta<AminoAcids>`], allowing more backwards
+/// compatibility with older FASTA types.
 pub type FastaAA = Fasta<AminoAcids>;
 
 /// A [FASTA](https://en.wikipedia.org/wiki/FASTA_format) record containing a
@@ -28,7 +36,9 @@ pub type FastaAA = Fasta<AminoAcids>;
 /// [`Nucleotides`] or [`AminoAcids`] by specifying this for `S`.
 #[derive(Clone, Eq, PartialEq, Hash, Debug, Default)]
 pub struct Fasta<S = Vec<u8>> {
+    /// The contents of the header line of the FASTA record, excluding the `>`.
     pub header:   String,
+    /// The sequence contained in the FASTA record.
     pub sequence: S,
 }
 
@@ -48,7 +58,9 @@ pub struct Fasta<S = Vec<u8>> {
 pub struct FastaView<'a, S = Vec<u8>>
 where
     S: AssocViewType, {
+    /// The contents of the header line of the FASTA record, excluding the `>`.
     pub header:   &'a str,
+    /// The sequence contained in the FASTA record.
     pub sequence: S::View<'a>,
 }
 
@@ -69,12 +81,14 @@ where
 pub struct FastaViewMut<'a, S = Vec<u8>>
 where
     S: AssocViewMutType, {
+    /// The contents of the header line of the FASTA record, excluding the `>`.
     pub header:   &'a mut String,
+    /// The sequence contained in the FASTA record.
     pub sequence: S::ViewMut<'a>,
 }
 
 impl Fasta<Vec<u8>> {
-    /// Creates a new [`Fasta`] empty object.
+    /// Creates a new [`Fasta`] empty object with sequence type `Vec<u8>`.
     #[inline]
     #[must_use]
     pub fn new() -> Self {
@@ -86,7 +100,7 @@ impl Fasta<Vec<u8>> {
 }
 
 impl Fasta<Nucleotides> {
-    /// Creates a new [`Fasta`] empty object.
+    /// Creates a new [`Fasta`] empty object with sequence type [`Nucleotides`].
     #[inline]
     #[must_use]
     pub fn new() -> Self {
@@ -98,7 +112,7 @@ impl Fasta<Nucleotides> {
 }
 
 impl Fasta<AminoAcids> {
-    /// Creates a new [`Fasta`] empty object.
+    /// Creates a new [`Fasta`] empty object with sequence type [`AminoAcids`].
     #[inline]
     #[must_use]
     pub fn new() -> Self {
@@ -110,7 +124,7 @@ impl Fasta<AminoAcids> {
 }
 
 impl FastaView<'_, Vec<u8>> {
-    /// Creates a new [`FastaView`] empty object.
+    /// Creates a new [`FastaView`] empty object with sequence type `&[u8]`.
     #[inline]
     #[must_use]
     pub fn new() -> Self {
@@ -122,7 +136,8 @@ impl FastaView<'_, Vec<u8>> {
 }
 
 impl FastaView<'_, Nucleotides> {
-    /// Creates a new [`FastaView`] empty object.
+    /// Creates a new [`FastaView`] empty object with sequence type
+    /// [`NucleotidesView`].
     #[inline]
     #[must_use]
     pub fn new() -> Self {
@@ -134,7 +149,8 @@ impl FastaView<'_, Nucleotides> {
 }
 
 impl FastaView<'_, AminoAcids> {
-    /// Creates a new [`FastaView`] empty object.
+    /// Creates a new [`FastaView`] empty object with sequence type
+    /// [`AminoAcidsView`].
     #[inline]
     #[must_use]
     pub fn new() -> Self {
@@ -280,6 +296,7 @@ impl Fasta<AminoAcids> {
 }
 
 impl From<Fasta<Vec<u8>>> for Fasta<Nucleotides> {
+    #[inline]
     fn from(record: Fasta<Vec<u8>>) -> Self {
         Fasta {
             header:   record.header,

@@ -8,6 +8,7 @@
 - [ ] Add date for the version being released in the CHANGELOG
 - [ ] Make sure `Cargo.toml` version is correct
 - [ ] Run `cargo update`
+- [ ] Update `CITATION.bib`
 - [ ] Get approval for release PR
 - [ ] Squash/merge release PR
 - [ ] Tag release

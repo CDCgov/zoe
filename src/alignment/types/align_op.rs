@@ -5,55 +5,69 @@ use std::fmt::Display;
 /// as used in *Zoe*'s [`Cigar`] and [`Ciglet`].
 ///
 /// The operations match those used by the
-/// [SAM](https://samtools.github.io/hts-specs/SAMv1.pdf) specifications.
+/// [SAM](https://samtools.github.io/hts-specs/SAMv1.pdf) specifications. The
+/// integers used to represent each variant correspond to the ASCII code for the
+/// character.
+///
+/// [`Cigar`]: crate::data::cigar::Cigar
+/// [`Ciglet`]: crate::data::cigar::Ciglet
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 #[repr(u8)]
 pub enum AlignOp {
     /// Alignment match (can be a sequence match or mismatch).
     ///
-    /// This operation consumes positions from both the query and reference.
-    /// This is prefered to [`AlignOp::Eq`] and [`AlignOp::X`] in *Zoe* since it
-    /// allows more concise and readable alignment representations.
+    /// This operation consumes positions from both the query and reference. It
+    /// is represented by `b'M'`. This is prefered to [`AlignOp::Eq`] and
+    /// [`AlignOp::X`] in *Zoe* since it allows more concise and readable
+    /// alignment representations.
     M  = b'M',
 
     /// Insertion to the reference.
     ///
-    /// This operation consumes positions from the query only.
+    /// This operation consumes positions from the query only. It is represented
+    /// by `b'I'`.
     I  = b'I',
 
     /// Deletion from the reference.
     ///
-    /// This operation consumes positions from the reference only.
+    /// This operation consumes positions from the reference only. It is
+    /// represented by `b'D'`.
     D  = b'D',
 
     /// Skipped region from the reference.
     ///
-    /// This operation consumes positions from the reference only.
+    /// This operation consumes positions from the reference only. It is
+    /// represented by `b'N'`.
     N  = b'N',
 
     /// Soft clipping (clipped sequences present in SAM's `SEQ` field).
     ///
-    /// This operation consumes positions from the query only.
+    /// This operation consumes positions from the query only. It is represented
+    /// by `b'S'`.
     S  = b'S',
 
     /// Hard clipping (clipped sequences not present in SAM's `SEQ` field).
     ///
     /// This operation consumes positions from neither the query nor reference.
+    /// It is represented by `b'H'`.
     H  = b'H',
 
     /// Padding (silent deletion from padded reference).
     ///
     /// This operation consumes positions from neither the query nor reference.
+    /// It is represented by `b'P'`.
     P  = b'P',
 
     /// Sequence match.
     ///
-    /// This operation consumes positions from both the query and reference.
+    /// This operation consumes positions from both the query and reference. It
+    /// is represented by `b'='`.
     Eq = b'=',
 
     /// Sequence mismatch.
     ///
-    /// This operation consumes positions from both the query and reference.
+    /// This operation consumes positions from both the query and reference. It
+    /// is represented by `b'X'`.
     X  = b'X',
 }
 
