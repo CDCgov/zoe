@@ -90,34 +90,89 @@ impl BacktrackMatrix {
     }
 }
 
+/// A reusable allocation for the traceback matrix of [`sw_simd_align`].
+///
+/// Reusing one buffer across alignments avoids repeatedly allocating and
+/// freeing large traceback matrices. The buffer holds no state between
+/// alignments, so it can be reused across queries, references, and profiles.
+/// Smaller matrices use a prefix of the allocation, while a larger matrix
+/// replaces it with a bigger one; it never shrinks.
+///
+/// The buffer is laid out as `Simd<u8, 64>` vectors (the widest supported lane
+/// count), so it serves striped profiles of any supported width (checked at
+/// compile time).
+///
+/// [`sw_simd_align`]: crate::alignment::sw::sw_simd_align
+#[derive(Default)]
+pub struct TracebackBuffer {
+    data: Box<[MaybeUninit<Simd<u8, { TracebackBuffer::MAX_LANES }>>]>,
+}
+
+impl TracebackBuffer {
+    /// The widest supported `u8` lane count, whose alignment typically covers
+    /// every narrower profile.
+    const MAX_LANES: usize = 64;
+
+    /// Creates an empty [`TracebackBuffer`]. Nothing is allocated until it is
+    /// first used.
+    #[inline]
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Creates a [`TracebackBuffer`] large enough to align a reference of
+    /// length `ref_len` against a query of length `query_len` at any supported
+    /// width, without reallocating.
+    #[inline]
+    #[must_use]
+    pub fn with_capacity(ref_len: usize, query_len: usize) -> Self {
+        let bytes = ref_len * query_len.next_multiple_of(Self::MAX_LANES);
+        Self {
+            data: Box::new_uninit_slice(bytes.div_ceil(size_of::<Simd<u8, { Self::MAX_LANES }>>())),
+        }
+    }
+
+    /// Returns exactly `len` uninitialized vectors with `N` lanes, replacing the
+    /// allocation with a larger one if needed.
+    #[inline]
+    pub(crate) fn uninit_vectors<const N: usize>(&mut self, len: usize) -> &mut [MaybeUninit<Simd<u8, N>>] {
+        const {
+            assert!(
+                align_of::<Simd<u8, N>>() <= align_of::<Simd<u8, { TracebackBuffer::MAX_LANES }>>(),
+                "`Simd<u8, N>` must not be more aligned than `Simd<u8, 64>`"
+            );
+        }
+
+        let needed = (len * size_of::<Simd<u8, N>>()).div_ceil(size_of::<Simd<u8, { Self::MAX_LANES }>>());
+        if self.data.len() < needed {
+            self.data = Box::new_uninit_slice(needed);
+        }
+
+        // The prefix is empty because of the alignment assertion above
+        let (_, vectors, _) = self.data[..needed].align_to_uninit_mut::<Simd<u8, N>>();
+        &mut vectors[..len]
+    }
+}
+
 /// A backtrack matrix for the Striped Smith Waterman algorithm.
 ///
 /// This stores the traceback information in a flattened slice of SIMD vectors
 /// (each holding `N` entries in the DP table).
 #[derive(Clone, Debug)]
-pub(crate) struct BacktrackMatrixStriped<const N: usize> {
-    pub data:  Box<[Simd<u8, N>]>,
+pub(crate) struct BacktrackMatrixStriped<'a, const N: usize> {
+    pub data:  &'a [Simd<u8, N>],
     num_vecs:  usize,
     v_cursor:  usize,
     curr_lane: usize,
 }
 
-impl<const N: usize> BacktrackMatrixStriped<N> {
-    /// Allocates lazily-initialized backtrack data which can later be converted
-    /// to a [`BacktrackMatrixStriped`].
-    ///
-    /// The total number of SIMD vectors is given by `size`.
-    #[inline]
-    #[must_use]
-    pub(crate) fn make_uninit_data(size: usize) -> Box<[MaybeUninit<Simd<u8, N>>]> {
-        Box::<[Simd<u8, N>]>::new_uninit_slice(size)
-    }
-
-    /// Wraps a boxed slice of SIMD vectors in a [`BacktrackMatrixStriped`] to
+impl<'a, const N: usize> BacktrackMatrixStriped<'a, N> {
+    /// Wraps a slice of SIMD vectors in a [`BacktrackMatrixStriped`] to
     /// facilitate backtracking.
     #[inline]
     #[must_use]
-    pub(crate) fn new(data: Box<[Simd<u8, N>]>, num_vecs: usize) -> Self {
+    pub(crate) fn new(data: &'a [Simd<u8, N>], num_vecs: usize) -> Self {
         assert!(data.len().is_multiple_of(num_vecs));
         BacktrackMatrixStriped {
             data,
@@ -466,7 +521,7 @@ impl BackTrackable for BacktrackMatrix {
     }
 }
 
-impl<const N: usize> BackTrackable for BacktrackMatrixStriped<N> {
+impl<const N: usize> BackTrackable for BacktrackMatrixStriped<'_, N> {
     #[inline]
     fn move_to(&mut self, r: usize, c: usize) {
         let v = c % self.num_vecs;

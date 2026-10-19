@@ -9,7 +9,15 @@
     stable_features
 )]
 #![cfg_attr(test, feature(test))]
-#![feature(portable_simd, try_trait_v2, cold_path, int_format_into, doc_cfg, pattern)]
+#![feature(
+    portable_simd,
+    try_trait_v2,
+    cold_path,
+    int_format_into,
+    doc_cfg,
+    pattern,
+    align_to_uninit_mut
+)]
 // Stabilized (in at least one channel) but left here in case it helps backwards
 // compatibility. Can be removed in the future.
 #![feature(const_fn_floating_point_arithmetic, let_chains, lazy_cell, slice_as_chunks)]

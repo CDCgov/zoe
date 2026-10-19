@@ -1,5 +1,8 @@
 use crate::{
-    alignment::{Alignment, MaybeAligned, ProfileError, ScoreAndRanges, SeqSrc, StripedProfile, validate_profile_args},
+    alignment::{
+        Alignment, MaybeAligned, ProfileError, ScoreAndRanges, SeqSrc, StripedProfile, TracebackBuffer,
+        validate_profile_args,
+    },
     data::matrices::WeightMatrix,
 };
 use std::{borrow::Cow, cell::OnceCell, sync::OnceLock};
@@ -176,6 +179,85 @@ pub trait ProfileSets<'a, const M: usize, const N: usize, const O: usize, const 
         let seq = seq.map(AsRef::as_ref);
 
         self.get_i32().sw_align(seq)
+    }
+
+    /// Similar to [`sw_align_from_i8`], but reuses `buffer` for the traceback
+    /// matrix instead of allocating one per alignment.
+    ///
+    /// This is preferred when performing many alignments, since repeatedly
+    /// allocating large traceback matrices can be slow with some allocators.
+    ///
+    /// ## Example
+    ///
+    /// ```
+    /// # use zoe::{
+    /// #     alignment::{LocalProfiles, ProfileSets, SeqSrc, TracebackBuffer},
+    /// #     data::matrices::WeightMatrix
+    /// # };
+    /// let reference: &[u8] = b"ATGCATCGATCGATCGATCGATCGATCGATGC";
+    /// let queries: [&[u8]; 2] = [b"CGTTCGCCATAAAGGGGG", b"GGCCGATCGATCGATGCAT"];
+    ///
+    /// const WEIGHTS: WeightMatrix<i8, 5> = WeightMatrix::new_dna_matrix(4, -2, Some(b'N'));
+    /// const GAP_OPEN: i8 = -3;
+    /// const GAP_EXTEND: i8 = -1;
+    ///
+    /// let mut buffer = TracebackBuffer::new();
+    ///
+    /// for query in queries {
+    ///     let profile = LocalProfiles::new_with_w256(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+    ///     let alignment = profile.sw_align_from_i8_with_buf(SeqSrc::Reference(reference), &mut buffer);
+    ///     assert_eq!(alignment, profile.sw_align_from_i8(SeqSrc::Reference(reference)));
+    /// }
+    /// ```
+    ///
+    /// [`sw_align_from_i8`]: ProfileSets::sw_align_from_i8
+    #[inline]
+    #[must_use]
+    fn sw_align_from_i8_with_buf<T>(&self, seq: SeqSrc<&T>, buffer: &mut TracebackBuffer) -> MaybeAligned<Alignment<u32>>
+    where
+        T: AsRef<[u8]> + ?Sized, {
+        let seq = seq.map(AsRef::as_ref);
+
+        self.get_i8()
+            .sw_align_with_buf(seq, buffer)
+            .or_else_overflowed(|| self.get_i16().sw_align_with_buf(seq, buffer))
+            .or_else_overflowed(|| self.get_i32().sw_align_with_buf(seq, buffer))
+    }
+
+    /// Similar to [`sw_align_from_i16`], but reuses `buffer` for the traceback
+    /// matrix instead of allocating one per alignment.
+    ///
+    /// See [`sw_align_from_i8_with_buf`] for an example.
+    ///
+    /// [`sw_align_from_i16`]: ProfileSets::sw_align_from_i16
+    /// [`sw_align_from_i8_with_buf`]: ProfileSets::sw_align_from_i8_with_buf
+    #[inline]
+    #[must_use]
+    fn sw_align_from_i16_with_buf<T>(&self, seq: SeqSrc<&T>, buffer: &mut TracebackBuffer) -> MaybeAligned<Alignment<u32>>
+    where
+        T: AsRef<[u8]> + ?Sized, {
+        let seq = seq.map(AsRef::as_ref);
+
+        self.get_i16()
+            .sw_align_with_buf(seq, buffer)
+            .or_else_overflowed(|| self.get_i32().sw_align_with_buf(seq, buffer))
+    }
+
+    /// Similar to [`sw_align_from_i32`], but reuses `buffer` for the traceback
+    /// matrix instead of allocating one per alignment.
+    ///
+    /// See [`sw_align_from_i8_with_buf`] for an example.
+    ///
+    /// [`sw_align_from_i32`]: ProfileSets::sw_align_from_i32
+    /// [`sw_align_from_i8_with_buf`]: ProfileSets::sw_align_from_i8_with_buf
+    #[inline]
+    #[must_use]
+    fn sw_align_from_i32_with_buf<T>(&self, seq: SeqSrc<&T>, buffer: &mut TracebackBuffer) -> MaybeAligned<Alignment<u32>>
+    where
+        T: AsRef<[u8]> + ?Sized, {
+        let seq = seq.map(AsRef::as_ref);
+
+        self.get_i32().sw_align_with_buf(seq, buffer)
     }
 
     // TODO: we will add dispatching instead if the method needs to be hybrid based on size considerations
@@ -709,5 +791,28 @@ mod test {
         let profile1 = profiles.get_i8();
         let profile2 = StripedProfile::<i8, 32, 5>::new(v, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
         assert_eq!(profile1, &profile2);
+    }
+
+    #[test]
+    fn sw_align_with_buffer_reuse() {
+        let long: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/CY137594.txt"));
+        let short = &long[100..150];
+        let mut buffer = TracebackBuffer::new();
+
+        // Vary both sequences so reuse covers growth, prefixes, fewer lanes
+        // (long self-alignments overflow `i8`), and stale flags
+        for query in [short, long, short] {
+            let profiles = LocalProfiles::new_with_w256(query, &WEIGHTS, GAP_OPEN, GAP_EXTEND).unwrap();
+            for seq in [short, long, short] {
+                for seq in [SeqSrc::Reference(seq), SeqSrc::Query(seq)] {
+                    let from_i8 = profiles.sw_align_from_i8_with_buf(seq, &mut buffer);
+                    let from_i16 = profiles.sw_align_from_i16_with_buf(seq, &mut buffer);
+                    let from_i32 = profiles.sw_align_from_i32_with_buf(seq, &mut buffer);
+                    assert_eq!(from_i8, profiles.sw_align_from_i8(seq));
+                    assert_eq!(from_i16, profiles.sw_align_from_i16(seq));
+                    assert_eq!(from_i32, profiles.sw_align_from_i32(seq));
+                }
+            }
+        }
     }
 }

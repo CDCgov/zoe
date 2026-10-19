@@ -1,7 +1,7 @@
 use crate::{
     alignment::{
         Alignment, BackTrackable, BacktrackMatrixStriped, MaybeAligned, ScoreAndRanges, ScoreEnds, ScoreIndices,
-        ScoreStarts, SimdBacktrackFlags, StripedProfile,
+        ScoreStarts, SimdBacktrackFlags, StripedProfile, TracebackBuffer,
     },
     math::AlignableIntWidth,
     simd::SimdAnyInt,
@@ -443,11 +443,32 @@ where
 /// [`ProfileSets`]: crate::alignment::ProfileSets
 /// [`ProfileSets::sw_align_from_i8`]:
 ///     crate::alignment::ProfileSets::sw_align_from_i8
+#[inline]
+#[must_use]
+pub fn sw_simd_align<T, const N: usize, const S: usize>(
+    reference: &[u8], query: &StripedProfile<T, N, S>,
+) -> MaybeAligned<Alignment<u32>>
+where
+    T: AlignableIntWidth,
+    Simd<T, N>: SimdAnyInt<T, N>, {
+    sw_simd_align_with_buf(reference, query, &mut TracebackBuffer::new())
+}
+
+/// Similar to [`sw_simd_align`], but stores the traceback matrix in a reusable
+/// [`TracebackBuffer`] instead of allocating one per call.
+///
+/// In applications, it is recommended to call a method on [`StripedProfile`] or
+/// [`ProfileSets`], such as [`StripedProfile::sw_align_with_buf`] or
+/// [`ProfileSets::sw_align_from_i8_with_buf`].
+///
+/// [`ProfileSets`]: crate::alignment::ProfileSets
+/// [`ProfileSets::sw_align_from_i8_with_buf`]:
+///     crate::alignment::ProfileSets::sw_align_from_i8_with_buf
 #[must_use]
 #[allow(non_snake_case, clippy::too_many_lines)]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]
-pub fn sw_simd_align<T, const N: usize, const S: usize>(
-    reference: &[u8], query: &StripedProfile<T, N, S>,
+pub fn sw_simd_align_with_buf<T, const N: usize, const S: usize>(
+    reference: &[u8], query: &StripedProfile<T, N, S>, buffer: &mut TracebackBuffer,
 ) -> MaybeAligned<Alignment<u32>>
 where
     T: AlignableIntWidth,
@@ -476,7 +497,7 @@ where
     let mut best = min;
     let mut r_end = reference.len() - 1;
 
-    let mut backtrack = BacktrackMatrixStriped::make_uninit_data(reference.len() * num_vecs);
+    let backtrack = buffer.uninit_vectors::<N>(reference.len() * num_vecs);
 
     for (r, ref_index) in reference.iter().copied().map(|r| query.mapping.to_index(r)).enumerate() {
         let mut F = minimums;
@@ -583,7 +604,7 @@ where
     }
 
     // SAFETY: we have initialized all members of the table in the main loop.
-    let mut backtrack = BacktrackMatrixStriped::new(unsafe { backtrack.assume_init() }, num_vecs);
+    let mut backtrack = BacktrackMatrixStriped::new(unsafe { backtrack.assume_init_ref() }, num_vecs);
 
     score_to_maybe_aligned(best, query.bias, |score| {
         backtrack.to_alignment(score, r_end, c_end, reference.len(), query.seq_len)

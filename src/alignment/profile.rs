@@ -1,9 +1,9 @@
 use crate::{
     alignment::{
-        Alignment, MaybeAligned, ProfileError, ScoreAndRanges, ScoreEnds, ScoreStarts, SeqSrc,
+        Alignment, MaybeAligned, ProfileError, ScoreAndRanges, ScoreEnds, ScoreStarts, SeqSrc, TracebackBuffer,
         sw::{
-            sw_align_3pass, sw_scalar_align, sw_scalar_score, sw_simd_align, sw_simd_score, sw_simd_score_ends,
-            sw_simd_score_ends_reverse, sw_simd_score_ranges,
+            sw_align_3pass, sw_scalar_align, sw_scalar_score, sw_simd_align, sw_simd_align_with_buf, sw_simd_score,
+            sw_simd_score_ends, sw_simd_score_ends_reverse, sw_simd_score_ranges,
         },
     },
     data::{mappings::ByteIndexMap, matrices::WeightMatrix},
@@ -516,6 +516,20 @@ where
     where
         Q: AsRef<[u8]> + ?Sized, {
         seq.make_alignment(|reference| sw_simd_align::<T, N, S>(reference.as_ref(), self))
+    }
+
+    /// Similar to [`sw_align`], but reuses `buffer` for the traceback matrix
+    /// instead of allocating one per alignment.
+    ///
+    /// For more info, see: [`sw_simd_align_with_buf`].
+    ///
+    /// [`sw_align`]: Self::sw_align
+    #[inline]
+    #[must_use]
+    pub fn sw_align_with_buf<Q>(&self, seq: SeqSrc<&Q>, buffer: &mut TracebackBuffer) -> MaybeAligned<Alignment<u32>>
+    where
+        Q: AsRef<[u8]> + ?Sized, {
+        seq.make_alignment(|reference| sw_simd_align_with_buf(reference.as_ref(), self, buffer))
     }
 
     /// Similar to [`sw_score`] but includes the reference and query
