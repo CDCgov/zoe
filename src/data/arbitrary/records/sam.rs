@@ -8,8 +8,7 @@
 use crate::{
     data::{
         arbitrary::{
-            ArbitrarySpecs, ByteSet, CigarSpecs, ClampAlignment, FloatSpecs, NucleotidesSpecs, QualityScoresSpecs,
-            StringSpecs, VecSpecs,
+            ArbitrarySpecs, ByteSet, CigarSpecs, FloatSpecs, NucleotidesSpecs, QualityScoresSpecs, StringSpecs, VecSpecs,
         },
         cigar::{Cigar, LenInAlignment},
         sam::{Flag, OptArray, SamData, SamOptField, SamOptRaw, SamOptValue},
@@ -109,13 +108,23 @@ impl<'a> ArbitrarySpecs<'a> for SamDataSpecs {
 
     #[inline]
     fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> arbitrary::Result<Self::Output> {
-        let mut cigar = self.cigar.make_arbitrary(u)?;
         let mut seq = self.seq.make_arbitrary(u)?;
 
-        if self.correct_seq_len {
-            cigar.clamp_query_len(seq.len());
+        let cigar = if self.correct_seq_len {
+            let mut cigar_specs = self.cigar.clone();
+
+            if let Some(max_query_inc) = cigar_specs.alignment_states_specs.max_query_inc.as_mut() {
+                *max_query_inc = (*max_query_inc).min(seq.len());
+            } else {
+                cigar_specs.alignment_states_specs.max_query_inc = Some(seq.len());
+            }
+
+            let cigar = cigar_specs.make_arbitrary(u)?;
             seq.shorten_to(cigar.query_len_in_alignment());
-        }
+            cigar
+        } else {
+            self.cigar.make_arbitrary(u)?
+        };
 
         let qual = if self.correct_qual_len {
             self.qual.with_len(seq.len()).make_arbitrary(u)?
