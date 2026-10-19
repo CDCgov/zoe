@@ -12,4 +12,4 @@
 - [ ] Get approval for release PR
 - [ ] Squash/merge release PR
 - [ ] Tag release
-- [ ] Announce release to colleagues if an important change has been made
+- [ ] Announce release in IFX Releases and Upgrades channel of ID Bioinformatics group on Teams
