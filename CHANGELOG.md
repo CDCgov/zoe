@@ -17,6 +17,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 ### Removed
 
 - Removed the deprecated `CigarViewMut`
+- Removed the implementation of `ClampAlignment` for `Cigar` (behind `fuzzing`
+  feature gate)
 
 ## [0.0.35] - 2026-10-16
 
