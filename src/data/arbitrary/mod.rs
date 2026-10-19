@@ -33,7 +33,7 @@
 //! [`ThreeBitKmerSet`]: crate::kmer::encoders::three_bit::ThreeBitKmerSet
 
 use arbitrary::{Arbitrary, Result, Unstructured};
-use std::marker::PhantomData;
+use std::{collections::HashMap, marker::PhantomData, ops::RangeInclusive};
 
 mod alignment;
 mod byte;
@@ -145,5 +145,132 @@ impl<'a, Specs: ArbitrarySpecs<'a>> Iterator for MakeArbitraryIter<'a, '_, '_, S
         } else {
             None
         }
+    }
+}
+
+pub trait UnstructuredExt {
+    /// Chooses `n` distinct values from an inclusive range.
+    ///
+    /// ## Errors
+    ///
+    /// Propagates errors from the underlying arbitrary integer generation.
+    ///
+    /// ## Panics
+    ///
+    /// Panics when the range contains fewer than `n` distinct values.
+    fn distinct_in_range(&mut self, range: RangeInclusive<usize>, n: usize) -> Result<Vec<usize>>;
+
+    /// Divides `sum` into `num_summands` positive integers.
+    ///
+    /// ## Errors
+    ///
+    /// Propagates errors from [`Self::distinct_in_range`].
+    ///
+    /// ## Panics
+    ///
+    /// Panics if `num_summands` is not in `1..=sum`, unless both `sum` and
+    /// `num_summands` are 0.
+    fn integer_composition(&mut self, sum: usize, num_summands: usize) -> Result<Vec<usize>> {
+        if sum == 0 && num_summands == 0 {
+            return Ok(Vec::new());
+        }
+        assert!(
+            num_summands > 0,
+            "Cannot write {sum} (which is non-zero) as the sum of 0 positive summands"
+        );
+        assert!(
+            num_summands <= sum,
+            "Cannot write {sum} as the sum of {num_summands} positive summands"
+        );
+
+        let mut cuts = self.distinct_in_range(1..=(sum - 1), num_summands - 1)?;
+        cuts.sort_unstable();
+
+        let mut last = 0;
+        let mut summands = Vec::with_capacity(num_summands);
+
+        for cut in cuts {
+            summands.push(cut - last);
+            last = cut;
+        }
+        summands.push(sum - last);
+
+        Ok(summands)
+    }
+
+    /// Randomly interleaves two exact-size iterators while preserving the
+    /// ordering within each iterator.
+    ///
+    /// ## Errors
+    ///
+    /// Propagates errors from the underlying arbitrary byte generation.
+    fn interleave<T>(
+        &mut self, left: impl ExactSizeIterator<Item = T>, right: impl ExactSizeIterator<Item = T>,
+    ) -> Result<Vec<T>>;
+}
+
+impl UnstructuredExt for Unstructured<'_> {
+    fn distinct_in_range(&mut self, range: RangeInclusive<usize>, n: usize) -> Result<Vec<usize>> {
+        let Some(n_m1) = n.checked_sub(1) else {
+            return Ok(Vec::new());
+        };
+
+        assert!(range.start() <= range.end(), "Cannot choose values from an empty range");
+        let mut remaining_m1 = *range.end() - *range.start();
+
+        assert!(
+            remaining_m1 >= n_m1,
+            "There are not {n} distinct values in the provided range"
+        );
+
+        let mut swaps = HashMap::with_capacity(n);
+        let mut values = Vec::with_capacity(n);
+
+        for draw in 0..n {
+            let index = self.int_in_range(0..=remaining_m1)?;
+            let picked = swaps.get(&index).copied().unwrap_or(index);
+
+            if index != remaining_m1 {
+                let last_value = swaps.get(&remaining_m1).copied().unwrap_or(remaining_m1);
+                swaps.insert(index, last_value);
+            }
+            swaps.remove(&remaining_m1);
+
+            values.push(*range.start() + picked);
+            if draw < n_m1 {
+                remaining_m1 -= 1;
+            }
+        }
+
+        Ok(values)
+    }
+
+    fn interleave<T>(
+        &mut self, left: impl ExactSizeIterator<Item = T>, right: impl ExactSizeIterator<Item = T>,
+    ) -> Result<Vec<T>> {
+        let (mut left, mut right) = (left.into_iter(), right.into_iter());
+
+        let total = left.len() + right.len();
+        let mut bits = vec![0; total.saturating_sub(1).div_ceil(8)];
+        // fill_buffer pads with zeroes if the input runs out.
+        self.fill_buffer(&mut bits)?;
+
+        let mut out = Vec::with_capacity(total);
+        let mut choice = 0;
+
+        while left.len() > 0 && right.len() > 0 {
+            let take_left = (bits[choice / 8] >> (choice % 8)) & 1 == 0;
+            choice += 1;
+
+            if take_left {
+                out.push(left.next().unwrap());
+            } else {
+                out.push(right.next().unwrap());
+            }
+        }
+
+        out.extend(left);
+        out.extend(right);
+        Ok(out)
     }
 }

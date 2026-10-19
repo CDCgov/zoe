@@ -15,6 +15,9 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
   their default/missing value in the SAM specs
 - Added `GetSamFieldsMut` and `ParseSamFields` for parsing generic structs
   containing SAM data 
+- Added `StrictAlignmentStatesSpecs` for generating arbitrary `AlignmentStates`
+  containing only M/D/I operations but allowing configuration of exact query,
+  reference, or total increments (behind `fuzzing` feature gate) 
 
 ### Changed
 

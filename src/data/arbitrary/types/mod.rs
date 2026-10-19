@@ -5,8 +5,10 @@ mod amino_acids;
 mod cigar;
 mod nucleotides;
 mod phred;
+mod strict_states;
 
 pub use amino_acids::*;
 pub use cigar::*;
 pub use nucleotides::*;
 pub use phred::*;
+pub use strict_states::*;
