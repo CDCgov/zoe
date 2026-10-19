@@ -1,9 +1,8 @@
-#![allow(deprecated)]
 //! View types for CIGAR strings.
 
 use crate::data::{
     cigar::{Cigar, CigarError, CigletIterator, CigletIteratorChecked},
-    views::{impl_len_for_views_generic, impl_view_assoc_types_generic, impl_view_conversion_generic},
+    views::{AsView, AssocOwnedType, AssocViewType, DataView, Len, ToOwnedData},
 };
 
 /// A view of a [`Cigar`] string.
@@ -13,18 +12,6 @@ use crate::data::{
 /// the other operations that [`Cigar`] supports.
 #[derive(Copy, Clone, Eq, PartialEq, Hash)]
 pub struct CigarView<'a>(&'a [u8]);
-
-/// A mutable view of a [`Cigar`] string.
-///
-/// See [Views](crate::data#views) for more details. This struct is still in
-/// development; it currently only supports parsing and displaying, and not all
-/// the other operations that [`Cigar`] supports.
-#[derive(Eq, PartialEq, Hash, Default)]
-#[deprecated(
-    since = "0.0.34",
-    note = "consider using an immutable view instead. This struct will be removed in v0.0.36. Open an issue with a use-case if this struct is required"
-)]
-pub struct CigarViewMut<'a>(&'a mut [u8]);
 
 impl<'a> CigarView<'a> {
     /// Retrieves the underlying byte string from the CIGAR string.
@@ -70,40 +57,6 @@ impl<'a> CigarView<'a> {
     }
 }
 
-impl<'a> CigarViewMut<'a> {
-    /// Retrieves the underlying byte string from the CIGAR string.
-    #[inline]
-    #[must_use]
-    pub fn as_bytes(&self) -> &[u8] {
-        self.0
-    }
-
-    /// Creates a new [`CigarViewMut`] from `v` without checking for validity.
-    ///
-    /// If `*` is passed, this is replaced with [`CigarViewMut::new`].
-    #[inline]
-    #[must_use]
-    pub fn from_slice_unchecked(v: &'a mut [u8]) -> Self {
-        if v == b"*" { CigarViewMut::new() } else { CigarViewMut(v) }
-    }
-
-    /// Creates a new empty CIGAR string.
-    #[inline]
-    #[must_use]
-    pub fn new() -> Self {
-        Self(&mut [])
-    }
-
-    /// Returns an iterator of the contained [`Ciglet`] values.
-    ///
-    /// [`Ciglet`]: crate::data::types::cigar::Ciglet
-    #[inline]
-    #[must_use]
-    pub fn iter(&self) -> CigletIterator<'_> {
-        CigletIterator::new(self.0)
-    }
-}
-
 impl Default for CigarView<'_> {
     #[inline]
     fn default() -> Self {
@@ -132,27 +85,6 @@ impl std::fmt::Debug for CigarView<'_> {
     }
 }
 
-impl std::fmt::Display for CigarViewMut<'_> {
-    #[inline]
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        if self.0.is_empty() || self.0 == b"*" {
-            write!(f, "*")
-        } else if self.0.is_ascii() {
-            // SAFETY: we just checked it is ASCII and ASCII is valid UTF8.
-            f.write_str(unsafe { std::str::from_utf8_unchecked(self.0) })
-        } else {
-            f.write_str(&String::from_utf8_lossy(self.0))
-        }
-    }
-}
-
-impl std::fmt::Debug for CigarViewMut<'_> {
-    #[inline]
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "CigarViewMut({})", String::from_utf8_lossy(self.0))
-    }
-}
-
 impl<'a> TryFrom<&'a [u8]> for CigarView<'a> {
     type Error = CigarError;
 
@@ -167,15 +99,6 @@ impl<'a> TryFrom<&'a mut [u8]> for CigarView<'a> {
 
     fn try_from(bytes: &'a mut [u8]) -> Result<Self, Self::Error> {
         CigarView::try_from(&*bytes)
-    }
-}
-
-impl<'a> TryFrom<&'a mut [u8]> for CigarViewMut<'a> {
-    type Error = CigarError;
-
-    fn try_from(bytes: &'a mut [u8]) -> Result<Self, Self::Error> {
-        Cigar::check_for_err(bytes)?;
-        Ok(CigarViewMut::from_slice_unchecked(bytes))
     }
 }
 
@@ -195,14 +118,63 @@ impl<'a, const N: usize> TryFrom<&'a mut [u8; N]> for CigarView<'a> {
     }
 }
 
-impl<'a, const N: usize> TryFrom<&'a mut [u8; N]> for CigarViewMut<'a> {
-    type Error = CigarError;
+impl Len for Cigar {
+    #[inline]
+    fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
 
-    fn try_from(bytes: &'a mut [u8; N]) -> Result<Self, Self::Error> {
-        CigarViewMut::try_from(bytes.as_mut_slice())
+    #[inline]
+    fn len(&self) -> usize {
+        self.0.len()
     }
 }
 
-impl_len_for_views_generic!(Cigar, CigarView, CigarViewMut, 0);
-impl_view_assoc_types_generic!(Cigar, CigarView, CigarViewMut);
-impl_view_conversion_generic!(Cigar, CigarView, CigarViewMut);
+impl Len for CigarView<'_> {
+    #[inline]
+    fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    #[inline]
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+}
+
+impl AssocOwnedType for Cigar {
+    type Owned = Cigar;
+}
+
+impl AssocViewType for Cigar {
+    type View<'a> = CigarView<'a>;
+}
+
+impl AssocOwnedType for CigarView<'_> {
+    type Owned = Cigar;
+}
+
+impl AssocViewType for CigarView<'_> {
+    type View<'a> = CigarView<'a>;
+}
+
+impl ToOwnedData for CigarView<'_> {
+    #[inline]
+    fn to_owned_data(&self) -> Self::Owned {
+        Cigar(self.0.into())
+    }
+}
+
+impl AsView for Cigar {
+    fn as_view(&self) -> CigarView<'_> {
+        CigarView(&self.0)
+    }
+}
+
+impl<'a> DataView<'a> for CigarView<'a> {
+    fn reborrow_view<'b>(&'b self) -> CigarView<'b>
+    where
+        'a: 'b, {
+        CigarView(self.0)
+    }
+}

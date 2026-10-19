@@ -79,7 +79,6 @@ pub mod prelude {
 
 pub(crate) use crate::data::extension::simd;
 
-#[allow(deprecated)]
 mod private {
     use crate::{
         alignment::phmm::{
@@ -89,7 +88,7 @@ mod private {
             modules::{PrecomputedDomainModule, PrecomputedLocalModule, SemiLocalModule},
         },
         data::{
-            cigar::{Cigar, CigarView, CigarViewMut},
+            cigar::{Cigar, CigarView},
             fasta::{Fasta, FastaView, FastaViewMut},
             sam::{SamData, SamDataView, SamOptRaw, SamOptRawView},
             views::{AssocViewMutType, AssocViewType},
@@ -149,7 +148,6 @@ mod private {
         QualityScoresViewMut<'_>,
         Cigar,
         CigarView<'_>,
-        CigarViewMut<'_>,
         SamData,
         SamDataView<'_>,
         SamOptRaw,

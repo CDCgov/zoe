@@ -14,6 +14,10 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 - `CigletIteratorChecked` now returns `None` after any error is yielded
 
+### Removed
+
+- Removed the deprecated `CigarViewMut`
+
 ## [0.0.35] - 2026-10-16
 
 ### Added

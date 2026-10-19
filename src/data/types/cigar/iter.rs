@@ -1,9 +1,8 @@
-#![allow(deprecated)]
 //! Implementations and methods for iterating over CIGAR strings.
 
 use crate::{
     alignment::{AlignmentStates, NextCiglet, PeekOp},
-    data::cigar::{AlignOp, Cigar, CigarError, CigarView, CigarViewMut, Ciglet, USIZE_WIDTH},
+    data::cigar::{AlignOp, Cigar, CigarError, CigarView, Ciglet, USIZE_WIDTH},
 };
 use std::hint::cold_path;
 
@@ -271,16 +270,6 @@ impl<'a> IntoIterator for &CigarView<'a> {
     }
 }
 
-impl<'a> IntoIterator for &'a CigarViewMut<'a> {
-    type Item = Result<Ciglet, CigarError>;
-    type IntoIter = CigletIteratorChecked<'a>;
-
-    #[inline]
-    fn into_iter(self) -> Self::IntoIter {
-        CigletIteratorChecked::new(self.as_bytes())
-    }
-}
-
 /// A trait for types from which an iterator of [`Ciglet`] values can be made.
 ///
 /// This is useful for trait bounds, where a generic implementation should
@@ -401,23 +390,6 @@ impl<'b> ToCigletIterator for &CigarView<'b> {
     #[inline]
     fn to_ciglet_iterator(&self) -> CigletIterator<'b> {
         self.iter_unchecked()
-    }
-
-    #[inline]
-    fn to_ciglet_iterator_checked(&self) -> impl Iterator<Item = Result<Ciglet, CigarError>> {
-        CigletIteratorChecked::new(self.as_bytes())
-    }
-}
-
-impl ToCigletIterator for &CigarViewMut<'_> {
-    type Iter<'a>
-        = CigletIterator<'a>
-    where
-        Self: 'a;
-
-    #[inline]
-    fn to_ciglet_iterator(&self) -> CigletIterator<'_> {
-        self.iter()
     }
 
     #[inline]
