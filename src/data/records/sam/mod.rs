@@ -347,13 +347,13 @@ impl SamData {
         let ref_range_end = ref_range_start + self.cigar.ref_len_in_alignment();
         let ref_range = ref_range_start..ref_range_end;
 
-        let mut ciglets = self.cigar.iter_unchecked();
+        let mut ciglets = states.as_slice();
         ciglets.next_ciglet_if_op(|op| op == AlignOp::H);
         let soft_clipping_front = ciglets.next_ciglet_if_op(|op| op == AlignOp::S).map_or(0, |c| c.inc);
         ciglets.next_ciglet_back_if_op(|op| op == AlignOp::H);
         let soft_clipping_back = ciglets.next_ciglet_back_if_op(|op| op == AlignOp::S).map_or(0, |c| c.inc);
 
-        if ciglets.next().is_none() {
+        if ciglets.is_empty() {
             return Ok(MaybeAligned::Unmapped);
         }
 
