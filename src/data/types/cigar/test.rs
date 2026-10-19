@@ -244,9 +244,8 @@ fn test_iter_checked() {
     assert_eq!(iter.next(), Some(Ok(Ciglet { inc: 3, op: AlignOp::M })));
     assert_eq!(iter.next(), Some(Ok(Ciglet { inc: 2, op: AlignOp::D })));
     assert_eq!(iter.next(), Some(Err(CigarError::MissingInc)));
-    // TODO: Uncomment this after iterator is updated
-    // assert_eq!(iter.next(), None);
-    // assert_eq!(iter.next(), None);
+    assert_eq!(iter.next(), None);
+    assert_eq!(iter.next(), None);
 
     // Zero increment
     let cigar = Cigar::from_slice_unchecked("3M2D0M0M5H0S");
@@ -254,9 +253,8 @@ fn test_iter_checked() {
     assert_eq!(iter.next(), Some(Ok(Ciglet { inc: 3, op: AlignOp::M })));
     assert_eq!(iter.next(), Some(Ok(Ciglet { inc: 2, op: AlignOp::D })));
     assert_eq!(iter.next(), Some(Err(CigarError::IncZero)));
-    // TODO: Uncomment this after iterator is fixed
-    // assert_eq!(iter.next(), None);
-    // assert_eq!(iter.next(), None);
+    assert_eq!(iter.next(), None);
+    assert_eq!(iter.next(), None);
 }
 
 #[test]
@@ -372,17 +370,15 @@ fn test_iter_checked_rev() {
     let mut iter = cigar.iter().rev();
     assert_eq!(iter.next(), Some(Ok(Ciglet { inc: 5, op: AlignOp::H })));
     assert_eq!(iter.next(), Some(Err(CigarError::MissingInc)));
-    // TODO: Uncomment this after iterator is updated
-    // assert_eq!(iter.next(), None);
-    // assert_eq!(iter.next(), None);
+    assert_eq!(iter.next(), None);
+    assert_eq!(iter.next(), None);
 
     // Zero increment
     let cigar = Cigar::from_slice_unchecked("3M2D0M0M5H0S");
     let mut iter = cigar.iter().rev();
     assert_eq!(iter.next(), Some(Err(CigarError::IncZero)));
-    // TODO: Uncomment this after iterator is fixed
-    // assert_eq!(iter.next(), None);
-    // assert_eq!(iter.next(), None);
+    assert_eq!(iter.next(), None);
+    assert_eq!(iter.next(), None);
 }
 
 #[test]

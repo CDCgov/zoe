@@ -714,12 +714,20 @@ impl Iterator for CigletIteratorChecked<'_> {
     type Item = Result<Ciglet, CigarError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.next_helper().transpose()
+        let out = self.next_helper();
+        if out.is_err() {
+            self.buffer = &[];
+        }
+        out.transpose()
     }
 }
 
 impl DoubleEndedIterator for CigletIteratorChecked<'_> {
     fn next_back(&mut self) -> Option<Self::Item> {
-        self.next_back_helper().transpose()
+        let out = self.next_back_helper();
+        if out.is_err() {
+            self.buffer = &[];
+        }
+        out.transpose()
     }
 }
