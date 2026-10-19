@@ -625,6 +625,89 @@ impl<'a> CigletIteratorChecked<'a> {
 
         Ok(None)
     }
+
+    fn next_back_helper(&mut self) -> Result<Option<Ciglet>, CigarError> {
+        let [buffer @ .., op] = self.buffer else {
+            return Ok(None);
+        };
+        let mut buffer = buffer;
+
+        let op = AlignOp::try_from(*op)?;
+        let mut num = 0;
+
+        if let [rest @ .., b] = buffer {
+            if b.is_ascii_digit() {
+                num += usize::from(b - b'0');
+            } else {
+                return Err(CigarError::MissingInc);
+            }
+            buffer = rest;
+        } else {
+            return Err(CigarError::MissingInc);
+        }
+
+        // At least one literal digit was present in the increment field
+
+        let mut multiplier = 1;
+        let mut index = 1;
+
+        while let [rest @ .., b] = buffer
+            && index < USIZE_WIDTH - 1
+        {
+            if b.is_ascii_digit() {
+                multiplier *= 10;
+                num += usize::from(b - b'0') * multiplier;
+            } else {
+                self.buffer = buffer;
+                if num == 0 {
+                    return Err(CigarError::IncZero);
+                }
+                return Ok(Some(Ciglet { inc: num, op }));
+            }
+            buffer = rest;
+            index += 1;
+        }
+
+        if buffer.is_empty() {
+            self.buffer = buffer;
+            if num == 0 {
+                return Err(CigarError::IncZero);
+            }
+            return Ok(Some(Ciglet { inc: num, op }));
+        }
+
+        let mut num_zeros = 0;
+
+        while let [rest @ .., b] = buffer {
+            if b.is_ascii_digit() {
+                if *b == b'0' {
+                    num_zeros += 1;
+                } else {
+                    for _ in 0..=num_zeros {
+                        multiplier = multiplier.checked_mul(10).ok_or(CigarError::IncOverflow)?;
+                    }
+                    num = usize::from(b - b'0')
+                        .checked_mul(multiplier)
+                        .ok_or(CigarError::IncOverflow)?
+                        .checked_add(num)
+                        .ok_or(CigarError::IncOverflow)?;
+                }
+                buffer = rest;
+            } else {
+                self.buffer = buffer;
+                if num == 0 {
+                    return Err(CigarError::IncZero);
+                }
+                return Ok(Some(Ciglet { inc: num, op }));
+            }
+        }
+
+        self.buffer = buffer;
+        if num == 0 {
+            return Err(CigarError::IncZero);
+        }
+        Ok(Some(Ciglet { inc: num, op }))
+    }
 }
 
 impl Iterator for CigletIteratorChecked<'_> {
@@ -632,5 +715,11 @@ impl Iterator for CigletIteratorChecked<'_> {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.next_helper().transpose()
+    }
+}
+
+impl DoubleEndedIterator for CigletIteratorChecked<'_> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.next_back_helper().transpose()
     }
 }
