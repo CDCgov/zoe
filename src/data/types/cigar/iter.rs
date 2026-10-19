@@ -4,7 +4,6 @@
 use crate::{
     alignment::{AlignmentStates, NextCiglet, PeekOp},
     data::cigar::{AlignOp, Cigar, CigarError, CigarView, CigarViewMut, Ciglet, USIZE_WIDTH},
-    unwrap_or_return_some_err,
 };
 use std::hint::cold_path;
 
@@ -569,12 +568,11 @@ impl<'a> CigletIteratorChecked<'a> {
     pub(crate) fn new(bytes: &'a [u8]) -> CigletIteratorChecked<'a> {
         Self { buffer: bytes }
     }
-}
 
-impl Iterator for CigletIteratorChecked<'_> {
-    type Item = Result<Ciglet, CigarError>;
-
-    fn next(&mut self) -> Option<Self::Item> {
+    /// A helper function for [`CigletIteratorChecked::next`] that returns a
+    /// [`Result`] rather than an [`Option`], to allow for a more readable
+    /// implementation.
+    fn next_helper(&mut self) -> Result<Option<Ciglet>, CigarError> {
         let mut num = 0;
         let mut has_number = false;
         let mut index = 0;
@@ -587,17 +585,14 @@ impl Iterator for CigletIteratorChecked<'_> {
                 num += usize::from(b - b'0');
                 has_number = true;
             } else {
-                let op = match AlignOp::try_from(b) {
-                    Ok(op) => op,
-                    Err(err) => return Some(Err(err.into())),
-                };
+                let op = AlignOp::try_from(b)?;
                 if !has_number {
-                    return Some(Err(CigarError::MissingInc));
+                    return Err(CigarError::MissingInc);
                 } else if num == 0 {
-                    return Some(Err(CigarError::IncZero));
+                    return Err(CigarError::IncZero);
                 }
                 self.buffer = &self.buffer[index + 1..];
-                return Some(Ok(Ciglet { inc: num, op }));
+                return Ok(Some(Ciglet { inc: num, op }));
             }
             index += 1;
         }
@@ -606,32 +601,36 @@ impl Iterator for CigletIteratorChecked<'_> {
             let b = self.buffer[index];
 
             if b.is_ascii_digit() {
-                num = unwrap_or_return_some_err!(
-                    num.checked_mul(10)
-                        .and_then(|n| n.checked_add(usize::from(b - b'0')))
-                        .ok_or(CigarError::IncOverflow)
-                );
+                num = num
+                    .checked_mul(10)
+                    .and_then(|n| n.checked_add(usize::from(b - b'0')))
+                    .ok_or(CigarError::IncOverflow)?;
                 has_number = true;
             } else {
-                let op = match AlignOp::try_from(b) {
-                    Ok(op) => op,
-                    Err(err) => return Some(Err(err.into())),
-                };
+                let op = AlignOp::try_from(b)?;
                 if !has_number {
-                    return Some(Err(CigarError::MissingInc));
+                    return Err(CigarError::MissingInc);
                 } else if num == 0 {
-                    return Some(Err(CigarError::IncZero));
+                    return Err(CigarError::IncZero);
                 }
                 self.buffer = &self.buffer[index + 1..];
-                return Some(Ok(Ciglet { inc: num, op }));
+                return Ok(Some(Ciglet { inc: num, op }));
             }
             index += 1;
         }
 
         if has_number {
-            return Some(Err(CigarError::MissingOp));
+            return Err(CigarError::MissingOp);
         }
 
-        None
+        Ok(None)
+    }
+}
+
+impl Iterator for CigletIteratorChecked<'_> {
+    type Item = Result<Ciglet, CigarError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.next_helper().transpose()
     }
 }
