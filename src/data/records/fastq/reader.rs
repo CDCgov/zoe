@@ -1,7 +1,4 @@
-use crate::{
-    data::{err::ResultWithErrorContext, vec_types::ChopLineBreak},
-    prelude::*,
-};
+use crate::{data::err::ResultWithErrorContext, prelude::*};
 use std::{
     fs::File,
     io::{BufRead, BufReader, Error as IOError, ErrorKind, Read},
@@ -105,8 +102,7 @@ impl<R: Read> FastQReader<R> {
         self.reader.consume(1);
 
         // Read header directly into Vec
-        let mut header = read_line_owned(&mut self.reader)?;
-        header.chop_line_break();
+        let header = self.reader.read_line_owned(Vec::new())?;
 
         if header.is_empty() {
             return Err(IOError::new(ErrorKind::InvalidData, "Missing FASTQ header!"));
@@ -115,8 +111,7 @@ impl<R: Read> FastQReader<R> {
         let header = String::from_utf8(header).map_err(|err| IOError::new(ErrorKind::InvalidData, err))?;
 
         // Read sequence directly into Vec
-        let mut sequence = read_line_owned(&mut self.reader)?;
-        sequence.chop_line_break();
+        let sequence = self.reader.read_line_owned(Vec::new())?;
 
         if sequence.is_empty() {
             return Err(IOError::new(
@@ -144,9 +139,9 @@ impl<R: Read> FastQReader<R> {
         // Read quality line directly into Vec of known capacity. Use
         // wrapping_add for efficiency over saturating_add, which will almost
         // surely never wrap (but if it does, it does not cause a logic error)
-        let mut quality = Vec::with_capacity(sequence.len().wrapping_add(2));
-        self.reader.read_until(b'\n', &mut quality)?;
-        quality.chop_line_break();
+        let quality = self
+            .reader
+            .read_line_owned(Vec::with_capacity(sequence.len().wrapping_add(2)))?;
 
         if quality.len() != sequence.len() {
             if quality.is_empty() {
@@ -194,28 +189,33 @@ trait BufReadExtension: BufRead {
             }
         }
     }
+
+    #[inline]
+    fn read_line_owned(&mut self, mut buf: Vec<u8>) -> std::io::Result<Vec<u8>> {
+        loop {
+            let filled = self.retrying_fill_buf()?;
+
+            if filled.is_empty() {
+                break;
+            }
+            let used = filled.len();
+
+            if let Some(i) = filled.find_byte(b'\n') {
+                buf.extend_from_slice(&filled[..i]);
+                self.consume(i + 1);
+                if let Some(b'\r') = buf.last() {
+                    buf.pop();
+                }
+
+                break;
+            }
+
+            buf.extend_from_slice(filled);
+            self.consume(used);
+        }
+
+        Ok(buf)
+    }
 }
 
 impl<R: BufRead> BufReadExtension for R {}
-
-/// Reads a line (including any line break) into an exactly-sized [`Vec`] when
-/// it is already fully buffered, otherwise falls back to [`read_until`].
-///
-/// [`read_until`]: BufRead::read_until
-#[inline]
-fn read_line_owned<R: Read>(reader: &mut BufReader<R>) -> std::io::Result<Vec<u8>> {
-    let buf = reader.retrying_fill_buf()?;
-
-    if let Some(i) = buf.find_byte(b'\n') {
-        let line = buf[..=i].to_vec();
-        reader.consume(i + 1);
-        return Ok(line);
-    }
-
-    // Consume the entire existing buffer, so as not to rescan it again
-    let mut line = buf.to_vec();
-    reader.consume(line.len());
-
-    reader.read_until(b'\n', &mut line)?;
-    Ok(line)
-}
