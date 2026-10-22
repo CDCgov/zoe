@@ -9,11 +9,9 @@ use crate::{
             error::{BamEncodingError, BamRecordError, NumberSizeTarget},
         },
         cigar::ToCigletIterator,
-        nucleotides::NucleotidesView,
         phred::{QScoreInt, QualityScoresView},
         sam::{OptArray, SamOptField, SamOptValue, ToOptFieldsIterator},
         validation::CheckSequence,
-        views::Len,
     },
     iter_utils::ProcessResultsExt,
     search::ByteSubstring,
@@ -45,7 +43,7 @@ pub(super) fn encode_read_name(qname: Option<&str>) -> Result<Vec<u8>, BamRecord
     Ok(out)
 }
 
-/// Encodes a [`NucleotidesView`] sequence in BAM's packed 4-bit representation.
+/// Encodes the SEQ field in BAM's packed 4-bit representation.
 ///
 /// A missing sequence (`*` or empty) should be passed as `None`, and is encoded
 /// as an empty byte vector. Bases are packed two per byte, with the first base
@@ -54,7 +52,7 @@ pub(super) fn encode_read_name(qname: Option<&str>) -> Result<Vec<u8>, BamRecord
 /// encoded as `N`. Treating `U` as `T` is an intentional *Zoe* choice that
 /// deviates from the SAM/BAM spec; the spec's BAM sequence alphabet does not
 /// include a `U` code.
-pub(super) fn encode_seq(seq: Option<NucleotidesView>) -> Vec<u8> {
+pub(super) fn encode_seq(seq: Option<&[u8]>) -> Vec<u8> {
     /// Sequence byte index map: `=ACMGRSVTWYHKDBN` are mapped to `[0, 15]`. `N`
     /// is used as a catch-all for all other characters, and `U` is encoded as
     /// `T` as an intentional deviation from the BAM sequence alphabet. `=` is
@@ -81,9 +79,9 @@ pub(super) fn encode_seq(seq: Option<NucleotidesView>) -> Vec<u8> {
 /// Missing quality scores and nucleotides (`*` or empty) should be passed as
 /// `None`. Missing quality scores become `0xFF` repeated once per sequence
 /// base. BAM stores raw Phred scores, so the ASCII `+33` offset is removed.
-pub(super) fn encode_qual(qual: Option<QualityScoresView>, seq: Option<NucleotidesView>) -> Result<Vec<u8>, BamRecordError> {
+pub(super) fn encode_qual(qual: Option<&[u8]>, seq: Option<&[u8]>) -> Result<Vec<u8>, BamRecordError> {
     let Some(qual) = qual else {
-        let len = seq.map_or(0, |s| s.len());
+        let len = seq.map_or(0, <[u8]>::len);
         return Ok(vec![0xFF; len]);
     };
 
@@ -100,7 +98,7 @@ pub(super) fn encode_qual(qual: Option<QualityScoresView>, seq: Option<Nucleotid
         .into());
     }
 
-    let qual_view = QualityScoresView::try_from(qual.as_bytes())
+    let qual_view = QualityScoresView::try_from(qual)
         .map_err(|source| BamEncodingError::other_with_source("Quality scores cannot be encoded as BAM", source))?;
 
     Ok(qual_view.iter().map(|&byte| QScoreInt::from(byte).as_u8()).collect())
@@ -121,8 +119,8 @@ pub(super) struct CigarSpans {
 /// Each word stores a 28-bit operation length and a 4-bit operation code. If
 /// `ciglets` is `None`, then an empty vector is returned with the spans as
 /// `None`.
-pub(super) fn encode_cigar(
-    ciglets: Option<&impl ToCigletIterator>,
+pub(super) fn encode_cigar<C: ToCigletIterator + ?Sized>(
+    ciglets: Option<&C>,
 ) -> Result<(Vec<u32>, Option<CigarSpans>), BamRecordError> {
     /// CIGAR byte index map: `MIDNSHP=X` maps to `012345678`. Invalid
     /// operations are not possible, so a catch-all of M is used

@@ -12,8 +12,8 @@ use std::{
 /// If aborting, consider using [`fail`] or [`die`]. Otherwise, this can be
 /// helpful in displaying warnings.
 ///
-/// [`fail`]: Fail::fail
-/// [`die`]: Fail::die
+/// [`fail`]: crate::data::err::Fail::fail
+/// [`die`]: crate::data::err::Fail::die
 pub trait DisplayErrStack {
     /// Returns a displayable representation of the error alongside its error
     /// stack using [`Error::source`].
@@ -97,8 +97,8 @@ impl Display for ErrStackDisplay<'_> {
 ///
 /// This is a helper struct for the formatting used in [`fail`] and [`die`].
 ///
-/// [`fail`]: Fail::fail
-/// [`die`]: Fail::die
+/// [`fail`]: crate::data::err::Fail::fail
+/// [`die`]: crate::data::err::Fail::die
 pub(super) struct IndentWrapper<T> {
     /// The value to display.
     pub val:    T,
@@ -124,8 +124,8 @@ impl<T: Display> Display for IndentWrapper<T> {
 ///
 /// This is a helper struct for the formatting used in [`fail`] and [`die`].
 ///
-/// [`fail`]: Fail::fail
-/// [`die`]: Fail::die
+/// [`fail`]: crate::data::err::Fail::fail
+/// [`die`]: crate::data::err::Fail::die
 struct IndentFormatter<'a, 'b> {
     formatter: &'a mut std::fmt::Formatter<'b>,
     indent:    &'static str,

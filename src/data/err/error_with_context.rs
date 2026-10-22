@@ -32,9 +32,10 @@ use std::{
 /// which will automatically format any errors and the source chain upon
 /// failure.
 ///
+/// [`OrFail`]: crate::data::err::OrFail
 /// [`with_subitem`]: WithSubitem::with_subitem
-/// [`unwrap_or_fail`]: OrFail::unwrap_or_fail
-/// [`unwrap_or_die`]: OrFail::unwrap_or_die
+/// [`unwrap_or_fail`]: crate::data::err::OrFail::unwrap_or_fail
+/// [`unwrap_or_die`]: crate::data::err::OrFail::unwrap_or_die
 #[must_use]
 pub struct ErrorWithContext {
     /// The inner representation. Using a single fat pointer is better than

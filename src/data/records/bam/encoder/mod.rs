@@ -7,6 +7,7 @@
 
 use crate::data::{
     bam::{
+        EncodeBamFields,
         encoder::{
             binning::compute_bin,
             fields::{encode_aux_fields, encode_cigar, encode_qual, encode_read_name, encode_seq},
@@ -15,8 +16,7 @@ use crate::data::{
         header::Header,
     },
     cigar::ToCigletIterator,
-    sam::{Flag, GetSamFields, is_missing_sam_field},
-    views::Len,
+    sam::{Flag, is_missing_sam_field},
 };
 use std::ops::Range;
 
@@ -60,7 +60,7 @@ pub(super) struct PreparedBamRecord {
 }
 
 impl PreparedBamRecord {
-    /// Validates a [`GetSamFields`] record and prepares all BAM-encoded fields.
+    /// Validates a record and prepares all BAM-encoded fields.
     ///
     /// ## Errors
     ///
@@ -68,16 +68,20 @@ impl PreparedBamRecord {
     /// CIGAR or auxiliary fields cannot be parsed, if an option field contains
     /// the reserved long CIGAR `CG` tag, or if any encoded field would overflow
     /// BAM's size limits.
-    pub(super) fn new(header: &Header, data: impl GetSamFields) -> Result<Self, BamRecordError> {
+    pub(super) fn new(header: &Header, data: impl EncodeBamFields) -> Result<Self, BamRecordError> {
         /// The maximum inclusive position allowed by the SAM file format.
         const MAX_SAM_POS: usize = i32::MAX as usize;
 
-        let seq = data.seq().filter(|s| !is_missing_sam_field(s));
-        let qual = data.qual().filter(|q| !is_missing_sam_field(q));
+        // Transform/filter types
+        let qname = data.qname().map(AsRef::as_ref);
+        let rname = data.rname().map(AsRef::as_ref);
+        let seq = data.seq().map(AsRef::as_ref).filter(|s| !is_missing_sam_field(s));
+        let qual = data.qual().map(AsRef::as_ref).filter(|q| !is_missing_sam_field(q));
+        let mapq = data.mapq().copied().unwrap_or(255);
         let cigar = data.cigar().filter(|c| c.to_ciglet_iterator_checked().next().is_some());
 
-        let ref_id = header.get_ref_id(data.rname())?;
-        let pos = data.pos().unwrap_or(0);
+        let ref_id = header.get_ref_id(rname)?;
+        let pos = data.pos().copied().unwrap_or(0);
 
         // 0-indexed
         let pos0 = match pos {
@@ -92,10 +96,10 @@ impl PreparedBamRecord {
             }
         };
 
-        let read_name = encode_read_name(data.qname())?;
+        let read_name = encode_read_name(qname)?;
         let encoded_seq = encode_seq(seq);
         let encoded_qual = encode_qual(qual, seq)?;
-        let (encoded_cigar, spans) = encode_cigar(cigar.as_ref())?;
+        let (encoded_cigar, spans) = encode_cigar(cigar)?;
         if let Some(spans) = &spans
             && let Some(seq) = seq
             && spans.query_span != seq.len()
@@ -108,7 +112,7 @@ impl PreparedBamRecord {
             .into());
         }
 
-        let flag = normalize_flags(data.flag(), cigar.is_none());
+        let flag = normalize_flags(data.flag().copied(), cigar.is_none());
 
         let l_seq = seq.map_or(Ok(0), |seq| {
             u32::try_from(seq.len()).map_err(|_| BamEncodingError::SizeOverflow {
@@ -159,7 +163,7 @@ impl PreparedBamRecord {
         Ok(Self {
             ref_id,
             pos0,
-            mapq: data.mapq().unwrap_or(255),
+            mapq,
             bin,
             ref_interval,
             n_cigar_op,

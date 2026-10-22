@@ -14,6 +14,10 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ### Changed
 
+- `GetSamFields` now has explicit associated types for each field (and is hence
+  more flexible). Displaying functionality is moved into the
+  automatically-implemented `DisplaySamFields` trait. BAM-writing functionality
+  is moved into the automatically-implemented `EncodeBamFields` trait.
 - `CigletIteratorChecked` now returns `None` after any error is yielded
 - Updated internal examples to use `ErrorWithContext`
 

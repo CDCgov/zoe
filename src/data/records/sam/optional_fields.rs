@@ -626,14 +626,13 @@ pub trait ToOptFieldsIterator {
     fn to_field_iter(&self) -> impl Iterator<Item = std::io::Result<impl AsRef<SamOptField>>>;
 }
 
-impl ToOptFieldsIterator for SamOptRaw {
-    #[inline]
+impl<T: ToOptFieldsIterator + ?Sized> ToOptFieldsIterator for &T {
     fn to_field_iter(&self) -> impl Iterator<Item = std::io::Result<impl AsRef<SamOptField>>> {
-        self.iter()
+        (*self).to_field_iter()
     }
 }
 
-impl ToOptFieldsIterator for &SamOptRaw {
+impl ToOptFieldsIterator for SamOptRaw {
     #[inline]
     fn to_field_iter(&self) -> impl Iterator<Item = std::io::Result<impl AsRef<SamOptField>>> {
         self.iter()
@@ -654,14 +653,7 @@ impl ToOptFieldsIterator for Vec<SamOptField> {
     }
 }
 
-impl ToOptFieldsIterator for &Vec<SamOptField> {
-    #[inline]
-    fn to_field_iter(&self) -> impl Iterator<Item = std::io::Result<impl AsRef<SamOptField>>> {
-        self.iter().map(Ok)
-    }
-}
-
-impl ToOptFieldsIterator for &[SamOptField] {
+impl ToOptFieldsIterator for [SamOptField] {
     #[inline]
     fn to_field_iter(&self) -> impl Iterator<Item = std::io::Result<impl AsRef<SamOptField>>> {
         self.iter().map(Ok)

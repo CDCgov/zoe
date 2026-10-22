@@ -78,10 +78,9 @@
 //! assert_eq!(mutable_slice.as_bytes(), b"CC");
 //! ```
 //!
-//! One exception to the above is [`Cigar`] strings. [`CigarView`] and
-//! [`CigarViewMut`] are available and can be created with [`as_view`] and
-//! [`as_view_mut`]. However, slicing and restricting are not possible for these
-//! types, since they are not sequence data.
+//! One exception to the above is [`Cigar`] strings. [`CigarView`] is available
+//! and can be created with [`as_view`]. However, slicing and restricting are
+//! not possible for this types, since it is not sequence data.
 //!
 //! [`Nucleotides`]: types::nucleotides::Nucleotides
 //! [`NucleotidesView`]: types::nucleotides::NucleotidesView
@@ -90,7 +89,6 @@
 //!     types::nucleotides::NucleotidesView::from_bytes_unchecked
 //! [`Cigar`]: types::cigar::Cigar
 //! [`CigarView`]: types::cigar::CigarView
-//! [`CigarViewMut`]: types::cigar::CigarViewMut
 //! [`as_view`]: crate::prelude::AsView::as_view
 //! [`as_view_mut`]: crate::prelude::AsViewMut::as_view_mut
 //! [`slice`]: crate::prelude::Slice::slice

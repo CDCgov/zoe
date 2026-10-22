@@ -1,18 +1,18 @@
 //! Serialize [SAM](https://en.wikipedia.org/wiki/SAM_(file_format)) records
 //! into a [BAM](https://en.wikipedia.org/wiki/Binary_Alignment_Map) stream.
 //!
-//! The streaming writer [`BamWriter`] accepts SAM header lines and
-//! [`GetSamFields`] records and emits BGZF-wrapped BAM.
+//! The streaming writer [`BamWriter`] accepts SAM header lines as well as
+//! records implementing [`EncodeBamFields`], and it emits BGZF-wrapped BAM.
 
 use crate::data::{
     bam::{
+        EncodeBamFields,
         encoder::PreparedBamRecord,
         error::{BamError, BamRecordError},
         header::Header,
         writer::{bai::BaiWriter, bgzf::BgzfWriter},
     },
     err::ResultWithErrorContext,
-    sam::GetSamFields,
 };
 use std::{
     fs::File,
@@ -47,9 +47,9 @@ pub use bgzf::{BlockCompressor, NoCompression};
 /// - [`with_bai`]: enable a companion BAI index at a caller-provided path.
 ///
 /// After construction, add all SAM header lines with [`write_header_line`],
-/// then serialize [`GetSamFields`] records with [`write_record`]. The BAM
-/// header is written lazily just before the first record, or during [`finish`]
-/// if no records were written.
+/// then serialize records with [`write_record`]. The BAM header is written
+/// lazily just before the first record, or during [`finish`] if no records were
+/// written.
 ///
 /// Calling [`finish`] is recommended because it is the only way to observe
 /// errors from final header writing, pending BGZF block flushing, EOF marker
@@ -83,9 +83,9 @@ pub use bgzf::{BlockCompressor, NoCompression};
 ///   bits are cleared. The preserved bits are `0x4`, `0x10`, `0x100`, `0x200`,
 ///   `0x400`, and `0x800`.
 /// - **Mate information**: The `RNEXT`, `PNEXT`, and `TLEN` fields from the
-///   input [`GetSamFields`] are *currently* ignored; BAM records are always
-///   written with `RNEXT = -1`, `PNEXT = -1`, and `TLEN = 0`. In the future
-///   *Zoe* may implement these fields in SAM/BAM.
+///   input are *currently* ignored; BAM records are always written with `RNEXT
+///   = -1`, `PNEXT = -1`, and `TLEN = 0`. In the future *Zoe* may implement
+///   these fields in SAM/BAM.
 /// - **Sequence encoding**: `U` is encoded as `T`, and unrecognized sequence
 ///   symbols are encoded as `N`. The `U` to `T` mapping is an intentional *Zoe*
 ///   choice that deviates from the SAM/BAM spec.
@@ -233,7 +233,7 @@ impl<W: Write, C: BlockCompressor> BamWriter<W, C> {
         }
     }
 
-    /// Serializes one [`GetSamFields`] record as BAM.
+    /// Serializes one record as BAM.
     ///
     /// On the first call, this validates and encodes `record` before writing
     /// the accumulated BAM header. Any `RNAME` value other than `*` must have
@@ -262,21 +262,23 @@ impl<W: Write, C: BlockCompressor> BamWriter<W, C> {
     ///   BAM file format specs.
     ///
     /// [`write_header_line`]: BamWriter::write_header_line
-    pub fn write_record(&mut self, record: impl GetSamFields) -> Result<(), BamError> {
+    pub fn write_record(&mut self, record: impl EncodeBamFields) -> Result<(), BamError> {
+        let qname = record.qname().map(AsRef::as_ref);
+
         if self.bgzf.is_none() {
             return Err(BamError::WriterFinalized);
         }
 
         let prepared_record =
-            PreparedBamRecord::new(&self.header, &record).map_err(|source| BamError::record(record.qname(), source))?;
+            PreparedBamRecord::new(&self.header, &record).map_err(|source| BamError::record(qname, source))?;
 
         if let Some(bai) = self.bai.as_ref()
             && !bai.is_coordinate_ordered(prepared_record.ref_id, prepared_record.pos0)
         {
-            return Err(BamError::record(record.qname(), BamRecordError::UnsortedRecord));
+            return Err(BamError::record(qname, BamRecordError::UnsortedRecord));
         }
 
-        let encoded_record = prepared_record.encode(record.qname())?;
+        let encoded_record = prepared_record.encode(qname)?;
 
         // This uses take instead of as_mut to prevent double mutable borrow
         let mut bgzf = self.bgzf.take().ok_or(BamError::WriterFinalized)?;
