@@ -29,6 +29,11 @@ pub use optional_fields::*;
 pub use reader::*;
 pub use sort_traits::SamDataSort;
 
+#[cfg(feature = "dev-generic-sam-reader")]
+mod generic_reader;
+#[cfg(feature = "dev-generic-sam-reader")]
+pub use generic_reader::*;
+
 #[cfg(test)]
 mod test;
 

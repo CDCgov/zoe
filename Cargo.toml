@@ -51,6 +51,9 @@ alignment-diagnostics = []
 
 # Note: development features may be removed at any time.
 
+# An experimental feature exposing a generic SAM reader
+dev-generic-sam-reader = []
+
 [dependencies]
 arbitrary = { version = "1", default-features = false, optional = true }
 multiversion = { version = "0.9", optional = true }
