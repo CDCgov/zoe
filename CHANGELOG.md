@@ -11,6 +11,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Implemented `DoubleEndedIterator` for `CigletIteratorChecked`
 - Added `normalize` methods to pHMMs to normalize the parameters so that they
   correspond to a true probability distribution
+- Implemented `Default` for `SamData` and `SamDataView`, with all fields set to
+  their default/missing value in the SAM specs
 
 ### Changed
 

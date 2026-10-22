@@ -71,6 +71,26 @@ pub struct SamData {
     pub opt_fields: SamOptRaw,
 }
 
+impl Default for SamData {
+    #[inline]
+    fn default() -> Self {
+        Self {
+            qname:      String::new(),
+            flag:       Flag::default(),
+            rname:      String::new(),
+            pos:        0,
+            mapq:       255,
+            cigar:      Cigar::new(),
+            rnext:      '*',
+            pnext:      0,
+            tlen:       0,
+            seq:        Nucleotides::new(),
+            qual:       QualityScores::new(),
+            opt_fields: SamOptRaw::new(),
+        }
+    }
+}
+
 impl PartialEq for SamData {
     /// Tests for `self` and `other` values to be equal, and is used by `==`.
     /// Note that this implementation ignores the `opt_fields` field, which
@@ -147,6 +167,26 @@ pub struct SamDataView<'a> {
     pub qual:       QualityScoresView<'a>,
     /// Optional fields which can be lazily parsed and accessed.
     pub opt_fields: SamOptRawView<'a>,
+}
+
+impl Default for SamDataView<'_> {
+    #[inline]
+    fn default() -> Self {
+        Self {
+            qname:      "",
+            flag:       Flag::default(),
+            rname:      "",
+            pos:        0,
+            mapq:       255,
+            cigar:      CigarView::new(),
+            rnext:      '*',
+            pnext:      0,
+            tlen:       0,
+            seq:        NucleotidesView::new(),
+            qual:       QualityScoresView::new(),
+            opt_fields: SamOptRawView::new(),
+        }
+    }
 }
 
 impl PartialEq for SamDataView<'_> {
