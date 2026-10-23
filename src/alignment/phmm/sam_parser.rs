@@ -158,10 +158,9 @@ impl SamHmmWriter {
     ///
     /// - IO errors (when creating file or writing to it)
     /// - The mapping of the pHMM must correspond to DNA
-    /// - The model must have at least one layer
     #[inline]
     pub fn write_dna_model<T: PhmmNumber>(path: impl AsRef<Path>, model: &GlobalPhmm<T, 4>) -> std::io::Result<()> {
-        SupportedConfig::write_sam_model_file(path, model)
+        SupportedConfig::write_sam_model_file(path, model, 6)
     }
 
     /// Write a protein pHMM to a SAM model file.
@@ -169,11 +168,38 @@ impl SamHmmWriter {
     /// ## Errors
     ///
     /// - IO errors (when creating file or writing to it)
-    /// - The mapping of the pHMM must correspond to DNA
-    /// - The model must have at least one layer
+    /// - The mapping of the pHMM must correspond to amino acids
     #[inline]
     pub fn write_protein_model<T: PhmmNumber>(path: impl AsRef<Path>, model: &GlobalPhmm<T, 20>) -> std::io::Result<()> {
-        SupportedConfig::write_sam_model_file(path, model)
+        SupportedConfig::write_sam_model_file(path, model, 6)
+    }
+
+    /// Write a DNA pHMM to a SAM model file with a user-configured precision
+    /// (number of decimal places).
+    ///
+    /// ## Errors
+    ///
+    /// - IO errors (when creating file or writing to it)
+    /// - The mapping of the pHMM must correspond to DNA
+    #[cfg(feature = "dev-write-phmm-precision")]
+    pub fn write_dna_model_with_precision<T: PhmmNumber>(
+        path: impl AsRef<Path>, model: &GlobalPhmm<T, 4>, precision: usize,
+    ) -> std::io::Result<()> {
+        SupportedConfig::write_sam_model_file(path, model, precision)
+    }
+
+    /// Write a protein pHMM to a SAM model file with a user-configured
+    /// precision (number of decimal places).
+    ///
+    /// ## Errors
+    ///
+    /// - IO errors (when creating file or writing to it)
+    /// - The mapping of the pHMM must correspond to amino acids
+    #[cfg(feature = "dev-write-phmm-precision")]
+    pub fn write_protein_model_with_precision<T: PhmmNumber>(
+        path: impl AsRef<Path>, model: &GlobalPhmm<T, 20>, precision: usize,
+    ) -> std::io::Result<()> {
+        SupportedConfig::write_sam_model_file(path, model, precision)
     }
 }
 
@@ -280,9 +306,8 @@ trait SamHmmConfig<const S: usize, const L: usize> {
     /// ## Errors
     ///
     /// - IO errors (when creating file or writing to it)
-    /// - The mapping of the pHMM must correspond to DNA
-    /// - The model must correspond to a reference of length at least 1
-    fn write_sam_model_file<T: PhmmNumber, P>(path: P, model: &GlobalPhmm<T, S>) -> std::io::Result<()>
+    /// - The mapping of the pHMM must correspond to DNA or amino acids
+    fn write_sam_model_file<T: PhmmNumber, P>(path: P, model: &GlobalPhmm<T, S>, precision: usize) -> std::io::Result<()>
     where
         P: AsRef<Path>,
         SupportedConfig: SamHmmConfig<S, L>, {
@@ -309,14 +334,14 @@ trait SamHmmConfig<const S: usize, const L: usize> {
         // method
         current_layer.transition.0[Insert as usize] = first_layer.transition.0[Insert as usize];
         current_layer.emission_insert = first_layer.emission_insert.clone();
-        print_params(&mut writer, Self::ungroup_params(&current_layer))?;
+        print_params(&mut writer, Self::ungroup_params(&current_layer), precision)?;
         current_layer = first_layer.clone();
 
         for (i, layer) in (1..).zip(rest.iter()) {
             write!(writer, "{i} ")?;
             current_layer.transition.0[Insert as usize] = layer.transition.0[Insert as usize];
             current_layer.emission_insert = layer.emission_insert.clone();
-            print_params(&mut writer, Self::ungroup_params(&current_layer))?;
+            print_params(&mut writer, Self::ungroup_params(&current_layer), precision)?;
             current_layer = layer.clone();
         }
 
@@ -327,7 +352,7 @@ trait SamHmmConfig<const S: usize, const L: usize> {
         current_layer.transition.0[Insert as usize] = [T::INFINITY; 3];
         current_layer.emission_insert = EmissionParams::default();
 
-        print_params(&mut writer, Self::ungroup_params(&current_layer))?;
+        print_params(&mut writer, Self::ungroup_params(&current_layer), precision)?;
         writeln!(writer)?;
         writeln!(writer, "ENDMODEL")?;
         writer.flush()
@@ -825,12 +850,14 @@ impl<R: Read> Iterator for LineIterator<R> {
 /// Print the parameters for a layer to a single line, space-separated, and add
 /// a newline.
 #[inline]
-fn print_params<T: PhmmNumber, const N: usize>(writer: &mut impl Write, params: [T; N]) -> std::io::Result<()> {
+fn print_params<T: PhmmNumber, const N: usize>(
+    writer: &mut impl Write, params: [T; N], precision: usize,
+) -> std::io::Result<()> {
     let mut params = params.into_iter().map(super::PhmmNumber::to_prob::<f32>);
     let Some(param) = params.next() else { return Ok(()) };
-    write!(writer, "{param:.6}")?;
+    write!(writer, "{param:.precision$}")?;
     for param in params {
-        write!(writer, " {param:.6}")?;
+        write!(writer, " {param:.precision$}")?;
     }
     writeln!(writer)
 }

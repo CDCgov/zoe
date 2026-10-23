@@ -54,6 +54,9 @@ alignment-diagnostics = []
 # An experimental feature exposing a generic SAM reader
 dev-generic-sam-reader = []
 
+# An experimental feature exposing a pHMM writer with user-defined precision
+dev-write-phmm-precision = []
+
 [dependencies]
 arbitrary = { version = "1", default-features = false, optional = true }
 multiversion = { version = "0.9", optional = true }
