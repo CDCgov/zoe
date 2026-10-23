@@ -1,4 +1,7 @@
-use crate::data::types::impl_std_traits_for_sequence;
+use crate::{
+    DEFAULT_SIMD_LANES,
+    data::{CheckSequence, types::impl_std_traits_for_sequence},
+};
 
 mod getter_traits;
 mod view_traits;
@@ -330,21 +333,42 @@ impl_std_traits_for_sequence!(AminoAcids, AminoAcidsView, AminoAcidsViewMut);
 impl std::fmt::Debug for AminoAcids {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{self}")
+        // We don't want Debug to lose information in the case of non-graphic
+        // ASCII
+        if self.is_graphic_simd::<{ DEFAULT_SIMD_LANES }>() {
+            write!(f, "{self}")
+        } else {
+            // Use ? instead of #? to keep it on a single line
+            write!(f, "AminoAcids({:?})", self.0)
+        }
     }
 }
 
 impl std::fmt::Debug for AminoAcidsView<'_> {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{self}")
+        // We don't want Debug to lose information in the case of non-graphic
+        // ASCII
+        if self.is_graphic_simd::<{ DEFAULT_SIMD_LANES }>() {
+            write!(f, "{self}")
+        } else {
+            // Use ? instead of #? to keep it on a single line
+            write!(f, "AminoAcidsView({:?})", self.0)
+        }
     }
 }
 
 impl std::fmt::Debug for AminoAcidsViewMut<'_> {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{self}")
+        // We don't want Debug to lose information in the case of non-graphic
+        // ASCII
+        if self.is_graphic_simd::<{ DEFAULT_SIMD_LANES }>() {
+            write!(f, "{self}")
+        } else {
+            // Use ? instead of #? to keep it on a single line
+            write!(f, "AminoAcidsViewMut({:?})", self.0)
+        }
     }
 }
 

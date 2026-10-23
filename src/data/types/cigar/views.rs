@@ -1,8 +1,12 @@
 //! View types for CIGAR strings.
 
-use crate::data::{
-    cigar::{Cigar, CigarError, CigletIterator, CigletIteratorChecked},
-    views::{AsView, AssocOwnedType, AssocViewType, DataView, Len, ToOwnedData},
+use crate::{
+    DEFAULT_SIMD_LANES,
+    data::{
+        CheckSequence,
+        cigar::{Cigar, CigarError, CigletIterator, CigletIteratorChecked},
+        views::{AsView, AssocOwnedType, AssocViewType, DataView, Len, ToOwnedData},
+    },
 };
 
 /// A view of a [`Cigar`] string.
@@ -81,7 +85,14 @@ impl std::fmt::Display for CigarView<'_> {
 impl std::fmt::Debug for CigarView<'_> {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "CigarView({})", String::from_utf8_lossy(self.0))
+        // We don't want Debug to lose information in the case of non-graphic
+        // ASCII
+        if self.0.is_graphic_simd::<{ DEFAULT_SIMD_LANES }>() {
+            write!(f, "CigarView({})", str::from_utf8(self.0).unwrap())
+        } else {
+            // Use ? instead of #? to keep it on a single line
+            write!(f, "CigarView({:?})", self.0)
+        }
     }
 }
 

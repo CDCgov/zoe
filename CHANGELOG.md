@@ -24,6 +24,9 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
   is moved into the automatically-implemented `EncodeBamFields` trait.
 - `CigletIteratorChecked` now returns `None` after any error is yielded
 - Updated internal examples to use `ErrorWithContext`
+- Changed the `Debug` implementations for `Nucleotides`, `AminoAcids`, and
+  `Cigar` (and view types) to avoid losing information when they contain bytes
+  other than graphic ASCII
 
 ### Fixed
 

@@ -1,6 +1,7 @@
 use crate::{
+    DEFAULT_SIMD_LANES,
     alignment::{LocalProfiles, ProfileError, SharedProfiles},
-    data::{matrices::WeightMatrix, types::impl_std_traits_for_sequence},
+    data::{CheckSequence, matrices::WeightMatrix, types::impl_std_traits_for_sequence},
     prelude::*,
 };
 
@@ -449,21 +450,42 @@ impl_std_traits_for_sequence!(Nucleotides, NucleotidesView, NucleotidesViewMut);
 impl std::fmt::Debug for Nucleotides {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{self}")
+        // We don't want Debug to lose information in the case of non-graphic
+        // ASCII
+        if self.is_graphic_simd::<{ DEFAULT_SIMD_LANES }>() {
+            write!(f, "{self}")
+        } else {
+            // Use ? instead of #? to keep it on a single line
+            write!(f, "Nucleotides({:?})", self.0)
+        }
     }
 }
 
 impl std::fmt::Debug for NucleotidesView<'_> {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{self}")
+        // We don't want Debug to lose information in the case of non-graphic
+        // ASCII
+        if self.is_graphic_simd::<{ DEFAULT_SIMD_LANES }>() {
+            write!(f, "{self}")
+        } else {
+            // Use ? instead of #? to keep it on a single line
+            write!(f, "NucleotidesView({:?})", self.0)
+        }
     }
 }
 
 impl std::fmt::Debug for NucleotidesViewMut<'_> {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{self}")
+        // We don't want Debug to lose information in the case of non-graphic
+        // ASCII
+        if self.is_graphic_simd::<{ DEFAULT_SIMD_LANES }>() {
+            write!(f, "{self}")
+        } else {
+            // Use ? instead of #? to keep it on a single line
+            write!(f, "NucleotidesViewMut({:?})", self.0)
+        }
     }
 }
 
