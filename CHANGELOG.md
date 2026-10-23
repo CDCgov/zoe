@@ -17,6 +17,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ### Fixed
 
+- Fixed bug with incorrect score being used in `SemiLocalPhmm` traversal code at
+  the end of the pHMM
 - `SamData::to_alignment` now properly returns `Unmapped` when the CIGAR string
   is all clipping
 
