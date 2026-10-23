@@ -74,6 +74,9 @@ pub trait Float:
     /// Infinity (∞).
     const INFINITY: Self;
 
+    /// Negative infinity (-∞).
+    const NEG_INFINITY: Self;
+
     /// Generic absolute value for [`Float`]
     #[must_use]
     fn abs(self) -> Self;
@@ -82,9 +85,13 @@ pub trait Float:
     #[must_use]
     fn total_cmp(&self, other: &Self) -> Ordering;
 
-    /// Generic minimum of 2 values for [`Float`]
+    /// Returns the minimum of two numbers, ignoring NaN.
     #[must_use]
     fn min(self, other: Self) -> Self;
+
+    /// Returns the maximum of two numbers, ignoring NaN.
+    #[must_use]
+    fn max(self, other: Self) -> Self;
 
     /// Generic log2 for [`Float`]
     #[must_use]
@@ -105,6 +112,10 @@ pub trait Float:
     /// Generic exponential for [`Float`]
     #[must_use]
     fn exp(self) -> Self;
+
+    /// Generic Euclidean remainder for [`Float`]
+    #[must_use]
+    fn rem_euclid(self, rhs: Self) -> Self;
 }
 
 /// Implement [`Float`] for multiple floating point primitive types
@@ -118,6 +129,7 @@ macro_rules! impl_float {
             const ZERO: Self = 0.0;
             const ONE: Self = 1.0;
             const INFINITY: Self = <$ty>::INFINITY;
+            const NEG_INFINITY: Self = <$ty>::NEG_INFINITY;
 
             #[inline]
             fn abs(self) -> Self {
@@ -132,6 +144,11 @@ macro_rules! impl_float {
             #[inline]
             fn min(self, other: Self) -> Self {
                 self.min(other)
+            }
+
+            #[inline]
+            fn max(self, other: Self) -> Self {
+                self.max(other)
             }
 
             #[inline]
@@ -158,9 +175,13 @@ macro_rules! impl_float {
             fn exp(self) -> Self {
                 self.exp()
             }
-        } )*
 
-     }
+            #[inline]
+            fn rem_euclid(self, rhs: Self) -> Self {
+                self.rem_euclid(rhs)
+            }
+        } )*
+    }
 }
 
 impl_float!(f32, f64);

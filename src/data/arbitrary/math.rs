@@ -18,19 +18,29 @@ pub struct FloatSpecs<T> {
     /// Whether to include `inf` as a possible output.
     pub include_infinite: bool,
 
-    /// Whether to restrict the output to be nonnegative.
-    pub nonnegative: bool,
+    /// The minimum value to allow for the float.
+    ///
+    /// Any values not comparable to this value are permitted (e.g., `NaN`). The
+    /// values specified here should not be `NaN`.
+    pub min: T,
+
+    /// The maximum value to allow for the float.
+    ///
+    /// Any values not comparable to this value are permitted (e.g., `NaN`). The
+    /// values specified here should not be `NaN`.
+    pub max: T,
 
     /// The desired floating point type.
     pub float: PhantomData<T>,
 }
 
-impl<T> Default for FloatSpecs<T> {
+impl<T: Float> Default for FloatSpecs<T> {
     fn default() -> Self {
         Self {
             include_nan:      true,
             include_infinite: true,
-            nonnegative:      false,
+            min:              T::NEG_INFINITY,
+            max:              T::INFINITY,
             float:            PhantomData,
         }
     }
@@ -42,8 +52,22 @@ where
 {
     type Output = T;
 
+    /// Generates an arbitrary floating point number conforming to the given
+    /// specifications.
+    ///
+    /// ## Errors
+    ///
+    /// Any errors from the underlying [`arbitrary`] calls are propagated.
+    ///
+    /// ## Panics
+    ///
+    /// This panics if `min` is not less than `max`.
+    ///
+    /// [`arbitrary`]: arbitrary::Arbitrary::arbitrary
     #[inline]
     fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> arbitrary::Result<Self::Output> {
+        assert!(self.min < self.max, "The min field must be less than the max field");
+
         let mut float = T::arbitrary(u)?;
 
         if !self.include_nan && float.is_nan() {
@@ -54,8 +78,23 @@ where
             float = T::ZERO;
         }
 
-        if self.nonnegative {
-            float = float.abs();
+        match (self.min > T::NEG_INFINITY, self.max < T::INFINITY) {
+            (true, true) => {
+                if float < self.min || float > self.max {
+                    float = (self.min + float.rem_euclid(self.max - self.min)).min(self.max).max(self.min);
+                }
+            }
+            (true, false) => {
+                if float < self.min {
+                    float = (float + self.min).max(self.min);
+                }
+            }
+            (false, true) => {
+                if float > self.max {
+                    float = (float - self.max).min(self.max);
+                }
+            }
+            (false, false) => {}
         }
 
         Ok(float)

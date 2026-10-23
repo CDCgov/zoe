@@ -32,6 +32,9 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
   other than graphic ASCII
 - `SAMReader` now fills QNAME and RNAME as an empty string if the file contains
   `*` for the field
+- `FloatSpecs` now has `min` and `max` fields, and the `nonnegative` field has
+  been removed since it can be specified with `min` as 0 (behind `fuzzing`
+  feature gate)
 
 ### Fixed
 
