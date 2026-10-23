@@ -645,28 +645,3 @@ where
         }
     })
 }
-
-/// A diagnostic function returning the maximum score that the Striped Smith
-/// Waterman algorithm is able to handle using a provided integer type `T`.
-///
-/// ## Parameters
-///
-/// - `T`: The integer type whose max score is being computed.
-/// - `U`: The integer type used in the [`WeightMatrix`], which must be of the
-///   same sign as `T`.
-/// - `S`: The alphabet size.
-///
-/// [`WeightMatrix`]: crate::data::WeightMatrix
-#[cfg(feature = "dev-max-score-for-type")]
-pub fn max_score_for_int_type<T, U, const S: usize>(matrix: &crate::data::WeightMatrix<'_, U, S>) -> u32
-where
-    T: crate::math::FromSameSignedness<U> + AlignableIntWidth,
-    U: crate::math::AnyInt, {
-    if T::SIGNED {
-        let best = T::MAX - T::ONE;
-        (T::MAX.cast_as::<u32>() + 1).wrapping_add_signed(best.cast_as::<i32>())
-    } else {
-        let best = T::MAX - matrix.bias.into() - T::ONE;
-        best.cast_as::<u32>()
-    }
-}

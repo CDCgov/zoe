@@ -51,9 +51,6 @@ alignment-diagnostics = []
 
 # Note: development features may be removed at any time.
 
-# An optional feature enabling the max_score_for_int_type diagnostic function
-dev-max-score-for-type = []
-
 [dependencies]
 arbitrary = { version = "1", default-features = false, optional = true }
 multiversion = { version = "0.9", optional = true }
