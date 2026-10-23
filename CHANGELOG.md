@@ -27,6 +27,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Changed the `Debug` implementations for `Nucleotides`, `AminoAcids`, and
   `Cigar` (and view types) to avoid losing information when they contain bytes
   other than graphic ASCII
+- `SAMReader` now fills QNAME and RNAME as an empty string if the file contains
+  `*` for the field
 
 ### Fixed
 

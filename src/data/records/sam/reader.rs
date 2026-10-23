@@ -188,7 +188,12 @@ impl<R: std::io::Read, const OPT: bool> Iterator for SAMReader<R, OPT> {
                 )));
             }
 
-            let qname = parts[0].to_string();
+            let qname = parts[0];
+            let qname = if is_missing_sam_field(qname) {
+                String::new()
+            } else {
+                qname.to_string()
+            };
 
             let flag = {
                 match parts[1].parse() {
@@ -202,7 +207,12 @@ impl<R: std::io::Read, const OPT: bool> Iterator for SAMReader<R, OPT> {
                 }
             };
 
-            let rname = parts[2].to_string();
+            let rname = parts[2];
+            let rname = if is_missing_sam_field(rname) {
+                String::new()
+            } else {
+                rname.to_string()
+            };
 
             let pos = {
                 match parts[3].parse::<usize>() {
