@@ -37,6 +37,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ## Fixed
 
+- `FastaReader::new` now properly handles empty files without erroring
 - `SemiLocalPhmm::normalize` and `LocalPhmm::normalize` no longer overwrite
   zero-probability transitions out of the END state
 

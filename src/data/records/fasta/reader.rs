@@ -107,7 +107,7 @@ impl<R: Read> FastaReader<R> {
         loop {
             let bytes = self.reader.read_until(b'\n', &mut self.buffer)?;
             if bytes == 0 {
-                return Err(Self::get_error("No FASTA data found!", None));
+                return Ok(None);
             }
 
             if let Some(mut header_bytes) = self.buffer.strip_prefix(b">") {

@@ -30,21 +30,19 @@ fn sequence_whitespace() {
 #[test]
 fn empty_file() {
     let mut reader = FastaReader::new(Cursor::new(""));
+    assert!(reader.next().is_none());
 
-    assert_eq!(reader.next().unwrap().unwrap_err().to_string(), "No FASTA data found!");
-
-    // Ensure iterator terminates
-    assert!(reader.count() < 100);
+    let res = FastaReader::from_readable(Cursor::new(""));
+    assert_eq!(res.unwrap_err().to_string(), "No FASTA data was found!");
 }
 
 #[test]
 fn whitespace_only() {
     let mut reader = FastaReader::new(Cursor::new("   \r\n \r\t\n   \t"));
+    assert!(reader.next().is_none());
 
-    assert_eq!(reader.next().unwrap().unwrap_err().to_string(), "No FASTA data found!");
-
-    // Ensure iterator terminates
-    assert!(reader.count() < 100);
+    let mut reader = FastaReader::from_readable(Cursor::new("   \r\n \r\t\n   \t")).unwrap();
+    assert!(reader.next().is_none());
 }
 
 #[test]
