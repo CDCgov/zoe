@@ -160,8 +160,8 @@ mod private {
     impl<T, const S: usize> Sealed for SemiLocalPhmm<'_, T, S> {}
     impl<T, const S: usize> Sealed for DomainPhmm<'_, T, S> {}
     impl<T> Sealed for SemiLocalModule<T> {}
-    impl<T, const S: usize> Sealed for PrecomputedLocalModule<'_, T, S> {}
-    impl<T, const S: usize> Sealed for PrecomputedDomainModule<T, S> {}
+    impl<T> Sealed for PrecomputedLocalModule<'_, T> {}
+    impl<T> Sealed for PrecomputedDomainModule<T> {}
     sealed!(Begin, FirstResidue, LastResidue, End, DpIndex, SeqIndex);
 }
 

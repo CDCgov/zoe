@@ -36,7 +36,7 @@ impl<T: PhmmNumber> DomainBestScore<T> {
     #[allow(clippy::too_many_arguments)]
     fn update_last_layer<const S: usize>(
         &mut self, layer: &LayerParams<T, S>, mut match_val: T, mut delete_val: T, mut insert_val: T,
-        query_idx: impl AlnIndex, seq: &[u8], end: &PrecomputedDomainModule<T, S>,
+        query_idx: impl AlnIndex, seq: &[u8], end: &PrecomputedDomainModule<T>,
     ) {
         use crate::alignment::phmm::state::PhmmState::*;
 

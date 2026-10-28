@@ -150,7 +150,7 @@ impl<T: PhmmNumber, const S: usize> DomainModule<T, S> {
     /// pHMM. See [`PrecomputedDomainModule`] for more details.
     pub(crate) fn precompute_begin_mod<Q: AsRef<[u8]>>(
         &self, seq: Q, mapping: &ByteIndexMap<S>,
-    ) -> PrecomputedDomainModule<T, S> {
+    ) -> PrecomputedDomainModule<T> {
         let seq = seq.as_ref();
         let mut domain_params = vec![self.start_to_insert + self.insert_to_end; seq.len() + 1];
         domain_params[0] = self.start_to_end;
@@ -172,7 +172,7 @@ impl<T: PhmmNumber, const S: usize> DomainModule<T, S> {
     /// [`PrecomputedDomainModule`] for more details.
     pub(crate) fn precompute_end_mod<Q: AsRef<[u8]>>(
         &self, seq: Q, mapping: &ByteIndexMap<S>,
-    ) -> PrecomputedDomainModule<T, S> {
+    ) -> PrecomputedDomainModule<T> {
         let seq = seq.as_ref();
         let mut domain_params = vec![self.start_to_insert + self.insert_to_end; seq.len() + 1];
         domain_params[seq.len()] = self.start_to_end;
@@ -198,9 +198,9 @@ impl<T: PhmmNumber, const S: usize> DomainModule<T, S> {
 ///
 /// To avoid this, [`PrecomputedDomainModule`] carries out all the computations
 /// beforehand in $O(n)$ time.
-pub(crate) struct PrecomputedDomainModule<T, const S: usize>(pub(crate) Vec<T>);
+pub(crate) struct PrecomputedDomainModule<T>(pub(crate) Vec<T>);
 
-impl<T: Copy, const S: usize> PrecomputedDomainModule<T, S> {
+impl<T: Copy> PrecomputedDomainModule<T> {
     /// Gets the score for skipping the first `query_idx` residues in the query
     /// (when this module is placed at the beginning of the [`CorePhmm`]) or
     /// skipping the last `query_idx` residues in the query (when this module is
@@ -259,12 +259,12 @@ impl<T: PhmmNumber, const S: usize> LocalModule<T, S> {
 /// repeated computations, the [`PrecomputedLocalModule`] carries out all such
 /// computations beforehand. These are the same computations performed by
 /// [`PrecomputedDomainModule`].
-pub(crate) struct PrecomputedLocalModule<'a, T, const S: usize> {
+pub(crate) struct PrecomputedLocalModule<'a, T> {
     /// The transition parameters from the last state of the module to match
     /// state j in the core pHMM.
     pub(crate) semilocal_params: &'a SemiLocalModule<T>,
     /// The transition parameters for consuming i bases within the module.
-    pub(crate) domain_params:    PrecomputedDomainModule<T, S>,
+    pub(crate) domain_params:    PrecomputedDomainModule<T>,
 }
 
 impl<T: PhmmNumber, const S: usize> LocalModule<T, S> {
@@ -275,7 +275,7 @@ impl<T: PhmmNumber, const S: usize> LocalModule<T, S> {
     /// pHMM. See [`PrecomputedLocalModule`] for more details.
     pub(crate) fn precompute_begin_mod<Q: AsRef<[u8]>>(
         &self, seq: Q, mapping: &ByteIndexMap<S>,
-    ) -> PrecomputedLocalModule<'_, T, S> {
+    ) -> PrecomputedLocalModule<'_, T> {
         PrecomputedLocalModule {
             domain_params:    self.domain_params.precompute_begin_mod(seq, mapping),
             semilocal_params: &self.semilocal_params,
@@ -289,7 +289,7 @@ impl<T: PhmmNumber, const S: usize> LocalModule<T, S> {
     /// [`PrecomputedLocalModule`] for more details.
     pub(crate) fn precompute_end_mod<Q: AsRef<[u8]>>(
         &self, seq: Q, mapping: &ByteIndexMap<S>,
-    ) -> PrecomputedLocalModule<'_, T, S> {
+    ) -> PrecomputedLocalModule<'_, T> {
         PrecomputedLocalModule {
             domain_params:    self.domain_params.precompute_end_mod(seq, mapping),
             semilocal_params: &self.semilocal_params,
@@ -297,7 +297,7 @@ impl<T: PhmmNumber, const S: usize> LocalModule<T, S> {
     }
 }
 
-impl<T: PhmmNumber, const S: usize> PrecomputedLocalModule<'_, T, S> {
+impl<T: PhmmNumber> PrecomputedLocalModule<'_, T> {
     /// Gets the score for skipping `query_idx` residues in the query and
     /// entering/exiting layer `phmm_idx`.
     ///

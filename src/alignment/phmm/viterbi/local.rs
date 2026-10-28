@@ -36,9 +36,9 @@ struct LocalBestScore<T> {
 
 impl<T: PhmmNumber> LocalBestScore<T> {
     #[inline]
-    fn update<const S: usize>(
+    fn update(
         &mut self, match_val: T, query_idx: impl AlnIndex, phmm_idx: impl AlnIndex, seq: &[u8],
-        end: &PrecomputedLocalModule<T, S>,
+        end: &PrecomputedLocalModule<T>,
     ) {
         let Some(end_score) = end.get_score(query_idx, phmm_idx) else {
             return;
@@ -58,7 +58,7 @@ impl<T: PhmmNumber> LocalBestScore<T> {
     #[allow(clippy::too_many_arguments)]
     fn update_last_layer<const S: usize>(
         &mut self, layer: &LayerParams<T, S>, mut match_val: T, mut delete_val: T, mut insert_val: T,
-        query_idx: impl AlnIndex, seq: &[u8], begin: &PrecomputedLocalModule<T, S>, end: &PrecomputedLocalModule<T, S>,
+        query_idx: impl AlnIndex, seq: &[u8], begin: &PrecomputedLocalModule<T>, end: &PrecomputedLocalModule<T>,
     ) {
         use crate::alignment::phmm::state::PhmmState::*;
 

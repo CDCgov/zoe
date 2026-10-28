@@ -82,14 +82,14 @@ impl<T> AlnIndexable for SemiLocalModule<T> {
     }
 }
 
-impl<T, const S: usize> AlnIndexable for PrecomputedLocalModule<'_, T, S> {
+impl<T> AlnIndexable for PrecomputedLocalModule<'_, T> {
     #[inline]
     fn seq_len(&self) -> usize {
         self.semilocal_params.seq_len()
     }
 }
 
-impl<T, const S: usize> AlnIndexable for PrecomputedDomainModule<T, S> {
+impl<T> AlnIndexable for PrecomputedDomainModule<T> {
     #[inline]
     fn seq_len(&self) -> usize {
         self.0.len() - 1
@@ -125,5 +125,5 @@ impl<T, const S: usize> PhmmLen for LocalPhmm<'_, T, S> {}
 impl<T, const S: usize> PhmmLen for SemiLocalPhmm<'_, T, S> {}
 impl<T, const S: usize> PhmmLen for DomainPhmm<'_, T, S> {}
 impl<T> PhmmLen for SemiLocalModule<T> {}
-impl<T, const S: usize> PhmmLen for PrecomputedLocalModule<'_, T, S> {}
-impl<T, const S: usize> PhmmLen for PrecomputedDomainModule<T, S> {}
+impl<T> PhmmLen for PrecomputedLocalModule<'_, T> {}
+impl<T> PhmmLen for PrecomputedDomainModule<T> {}
