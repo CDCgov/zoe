@@ -71,6 +71,18 @@ at the user's discretion.
 ### Optional Features
 
 - **multiversion**: This optional feature adds multiversioning of select Zoe SIMD functions using the [multiversion](https://docs.rs/multiversion/latest/multiversion/) crate.
+
+  ***Note***: Multiversion 0.9.1+ generates AVX512 function variants for CPUs with
+Ice Lake support (for general performance reasons). Older CPUs like Cascade Lake
+can still benefit for certain algorithms (e.g., 1-pass Smith-Waterman). To allow
+this support, set `RUSTFLAGS="--cfg multiversion_allow_slow_avx512"` in the
+downstream application build, or set the following in the `.cargo/config.toml`:
+
+  ```toml
+  [build]
+  rustflags = ["--cfg", "multiversion_allow_slow_avx512"]
+  ```
+
 - **fuzzing**: This optional feature adds several testing features to Zoe, including [`Arbitrary`](https://docs.rs/arbitrary/latest/arbitrary/trait.Arbitrary.html) implementations for many of Zoe's data types to support fuzz testing. It also introduces many wrapper types with custom [`Arbitrary`](https://docs.rs/arbitrary/latest/arbitrary/trait.Arbitrary.html) implementations providing data with stronger assumptions.
 - **alignment-diagnostics**: An optional feature exposing additional alignment-related functions and internals, such as for testing.
 - ***Development features*** (of the format `dev-*`) are considered **unstable** and will be **removed** after completion of the work. Users should not rely on them. Functionality from the work may become available either without a feature or under a new feature name in a future release. Use the [internal documentation] to find information about development features.
@@ -106,6 +118,5 @@ This repository is not a source of government records, but is a copy to increase
 ## Additional Standard Notices
 
 Please refer to [CDC's Template Repository](https://github.com/CDCgov/template) for more information about [contributing to this repository](https://github.com/CDCgov/template/blob/main/CONTRIBUTING.md), [public domain notices and disclaimers](https://github.com/CDCgov/template/blob/main/DISCLAIMER.md), and [code of conduct](https://github.com/CDCgov/template/blob/main/code-of-conduct.md).
-
 
 [internal documentation]: https://cdcgov.github.io/zoe

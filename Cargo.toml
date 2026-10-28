@@ -37,7 +37,8 @@ default = ["rand"]
 rand = ["dep:rand_xoshiro", "dep:rand"]
 
 # An optional feature that provides SIMD multiversioning of selected Zoe
-# functions
+# functions. AVX512 targets require Ice Lake features unless the final
+# application builds with `--cfg multiversion_allow_slow_avx512`.
 multiversion = ["dep:multiversion"]
 
 # An optional feature adding additional functionality for fuzzing, including
