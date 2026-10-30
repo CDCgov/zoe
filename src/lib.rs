@@ -46,9 +46,8 @@ pub mod iter_utils;
 /// As a quick way to import the most commonly used *Zoe* structs and traits,
 /// you may include `use zoe::prelude::*` in a Rust script.
 pub mod prelude {
-    #[allow(deprecated)]
     pub use crate::{
-        alignment::{AsSeqSrc, IntoSeqSrc, PairwiseSequence, ProfileSets, SeqSrc},
+        alignment::{AsSeqSrc, IntoSeqSrc, ProfileSets, SeqSrc},
         composition::{AlignmentComposition, CreateConsensus, GcContent, NucleotideCounts, ToBaseCounts},
         data::{
             StdForSequences,

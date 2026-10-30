@@ -1,12 +1,9 @@
-use crate::data::amino_acids::AminoAcidsView;
-#[allow(deprecated)]
 use crate::{
     alignment::{
-        AlignOp, Alignment, AlignmentStates, NextCiglet, NextCigletMut, PairwiseSequence, PeekOp, profile::ScalarProfile,
-        sw::sw_scalar_align,
+        AlignOp, Alignment, AlignmentStates, NextCiglet, NextCigletMut, PeekOp, profile::ScalarProfile, sw::sw_scalar_align,
     },
     data::{
-        amino_acids::AminoAcids,
+        amino_acids::{AminoAcids, AminoAcidsView},
         cigar::CigarError,
         matrices::WeightMatrix,
         nucleotides::{Nucleotides, NucleotidesView},
@@ -356,17 +353,28 @@ fn states_sequence_zero_ciglets() {
 }
 
 #[test]
-#[allow(deprecated)]
 fn align_with_cigar() {
-    let data: [(usize, Cigar, [AminoAcids; 4]); 2] = [
+    let data: [(Alignment<()>, [AminoAcids; 4]); 2] = [
         (
-            2,
-            Cigar::from_slice_unchecked("4M"),
+            Alignment {
+                score:       (),
+                ref_range:   1..5,
+                query_range: 0..4,
+                states:      "4M".try_into().unwrap(),
+                ref_len:     10,
+                query_len:   6,
+            },
             [b"PLEASANTLY".into(), b"MEANLY".into(), b"LEAS".into(), b"MEAN".into()],
         ),
         (
-            2,
-            Cigar::from_slice_unchecked("1H2S3M4I5D6N7P6=5X3S2H"),
+            Alignment {
+                score:       (),
+                ref_range:   1..26,
+                query_range: 0..18,
+                states:      "1H2S3M4I5D6N7P6=5X3S2H".try_into().unwrap(),
+                ref_len:     26,
+                query_len:   23,
+            },
             [
                 b"ABCDEFGHIJKLMNOPQRSTUVWXYZ".into(),
                 b"ABCDEFGHIJKLMNOPQRSTUVW".into(),
@@ -376,11 +384,9 @@ fn align_with_cigar() {
         ),
     ];
 
-    for (rpos, cig, [ref_input, query_input, ref_output, query_ouptut]) in data {
-        assert_eq!(
-            ref_input.align_and_collect(&query_input, cig.iter_unchecked(), rpos),
-            (ref_output, query_ouptut)
-        );
+    for (alignment, [ref_input, query_input, ref_output, query_output]) in data {
+        let outputs = (ref_output, query_output);
+        assert_eq!(alignment.get_aligned_seqs(ref_input, query_input), outputs);
     }
 }
 

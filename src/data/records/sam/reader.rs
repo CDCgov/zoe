@@ -74,11 +74,11 @@ impl std::fmt::Display for SamRow {
 ///
 /// [`QualityScores`]: crate::data::types::phred::QualityScores
 #[derive(Debug)]
-pub struct SAMReader<R: Read, const OPT: bool> {
+pub struct SAMReader<R: Read> {
     sam_reader: std::io::Lines<std::io::BufReader<R>>,
 }
 
-impl<R: Read> SAMReader<R, true> {
+impl<R: Read> SAMReader<R> {
     /// Creates an iterator over SAM data, wrapping the input in a buffered
     /// reader.
     ///
@@ -118,60 +118,7 @@ impl<R: Read> SAMReader<R, true> {
     }
 }
 
-impl<R: std::io::Read> SAMReader<R, false> {
-    /// Creates an iterator over SAM data, wrapping the input in a buffered
-    /// reader.
-    ///
-    /// This version ignores any optional data present in the SAM records in
-    /// order to reduce allocations and improve efficiency. Use [`new`] to
-    /// include the optional data in the output.
-    ///
-    /// Unlike [`from_readable_ignore_opt`], this does not read any data
-    /// initially. It also allows for empty input, in which case the resulting
-    /// iterator is empty.
-    ///
-    /// [`from_readable_ignore_opt`]: SAMReader::from_readable_ignore_opt
-    /// [`new`]: SAMReader::new
-    #[deprecated(
-        since = "0.0.35",
-        note = "consider using new instead, and then not using the optional fields"
-    )]
-    pub fn new_ignore_opt(inner: R) -> Self {
-        SAMReader {
-            sam_reader: std::io::BufReader::new(inner).lines(),
-        }
-    }
-
-    /// Creates an iterator over SAM data from a type implementing [`Read`],
-    /// wrapping the input in a buffered reader.
-    ///
-    /// This version ignores any optional data present in the SAM records in
-    /// order to reduce allocations and improve efficiency. Use
-    /// [`from_readable`] to include the optional data in the output.
-    ///
-    /// ## Errors
-    ///
-    /// Will return `Err` if the input data is empty or an IO error occurs.
-    ///
-    /// [`Read`]: std::io::Read
-    /// [`from_readable`]: SAMReader::from_readable
-    #[deprecated(
-        since = "0.0.35",
-        note = "consider using from_readable instead, and then not using the optional fields"
-    )]
-    pub fn from_readable_ignore_opt(read: R) -> std::io::Result<Self> {
-        let mut sam_reader = std::io::BufReader::new(read);
-        if sam_reader.fill_buf()?.is_empty() {
-            return Err(IOError::new(ErrorKind::InvalidData, "No SAM data was found!"));
-        }
-
-        Ok(SAMReader {
-            sam_reader: sam_reader.lines(),
-        })
-    }
-}
-
-impl<R: std::io::Read, const OPT: bool> Iterator for SAMReader<R, OPT> {
+impl<R: Read> Iterator for SAMReader<R> {
     type Item = std::io::Result<SamRow>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -261,7 +208,7 @@ impl<R: std::io::Read, const OPT: bool> Iterator for SAMReader<R, OPT> {
                 unwrap_or_return_some_err!(parts[10].try_into())
             };
 
-            let opt_fields = if OPT && let Some(opt) = parts.get(11) {
+            let opt_fields = if let Some(opt) = parts.get(11) {
                 SamOptRaw(opt.to_string())
             } else {
                 SamOptRaw::default()
@@ -288,7 +235,7 @@ impl<R: std::io::Read, const OPT: bool> Iterator for SAMReader<R, OPT> {
     // Push down predicates?
 }
 
-impl SAMReader<File, true> {
+impl SAMReader<File> {
     /// Creates an iterator over the SAM data contained in a path, using a
     /// buffered reader.
     ///
@@ -303,34 +250,5 @@ impl SAMReader<File, true> {
         let path = path.as_ref();
         let file = File::open(path).with_path_context("Failed to open path", path)?;
         Ok(Self::from_readable(file).with_path_context("Failed to read data at path", path)?)
-    }
-}
-
-impl SAMReader<File, false> {
-    /// Creates an iterator over the SAM data contained in a path, using a
-    /// buffered reader.
-    ///
-    /// This version ignores any optional data present in the SAM records in
-    /// order to reduce allocations and improve efficiency. Use [`from_path`] to
-    /// include the optional data in the output.
-    ///
-    /// ## Errors
-    ///
-    /// Will return `Err` if the path does not exist, if there are insufficient
-    /// permissions to read from it, or if it contains no data. The path is
-    /// included in the error message.
-    ///
-    /// [`from_path`]: SAMReader::from_path
-    #[allow(deprecated)]
-    #[deprecated(
-        since = "0.0.35",
-        note = "consider using from_path instead, and then not using the optional fields"
-    )]
-    pub fn from_path_ignore_opt<P>(path: P) -> Result<Self, std::io::Error>
-    where
-        P: AsRef<Path>, {
-        let path = path.as_ref();
-        let file = File::open(path).with_path_context("Failed to open path", path)?;
-        Ok(Self::from_readable_ignore_opt(file).with_path_context("Failed to read data at path", path)?)
     }
 }

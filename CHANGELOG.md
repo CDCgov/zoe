@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file. The format
 is roughly based on [Keep a Changelog], and this project tries to adheres to
 [Semantic Versioning].
 
+## [0.0.37] - TBD
+
+### Changed
+
+- `SAMReader` no longer has a const generic boolean (which corresponded to
+  deprecated and now removed functionality)
+
+### Removed
+
+- Removed deprecated API: `PairwiseSequence`, `SAMReader` with ignored optional
+  fields, and `ScoringError`
+
 ## [0.0.36] - 2026-10-30
 
 ### Added
@@ -832,6 +844,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - **Added**: Initial internal release. Provides various readers and types for bioinformatics data manipulation.
 
 <!-- Versions -->
+[0.0.37]: https://github.com/CDCgov/zoe/compare/v0.0.36...v0.0.37
 [0.0.36]: https://github.com/CDCgov/zoe/compare/v0.0.35...v0.0.36
 [0.0.35]: https://github.com/CDCgov/zoe/compare/v0.0.34...v0.0.35
 [0.0.34]: https://github.com/CDCgov/zoe/compare/v0.0.33...v0.0.34
