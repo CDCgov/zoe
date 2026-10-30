@@ -382,7 +382,7 @@ impl<T> Alignment<T> {
     #[must_use]
     pub fn get_aligned_iter<R: ByteSeq, Q: ByteSeq>(
         &self, reference: R, query: Q,
-    ) -> AlignmentIter<std::iter::Copied<std::slice::Iter<'_, Ciglet>>, R::IntoIter, Q::IntoIter> {
+    ) -> AlignmentIter<'_, R::IntoIter, Q::IntoIter> {
         let reference_bytes = reference.as_ref();
         let query_bytes = query.as_ref();
 

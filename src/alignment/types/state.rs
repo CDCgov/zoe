@@ -347,21 +347,19 @@ impl AlignmentStates {
 ///
 /// The first base is from the reference, and the second base is from the query.
 /// Gaps are represented by `None`.
-pub struct AlignmentIter<I, R, Q>
+pub struct AlignmentIter<'a, R, Q>
 where
-    I: Iterator<Item = Ciglet>,
     R: Iterator<Item = u8>,
     Q: Iterator<Item = u8>, {
     reference: R,
     query:     Q,
-    ciglets:   I,
+    ciglets:   std::iter::Copied<std::slice::Iter<'a, Ciglet>>,
     inc:       usize,
     op:        AlignOp,
 }
 
-impl<I, R, Q> AlignmentIter<I, R, Q>
+impl<'a, R, Q> AlignmentIter<'a, R, Q>
 where
-    I: Iterator<Item = Ciglet>,
     R: Iterator<Item = u8>,
     Q: Iterator<Item = u8>,
 {
@@ -369,14 +367,13 @@ where
     /// string, and reference position.
     #[inline]
     #[must_use]
-    pub(crate) fn new(
-        mut reference: R, query: Q, ciglets: impl IntoIterator<Item = Ciglet, IntoIter = I>, ref_index: usize,
-    ) -> Self {
+    pub(crate) fn new(mut reference: R, query: Q, ciglets: &'a AlignmentStates, ref_index: usize) -> Self {
         if let Some(ref_skipped) = ref_index.checked_sub(1) {
             reference.nth(ref_skipped);
         }
 
         let mut ciglets = ciglets.into_iter();
+
         // If no valid ciglets, initialize with inc at 0 so that iterator is empty
         let Ciglet { inc, op } = ciglets.next().unwrap_or(Ciglet { inc: 0, op: AlignOp::M });
 
@@ -439,9 +436,8 @@ where
     }
 }
 
-impl<I, R, Q> Iterator for AlignmentIter<I, R, Q>
+impl<R, Q> Iterator for AlignmentIter<'_, R, Q>
 where
-    I: Iterator<Item = Ciglet>,
     R: Iterator<Item = u8>,
     Q: Iterator<Item = u8>,
 {

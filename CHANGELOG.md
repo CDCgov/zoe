@@ -14,6 +14,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
   allocations or extra formatting work
 - `SAMReader` no longer has a const generic boolean (which corresponded to
   deprecated and now removed functionality)
+- Replaced first generic on `AlignmentIter` with a lifetime parameter instead as
+  a simplification
 
 ### Removed
 
