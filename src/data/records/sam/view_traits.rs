@@ -1,3 +1,5 @@
+//! Implementation of view traits for SAM data.
+
 use super::*;
 use crate::{
     data::{

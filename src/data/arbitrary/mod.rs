@@ -148,6 +148,7 @@ impl<'a, Specs: ArbitrarySpecs<'a>> Iterator for MakeArbitraryIter<'a, '_, '_, S
     }
 }
 
+/// An extension trait for [`Unstructured`] providing additional methods.
 pub trait UnstructuredExt {
     /// Chooses `n` distinct values from an inclusive range.
     ///

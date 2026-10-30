@@ -4,49 +4,53 @@ All notable changes to this project will be documented in this file. The format
 is roughly based on [Keep a Changelog], and this project tries to adheres to
 [Semantic Versioning].
 
-## [0.0.36] - TBD
+## [0.0.36] - 2026-10-30
 
 ### Added
 
-- Implemented `DoubleEndedIterator` for `CigletIteratorChecked`
-- Added `normalize` methods to pHMMs to normalize the parameters so that they
-  correspond to a true probability distribution
-- Implemented `Default` for `SamData` and `SamDataView`, with all fields set to
-  their default/missing value in the SAM specs
+- Added `sw_simd_align_with_buf` and similar methods on `ProfileSets` to perform
+  1-pass alignment while reusing a traceback allocation
 - Added `GetSamFieldsMut` and `ParseSamFields` for parsing generic structs
-  containing SAM data 
-- Added `StrictAlignmentStatesSpecs` for generating arbitrary `AlignmentStates`
-  containing only M/D/I operations but allowing configuration of exact query,
-  reference, or total increments (behind `fuzzing` feature gate) 
+  containing SAM data
 - Added implementation for forward algorithm to `GlobalPhmm` (for scoring all
   paths)
+- Added `normalize` methods to pHMMs to normalize the parameters so that they
+  correspond to a true probability distribution
 - Added `wrap` method for errors and results to transparently wrap the errors in
   `ErrorWithContext` (as compared to `with_context`, which adds a line to the
   error stack)
+- Implemented `DoubleEndedIterator` for `CigletIteratorChecked`
+- Implemented `Default` for `SamData` and `SamDataView`, with all fields set to
+  their default/missing value in the SAM specs
+- Added `StrictAlignmentStatesSpecs` for generating arbitrary `AlignmentStates`
+  containing only M/D/I operations but allowing configuration of exact query,
+  reference, or total increments (behind `fuzzing` feature gate) 
 
 ### Changed
 
+- `SAMReader` now fills QNAME and RNAME as an empty string if the file contains
+  `*` for the field
 - `GetSamFields` now has explicit associated types for each field (and is hence
   more flexible). Displaying functionality is moved into the
   automatically-implemented `DisplaySamFields` trait. BAM-writing functionality
   is moved into the automatically-implemented `EncodeBamFields` trait.
 - `CigletIteratorChecked` now returns `None` after any error is yielded
-- Updated internal examples to use `ErrorWithContext`
 - Changed the `Debug` implementations for `Nucleotides`, `AminoAcids`, and
   `Cigar` (and view types) to avoid losing information when they contain bytes
   other than graphic ASCII
-- `SAMReader` now fills QNAME and RNAME as an empty string if the file contains
-  `*` for the field
+- The `PhmmNumber` trait has changes impacting external implementations:
+  additional supertraits (`Sub`, `Neg`, and `SubAssign`), new `LN_2` associated
+  constant, and new methods `max`, `exp`, and `ln_1p`
 - `FloatSpecs` now has `min` and `max` fields, and the `nonnegative` field has
   been removed since it can be specified with `min` as 0 (behind `fuzzing`
   feature gate)
 
 ### Fixed
 
-- Fixed bug with incorrect score being used in `SemiLocalPhmm` traversal code at
-  the end of the pHMM
 - `SamData::to_alignment` now properly returns `Unmapped` when the CIGAR string
   is all clipping
+- Fixed bug with incorrect score being used in `SemiLocalPhmm` traversal code at
+  the end of the pHMM
 
 ### Removed
 

@@ -1,3 +1,6 @@
+//! The definition and methods for the [`Flag`] bitwise integer type used in SAM
+//! data.
+
 use std::{fmt::Display, num::ParseIntError, str::FromStr};
 
 /// A wrapper around a `u16` holding the SAM bit flags for alignment records.

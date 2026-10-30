@@ -43,10 +43,16 @@
 //! [`Error::source`] and the context as the new top-level error, stored as a
 //! [`String`].
 //!
-//! [`ErrorWithContext`] can also be constructed directly without a source
-//! error. In applications that are avoiding dependencies such as `anyhow` and
-//! do not want to use [`std::io::Error::other`], [`ErrorWithContext::new`] is a
-//! viable option.
+//! For flexibility, there are also the following ways to construct an
+//! [`ErrorWithContext`]:
+//!
+//! - Conversion from [`std::io::Error`] without any additional context, using
+//!   [`From::from`].
+//! - Conversion from any error without any additional context, using
+//!   [`WrapError`] or [`WrapResult`].
+//! - Initialization with just a line of context and no source, using
+//!   [`ErrorWithContext::new`]. This is conceptually similar to
+//!   [`std::io::Error::other`].
 //!
 //! [`ErrorWithContext`]: crate::data::err::ErrorWithContext
 //! [`ResultWithErrorContext`]: crate::data::err::ResultWithErrorContext

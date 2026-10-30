@@ -90,7 +90,8 @@ impl BacktrackMatrix {
     }
 }
 
-/// A reusable allocation for the traceback matrix of [`sw_simd_align`].
+/// A reusable allocation for the traceback matrix of
+/// [`sw_simd_align_with_buf`].
 ///
 /// Reusing one buffer across alignments avoids repeatedly allocating and
 /// freeing large traceback matrices. The buffer holds no state between
@@ -102,7 +103,7 @@ impl BacktrackMatrix {
 /// count), so it serves striped profiles of any supported width (checked at
 /// compile time).
 ///
-/// [`sw_simd_align`]: crate::alignment::sw::sw_simd_align
+/// [`sw_simd_align_with_buf`]: crate::alignment::sw::sw_simd_align_with_buf
 #[derive(Default)]
 pub struct TracebackBuffer {
     data: Box<[MaybeUninit<Simd<u8, { TracebackBuffer::MAX_LANES }>>]>,
@@ -133,8 +134,8 @@ impl TracebackBuffer {
         }
     }
 
-    /// Returns exactly `len` uninitialized vectors with `N` lanes, replacing the
-    /// allocation with a larger one if needed.
+    /// Returns exactly `len` uninitialized vectors with `N` lanes, replacing
+    /// the allocation with a larger one if needed.
     #[inline]
     pub(crate) fn uninit_vectors<const N: usize>(&mut self, len: usize) -> &mut [MaybeUninit<Simd<u8, N>>] {
         const {

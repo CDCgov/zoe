@@ -1,3 +1,5 @@
+//! The implementation of the Viterbi algorithm for [`LocalPhmm`].
+
 use crate::alignment::{
     AlignOp, Alignment, AlignmentStates,
     phmm::{

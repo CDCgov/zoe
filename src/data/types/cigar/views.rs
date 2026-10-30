@@ -11,9 +11,9 @@ use crate::{
 
 /// A view of a [`Cigar`] string.
 ///
-/// See [Views](crate::data#views) for more details. This struct is still in
-/// development; it currently only supports parsing and displaying, and not all
-/// the other operations that [`Cigar`] supports.
+/// See [Views](crate::data#views) for more details. This struct supports
+/// parsing and displaying, although it may not have exact parity with
+/// [`Cigar`].
 #[derive(Copy, Clone, Eq, PartialEq, Hash)]
 pub struct CigarView<'a>(&'a [u8]);
 

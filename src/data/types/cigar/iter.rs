@@ -527,8 +527,9 @@ impl ToCigletIterator for &mut [Ciglet] {
 /// - The increment for each operation must be non-zero and less than or equal
 ///   to [`usize::MAX`]
 ///
-/// If any of these are not valid, a [`CigarError`] is returned. Note that this
-/// iterator does not confirm that adjacent operations are distinct.
+/// If any of these are not valid, a [`CigarError`] is returned and the iterator
+/// will then return `None` on any subsequent calls. Note that this iterator
+/// does not confirm that adjacent operations are distinct.
 pub struct CigletIteratorChecked<'a> {
     /// The bytes remaining to decode
     buffer: &'a [u8],
@@ -598,6 +599,9 @@ impl<'a> CigletIteratorChecked<'a> {
         Ok(None)
     }
 
+    /// A helper function for [`CigletIteratorChecked::next_back`] that returns
+    /// a [`Result`] rather than an [`Option`], to allow for a more readable
+    /// implementation.
     fn next_back_helper(&mut self) -> Result<Option<Ciglet>, CigarError> {
         let [buffer @ .., op] = self.buffer else {
             return Ok(None);

@@ -1,3 +1,5 @@
+//! Code for reading SAM files.
+
 use crate::{
     data::{
         cigar::Cigar,

@@ -271,6 +271,10 @@ impl PhmmNumber for f64 {
 ///
 /// Otherwise, this delegates to [`relative_sum_probs_slice`].
 ///
+/// ## Validity
+///
+/// Unpredictable results may occur if any value is NaN.
+///
 /// ## Panics
 ///
 /// `N` must be at least 1.
@@ -311,12 +315,12 @@ fn relative_sum_probs<T: PhmmNumber, const N: usize>(vals: [T; N]) -> (T, T) {
 /// $v_{i}\rightarrow\infty$, we return [`PhmmNumber::ZERO`] for the sum and
 /// [`PhmmNumber::INFINITY`] for the minimum.
 ///
-/// When using the results, note that the first returned value is bounded
-/// between $-\ln(N)$ and $0$, whereas the second returned value is on a similar
-/// magnitude as the parameters (it can be anywhere from $0$ to $\infty$).
-/// Hence, adding the two directly can lose significant precision from the first
-/// returned argument when $v_{i}$ is high. See [`normalize`] for a more stable
-/// rearrangement.
+/// Let $N$ be the length of the slice. When using the results, note that the
+/// first returned value is bounded between $-\ln(N)$ and $0$, whereas the
+/// second returned value is on a similar magnitude as the parameters (it can be
+/// anywhere from $0$ to $\infty$). Hence, adding the two directly can lose
+/// significant precision from the first returned argument when $v_{i}$ is high.
+/// See [`normalize`] for a more stable rearrangement.
 ///
 /// ## Validity
 ///
@@ -398,10 +402,16 @@ fn softplus<T: PhmmNumber>(a: T) -> T {
     a.exp().ln_1p()
 }
 
-/// Similar to [`sum_probs_slice`] but accepting an array for zero-cost handling
-/// of edge cases (e.g., `N` as 0, 1, or 2).
+/// Computes the [`PhmmNumber`] corresponding to the sum of the probabilities of
+/// the passed [`PhmmNumber`] parameters.
 ///
-/// Otherwise, this delegates to [`sum_probs_slice`].
+/// This is equivalent to adding the returned values from
+/// [`relative_sum_probs`]. Consider using [`relative_sum_probs`] directly if it
+/// can help with numerical stability.
+///
+/// ## Validity
+///
+/// Unpredictable results may occur if any value is NaN.
 ///
 /// ## Panics
 ///

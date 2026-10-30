@@ -1,3 +1,6 @@
+//! The definition and machinery for [`DisplaySamFields`], a trait allowing
+//! generic [`GetSamFields`] records to be displayed.
+
 use crate::data::sam::GetSamFields;
 use std::fmt::{Display, Write};
 

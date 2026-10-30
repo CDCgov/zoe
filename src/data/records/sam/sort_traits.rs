@@ -1,3 +1,5 @@
+//! Implementations for sorting SAM data, as is necessary for indexed BAM files.
+
 use crate::{data::sam::SamData, private::Sealed};
 use std::{cmp::Ordering, collections::HashMap};
 

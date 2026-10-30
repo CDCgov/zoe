@@ -1,3 +1,5 @@
+//! The implementation of the forward algorithm for [`GlobalPhmm`].
+
 use crate::alignment::phmm::{
     GlobalPhmm, PhmmNumber,
     forward::{update_delete, update_insert},

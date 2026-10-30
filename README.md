@@ -72,11 +72,12 @@ at the user's discretion.
 
 - **multiversion**: This optional feature adds multiversioning of select Zoe SIMD functions using the [multiversion](https://docs.rs/multiversion/latest/multiversion/) crate.
 
-  ***Note***: Multiversion 0.9.1+ generates AVX512 function variants for CPUs with
-Ice Lake support (for general performance reasons). Older CPUs like Cascade Lake
-can still benefit for certain algorithms (e.g., 1-pass Smith-Waterman). To allow
-this support, set `RUSTFLAGS="--cfg multiversion_allow_slow_avx512"` in the
-downstream application build, or set the following in the `.cargo/config.toml`:
+  ***Note***: Multiversion 0.9.1+ generates AVX512 function variants for CPUs
+  with Ice Lake support (for general performance reasons). Older CPUs like
+  Cascade Lake can still benefit for certain algorithms (e.g., 1-pass
+  Smith-Waterman). To allow this support, set `RUSTFLAGS="--cfg
+  multiversion_allow_slow_avx512"` in the downstream application build, or set
+  the following in the `.cargo/config.toml`:
 
   ```toml
   [build]

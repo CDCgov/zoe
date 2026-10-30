@@ -24,7 +24,7 @@ impl<T> GenericSamRow<T> {
     /// If the row has the variant [`Header`], returns `Some` containing the
     /// line. Otherwise return `None`.
     ///
-    /// [`Header`]: SamRow::Header
+    /// [`Header`]: GenericSamRow::Header
     #[inline]
     #[must_use]
     pub fn header(self) -> Option<String> {
@@ -37,7 +37,7 @@ impl<T> GenericSamRow<T> {
     /// If the row has the variant [`Data`], returns `Some` containing the
     /// [`SamData`]. Otherwise return `None`.
     ///
-    /// [`Data`]: SamRow::Data
+    /// [`Data`]: GenericSamRow::Data
     #[inline]
     #[must_use]
     pub fn data(self) -> Option<T> {
