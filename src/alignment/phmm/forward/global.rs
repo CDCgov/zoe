@@ -37,12 +37,11 @@ impl<T: PhmmNumber, const S: usize> GlobalPhmm<'_, T, S> {
                 let delete_val = f_d[i];
                 let insert_val = f_i[i];
 
-                let match_score = layer.emission_match[x_idx]
-                    + sum_probs([
-                        match_val + layer.transition[(Match, Match)],
-                        delete_val + layer.transition[(Delete, Match)],
-                        insert_val + layer.transition[(Insert, Match)],
-                    ]);
+                let match_score = sum_probs([
+                    match_val + layer.transition[(Match, Match)],
+                    delete_val + layer.transition[(Delete, Match)],
+                    insert_val + layer.transition[(Insert, Match)],
+                ]) + layer.emission_match[x_idx];
 
                 cur_m = std::mem::replace(&mut f_m[i + 1], match_score);
 

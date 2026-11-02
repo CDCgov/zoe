@@ -16,12 +16,11 @@ mod global;
 fn update_insert<T: PhmmNumber, const S: usize>(
     layer: &LayerParams<T, S>, x_idx: usize, match_val: T, delete_val: T, insert_val: T,
 ) -> T {
-    layer.emission_insert[x_idx]
-        + sum_probs([
-            match_val + layer.transition[(Match, Insert)],
-            delete_val + layer.transition[(Delete, Insert)],
-            insert_val + layer.transition[(Insert, Insert)],
-        ])
+    sum_probs([
+        match_val + layer.transition[(Match, Insert)],
+        delete_val + layer.transition[(Delete, Insert)],
+        insert_val + layer.transition[(Insert, Insert)],
+    ]) + layer.emission_insert[x_idx]
 }
 
 /// Given the current `vals` for delete/match/insert and the next `layer`,

@@ -57,6 +57,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
   zero-probability transitions out of the END state
 - `VecSpecs` now properly ignores invalid `min_len` or `max_len` fields when
   `len` is set (behind `fuzzing` feature gate)
+- `GlobalPhmm::forward` has slightly changed order of floating point operations
 
 ### Removed
 
