@@ -6,6 +6,10 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ## [0.0.37] - TBD
 
+### Added
+
+- Added `iter` method to `PhmmStateArr` and `PhmmStateOrModuleArr`
+
 ### Changed
 
 - `with_context`, `with_subitem`, and `with_path_context` now accept a generic

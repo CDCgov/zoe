@@ -325,6 +325,16 @@ impl<T> PhmmStateArr<T> {
         ]
     }
 
+    /// Returns an iterator over the parameters without labels.
+    ///
+    /// Consider using [`zip_states`] if the corresponding states should be
+    /// included too.
+    ///
+    /// [`zip_states`]: PhmmStateArr::zip_states
+    pub fn iter(self) -> std::array::IntoIter<T, 3> {
+        self.0.into_iter()
+    }
+
     /// Maps the values in the array using `f`.
     pub fn map<F, U>(self, f: F) -> PhmmStateArr<U>
     where
@@ -372,6 +382,16 @@ impl<T> PhmmStateOrModuleArr<T> {
             (PhmmStateOrModule::Insert, insert_val),
             (PhmmStateOrModule::Module, module_val),
         ]
+    }
+
+    /// Returns an iterator over the parameters without labels.
+    ///
+    /// Consider using [`zip_states`] if the corresponding states should be
+    /// included too.
+    ///
+    /// [`zip_states`]: PhmmStateOrModuleArr::zip_states
+    pub fn iter(self) -> std::array::IntoIter<T, 4> {
+        self.0.into_iter()
     }
 
     /// Maps the values in the array using `f`.
