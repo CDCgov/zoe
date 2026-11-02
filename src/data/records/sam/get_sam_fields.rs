@@ -365,6 +365,42 @@ impl GetSamFieldsMut for SamData {
     }
 }
 
+/// A trait for constructing an unmapped SAM record.
+///
+/// For this to be implemented, [`Default`] must be implemented, and the FLAG
+/// field must use [`Flag`] as the associated type.
+pub trait UnmappedSamRecord: Default + GetSamFieldsMut<Flag = Flag> {
+    /// Returns an unmapped SAM record.
+    ///
+    /// Optionally, a `qname` or `rname` can be passed. The flag field if
+    /// present has [`set_unmapped`] called on it.
+    ///
+    /// [`set_unmapped`]: Flag::set_unmapped
+    fn unmapped(qname: Option<Self::Qname>, rname: Option<Self::Rname>) -> Self {
+        let mut record = Self::default();
+
+        if let Some(flag) = record.flag_mut() {
+            flag.set_unmapped();
+        }
+
+        if let Some(qname) = qname
+            && let Some(qname_field) = record.qname_mut()
+        {
+            *qname_field = qname;
+        }
+
+        if let Some(rname) = rname
+            && let Some(rname_field) = record.rname_mut()
+        {
+            *rname_field = rname;
+        }
+
+        record
+    }
+}
+
+impl<T> UnmappedSamRecord for T where T: Default + GetSamFieldsMut<Flag = Flag> {}
+
 /// An extension of [`GetSamFieldsMut`] enabling parsing a line of a SAM file
 /// into a struct.
 ///

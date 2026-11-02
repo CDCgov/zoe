@@ -8,6 +8,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ### Added
 
+- Added `UnmappedSamRecord` trait providing an `unmapped` method on generic SAM
+  structs (using `GetSamFieldsMut` and `Default`)
 - Added `iter` method to `PhmmStateArr` and `PhmmStateOrModuleArr`
 - Implemented `PeekCigletMut` for `CigletOpIter`
 
