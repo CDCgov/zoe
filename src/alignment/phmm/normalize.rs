@@ -191,8 +191,11 @@ impl<T: PhmmNumber, const S: usize> CorePhmm<T, S> {
             layer.normalize_with_exit(exit_param);
         }
 
-        // Set exit parameter from End state to probability 1
-        *exit_params.last_mut() = T::ZERO;
+        // Set exit parameter from End state to probability 1 if it is not set
+        // to probability 0
+        if exit_params.last_mut().is_possible() {
+            *exit_params.last_mut() = T::ZERO;
+        }
     }
 }
 

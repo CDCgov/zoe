@@ -25,10 +25,16 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Added `infinite_perc` field to `FloatSpecs` to help fuzzer generate infinite
   floats (behind `fuzzing` feature gate)
 
+## Fixed
+
+- `SemiLocalPhmm::normalize` and `LocalPhmm::normalize` no longer overwrite
+  zero-probability transitions out of the END state
+
 ### Removed
 
 - Removed deprecated API: `PairwiseSequence`, `SAMReader` with ignored optional
   fields, and `ScoringError`
+
 
 ## [0.0.36] - 2026-10-30
 
