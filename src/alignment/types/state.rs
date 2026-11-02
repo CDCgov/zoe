@@ -1172,3 +1172,51 @@ impl DoubleEndedIterator for CigletOpIter<'_> {
 }
 
 impl FusedIterator for CigletOpIter<'_> {}
+
+#[cfg(test)]
+mod bench {
+    extern crate test;
+    use crate::alignment::{
+        Alignment,
+        sw::test_data::{H1_HA_SEQ, H5_HA_SEQ},
+    };
+    use test::Bencher;
+
+    #[bench]
+    fn alignment_iter(b: &mut Bencher) {
+        let alignment = std::hint::black_box(Alignment {
+            score:       111,
+            ref_range:   78..990,
+            query_range: 9..924,
+            states:
+                "9S131M2D6M2I170M2I2M4I4M6D26M3I52M3D4M2I4M6I1M5D135M1D6M1I158M1D5M1I9M1D11M1I18M1D8M2I3M1D14M7D13M7I104M57S"
+                    .try_into()
+                    .unwrap(),
+            ref_len:     1760,
+            query_len:   981,
+        });
+
+        b.iter(|| {
+            let mut total_ref: u8 = 0;
+            let mut total_query: u8 = 0;
+
+            for (ref_base, query_base) in
+                alignment.get_aligned_iter(std::hint::black_box(H5_HA_SEQ), std::hint::black_box(H1_HA_SEQ))
+            {
+                std::hint::black_box(ref_base);
+                std::hint::black_box(query_base);
+
+                if let Some(ref_base) = ref_base {
+                    total_ref = total_ref.wrapping_add(ref_base);
+                }
+
+                if let Some(query_base) = query_base {
+                    total_query = total_query.wrapping_add(query_base);
+                }
+            }
+
+            std::hint::black_box(total_ref);
+            std::hint::black_box(total_query);
+        });
+    }
+}
