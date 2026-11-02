@@ -970,6 +970,16 @@ impl PeekCiglet for CigletOpIter<'_> {
     }
 }
 
+impl PeekCigletMut for CigletOpIter<'_> {
+    fn peek_ciglet_mut(&mut self) -> Option<&mut Ciglet> {
+        self.load_ciglet()
+    }
+
+    fn peek_ciglet_back_mut(&mut self) -> Option<&mut Ciglet> {
+        self.load_ciglet_back()
+    }
+}
+
 impl NextCiglet for CigletOpIter<'_> {
     fn next_ciglet(&mut self) -> Option<Ciglet> {
         Some(std::mem::replace(self.load_ciglet()?, Ciglet { inc: 0, op: AlignOp::M }))

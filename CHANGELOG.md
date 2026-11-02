@@ -9,6 +9,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 ### Added
 
 - Added `iter` method to `PhmmStateArr` and `PhmmStateOrModuleArr`
+- Implemented `PeekCigletMut` for `CigletOpIter`
 
 ### Changed
 
