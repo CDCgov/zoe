@@ -126,7 +126,6 @@ impl<R: Read, T: ParseSamFields> Iterator for SamReader<R, T> {
             Some(ParseSamFields::parse(&line).map(GenericSamRow::Data))
         }
     }
-    // Push down predicates?
 }
 
 impl<T: ParseSamFields> SamReader<File, T> {

@@ -16,6 +16,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
   deprecated and now removed functionality)
 - Replaced first generic on `AlignmentIter` with a lifetime parameter instead as
   a simplification
+- Improved styling of error messages in `SAMReader`
 
 ### Removed
 

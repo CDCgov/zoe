@@ -2,11 +2,8 @@
 
 use crate::{
     data::{
-        cigar::Cigar,
         err::ResultWithErrorContext,
-        nucleotides::Nucleotides,
-        phred::QualityScores,
-        sam::{SamData, SamOptRaw, is_missing_sam_field},
+        sam::{ParseSamFields, SamData},
     },
     unwrap_or_return_some_err,
 };
@@ -127,112 +124,9 @@ impl<R: Read> Iterator for SAMReader<R> {
         if line.starts_with('@') {
             Some(Ok(SamRow::Header(line)))
         } else {
-            // 11 required fields and one slot for optional fields
-            let parts = line.splitn(12, '\t').collect::<Vec<_>>();
-
-            if parts.len() < 11 {
-                return Some(Err(IOError::new(
-                    ErrorKind::InvalidData,
-                    "SAM file did not have at least 11 fields!",
-                )));
-            }
-
-            let qname = parts[0];
-            let qname = if is_missing_sam_field(qname) {
-                String::new()
-            } else {
-                qname.to_string()
-            };
-
-            let flag = {
-                match parts[1].parse() {
-                    Ok(f) => f,
-                    Err(e) => {
-                        return Some(Err(IOError::new(
-                            ErrorKind::InvalidData,
-                            format!("Error: {e}, invalid SAM bit flag '{}'", parts[1]),
-                        )));
-                    }
-                }
-            };
-
-            let rname = parts[2];
-            let rname = if is_missing_sam_field(rname) {
-                String::new()
-            } else {
-                rname.to_string()
-            };
-
-            let pos = {
-                match parts[3].parse::<usize>() {
-                    Ok(p) => p,
-                    Err(e) => {
-                        return Some(Err(IOError::new(
-                            ErrorKind::InvalidData,
-                            format!("Error: {e}, invalid SAM reference position '{}'", parts[3]),
-                        )));
-                    }
-                }
-            };
-
-            let mapq = {
-                match parts[4].parse::<u8>() {
-                    Ok(q) => q,
-                    Err(e) => {
-                        return Some(Err(IOError::new(
-                            ErrorKind::InvalidData,
-                            format!("Error: {e}, invalid SAM mapq '{}'", parts[4]),
-                        )));
-                    }
-                }
-            };
-
-            let cigar = {
-                let cigar_str = parts[5].trim_ascii().as_bytes();
-                if cigar_str == b"*" {
-                    Cigar::new()
-                } else {
-                    Cigar::from_slice_unchecked(cigar_str)
-                }
-            };
-
-            let seq = if is_missing_sam_field(parts[9]) {
-                Nucleotides::new()
-            } else {
-                parts[9].into()
-            };
-
-            let qual = if is_missing_sam_field(parts[10]) {
-                QualityScores::new()
-            } else {
-                unwrap_or_return_some_err!(parts[10].try_into())
-            };
-
-            let opt_fields = if let Some(opt) = parts.get(11) {
-                SamOptRaw(opt.to_string())
-            } else {
-                SamOptRaw::default()
-            };
-
-            let row = SamData {
-                qname,
-                flag,
-                rname,
-                pos,
-                mapq,
-                cigar,
-                rnext: '*',
-                pnext: 0,
-                tlen: 0,
-                seq,
-                qual,
-                opt_fields,
-            };
-
-            Some(Ok(SamRow::Data(row)))
+            Some(SamData::parse(&line).map(SamRow::Data))
         }
     }
-    // Push down predicates?
 }
 
 impl SAMReader<File> {
