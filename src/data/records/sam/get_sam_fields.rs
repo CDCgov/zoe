@@ -621,7 +621,7 @@ impl TryFrom<UnparsedFlag<'_>> for u16 {
         value
             .0
             .parse()
-            .with_context(format!("Failed to parse FLAG field: '{}'", value.0))
+            .with_context(|| format!("Failed to parse FLAG field: '{}'", value.0))
             .map_err(Into::into)
     }
 }
@@ -634,7 +634,7 @@ impl TryFrom<UnparsedFlag<'_>> for Flag {
         value
             .0
             .parse()
-            .with_context(format!("Failed to parse FLAG field: '{}'", value.0))
+            .with_context(|| format!("Failed to parse FLAG field: '{}'", value.0))
             .map_err(Into::into)
     }
 }
@@ -665,7 +665,7 @@ impl TryFrom<UnparsedPos<'_>> for usize {
         value
             .0
             .parse()
-            .with_context(format!("Failed to parse POS field: '{}'", value.0))
+            .with_context(|| format!("Failed to parse POS field: '{}'", value.0))
             .map_err(Into::into)
     }
 }
@@ -685,7 +685,7 @@ impl TryFrom<UnparsedMapq<'_>> for u8 {
         value
             .0
             .parse()
-            .with_context(format!("Failed to parse MAPQ field: '{}'", value.0))
+            .with_context(|| format!("Failed to parse MAPQ field: '{}'", value.0))
             .map_err(Into::into)
     }
 }
@@ -720,7 +720,7 @@ impl TryFrom<UnparsedCigar<'_>> for AlignmentStates {
         // Handles checking for *
         value
             .try_into()
-            .with_context(format!("Failed to parse CIGAR field: '{value}'"))
+            .with_context(|| format!("Failed to parse CIGAR field: '{value}'"))
             .map_err(Into::into)
     }
 }
@@ -769,7 +769,7 @@ impl TryFrom<UnparsedQual<'_>> for QualityScores {
             value
                 .0
                 .try_into()
-                .with_context(format!("Failed to parse QUAL field: '{}'", value.0))
+                .with_context(|| format!("Failed to parse QUAL field: '{}'", value.0))
                 .map_err(Into::into)
         }
     }
@@ -799,7 +799,7 @@ impl TryFrom<UnparsedOptFields<'_>> for Vec<SamOptField> {
             .split('\t')
             .map(FromStr::from_str)
             .collect::<Result<Vec<_>, _>>()
-            .with_context(format!("Failed to parse optional fields: '{}'", value.0))
+            .with_context(|| format!("Failed to parse optional fields: '{}'", value.0))
             .map_err(Into::into)
     }
 }

@@ -124,7 +124,7 @@ impl FromStr for SamOptField {
         let tag = SamOptField::parse_tag(tag_text)?;
         let type_code = SamOptField::parse_type(type_text)?;
         let opt_field = SamOptField::parse_value(tag, type_code, string_value)
-            .with_context(format!("Failed to parse field '{field}'"))?;
+            .with_context(|| format!("Failed to parse field '{field}'"))?;
 
         Ok(opt_field)
     }

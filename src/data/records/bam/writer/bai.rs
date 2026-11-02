@@ -56,7 +56,7 @@ impl BaiWriter {
 
             reference
                 .write_to(&mut self.inner)
-                .with_context(format!("Error writing BAI reference {ref_id}"))?;
+                .with_context(|| format!("Error writing BAI reference {ref_id}"))?;
         }
 
         self.inner.write_all(&self.index.n_no_coord.to_le_bytes())?;
