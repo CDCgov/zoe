@@ -45,39 +45,39 @@ use std::{io::ErrorKind, str::FromStr};
 /// [`OptFields`]: GetSamFields::OptFields
 /// [`AlignmentStates`]: crate::alignment::AlignmentStates
 pub trait GetSamFields {
-    /// The type stored for QNAME, such as [`String`] or [`str`].
-    type Qname: ?Sized;
+    /// The type stored for QNAME, such as [`String`] or `&str`.
+    type Qname;
 
     /// The type stored for FLAG, typically [`Flag`].
-    type Flag: ?Sized;
+    type Flag;
 
-    /// The type stored for RNAME, such as [`String`] or [`str`].
-    type Rname: ?Sized;
+    /// The type stored for RNAME, such as [`String`] or `&str`.
+    type Rname;
 
     /// The type stored for POS, typically `usize`.
-    type Pos: ?Sized;
+    type Pos;
 
     /// The type stored for MAPQ, typically `u8`.
-    type Mapq: ?Sized;
+    type Mapq;
 
     /// The type stored for CIGAR, such as [`Cigar`], [`CigarView`], or
     /// [`AlignmentStates`].
     ///
     /// [`AlignmentStates`]: crate::alignment::AlignmentStates
-    type Cigar: ?Sized;
+    type Cigar;
 
     /// The type stored for SEQ, such as [`Nucleotides`] or [`NucleotidesView`].
-    type Seq: ?Sized;
+    type Seq;
 
     /// The type stored for QUAL, such as [`QualityScores`] or
     /// [`QualityScoresView`].
-    type Qual: ?Sized;
+    type Qual;
 
     /// The type storing the optional fields, such as [`SamOptRaw`],
     /// [`SamOptRawView`], or a custom struct that holds parsed [`SamOptField`].
     ///
     /// [`SamOptField`]: crate::data::records::sam::SamOptField
-    type OptFields: ?Sized;
+    type OptFields;
 
     /// Returns the QNAME field if it is contained in the struct.
     fn qname(&self) -> Option<&Self::Qname>;
@@ -225,9 +225,9 @@ impl GetSamFields for SamData {
 }
 
 impl<'a> GetSamFields for SamDataView<'a> {
-    type Qname = str;
+    type Qname = &'a str;
     type Flag = Flag;
-    type Rname = str;
+    type Rname = &'a str;
     type Pos = usize;
     type Mapq = u8;
     type Cigar = CigarView<'a>;
@@ -236,8 +236,8 @@ impl<'a> GetSamFields for SamDataView<'a> {
     type OptFields = SamOptRawView<'a>;
 
     #[inline]
-    fn qname(&self) -> Option<&str> {
-        Some(self.qname)
+    fn qname(&self) -> Option<&&'a str> {
+        Some(&self.qname)
     }
 
     #[inline]
@@ -246,8 +246,8 @@ impl<'a> GetSamFields for SamDataView<'a> {
     }
 
     #[inline]
-    fn rname(&self) -> Option<&str> {
-        Some(self.rname)
+    fn rname(&self) -> Option<&&'a str> {
+        Some(&self.rname)
     }
 
     #[inline]
