@@ -2,7 +2,7 @@
 //! guarantees.
 
 use crate::{data::arbitrary::ArbitrarySpecs, math::Float};
-use arbitrary::{Arbitrary, Unstructured};
+use arbitrary::{Arbitrary, Result, Unstructured};
 use std::marker::PhantomData;
 
 /// Specifications for generating an arbitrary floating point number.
@@ -17,6 +17,18 @@ pub struct FloatSpecs<T> {
 
     /// Whether to include `inf` as a possible output.
     pub include_infinite: bool,
+
+    /// Assuming random bytes, the percent change to generate infinity instead
+    /// of a random float.
+    ///
+    /// The fuzzer is not always good at generating multiple infinite values,
+    /// even when the code being fuzzed explicitly has conditions involving
+    /// whether the floats are infinite. To resolve this, a 0-100 percent change
+    /// of generating infinity can be set.
+    ///
+    /// Any value above 100 is set to 100. This overrides `include_infinite` and
+    /// ignores `max`.
+    pub infinite_perc: Option<u8>,
 
     /// The minimum value to allow for the float.
     ///
@@ -39,6 +51,7 @@ impl<T: Float> Default for FloatSpecs<T> {
         Self {
             include_nan:      true,
             include_infinite: true,
+            infinite_perc:    None,
             min:              T::NEG_INFINITY,
             max:              T::INFINITY,
             float:            PhantomData,
@@ -65,8 +78,14 @@ where
     ///
     /// [`arbitrary`]: arbitrary::Arbitrary::arbitrary
     #[inline]
-    fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> arbitrary::Result<Self::Output> {
+    fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {
         assert!(self.min < self.max, "The min field must be less than the max field");
+
+        if let Some(infinite_perc) = self.infinite_perc
+            && u.int_in_range(0..=99)? < infinite_perc
+        {
+            return Ok(T::INFINITY);
+        }
 
         let mut float = T::arbitrary(u)?;
 

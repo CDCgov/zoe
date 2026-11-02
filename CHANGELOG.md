@@ -22,6 +22,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - Replaced first generic on `AlignmentIter` with a lifetime parameter instead as
   a simplification
 - Improved styling of error messages in `SAMReader`
+- Added `infinite_perc` field to `FloatSpecs` to help fuzzer generate infinite
+  floats (behind `fuzzing` feature gate)
 
 ### Removed
 
