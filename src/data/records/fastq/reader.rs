@@ -102,7 +102,7 @@ impl<R: Read> FastQReader<R> {
         self.reader.consume(1);
 
         // Read header directly into Vec
-        let header = self.reader.read_line_owned(Vec::new())?;
+        let header = self.reader.read_line_owned(0)?;
 
         if header.is_empty() {
             return Err(IOError::new(ErrorKind::InvalidData, "Missing FASTQ header!"));
@@ -111,7 +111,7 @@ impl<R: Read> FastQReader<R> {
         let header = String::from_utf8(header).map_err(|err| IOError::new(ErrorKind::InvalidData, err))?;
 
         // Read sequence directly into Vec
-        let sequence = self.reader.read_line_owned(Vec::new())?;
+        let sequence = self.reader.read_line_owned(0)?;
 
         if sequence.is_empty() {
             return Err(IOError::new(
@@ -136,12 +136,11 @@ impl<R: Read> FastQReader<R> {
             ));
         }
 
-        // Read quality line directly into Vec of known capacity. Use
+        // Read quality line directly into Vec of known capacity, along with
+        // space to hold potential \r character before it gets popped. Use
         // wrapping_add for efficiency over saturating_add, which will almost
         // surely never wrap (but if it does, it does not cause a logic error)
-        let quality = self
-            .reader
-            .read_line_owned(Vec::with_capacity(sequence.len().wrapping_add(2)))?;
+        let quality = self.reader.read_line_owned(sequence.len().wrapping_add(1))?;
 
         if quality.len() != sequence.len() {
             if quality.is_empty() {
@@ -191,30 +190,40 @@ trait BufReadExtension: BufRead {
     }
 
     #[inline]
-    fn read_line_owned(&mut self, mut buf: Vec<u8>) -> std::io::Result<Vec<u8>> {
-        loop {
-            let filled = self.retrying_fill_buf()?;
+    fn read_line_owned(&mut self, capacity: usize) -> std::io::Result<Vec<u8>> {
+        let mut filled = self.retrying_fill_buf()?;
 
-            if filled.is_empty() {
-                break;
-            }
-            let used = filled.len();
+        // If the line is entirely within the buffer, then use to_vec for
+        // exact-size allocation
+        let mut line = if let Some(i) = filled.find_byte(b'\n') {
+            let line = filled[..i].to_vec();
+            self.consume(i + 1);
+            line
+        } else {
+            let mut line = Vec::with_capacity(capacity.max(filled.len()));
 
-            if let Some(i) = filled.find_byte(b'\n') {
-                buf.extend_from_slice(&filled[..i]);
-                self.consume(i + 1);
-                if let Some(b'\r') = buf.last() {
-                    buf.pop();
+            loop {
+                if filled.is_empty() {
+                    return Ok(line);
                 }
+                line.extend_from_slice(filled);
+                let used = filled.len();
+                self.consume(used);
 
-                break;
+                filled = self.retrying_fill_buf()?;
+
+                if let Some(i) = filled.find_byte(b'\n') {
+                    line.extend_from_slice(&filled[..i]);
+                    self.consume(i + 1);
+                    break line;
+                }
             }
+        };
 
-            buf.extend_from_slice(filled);
-            self.consume(used);
+        if let Some(b'\r') = line.last() {
+            line.pop();
         }
-
-        Ok(buf)
+        Ok(line)
     }
 }
 
