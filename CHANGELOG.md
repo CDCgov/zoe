@@ -49,6 +49,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - `SamData` and `SamDataView` constructors (including `from_alignment`) now
   properly store empty fields instead of `*` for QNAME, RNAME, SEQ, and QUAL
   when passed `*` or when calling `unmapped`
+- Improved the performance of `FastaReader` by up to 38% reductions in runtime.
+  Error messages and behavior after an error is yielded may differ from before
 
 ## Fixed
 

@@ -131,7 +131,7 @@ pub use validation::{CheckSequence, Recode, RetainSequence, StdForSequences};
 pub use constants::mappings;
 
 pub(crate) use constants::alphas;
-pub(crate) use extension::{array_types, byte_types, id_types, vec_types};
+pub(crate) use extension::{array_types, byte_types, id_types};
 
 #[cfg(test)]
 mod tests {

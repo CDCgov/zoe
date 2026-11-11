@@ -130,7 +130,7 @@ fn invalid_char_sequence_first_record() {
 
     assert_eq!(
         reader.next().unwrap().unwrap_err().to_string(),
-        "FASTA records must start with the '>' symbol on a newline, and no other '>' symbols can occur in a sequence! See header: seq1"
+        "No instance of '>' can occur in the sequence! See header: seq1"
     );
 
     // Ensure iterator terminates
@@ -179,7 +179,7 @@ fn invalid_char_sequence_second_record() {
 
     assert_eq!(
         reader.next().unwrap().unwrap_err().to_string(),
-        "FASTA records must start with the '>' symbol on a newline, and no other '>' symbols can occur in a sequence! See header: seq2"
+        "No instance of '>' can occur in the sequence! See header: seq2"
     );
 
     // Ensure iterator terminates

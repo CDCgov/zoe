@@ -152,7 +152,6 @@ pub trait BufReadExtension: BufRead {
     ///
     /// For example, this can be used to find `>` at the start of a newline
     /// (after `\n`) for parsing FASTA files.
-    #[allow(dead_code)]
     fn skip_until_with_prefix(&mut self, byte: u8, prefix: u8) -> std::io::Result<bool> {
         let mut ends_with_prefix = false;
 
