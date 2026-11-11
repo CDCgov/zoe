@@ -11,6 +11,7 @@ use crate::{
 use std::{
     fs::File,
     io::{BufRead, BufReader, ErrorKind, Read},
+    iter::FusedIterator,
     path::Path,
 };
 
@@ -37,6 +38,10 @@ impl<R: Read> FastaReader<R> {
     /// Unlike [`from_readable`], this does not read any data initially. It also
     /// allows for empty input, in which case the resulting iterator is empty.
     ///
+    /// The iterator returns `None` once `inner.read()` returns 0 (signalling
+    /// EOF). After this, the iterator will continue to return `None` regardless
+    /// of whether `inner.read()` could return new bytes.
+    ///
     /// [`from_readable`]: FastaReader::from_readable
     pub fn new(inner: R) -> Self {
         FastaReader {
@@ -49,6 +54,10 @@ impl<R: Read> FastaReader<R> {
     /// Creates an iterator over FASTA data from a type implementing [`Read`],
     /// wrapping the input in a buffered reader.
     ///
+    /// The iterator returns `None` once `inner.read()` returns 0 (signalling
+    /// EOF). After this, the iterator will continue to return `None` regardless
+    /// of whether `inner.read()` could return new bytes.
+    ///
     /// ## Errors
     ///
     /// Will return `Err` if the input data is empty or an IO error occurs.
@@ -59,6 +68,10 @@ impl<R: Read> FastaReader<R> {
     }
 
     /// Creates an iterator over FASTA data from a [`BufReader`].
+    ///
+    /// The iterator returns `None` once `reader.fill_buf()` returns an empty
+    /// slice (signalling EOF). After this, the iterator will continue to return
+    /// `None` regardless of whether `reader.fill_buf()` could return new bytes.
     ///
     /// ## Errors
     ///
@@ -161,6 +174,10 @@ impl FastaReader<File> {
     /// Creates an iterator over the FASTA data contained in a path, using a
     /// buffered reader.
     ///
+    /// The iterator returns `None` once EOF is reached. After this, the
+    /// iterator will continue to return `None` regardless of whether additional
+    /// bytes are added to the file.
+    ///
     /// ## Errors
     ///
     /// Will return `Err` if the path does not exist, if there are insufficient
@@ -249,3 +266,5 @@ impl<R: Read> Iterator for FastaReader<R> {
         Some(Ok(Fasta { header, sequence }))
     }
 }
+
+impl<R: Read> FusedIterator for FastaReader<R> {}

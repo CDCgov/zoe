@@ -29,6 +29,9 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
   floats (behind `fuzzing` feature gate)
 - Constructors for `LocalProfiles` and `SharedProfiles` now accept either owned
   or borrowed weight matrices (via `Into<Cow<...>>`) 
+- `FastaReader` and `FastQReader` now implement `FusedIterator`. The behavior of
+  `FastQReader` has changed to accomodate this (records are not yielded after
+  EOF)
 
 ## Fixed
 
