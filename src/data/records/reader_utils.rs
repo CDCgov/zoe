@@ -56,6 +56,48 @@ pub trait BufReadExtension: BufRead {
         }
         Ok(line)
     }
+
+    /// Similar to [`BufRead::skip_until`], but continues skipping if the `byte`
+    /// does not occur directly after `prefix`.
+    ///
+    /// It is assumed that `byte` is more rare than `prefix`, and that most
+    /// occurrences of `byte` should be preceded by `prefix`.
+    ///
+    /// For example, this can be used to find `>` at the start of a newline
+    /// (after `\n`) for parsing FASTA files.
+    #[allow(dead_code)]
+    fn skip_until_with_prefix(&mut self, byte: u8, prefix: u8) -> std::io::Result<bool> {
+        let mut ends_with_prefix = false;
+
+        loop {
+            let filled = self.retrying_fill_buf()?;
+
+            let Some(&last) = filled.last() else {
+                // EOF reached without finding pattern
+                return Ok(false);
+            };
+
+            let used = filled.len();
+
+            if let Some(byte_idx) = filled.find_byte(byte) {
+                if let Some(prefix_idx) = byte_idx.checked_sub(1) {
+                    if filled[prefix_idx] == prefix {
+                        self.consume(byte_idx + 1);
+                        return Ok(true);
+                    }
+                } else if ends_with_prefix {
+                    self.consume(1);
+                    return Ok(true);
+                }
+
+                ends_with_prefix = byte == prefix;
+                self.consume(byte_idx + 1);
+            } else {
+                ends_with_prefix = last == prefix;
+                self.consume(used);
+            }
+        }
+    }
 }
 
 impl<R: BufRead> BufReadExtension for R {}
