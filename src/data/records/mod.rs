@@ -8,5 +8,6 @@ pub mod fastq;
 pub mod sam;
 
 mod getter_traits;
+mod reader_utils;
 
 pub use getter_traits::*;
