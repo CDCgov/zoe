@@ -1,5 +1,5 @@
 use crate::{
-    alignment::{AlignOp, ScalarProfile, ScoreParams},
+    alignment::{AlignOp, ScoreParams},
     data::cigar::Ciglet,
 };
 use std::{
@@ -10,13 +10,10 @@ use std::{
 
 /// Computes the score for a global alignment.
 ///
-/// When scoring an alignment, this function expects the `query` to be passed as
-/// a [`ScalarProfile`].
-///
 /// ## Validity
 ///
-/// - The iterator of ciglets should never contain two ciglets with the same
-///   operation adjacent to each other.
+/// The iterator of ciglets should never contain two ciglets with the same
+/// operation adjacent to each other.
 ///
 /// ## Errors
 ///
@@ -24,18 +21,18 @@ use std::{
 ///
 /// ## Panics
 ///
-/// - All increments must be nonzero.
+/// All increments must be nonzero.
 #[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
 pub fn nw_score_from_path<const S: usize>(
-    ciglets: impl IntoIterator<Item = Ciglet>, reference: &[u8], query: &ScalarProfile<S>,
+    ciglets: impl IntoIterator<Item = Ciglet>, reference: &[u8], query: &[u8], params: &ScoreParams<i8, S>,
 ) -> Result<i32, NwScoringError> {
     let ScoreParams {
-        ref matrix,
+        matrix,
         gap_open,
         gap_extend,
-    } = query.params;
-    let [gap_open, gap_extend] = [gap_open, gap_extend].map(i32::from);
-    let (query, matrix) = (query.seq.as_ref(), matrix.as_ref());
+    } = params;
+    let [gap_open, gap_extend] = [*gap_open, *gap_extend].map(i32::from);
+    let matrix = matrix.as_ref();
 
     let mut score = 0;
     let mut r = 0;

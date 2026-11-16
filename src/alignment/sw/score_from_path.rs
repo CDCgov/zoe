@@ -1,5 +1,5 @@
 use crate::{
-    alignment::{AlignOp, ScalarProfile, ScoreParams},
+    alignment::{AlignOp, ScoreParams},
     data::cigar::Ciglet,
 };
 use std::{
@@ -11,8 +11,8 @@ use std::{
 /// Computes the score for a local alignment.
 ///
 /// When scoring an alignment, this function expects the full `query` to be
-/// passed as a [`ScalarProfile`], as well as the slice of the reference which
-/// was aligned to (e.g., the indices in [`Alignment::ref_range`]).
+/// passed, as well as the slice of the reference which was aligned to (e.g.,
+/// the indices in [`Alignment::ref_range`]).
 ///
 /// ## Validity
 ///
@@ -31,15 +31,15 @@ use std::{
 ///
 /// [`Alignment::ref_range`]: crate::alignment::types::Alignment::ref_range
 pub fn sw_score_from_path<const S: usize>(
-    ciglets: impl IntoIterator<Item = Ciglet>, ref_in_alignment: &[u8], query: &ScalarProfile<S>,
+    ciglets: impl IntoIterator<Item = Ciglet>, ref_in_alignment: &[u8], query: &[u8], params: &ScoreParams<i8, S>,
 ) -> Result<u32, SwScoringError> {
     let ScoreParams {
-        ref matrix,
+        matrix,
         gap_open,
         gap_extend,
-    } = query.params;
-    let [gap_open, gap_extend] = [gap_open, gap_extend].map(i32::from);
-    let (query, matrix) = (query.seq.as_ref(), matrix.as_ref());
+    } = params;
+    let [gap_open, gap_extend] = [*gap_open, *gap_extend].map(i32::from);
+    let matrix = matrix.as_ref();
 
     let mut score = 0;
     let mut r = 0;
