@@ -322,9 +322,9 @@ impl SamData {
     /// [`MaybeAligned::Unmapped`] is returned.
     ///
     /// Any hard clipped bases in the query are not included in the resulting
-    /// `query_range` or `query_len`. The `query_len` field is equal to the
-    /// length of the incoming `seq` field in the SAM record, and `query_range`
-    /// represents the entire `seq` except for soft clipping.
+    /// `query_range` or `query_len`. `query_range` represents the entire `SEQ`
+    /// except for soft clipping, while `query_len` represents the length with
+    /// soft clipping (which must also equal the length of `SEQ` if present).
     ///
     /// The `score` must be provided as an argument. A ZST like `()` can also be
     /// passed to avoid storing the score. If the score is present under the
@@ -362,53 +362,88 @@ impl SamData {
     ///
     /// ## Errors
     ///
-    /// For any mapped read:
+    /// Unmapped reads are those where the FLAG has the unmapped bit set, the
+    /// CIGAR field is not populated, or the CIGAR field is solely clipping.
+    /// These are checked in this order, and [`MaybeAligned::Unmapped`] is
+    /// returned immediately when a condition is found true. During this
+    /// process, an error is returned if the CIGAR field must be read and is
+    /// malformed.
     ///
-    /// - The `seq` field of the record must be populated (i.e., not `*`).
-    /// - Every operation in the CIGAR string must have a preceding increment
-    /// - Every increment must be followed by an operation
-    /// - The increment for each operation must be non-zero and less than
-    ///   [`usize::MAX`]
+    /// For any mapped read, the following additional errors could occur:
     ///
-    /// ## Validity
-    ///
-    /// For any mapped read, the length of the `seq` field should equal the sum
-    /// of the increments for the operations `M`, `I`, `S`, `=`, and `X`. Note
-    /// that this includes soft clipped regions but not hard clipped.
+    /// - The CIGAR field must have no clipping in the interior of the string
+    /// - The number of reference bases consumed by the CIGAR string must not
+    ///   overflow [`usize`], and similarly for the query
+    /// - If the SEQ field is populated, then the sequence length must match the
+    ///   number of query bases consumed by the CIGAR string
+    /// - The POS field must be populated (i.e., not zero)
+    /// - The POS and CIGAR field must yield an ending reference index that does
+    ///   not exceed `ref_len`
     #[inline]
     pub fn to_alignment<T>(&self, score: T, ref_len: usize) -> std::io::Result<MaybeAligned<Alignment<T>>> {
-        let states = AlignmentStates::try_from(&self.cigar).map_err(std::io::Error::other)?;
-
+        // Handle FLAG
         if self.flag.is_unmapped() {
             return Ok(MaybeAligned::Unmapped);
         }
 
-        if is_missing_sam_field(&self.seq) {
-            return Err(std::io::Error::other(
-                "The seq field in the SAM data record was not populated.",
-            ));
+        // Parse CIGAR to AlignmentStates
+        let states = AlignmentStates::try_from(&self.cigar).map_err(std::io::Error::other)?;
+        if states.is_empty() {
+            return Ok(MaybeAligned::Unmapped);
         }
 
-        let query_len = self.seq.len();
-
-        let ref_range_start = self.pos - 1;
-        let ref_range_end = ref_range_start + self.cigar.ref_len_in_alignment();
-        let ref_range = ref_range_start..ref_range_end;
-
+        // Compute the start of the aligned query by examining clipping in CIGAR
         let mut ciglets = states.as_slice();
         ciglets.next_ciglet_if_op(|op| op == AlignOp::H);
         let soft_clipping_front = ciglets.next_ciglet_if_op(|op| op == AlignOp::S).map_or(0, |c| c.inc);
         ciglets.next_ciglet_back_if_op(|op| op == AlignOp::H);
         let soft_clipping_back = ciglets.next_ciglet_back_if_op(|op| op == AlignOp::S).map_or(0, |c| c.inc);
-
         if ciglets.is_empty() {
             return Ok(MaybeAligned::Unmapped);
         }
-
-        let soft_clipping = soft_clipping_front + soft_clipping_back;
+        if ciglets.iter().any(|c| matches!(c.op, AlignOp::S | AlignOp::H)) {
+            return Err(std::io::Error::other("Found clipping in the interior of the CIGAR string"));
+        }
 
         let query_range_start = soft_clipping_front;
-        let query_range_end = query_range_start + (query_len - soft_clipping);
+
+        // Compute number of residues consumed in CIGAR
+        let Some(aligned_ref_len) = states.ref_len_in_alignment_checked() else {
+            return Err(std::io::Error::other(
+                "The number of reference residues consumed by the CIGAR string overflowed usize",
+            ));
+        };
+        let Some(query_len) = states.query_len_in_alignment_checked() else {
+            return Err(std::io::Error::other(
+                "The number of query residues consumed by the CIGAR string overflowed usize",
+            ));
+        };
+
+        // Confirm CIGAR is compatible with SEQ, if SEQ is present
+        if !is_missing_sam_field(&self.seq) && self.seq.len() != query_len {
+            return Err(std::io::Error::other(format!(
+                "The CIGAR field consumed {query_len} residues of the query, but the length of SEQ was different {seq_len}",
+                seq_len = self.seq.len()
+            )));
+        }
+
+        // Parse POS
+        let Some(ref_range_start) = self.pos.checked_sub(1) else {
+            return Err(std::io::Error::other("The POS field was not populated"));
+        };
+
+        // Compute and validate the index for the end of the reference
+        let Some(ref_range_end) = aligned_ref_len.checked_add(ref_range_start).filter(|&end| end <= ref_len) else {
+            return Err(std::io::Error::other(format!(
+                "The alignment implied by POS and CIGAR extends beyond ref_len ({ref_len})"
+            )));
+        };
+
+        // Compute the end of the aligned query
+        let query_range_end = query_len - soft_clipping_back;
+
+        // Form ranges
+        let ref_range = ref_range_start..ref_range_end;
         let query_range = query_range_start..query_range_end;
 
         Ok(MaybeAligned::Some(Alignment {

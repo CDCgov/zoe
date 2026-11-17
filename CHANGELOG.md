@@ -39,6 +39,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
   `FastQReader` has changed to accomodate this (records are not yielded after
   EOF)
 - `SamData::to_alignment` no longer has any trait bounds on the score `T`
+- `SamData::to_alignment` now has stricter error checking to ensure invariants
+  of `Alignment` are upheld
 
 ## Fixed
 
