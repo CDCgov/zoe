@@ -317,8 +317,8 @@ impl SamData {
     /// Converts the [`SamData`] record into an [`Alignment`] struct (wrapped in
     /// [`MaybeAligned`]).
     ///
-    /// If the entire CIGAR string is empty or consists solely of clipping, or if
-    /// [`SamData::flag`] has the unmapped flag set, then
+    /// If the entire CIGAR string is empty or consists solely of clipping, or
+    /// if [`SamData::flag`] has the unmapped flag set, then
     /// [`MaybeAligned::Unmapped`] is returned.
     ///
     /// Any hard clipped bases in the query are not included in the resulting
@@ -326,8 +326,9 @@ impl SamData {
     /// length of the incoming `seq` field in the SAM record, and `query_range`
     /// represents the entire `seq` except for soft clipping.
     ///
-    /// The `score` must be provided as an argument. If the score is present
-    /// under the `AS` TAG, then it can be retrieved with:
+    /// The `score` must be provided as an argument. A ZST like `()` can also be
+    /// passed to avoid storing the score. If the score is present under the
+    /// `AS` TAG, then it can be retrieved with:
     ///
     /// ```
     /// # use zoe::{
@@ -375,7 +376,7 @@ impl SamData {
     /// of the increments for the operations `M`, `I`, `S`, `=`, and `X`. Note
     /// that this includes soft clipped regions but not hard clipped.
     #[inline]
-    pub fn to_alignment<T: AnyInt>(&self, score: T, ref_len: usize) -> std::io::Result<MaybeAligned<Alignment<T>>> {
+    pub fn to_alignment<T>(&self, score: T, ref_len: usize) -> std::io::Result<MaybeAligned<Alignment<T>>> {
         let states = AlignmentStates::try_from(&self.cigar).map_err(std::io::Error::other)?;
 
         if self.flag.is_unmapped() {

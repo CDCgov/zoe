@@ -34,6 +34,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - `FastaReader` and `FastQReader` now implement `FusedIterator`. The behavior of
   `FastQReader` has changed to accomodate this (records are not yielded after
   EOF)
+- `SamData::to_alignment` no longer has any trait bounds on the score `T`
 
 ## Fixed
 
