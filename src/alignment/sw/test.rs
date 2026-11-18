@@ -58,14 +58,9 @@ fn sw_verify_score_from_path() {
     let params = ScoreParams::new_dna_params(3, -1, -4, -1, Some(b'N')).unwrap();
 
     let profile = ScalarProfile::new(query, &params);
-    let Alignment {
-        score,
-        ref_range,
-        states,
-        ..
-    } = sw_scalar_align(reference, &profile).unwrap();
+    let alignment = sw_scalar_align(reference, &profile).unwrap();
 
-    assert_eq!(Ok(score), sw_score_from_path(&states, &reference[ref_range], query, &params));
+    assert_eq!(Ok(alignment.score), alignment.rescore_sw(reference, query, &params));
 }
 
 #[test]

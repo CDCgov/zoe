@@ -19,8 +19,9 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
   passed, which combines a weight matrix and the affine gap parameters.
   Construction of `ScoreParams` is fallible, but profile construction is no
   longer fallible. Empty sequences are now supported in profiles
-- `sw_score_from_path` and `nw_score_from_path` accept `ScoreParams` and a slice
-  for the query instead of `ScalarProfile`
+- Deprecated `sw_score_from_path` and `nw_score_from_path` in favor of
+  `Alignment` methods `rescore_sw` and `rescore_nw` with simpler APIs using
+  `ScoreParams`
 - `with_context`, `with_subitem`, and `with_path_context` now accept a generic
   `ErrorContext` instead of `Into<String>` or `Display`. Among the implementors,
   closures are implemented so that lazy context can be used to reduce
