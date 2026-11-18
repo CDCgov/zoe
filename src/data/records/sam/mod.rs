@@ -18,6 +18,7 @@ mod sort_traits;
 mod std_traits;
 mod view_traits;
 
+pub use convert::*;
 pub use display_sam_fields::*;
 pub use flag::*;
 pub use get_sam_fields::*;

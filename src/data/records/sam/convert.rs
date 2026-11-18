@@ -1,7 +1,8 @@
 use crate::{
     alignment::{AlignOp, Alignment, AlignmentStates, MaybeAligned, NextCiglet},
     data::{
-        cigar::LenInAlignment,
+        cigar::{CigarError, LenInAlignment},
+        err::impl_err_conv,
         nucleotides::Nucleotides,
         phred::QualityScores,
         sam::{Flag, SamData, SamOptRaw, is_missing_sam_field},
@@ -9,6 +10,7 @@ use crate::{
     },
     math::AnyInt,
 };
+use std::{error::Error, fmt::Display};
 
 impl SamData {
     /// Constructs a new [`SamData`] record from an [`Alignment`] struct as well
@@ -119,14 +121,14 @@ impl SamData {
     /// - The POS and CIGAR field must yield an ending reference index that does
     ///   not exceed `ref_len`
     #[inline]
-    pub fn to_alignment<T>(&self, score: T, ref_len: usize) -> std::io::Result<MaybeAligned<Alignment<T>>> {
+    pub fn to_alignment<T>(&self, score: T, ref_len: usize) -> Result<MaybeAligned<Alignment<T>>, ToAlignmentError> {
         // Handle FLAG
         if self.flag.is_unmapped() {
             return Ok(MaybeAligned::Unmapped);
         }
 
         // Parse CIGAR to AlignmentStates
-        let states = AlignmentStates::try_from(&self.cigar).map_err(std::io::Error::other)?;
+        let states = AlignmentStates::try_from(&self.cigar)?;
         if states.is_empty() {
             return Ok(MaybeAligned::Unmapped);
         }
@@ -141,41 +143,35 @@ impl SamData {
             return Ok(MaybeAligned::Unmapped);
         }
         if ciglets.iter().any(|c| matches!(c.op, AlignOp::S | AlignOp::H)) {
-            return Err(std::io::Error::other("Found clipping in the interior of the CIGAR string"));
+            return Err(ToAlignmentError::InteriorClipping);
         }
 
         let query_range_start = soft_clipping_front;
 
         // Compute number of residues consumed in CIGAR
         let Some(aligned_ref_len) = states.ref_len_in_alignment_checked() else {
-            return Err(std::io::Error::other(
-                "The number of reference residues consumed by the CIGAR string overflowed usize",
-            ));
+            return Err(ToAlignmentError::OverflowingCigarRefInc);
         };
         let Some(query_len) = states.query_len_in_alignment_checked() else {
-            return Err(std::io::Error::other(
-                "The number of query residues consumed by the CIGAR string overflowed usize",
-            ));
+            return Err(ToAlignmentError::OverflowingCigarQueryInc);
         };
 
         // Confirm CIGAR is compatible with SEQ, if SEQ is present
         if !is_missing_sam_field(&self.seq) && self.seq.len() != query_len {
-            return Err(std::io::Error::other(format!(
-                "The CIGAR field consumed {query_len} residues of the query, but the length of SEQ was different {seq_len}",
-                seq_len = self.seq.len()
-            )));
+            return Err(ToAlignmentError::IncorrectSeqLen {
+                cigar_query_inc: query_len,
+                seq_len:         self.seq.len(),
+            });
         }
 
         // Parse POS
         let Some(ref_range_start) = self.pos.checked_sub(1) else {
-            return Err(std::io::Error::other("The POS field was not populated"));
+            return Err(ToAlignmentError::MissingPosField);
         };
 
         // Compute and validate the index for the end of the reference
         let Some(ref_range_end) = aligned_ref_len.checked_add(ref_range_start).filter(|&end| end <= ref_len) else {
-            return Err(std::io::Error::other(format!(
-                "The alignment implied by POS and CIGAR extends beyond ref_len ({ref_len})"
-            )));
+            return Err(ToAlignmentError::IncorrectRefLen { ref_len });
         };
 
         // Compute the end of the aligned query
@@ -193,5 +189,59 @@ impl SamData {
             ref_len,
             query_len,
         }))
+    }
+}
+
+#[derive(Debug)]
+pub enum ToAlignmentError {
+    InvalidCigar(CigarError),
+    InteriorClipping,
+    OverflowingCigarRefInc,
+    OverflowingCigarQueryInc,
+    IncorrectSeqLen { cigar_query_inc: usize, seq_len: usize },
+    MissingPosField,
+    IncorrectRefLen { ref_len: usize },
+}
+
+impl Display for ToAlignmentError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ToAlignmentError::InvalidCigar(_) => f.write_str("The record contained an invalid CIGAR string"),
+            ToAlignmentError::InteriorClipping => f.write_str("Found clipping in the interior of the CIGAR string"),
+            ToAlignmentError::OverflowingCigarRefInc => {
+                f.write_str("The number of reference residues consumed by the CIGAR string overflowed usize")
+            }
+            ToAlignmentError::OverflowingCigarQueryInc => {
+                f.write_str("The number of query residues consumed by the CIGAR string overflowed usize")
+            }
+            ToAlignmentError::IncorrectSeqLen {
+                cigar_query_inc,
+                seq_len,
+            } => write!(
+                f,
+                "The CIGAR field consumed {cigar_query_inc} query residues, but SEQ contained {seq_len} residues"
+            ),
+            ToAlignmentError::MissingPosField => f.write_str("The POS field was not populated"),
+            ToAlignmentError::IncorrectRefLen { ref_len } => {
+                write!(f, "The alignment implied by POS and CIGAR extends beyond ref_len ({ref_len})")
+            }
+        }
+    }
+}
+
+impl Error for ToAlignmentError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            ToAlignmentError::InvalidCigar(err) => Some(err),
+            _ => None,
+        }
+    }
+}
+
+impl_err_conv!(ToAlignmentError);
+
+impl From<CigarError> for ToAlignmentError {
+    fn from(value: CigarError) -> Self {
+        Self::InvalidCigar(value)
     }
 }

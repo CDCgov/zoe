@@ -43,7 +43,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
   EOF)
 - `SamData::to_alignment` no longer has any trait bounds on the score `T`
 - `SamData::to_alignment` now has stricter error checking to ensure invariants
-  of `Alignment` are upheld
+  of `Alignment` are upheld, and it returns an enum error `ToAlignmentError`
 - `find_repeating_at_start` and `find_repeating_at_end` now return `None`
   instead of an empty range (only matters when `min_reps` is 0)
 - `SamData` and `SamDataView` constructors (including `from_alignment`) now
