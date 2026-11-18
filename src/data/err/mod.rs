@@ -73,9 +73,49 @@ pub use display::*;
 pub use error_with_context::*;
 pub use handling::*;
 
-#[cfg(test)]
-mod test;
-
 /// Maximum number of errors inspected when traversing a source chain, both for
 /// retrieving exit codes and for displaying the stack.
 const MAX_ERROR_CHAIN_DEPTH: usize = 256;
+
+/// Implements conversions from a *Zoe* error type into [`ErrorWithContext`] and
+/// [`std::io::Error`].
+macro_rules! impl_err_conv {
+    ([$($generics:tt)*] $error:ty) => {
+        impl<$($generics)*> From<$error> for $crate::data::err::ErrorWithContext
+        where
+            $error: std::error::Error + Send + Sync + 'static,
+        {
+            fn from(value: $error) -> Self {
+                $crate::data::err::WrapError::wrap(value)
+            }
+        }
+
+        impl<$($generics)*> From<$error> for std::io::Error
+        where
+            $error: std::error::Error + Send + Sync + 'static,
+        {
+            fn from(value: $error) -> Self {
+                std::io::Error::other(value)
+            }
+        }
+    };
+
+    ($error:ty) => {
+        impl From<$error> for $crate::data::err::ErrorWithContext {
+            fn from(value: $error) -> Self {
+                $crate::data::err::WrapError::wrap(value)
+            }
+        }
+
+        impl From<$error> for std::io::Error {
+            fn from(value: $error) -> Self {
+                std::io::Error::other(value)
+            }
+        }
+    };
+}
+
+pub(crate) use impl_err_conv;
+
+#[cfg(test)]
+mod test;

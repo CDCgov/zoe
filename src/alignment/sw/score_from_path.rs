@@ -1,6 +1,6 @@
 use crate::{
     alignment::{AlignOp, Alignment, ScoreParams},
-    data::cigar::Ciglet,
+    data::{cigar::Ciglet, err::impl_err_conv},
 };
 use std::{
     cmp::Ordering::{Equal, Greater, Less},
@@ -123,6 +123,8 @@ impl Debug for RescoreSwError {
 }
 
 impl Error for RescoreSwError {}
+
+impl_err_conv!(RescoreSwError);
 
 /// Computes the score for a local alignment.
 ///

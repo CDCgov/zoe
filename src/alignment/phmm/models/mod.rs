@@ -8,7 +8,7 @@ use crate::{
         indexing::{AlnIndexable, GetCore, GetLayer, GetLayerMut, GetMapping, GetModule},
         modules::{DomainModule, LocalModule, SemiLocalModule},
     },
-    data::mappings::ByteIndexMap,
+    data::{err::impl_err_conv, mappings::ByteIndexMap},
 };
 use std::{
     error::Error,
@@ -474,6 +474,8 @@ impl Display for IncompatibleModuleError {
 
 impl Error for IncompatibleModuleError {}
 
+impl_err_conv!(IncompatibleModuleError);
+
 /// An enum representing errors that can happen when working with pHMMs.
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum InvalidModelError {
@@ -508,3 +510,5 @@ impl Debug for InvalidModelError {
 }
 
 impl Error for InvalidModelError {}
+
+impl_err_conv!(InvalidModelError);

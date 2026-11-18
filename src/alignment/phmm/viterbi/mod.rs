@@ -1,10 +1,13 @@
 //! Implementations of the Viterbi algorithm on pHMMs for sequence alignment.
 
-use crate::alignment::phmm::{
-    InvalidModelError, PhmmNumber,
-    components::LayerParams,
-    indexing::SeqIndex,
-    state::{PhmmState, PhmmStateOrModule, best_state},
+use crate::{
+    alignment::phmm::{
+        InvalidModelError, PhmmNumber,
+        components::LayerParams,
+        indexing::SeqIndex,
+        state::{PhmmState, PhmmStateOrModule, best_state},
+    },
+    data::err::impl_err_conv,
 };
 use std::{
     error::Error,
@@ -51,6 +54,8 @@ impl Error for ViterbiError {
         }
     }
 }
+
+impl_err_conv!(ViterbiError);
 
 impl From<InvalidModelError> for ViterbiError {
     #[inline]

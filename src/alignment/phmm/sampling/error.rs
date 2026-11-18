@@ -5,7 +5,7 @@ use crate::{
         state::{PhmmState, PhmmStateArr, PhmmStateOrExit, PhmmStateOrModuleArr},
         traverse::{EndInsert, EndInsertExit, ModuleLocation},
     },
-    data::ByteIndexMap,
+    data::{ByteIndexMap, err::impl_err_conv},
 };
 use rand::seq::WeightError;
 use std::{
@@ -60,6 +60,8 @@ impl Error for ParamWeightError {
         }
     }
 }
+
+impl_err_conv!(ParamWeightError);
 
 /// A parameter alongside a label, for use in [`ParamSamplingError`].
 #[derive(Clone, Eq, PartialEq, Debug)]
@@ -202,6 +204,8 @@ where
     }
 }
 
+impl_err_conv!([T, L, const N: usize] ParamSamplingError<T, L, N>);
+
 /// An error representing a sampling error where the only non-zero probability
 /// transition is a self-loop, causing an infinite loop during sampling.
 #[derive(Clone, Eq, PartialEq, Debug)]
@@ -262,6 +266,8 @@ where
 {
 }
 
+impl_err_conv!([T, L, const N: usize] ParamTrapError<T, L, N>);
+
 /// A sampling error caused by bad transition parameters.
 ///
 /// In the error stack, this is a transparent enum adding no additional context.
@@ -310,6 +316,8 @@ impl<T, L, const N: usize> From<ParamTrapError<T, L, N>> for TransitionParamErro
         TransitionParamError::Trap(value)
     }
 }
+
+impl_err_conv!([T, L, const N: usize] TransitionParamError<T, L, N>);
 
 /// An enum unifying the different state-sampling errors that could occur.
 ///
@@ -362,6 +370,8 @@ where
     }
 }
 
+impl_err_conv!([T] SampleFromStateError<T>);
+
 /// An enum unifying the different sampling errors that could occur within a
 /// layer of the core pHMM.
 #[derive(Clone, Eq, PartialEq, Debug)]
@@ -402,6 +412,8 @@ where
     }
 }
 
+impl_err_conv!([T, const S: usize] LayerSamplingError<T, S>);
+
 /// A sampling error that occurred when choosing whether to enter the insert
 /// state of a [`DomainModule`] or skip to the end.
 ///
@@ -427,6 +439,8 @@ where
     }
 }
 
+impl_err_conv!([T] DomainEnterInsertError<T>);
+
 /// A sampling error that occurred when choosing whether to remain in the insert
 /// state of a [`DomainModule`] or exit to the end.
 ///
@@ -451,6 +465,8 @@ where
         Some(&self.0)
     }
 }
+
+impl_err_conv!([T] DomainExitInsertError<T>);
 
 /// A sampling error that occurred when choosing the layer of the core pHMM to
 /// enter from the [`SemiLocalModule`] at the start of the pHMM.
@@ -486,6 +502,8 @@ where
         Some(&self.source)
     }
 }
+
+impl_err_conv!([T] SemiLocalEnterCoreError<T>);
 
 /// An enum unifying the different sampling errors that could occur within a
 /// module at the start or end of a pHMM.
@@ -549,6 +567,8 @@ where
     }
 }
 
+impl_err_conv!([T, const S: usize] ModuleSamplingError<T, S>);
+
 /// Any error that can occur while sampling from a pHMM.
 ///
 /// In the error stack, this is a transparent enum adding no additional context.
@@ -590,6 +610,8 @@ where
         }
     }
 }
+
+impl_err_conv!([T, const S: usize] SamplingError<T, S>);
 
 impl<T, const S: usize> From<InvalidModelError> for SamplingError<T, S> {
     fn from(value: InvalidModelError) -> Self {

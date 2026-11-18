@@ -1,3 +1,4 @@
+use crate::data::err::impl_err_conv;
 use std::{error::Error, fmt};
 
 /// Errors that can occur when constructing a profile for alignment.
@@ -40,3 +41,5 @@ impl fmt::Display for ProfileError {
 }
 
 impl Error for ProfileError {}
+
+impl_err_conv!(ProfileError);

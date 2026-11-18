@@ -89,7 +89,11 @@ mod general;
 
 pub use general::*;
 
-use std::fmt::{self, Display};
+use crate::data::err::impl_err_conv;
+use std::{
+    error::Error,
+    fmt::{self, Display},
+};
 
 /// Errors that can occur when calculating distances.
 #[derive(Debug)]
@@ -110,4 +114,6 @@ impl Display for DistanceError {
     }
 }
 
-impl std::error::Error for DistanceError {}
+impl Error for DistanceError {}
+
+impl_err_conv!(DistanceError);

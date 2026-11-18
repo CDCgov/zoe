@@ -2,6 +2,7 @@
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::missing_panics_doc)]
 
+use crate::data::err::impl_err_conv;
 use std::{
     borrow::{Borrow, BorrowMut},
     collections::TryReserveError,
@@ -383,3 +384,5 @@ impl Display for TooShort {
 }
 
 impl Error for TooShort {}
+
+impl_err_conv!(TooShort);

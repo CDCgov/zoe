@@ -1,8 +1,9 @@
 //! Error types for CIGAR strings.
 
+use crate::data::err::impl_err_conv;
 use std::{
     error::Error,
-    fmt::{self, Display},
+    fmt::{Debug, Display},
 };
 
 // TODO: Could eventually have InvalidOperation hold InvalidCigarOpErr
@@ -25,9 +26,9 @@ pub enum CigarError {
     MissingOp,
 }
 
-impl fmt::Display for CigarError {
+impl Display for CigarError {
     #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             CigarError::InvalidOperation => f.write_str("CIGAR operation must be one of: M, I, D, N, S, H, P, X, ="),
             CigarError::IncZero => f.write_str("CIGAR increment must be a non-zero positive integer"),
@@ -43,14 +44,16 @@ impl fmt::Display for CigarError {
     }
 }
 
-impl fmt::Debug for CigarError {
+impl Debug for CigarError {
     #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{self}")
     }
 }
 
 impl Error for CigarError {}
+
+impl_err_conv!(CigarError);
 
 /// An error for an invalid operation while parsing a CIGAR string.
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
@@ -74,3 +77,5 @@ impl From<InvalidCigarOpErr> for CigarError {
         CigarError::InvalidOperation
     }
 }
+
+impl_err_conv!(InvalidCigarOpErr);

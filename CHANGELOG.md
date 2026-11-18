@@ -12,6 +12,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
   structs (using `GetSamFieldsMut` and `Default`)
 - Added `iter` method to `PhmmStateArr` and `PhmmStateOrModuleArr`
 - Implemented `PeekCigletMut` for `CigletOpIter`
+- All *Zoe* error types now implement `From<_> for ErrorWithContext` and
+  `From<_> for std::io::Error`
 
 ### Changed
 

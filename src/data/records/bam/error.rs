@@ -16,7 +16,7 @@
 //!
 //! [`BamWriter`]: crate::data::records::bam::writer::BamWriter
 
-use crate::data::cigar::CigarError;
+use crate::data::{cigar::CigarError, err::impl_err_conv};
 use std::{error::Error, fmt};
 
 /// Error returned when writing BAM output or converting SAM records to BAM.
@@ -283,3 +283,8 @@ impl Error for BamEncodingError {
         }
     }
 }
+
+impl_err_conv!(BamError);
+impl_err_conv!(BamHeaderError);
+impl_err_conv!(BamRecordError);
+impl_err_conv!(BamEncodingError);
