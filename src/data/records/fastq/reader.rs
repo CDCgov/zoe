@@ -1,5 +1,8 @@
 use crate::{
-    data::{err::ResultWithErrorContext, records::reader_utils::BufReadExtension},
+    data::{
+        err::ResultWithErrorContext,
+        records::reader_utils::{BufReadExtension, FusedBufReader},
+    },
     prelude::*,
 };
 use std::{
@@ -16,8 +19,7 @@ use std::{
 /// must be on a single line, and the quality scores must be on a single line.
 #[derive(Debug)]
 pub struct FastQReader<R: Read> {
-    /// The inner reader, which is `None` if EOF has been reached.
-    reader: Option<BufReader<R>>,
+    reader: FusedBufReader<R>,
 }
 
 impl<R: Read> FastQReader<R> {
@@ -34,7 +36,7 @@ impl<R: Read> FastQReader<R> {
     /// [`from_readable`]: FastQReader::from_readable
     pub fn new(inner: R) -> Self {
         FastQReader {
-            reader: Some(BufReader::new(inner)),
+            reader: FusedBufReader::new(inner),
         }
     }
 
@@ -66,7 +68,9 @@ impl<R: Read> FastQReader<R> {
             return Err(IOError::new(ErrorKind::InvalidData, "No FASTQ data was found!"));
         }
 
-        Ok(FastQReader { reader: Some(reader) })
+        Ok(FastQReader {
+            reader: FusedBufReader::from_bufreader(reader),
+        })
     }
 }
 
@@ -107,22 +111,18 @@ impl<R: Read> FastQReader<R> {
     /// rather than an [`Option`], to allow for a more readable implementation.
     #[inline]
     fn next_helper(&mut self) -> std::io::Result<Option<FastQ>> {
-        // Get the reader, or return None if EOF was previously reached
-        let Some(reader) = &mut self.reader else { return Ok(None) };
-
         // Consume "@" at start of header, or skip line and abort
-        let buf = reader.retrying_fill_buf()?;
+        let buf = self.reader.retrying_fill_buf()?;
 
         let Some(marker) = buf.first().copied() else {
-            // If buf is empty, then EOF is reached, so terminate iterator
-            self.reader = None;
+            // EOF reached
             return Ok(None);
         };
 
         if marker != b'@' {
             // Skip the entire problematic line to avoid repeated errors (or
             // infinite loops, in the case of an improperly used reader)
-            reader.skip_until(b'\n')?;
+            self.reader.skip_until(b'\n')?;
 
             return Err(IOError::new(
                 ErrorKind::InvalidData,
@@ -130,10 +130,10 @@ impl<R: Read> FastQReader<R> {
             ));
         }
 
-        reader.consume(1);
+        self.reader.consume(1);
 
         // Read header directly into Vec
-        let header = reader.read_line_owned(0)?;
+        let header = self.reader.read_line_owned(0)?;
 
         if header.is_empty() {
             return Err(IOError::new(ErrorKind::InvalidData, "Missing FASTQ header!"));
@@ -142,7 +142,7 @@ impl<R: Read> FastQReader<R> {
         let header = String::from_utf8(header).map_err(|err| IOError::new(ErrorKind::InvalidData, err))?;
 
         // Read sequence directly into Vec
-        let sequence = reader.read_line_owned(0)?;
+        let sequence = self.reader.read_line_owned(0)?;
 
         if sequence.is_empty() {
             return Err(IOError::new(
@@ -154,11 +154,11 @@ impl<R: Read> FastQReader<R> {
         let sequence = Nucleotides(sequence);
 
         // Consume "+" line without allocating
-        let buffer = reader.retrying_fill_buf()?;
+        let buffer = self.reader.retrying_fill_buf()?;
         let plus_marker = buffer.first().copied();
         // Skip the line, even in the case when the marker is not present (this
         // avoids repeated errors and infinite loops)
-        reader.skip_until(b'\n')?;
+        self.reader.skip_until(b'\n')?;
 
         if plus_marker != Some(b'+') {
             return Err(IOError::new(
@@ -171,7 +171,7 @@ impl<R: Read> FastQReader<R> {
         // space to hold potential \r character before it gets popped. Use
         // wrapping_add for efficiency over saturating_add, which will almost
         // surely never wrap (but if it does, it does not cause a logic error)
-        let quality = reader.read_line_owned(sequence.len().wrapping_add(1))?;
+        let quality = self.reader.read_line_owned(sequence.len().wrapping_add(1))?;
 
         if quality.len() != sequence.len() {
             if quality.is_empty() {

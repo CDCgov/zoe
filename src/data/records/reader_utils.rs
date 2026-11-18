@@ -1,5 +1,92 @@
 use crate::search::ByteSubstring;
-use std::io::{BufRead, ErrorKind};
+use std::io::{BufRead, BufReader, ErrorKind, Read};
+
+/// A wrapper around [`BufReader`] that stops yielding bytes permanently after
+/// EOF (i.e., it fuses after the inner [`BufReader`] stops yielding bytes).
+#[derive(Debug)]
+pub struct FusedBufReader<R> {
+    /// The inner [`BufReader`], set to `None` after EOF is reached.
+    inner: Option<BufReader<R>>,
+}
+
+impl<R: Read> FusedBufReader<R> {
+    /// Creates a new [`FusedBufReader`] around something implementing [`Read`].
+    #[allow(dead_code)]
+    pub fn new(readable: R) -> Self {
+        Self::from_bufreader(BufReader::new(readable))
+    }
+
+    /// Creates a new [`FusedBufReader`] from an existing [`BufReader`].
+    #[allow(dead_code)]
+    pub fn from_bufreader(bufreader: BufReader<R>) -> Self {
+        FusedBufReader { inner: Some(bufreader) }
+    }
+
+    /// Returns whether the [`BufReader`] has reached EOF and will therefore
+    /// read no more bytes.
+    #[allow(dead_code)]
+    pub fn is_at_eof(&self) -> bool {
+        self.inner.is_none()
+    }
+}
+
+impl<R: Read> Read for FusedBufReader<R> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let Some(inner) = &mut self.inner else {
+            return Ok(0);
+        };
+
+        let bytes = inner.read(buf)?;
+        if bytes == 0 && !buf.is_empty() {
+            self.inner = None;
+        }
+        Ok(bytes)
+    }
+
+    fn read_to_end(&mut self, buf: &mut Vec<u8>) -> std::io::Result<usize> {
+        let Some(inner) = &mut self.inner else {
+            return Ok(0);
+        };
+
+        let bytes = inner.read_to_end(buf)?;
+        self.inner = None;
+        Ok(bytes)
+    }
+
+    fn read_to_string(&mut self, buf: &mut String) -> std::io::Result<usize> {
+        let Some(inner) = &mut self.inner else {
+            return Ok(0);
+        };
+
+        let bytes = inner.read_to_string(buf)?;
+        self.inner = None;
+        Ok(bytes)
+    }
+}
+
+impl<R: Read> BufRead for FusedBufReader<R> {
+    #[inline]
+    fn fill_buf(&mut self) -> std::io::Result<&[u8]> {
+        let Some(inner) = &mut self.inner else {
+            return Ok(&[]);
+        };
+
+        let out = inner.fill_buf()?;
+        if out.is_empty() {
+            self.inner = None;
+            Ok(&[])
+        } else {
+            Ok(out)
+        }
+    }
+
+    #[inline]
+    fn consume(&mut self, amount: usize) {
+        if let Some(inner) = &mut self.inner {
+            inner.consume(amount);
+        }
+    }
+}
 
 /// An extension trait for [`BufRead`] offering a retrying version of
 /// [`BufRead::fill_buf`].
