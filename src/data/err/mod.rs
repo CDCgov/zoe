@@ -13,21 +13,21 @@
 //! handling chosen by users, in particular by not adopting any error handling
 //! crate as a dependency.
 //!
-//! For specific applications, *Zoe* has enum-style error types such as
-//! [`ProfileError`] or [`KmerError`], which the user can match on or display.
-//! For working with files and record types, however, *Zoe* elects to use
-//! [`std::io::Error`], allowing for system IO errors to be propagated and
-//! function-specific error messages to be represented with
-//! [`ErrorKind::InvalidData`] or [`ErrorKind::Other`].
+//! Enum-style error types are used when it is useful for users to handle specific error types,
+//! such as [`ProfileError`], [`BamError`], or [`KmerError`]. Otherwise, *Zoe*
+//! elects to use [`std::io::Error`], possibly with function-specific error
+//! messages. *Zoe*'s enum errors can be converted into [`std::io::Error`] (or
+//! [`ErrorWithContext`], as discussed [below](#error-context)) for easy
+//! propagation using [`From`].
 //!
-//! Similar to [`std::io::Error`], [`std::fmt::Display`] is implemented only at
-//! the immediate error level. To see the full error stack when handling errors,
-//! it is important to do one of the following:
+//! Many errors in *Zoe* also implement [`Error::source`] to return their
+//! underlying cause. Instead of just displaying an error, consider showing the full
+//! error stack when handling errors in one of the following ways:
 //!
 //! - Return a `Result<(), ErrorWithContext>` from `main.rs`
+//! - Use an external crate like `anyhow`
 //! - Use *Zoe*'s [`OrFail`] or [`Fail`] traits
 //! - Iterate through the source chain via [`Error::source`]
-//! - Use an external crate like `anyhow`
 //!
 //! ## Error Context
 //!
@@ -64,6 +64,7 @@
 //! [`KmerError`]: crate::kmer::KmerError
 //! [`ErrorKind::InvalidData`]: std::io::ErrorKind::InvalidData
 //! [`ErrorKind::Other`]: std::io::ErrorKind::Other
+//! [`BamError`]: crate::data::records::bam::error::BamError
 
 mod display;
 mod error_with_context;
