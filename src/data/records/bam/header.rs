@@ -1,9 +1,6 @@
 //! Functions for parsing SAM headers as needed for BAM serialization.
 
-use crate::data::{
-    bam::error::{BamEncodingError, BamError, BamHeaderError, BamRecordError, NumberSizeTarget},
-    err::ResultWithErrorContext,
-};
+use crate::data::bam::error::{BamEncodingError, BamError, BamHeaderError, BamRecordError, NumberSizeTarget};
 use std::{
     collections::{HashMap, HashSet, hash_map::Entry},
     io::Write,
@@ -130,21 +127,13 @@ impl Header {
         }
         let n_ref = u32::try_from(self.refs.len()).expect("size checked");
 
-        writer.write_all(BAM_MAGIC).with_context("Cannot write BAM magic string")?;
-        writer
-            .write_all(&l_text.to_le_bytes())
-            .with_context("Cannot write BAM header text length")?;
+        writer.write_all(BAM_MAGIC)?;
+        writer.write_all(&l_text.to_le_bytes())?;
         for line in &self.raw_lines {
-            writer
-                .write_all(line.as_bytes())
-                .with_context("Cannot write BAM header text")?;
-            writer
-                .write_all(b"\n")
-                .with_context("Cannot write BAM header line terminator")?;
+            writer.write_all(line.as_bytes())?;
+            writer.write_all(b"\n")?;
         }
-        writer
-            .write_all(&n_ref.to_le_bytes())
-            .with_context("Cannot write BAM number of references")?;
+        writer.write_all(&n_ref.to_le_bytes())?;
 
         for reference in &self.refs {
             let name_len_with_nul = reference.name.len().checked_add(1).ok_or_else(|| {
@@ -160,18 +149,10 @@ impl Header {
                 })
             })?;
 
-            writer
-                .write_all(&l_name.to_le_bytes())
-                .with_context("Cannot write BAM reference name length")?;
-            writer
-                .write_all(reference.name.as_bytes())
-                .with_context("Cannot write BAM reference name")?;
-            writer
-                .write_all(&[0])
-                .with_context("Cannot write BAM reference name null terminator")?;
-            writer
-                .write_all(&reference.len.to_le_bytes())
-                .with_context("Cannot write BAM reference sequence length")?;
+            writer.write_all(&l_name.to_le_bytes())?;
+            writer.write_all(reference.name.as_bytes())?;
+            writer.write_all(&[0])?;
+            writer.write_all(&reference.len.to_le_bytes())?;
         }
 
         Ok(())

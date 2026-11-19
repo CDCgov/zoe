@@ -16,7 +16,7 @@
 //!
 //! [`BamWriter`]: crate::data::records::bam::writer::BamWriter
 
-use crate::data::{cigar::CigarError, err::ErrorWithContext};
+use crate::data::cigar::CigarError;
 use std::{error::Error, fmt};
 
 /// Error returned when writing BAM output or converting SAM records to BAM.
@@ -156,12 +156,6 @@ pub enum NumberSizeTarget {
 impl From<std::io::Error> for BamError {
     fn from(source: std::io::Error) -> Self {
         BamError::Io { source }
-    }
-}
-
-impl From<ErrorWithContext> for BamError {
-    fn from(source: ErrorWithContext) -> Self {
-        BamError::Io { source: source.into() }
     }
 }
 

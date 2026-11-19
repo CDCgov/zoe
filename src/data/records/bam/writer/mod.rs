@@ -129,9 +129,10 @@ impl BamWriter<File, NoCompression> {
     ///
     /// [`write_record`]: BamWriter::write_record
     /// [`finish`]: BamWriter::finish
-    pub fn from_path(bam_path: impl AsRef<Path>) -> Result<Self, BamError> {
+    pub fn from_path(bam_path: impl AsRef<Path>) -> std::io::Result<Self> {
         let bam_path = bam_path.as_ref();
         let file = File::create(bam_path).with_path_context("Cannot create BAM file to write", bam_path)?;
+
         let mut bam_writer = Self::from_writer(file);
         bam_writer.bam_path = Some(bam_path.to_path_buf());
         Ok(bam_writer)
@@ -328,7 +329,7 @@ impl<W: Write, C: BlockCompressor> BamWriter<W, C> {
         bgzf.finish().map_err(BamError::from)?;
 
         if let Some(bai) = self.bai.take() {
-            bai.write_index().with_context("Error writing BAI file")?;
+            bai.write_index()?;
         }
 
         Ok(())

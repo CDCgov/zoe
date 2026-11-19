@@ -27,8 +27,9 @@ pub(super) struct BaiWriter {
 
 impl BaiWriter {
     /// Creates an index writer for `path`.
-    pub(super) fn from_path(path: impl AsRef<Path>) -> Result<Self, BamError> {
+    pub(super) fn from_path(path: impl AsRef<Path>) -> std::io::Result<Self> {
         let file = File::create(&path).with_path_context("Cannot create .bai file to write", path)?;
+
         Ok(Self {
             inner:           BufWriter::new(file),
             index:           BaiIndex::default(),
@@ -51,12 +52,9 @@ impl BaiWriter {
 
         self.inner.write_all(&n_ref.to_le_bytes())?;
 
-        for (ref_id, reference) in self.index.references.iter_mut().enumerate() {
+        for reference in &mut self.index.references {
             reference.fill_linear_index_gaps();
-
-            reference
-                .write_to(&mut self.inner)
-                .with_context(|| format!("Error writing BAI reference {ref_id}"))?;
+            reference.write_to(&mut self.inner)?;
         }
 
         self.inner.write_all(&self.index.n_no_coord.to_le_bytes())?;
