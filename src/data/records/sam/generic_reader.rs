@@ -72,7 +72,7 @@ where
     record:     PhantomData<T>,
 }
 
-impl<R: Read, T: ParseSamFields> SamReader<R, T> {
+impl<R: Read> SamReader<R> {
     /// Creates an iterator over SAM data, wrapping the input in a buffered
     /// reader.
     ///
@@ -112,6 +112,14 @@ impl<R: Read, T: ParseSamFields> SamReader<R, T> {
             record:     PhantomData,
         })
     }
+
+    /// Changes the yielded record type to be `T` instead of [`SamData`].
+    pub fn with_record_type<T: ParseSamFields>(self) -> SamReader<R, T> {
+        SamReader {
+            sam_reader: self.sam_reader,
+            record:     PhantomData,
+        }
+    }
 }
 
 impl<R: Read, T: ParseSamFields> Iterator for SamReader<R, T> {
@@ -128,7 +136,7 @@ impl<R: Read, T: ParseSamFields> Iterator for SamReader<R, T> {
     }
 }
 
-impl<T: ParseSamFields> SamReader<File, T> {
+impl SamReader<File> {
     /// Creates an iterator over the SAM data contained in a path, using a
     /// buffered reader.
     ///
