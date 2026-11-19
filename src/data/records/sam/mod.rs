@@ -41,19 +41,28 @@ mod test;
 /// [SAM](https://en.wikipedia.org/wiki/SAM_(file_format)) record.
 #[derive(Clone, Debug)]
 pub struct SamData {
-    /// Query name.
+    /// The name of the query.
+    ///
+    /// If the query name is not available (represented as `*` in the SAM file),
+    /// an empty string is stored.
     pub qname:      String,
-    /// SAM flag: strandedness, etc.
+    /// The bitflags for the SAM record, including the strand and whether it was
+    /// unmapped.
     pub flag:       Flag,
-    /// Reference name.
+    /// The name of the reference.
+    ///
+    /// If the reference name is not available (represented as `*` in the SAM
+    /// file), an empty string is stored.
     pub rname:      String,
-    /// The 1-based position in the reference to which the start of the query
-    /// aligns. This excludes clipped bases.
+    /// The 1-based position in the reference where the query starts to align.
+    /// This excludes clipped bases.
     pub pos:        usize,
-    /// Mystical map quality value.
+    /// The quality of the mapping.
+    ///
+    /// Traditionally this holds $-10\log_{10}P(\text{mapping position is
+    /// wrong})$. 255 indicates that the mapping quality is unavailable.
     pub mapq:       u8,
-    /// Old style cigar format that does not include match and mismatch as
-    /// separate values.
+    /// The CIGAR string holding the alignment.
     pub cigar:      Cigar,
     /// Reference name of the mate / next read. Currently not implemented and
     /// set to `*`.
@@ -64,9 +73,16 @@ pub struct SamData {
     /// So-called "observed template length." Currently not implemented and
     /// always set to `0`.
     tlen:           i32,
-    /// Query sequence.
+    /// The query sequence as stored in the SAM file.
+    ///
+    /// If the sequence is not available (represented as `*` in the SAM file),
+    /// an empty [`Nucleotides`] is stored.
     pub seq:        Nucleotides,
-    /// Query quality scores in ASCII-encoded format with Phred quality of +33.
+    /// The ASCII-encoded quality scores corresponding to the sequence.
+    ///
+    /// This is meant to hold the Phred quality of with an offset of `+33`. If
+    /// the quality scores are not available (represented as `*` in the SAM
+    /// file), an empty [`QualityScores`] is stored.
     pub qual:       QualityScores,
     /// Optional fields which can be lazily parsed and accessed.
     pub opt_fields: SamOptRaw,
