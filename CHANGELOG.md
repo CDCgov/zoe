@@ -4,72 +4,71 @@ All notable changes to this project will be documented in this file. The format
 is roughly based on [Keep a Changelog], and this project tries to adheres to
 [Semantic Versioning].
 
-## [0.0.37] - TBD
+## [0.0.37] - 2026-11-23
 
 ### Added
 
 - Added `UnmappedSamRecord` trait providing an `unmapped` method on generic SAM
   structs (using `GetSamFieldsMut` and `Default`)
-- Added `iter` method to `PhmmStateArr` and `PhmmStateOrModuleArr`
-- Implemented `PeekCigletMut` for `CigletOpIter`
 - All *Zoe* error types now implement `From<_> for ErrorWithContext` and
   `From<_> for std::io::Error`
+- Implemented `PeekCigletMut` for `CigletOpIter`
+- Added `iter` method to `PhmmStateArr` and `PhmmStateOrModuleArr`
 
 ### Changed
 
 - When constructing profiles for sequence alignment, `ScoreParams` is now
   passed, which combines a weight matrix and the affine gap parameters.
   Construction of `ScoreParams` is fallible, but profile construction is no
-  longer fallible. Empty sequences are now supported in profiles
-- Deprecated `sw_score_from_path` and `nw_score_from_path` in favor of
-  `Alignment` methods `rescore_sw` and `rescore_nw` with simpler APIs using
-  `ScoreParams`
+  longer fallible. Empty sequences are now supported in profiles. The
+  `ProfileSets` trait now has different getter methods
 - `with_context`, `with_subitem`, and `with_path_context` now accept a generic
   `ErrorContext` instead of `Into<String>` or `Display`. Among the implementors,
   closures are implemented so that lazy context can be used to reduce
   allocations or extra formatting work
-- `SAMReader` no longer has a const generic boolean (which corresponded to
-  deprecated and now removed functionality)
-- Replaced first generic on `AlignmentIter` with a lifetime parameter instead as
-  a simplification
-- Improved styling of error messages in `SAMReader`
-- Associated types in `GetSamFields` are now required to be `Sized`
-- Added `infinite_perc` field to `FloatSpecs` to help fuzzer generate infinite
-  floats (behind `fuzzing` feature gate)
-- Constructors for `LocalProfiles` and `SharedProfiles` now accept either owned
-  or borrowed weight matrices (via `Into<Cow<...>>`) 
-- `FastaReader` and `FastQReader` now implement `FusedIterator`. The behavior of
-  `FastQReader` has changed to accomodate this (records are not yielded after
-  EOF)
-- `SamData::to_alignment` no longer has any trait bounds on the score `T`
+- `SAMReader` has been renamed to `SamReader`, and it now has a generic
+  parameter enabling a record type other than `SamData` to be parsed into. Use
+  the `with_record_type` method to set this. Error messages were improved as
+  well
 - `SamData::to_alignment` now has stricter error checking to ensure invariants
   of `Alignment` are upheld, and it returns an enum error `ToAlignmentError`
-- `find_repeating_at_start` and `find_repeating_at_end` now return `None`
-  instead of an empty range (only matters when `min_reps` is 0)
 - `SamData` and `SamDataView` constructors (including `from_alignment`) now
   properly store empty fields instead of `*` for QNAME, RNAME, SEQ, and QUAL
   when passed `*` or when calling `unmapped`
+- `BamWriter::from_path` now returns `std::io::Error` instead of `BamError`
 - Improved the performance of `FastaReader` by up to 38% reductions in runtime.
   Error messages and behavior after an error is yielded may differ from before
-- `SAMReader` has been renamed to `SamReader`, and it now has a generic
-  parameter enabling a record type other than `SamData` to be parsed into. Use
-  the `with_record_type` method to set this
+- `find_repeating_at_start` and `find_repeating_at_end` now return `None`
+  instead of an empty range (only matters when `min_reps` is 0)
+- `FastaReader` and `FastQReader` now implement `FusedIterator`. The behavior of
+  `FastQReader` has changed to accomodate this (records are not yielded after
+  EOF)
+- Deprecated `sw_score_from_path` and `nw_score_from_path` in favor of
+  `Alignment` methods `rescore_sw` and `rescore_nw` with simpler APIs using
+  `ScoreParams`
+- Associated types in `GetSamFields` are now required to be `Sized`
+- Replaced first generic on `AlignmentIter` with a lifetime parameter instead as
+  a simplification
+- `SamData::to_alignment` no longer has any trait bounds on the score `T`
+- Added `infinite_perc` field to `FloatSpecs` to help fuzzer generate infinite
+  floats (behind `fuzzing` feature gate)
 
 ## Fixed
 
 - `FastaReader::new` now properly handles empty files without erroring
 - `SemiLocalPhmm::normalize` and `LocalPhmm::normalize` no longer overwrite
   zero-probability transitions out of the END state
+- `GlobalPhmm::forward` has slightly changed order of floating point operations
 - `VecSpecs` now properly ignores invalid `min_len` or `max_len` fields when
   `len` is set (behind `fuzzing` feature gate)
-- `GlobalPhmm::forward` has slightly changed order of floating point operations
 
 ### Removed
 
+- `BamError` no longer implements `From<ErrorWithContext>` to guard against
+  lossy conversions
 - Deprecated `ProfileError::EmptySequence`
 - Removed deprecated API: `PairwiseSequence`, `SAMReader` with ignored optional
   fields, and `ScoringError`
-
 
 ## [0.0.36] - 2026-10-30
 

@@ -8,6 +8,7 @@ use crate::{
     unwrap_or_return_some_err,
 };
 use std::{
+    fmt::Display,
     fs::File,
     io::{BufRead, BufReader, Error as IOError, ErrorKind, Read},
     marker::PhantomData,
@@ -39,7 +40,7 @@ impl<T> SamRow<T> {
     }
 
     /// If the row has the variant [`Data`], returns `Some` containing the
-    /// [`SamData`]. Otherwise return `None`.
+    /// record. Otherwise return `None`.
     ///
     /// [`Data`]: SamRow::Data
     #[inline]
@@ -52,7 +53,7 @@ impl<T> SamRow<T> {
     }
 }
 
-impl std::fmt::Display for SamRow {
+impl Display for SamRow {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             SamRow::Data(d) => write!(f, "{d}"),
@@ -126,7 +127,7 @@ impl<R: Read> SamReader<R> {
     }
 }
 
-impl<R: Read> Iterator for SamReader<R> {
+impl<R: Read, T: ParseSamFields> Iterator for SamReader<R, T> {
     type Item = std::io::Result<SamRow>;
 
     fn next(&mut self) -> Option<Self::Item> {

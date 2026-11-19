@@ -1,3 +1,7 @@
+//! Traits and macros unifying the types in [`data::types`].
+//!
+//! [`data::types`]: crate::data::types
+
 use crate::data::{
     amino_acids::{AminoAcids, AminoAcidsView, AminoAcidsViewMut},
     nucleotides::{Nucleotides, NucleotidesView, NucleotidesViewMut},

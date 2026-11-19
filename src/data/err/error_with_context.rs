@@ -278,7 +278,7 @@ where
 }
 
 /// An extension trait for [`Error`] allowing additional context to be added via
-/// a [`ErrorWithContext`].
+/// an [`ErrorWithContext`].
 pub trait WithErrorContext {
     /// Wraps the error in an [`ErrorWithContext`] with the given description.
     ///
@@ -366,7 +366,7 @@ impl WithSubitem for ErrorWithContext {
 }
 
 /// An extension trait for [`Result`] allowing additional context to be added to
-/// an [`Err`] variant via a [`ErrorWithContext`].
+/// an [`Err`] variant via an [`ErrorWithContext`].
 ///
 /// The methods are similar to [`WithErrorContext`], but are implemented for
 /// results.

@@ -1,3 +1,6 @@
+//! Code supporting [`ScoreParams`], a struct holding the parameters for
+//! alignment scoring.
+
 use crate::{
     alignment::{ProfileError, validate_profile_args},
     data::WeightMatrix,

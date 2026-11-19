@@ -1,3 +1,5 @@
+//! Shared private utilities for implementing record readers.
+
 use crate::search::ByteSubstring;
 use std::io::{BufRead, BufReader, ErrorKind, Read};
 
@@ -107,6 +109,14 @@ pub trait BufReadExtension: BufRead {
         }
     }
 
+    /// Reads a line of text directly into an owned vector. The trailing line
+    /// break (`\n` or `\r\n`) is automatically removed.
+    ///
+    /// When the line fits within the buffer, this performs a single exact-size
+    /// allocation. Otherwise, `capacity` is provided to enable the initialized
+    /// `Vec` to start with a given capacity. Note that the capacity should be
+    /// one greater than the expected length in order to support temporarily
+    /// holding `\r` before it is removed.
     #[inline]
     fn read_line_owned(&mut self, capacity: usize) -> std::io::Result<Vec<u8>> {
         let mut filled = self.retrying_fill_buf()?;

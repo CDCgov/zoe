@@ -199,6 +199,7 @@ macro_rules! define_whichever {
 /// [`Read`]: std::io::Read
 /// [`Write`]: std::io::Write
 /// [`FusedIterator`]: std::iter::FusedIterator
+/// [`define_whichever`]: crate::define_whichever
 #[macro_export]
 macro_rules! impl_traits {
     // The public entry-point for the macro, which assumes that the traits are

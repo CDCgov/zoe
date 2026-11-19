@@ -224,7 +224,7 @@ where
 /// [`ControlFlow::Break`] is returned if the transition exits the pHMM, and the
 /// exit parameter is returned. Otherwise, `state` and `num_emitted` are
 /// appropriately mutated, and `true` is returned if the `layer` was advanced
-/// (signalling to the caller that the index and layer variables should be
+/// (signaling to the caller that the index and layer variables should be
 /// updated).
 fn advance_middle<'a, P, T, V, const S: usize>(
     phmm: &P, layer_idx: DpIndex, layer: &LayerParams<T, S>, state: &mut PhmmState, num_emitted: &mut usize, visitor: &mut V,

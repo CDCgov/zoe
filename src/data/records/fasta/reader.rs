@@ -37,7 +37,7 @@ impl<R: Read> FastaReader<R> {
     /// Unlike [`from_readable`], this does not read any data initially. It also
     /// allows for empty input, in which case the resulting iterator is empty.
     ///
-    /// The iterator returns `None` once `inner.read()` returns 0 (signalling
+    /// The iterator returns `None` once `inner.read()` returns 0 (signaling
     /// EOF). After this, the iterator will continue to return `None` regardless
     /// of whether `inner.read()` could return new bytes.
     ///
@@ -53,7 +53,7 @@ impl<R: Read> FastaReader<R> {
     /// Creates an iterator over FASTA data from a type implementing [`Read`],
     /// wrapping the input in a buffered reader.
     ///
-    /// The iterator returns `None` once `inner.read()` returns 0 (signalling
+    /// The iterator returns `None` once `inner.read()` returns 0 (signaling
     /// EOF). After this, the iterator will continue to return `None` regardless
     /// of whether `inner.read()` could return new bytes.
     ///
@@ -69,7 +69,7 @@ impl<R: Read> FastaReader<R> {
     /// Creates an iterator over FASTA data from a [`BufReader`].
     ///
     /// The iterator returns `None` once `reader.fill_buf()` returns an empty
-    /// slice (signalling EOF). After this, the iterator will continue to return
+    /// slice (signaling EOF). After this, the iterator will continue to return
     /// `None` regardless of whether `reader.fill_buf()` could return new bytes.
     ///
     /// ## Errors
@@ -176,6 +176,8 @@ impl FastaReader<File> {
 }
 
 impl<R: Read> FastaReader<R> {
+    /// A helper function for [`FastaReader::next`] that returns a [`Result`]
+    /// rather than an [`Option`], to allow for a more readable implementation.
     fn next_helper(&mut self) -> std::io::Result<Option<Fasta>> {
         if self.reader.is_at_eof() {
             return Ok(None);

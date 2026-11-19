@@ -110,16 +110,9 @@ impl SamData {
     /// process, an error is returned if the CIGAR field must be read and is
     /// malformed.
     ///
-    /// For any mapped read, the following additional errors could occur:
-    ///
-    /// - The CIGAR field must have no clipping in the interior of the string
-    /// - The number of reference bases consumed by the CIGAR string must not
-    ///   overflow [`usize`], and similarly for the query
-    /// - If the SEQ field is populated, then the sequence length must match the
-    ///   number of query bases consumed by the CIGAR string
-    /// - The POS field must be populated (i.e., not zero)
-    /// - The POS and CIGAR field must yield an ending reference index that does
-    ///   not exceed `ref_len`
+    /// For mapped reads, the state contained in [`SamData`] must be consistent,
+    /// so as not to invalidate assumptions of [`Alignment`]. See
+    /// [`ToAlignmentError`] for all possible errors from this function.
     #[inline]
     pub fn to_alignment<T>(&self, score: T, ref_len: usize) -> Result<MaybeAligned<Alignment<T>>, ToAlignmentError> {
         // Handle FLAG
@@ -192,14 +185,26 @@ impl SamData {
     }
 }
 
+/// An error representing invalid input to [`SamData::to_alignment`].
 #[derive(Debug)]
 pub enum ToAlignmentError {
+    /// The CIGAR string could not be parsed
     InvalidCigar(CigarError),
+    /// Soft or hard clipping was found in the interior of the CIGAR string,
+    /// rather than on the ends
     InteriorClipping,
+    /// The number of reference residues consumed by the CIGAR string overflowed
+    /// usize
     OverflowingCigarRefInc,
+    /// The number of query residues consumed by the CIGAR string overflowed usize
     OverflowingCigarQueryInc,
+    /// The sequence length as implied by the CIGAR string and the SEQ field
+    /// disagree
     IncorrectSeqLen { cigar_query_inc: usize, seq_len: usize },
+    /// The position field is not set (it is 0)
     MissingPosField,
+    /// The passed reference length is not compatible with the POS and CIGAR
+    /// fields
     IncorrectRefLen { ref_len: usize },
 }
 
