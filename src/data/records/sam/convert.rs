@@ -21,11 +21,22 @@ impl SamData {
     pub fn from_alignment<T: AnyInt + Into<i64>>(
         alignment: &Alignment<T>, qname: String, flag: Flag, rname: String, mapq: u8, seq: Nucleotides, qual: QualityScores,
     ) -> Self {
+        // Validate incoming arguments to ensure they are not missing
+        let qname = if is_missing_sam_field(&qname) { String::new() } else { qname };
+        let rname = if is_missing_sam_field(&rname) { String::new() } else { rname };
+        let seq = if is_missing_sam_field(&seq) { Nucleotides::new() } else { seq };
+        let qual = if is_missing_sam_field(&qual) {
+            QualityScores::new()
+        } else {
+            qual
+        };
+
         // Both SAM and Alignment exclude clipped bases when reporting
         // positions, so we just need to adjust to 1-based
         let pos = alignment.ref_range.start + 1;
         let cigar = alignment.states.to_cigar_unchecked();
         let opt_fields = SamOptRaw::new_with_score(alignment.score);
+
         SamData {
             qname,
             flag,

@@ -44,6 +44,9 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
   of `Alignment` are upheld
 - `find_repeating_at_start` and `find_repeating_at_end` now return `None`
   instead of an empty range (only matters when `min_reps` is 0)
+- `SamData` and `SamDataView` constructors (including `from_alignment`) now
+  properly store empty fields instead of `*` for QNAME, RNAME, SEQ, and QUAL
+  when passed `*` or when calling `unmapped`
 
 ## Fixed
 

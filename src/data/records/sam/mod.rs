@@ -239,6 +239,16 @@ impl SamData {
     pub fn new(
         qname: String, flag: Flag, rname: String, pos: usize, mapq: u8, cigar: Cigar, seq: Nucleotides, qual: QualityScores,
     ) -> Self {
+        // Validate incoming arguments to ensure they are not missing
+        let qname = if is_missing_sam_field(&qname) { String::new() } else { qname };
+        let rname = if is_missing_sam_field(&rname) { String::new() } else { rname };
+        let seq = if is_missing_sam_field(&seq) { Nucleotides::new() } else { seq };
+        let qual = if is_missing_sam_field(&qual) {
+            QualityScores::new()
+        } else {
+            qual
+        };
+
         SamData {
             qname,
             flag,
@@ -257,16 +267,11 @@ impl SamData {
 
     /// Creates a new unmapped [`SamData`] record.
     ///
-    /// The sequence and quality fields are set to `*`, `POS` is set to 0,
-    /// `MAPQ` is set to 255, and the CIGAR string is empty.
+    /// POS is set to 0, MAPQ is set to 255, and SEQ, QUAL, and CIGAR are empty
+    /// (displayed as `*`).
     #[inline]
     #[must_use]
     pub fn unmapped(qname: &str, rname: &str) -> Self {
-        // In the context of an unmapped `SamData` record, this should not be
-        // misinterpreted
-        let seq = Nucleotides::from(b"*");
-        // Safety: * is graphic ascii
-        let qual = unsafe { QualityScores::from_vec_unchecked(b"*".to_vec()) };
         Self::new(
             qname.to_string(),
             Flag::UNMAPPED,
@@ -274,8 +279,8 @@ impl SamData {
             0,
             255,
             Cigar::new(),
-            seq,
-            qual,
+            Nucleotides::new(),
+            QualityScores::new(),
         )
     }
 }
@@ -288,6 +293,20 @@ impl<'a> SamDataView<'a> {
         qname: &'a str, flag: Flag, rname: &'a str, pos: usize, mapq: u8, cigar: CigarView<'a>, seq: NucleotidesView<'a>,
         qual: QualityScoresView<'a>,
     ) -> Self {
+        // Validate incoming arguments to ensure they are not missing
+        let qname = if is_missing_sam_field(qname) { "" } else { qname };
+        let rname = if is_missing_sam_field(rname) { "" } else { rname };
+        let seq = if is_missing_sam_field(seq) {
+            NucleotidesView::new()
+        } else {
+            seq
+        };
+        let qual = if is_missing_sam_field(qual) {
+            QualityScoresView::new()
+        } else {
+            qual
+        };
+
         SamDataView {
             qname,
             flag,
@@ -306,21 +325,28 @@ impl<'a> SamDataView<'a> {
 
     /// Creates a new unmapped [`SamDataView`] record.
     ///
-    /// The sequence and quality fields are set to `*`, `POS` is set to 0,
-    /// `MAPQ` is set to 255, and the CIGAR string is empty.
+    /// POS is set to 0, MAPQ is set to 255, and SEQ, QUAL, and CIGAR are empty
+    /// (displayed as `*`).
     #[inline]
     #[must_use]
     pub fn unmapped(qname: &'a str, rname: &'a str) -> Self {
-        // In the context of an unmapped `SamData` record, this should not be
-        // misinterpreted
-        let seq = NucleotidesView::from(b"*");
-        // Safety: * is graphic ascii
-        let qual = unsafe { QualityScoresView::from_bytes_unchecked(b"*") };
-        Self::new(qname, Flag::UNMAPPED, rname, 0, 255, CigarView::new(), seq, qual)
+        Self::new(
+            qname,
+            Flag::UNMAPPED,
+            rname,
+            0,
+            255,
+            CigarView::new(),
+            NucleotidesView::new(),
+            QualityScoresView::new(),
+        )
     }
 }
 
-/// Returns whether a SAM `SEQ` or `QUAL` field should be treated as missing.
+/// Returns whether a SAM field should be treated as missing.
+///
+/// This supports QNAME, RNAME, CIGAR (after converting to bytes), SEQ, and
+/// QUAL.
 ///
 /// *Zoe* accepts both the SAM sentinel `*` and an empty byte sequence as
 /// missing for these fields.
