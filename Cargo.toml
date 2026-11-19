@@ -52,9 +52,6 @@ alignment-diagnostics = []
 
 # Note: development features may be removed at any time.
 
-# An experimental feature exposing a generic SAM reader
-dev-generic-sam-reader = []
-
 # An experimental feature exposing a pHMM writer with user-defined precision
 dev-write-phmm-precision = []
 

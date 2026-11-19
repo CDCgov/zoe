@@ -51,6 +51,9 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
   when passed `*` or when calling `unmapped`
 - Improved the performance of `FastaReader` by up to 38% reductions in runtime.
   Error messages and behavior after an error is yielded may differ from before
+- `SAMReader` has been renamed to `SamReader`, and it now has a generic
+  parameter enabling a record type other than `SamData` to be parsed into. Use
+  the `with_record_type` method to set this
 
 ## Fixed
 

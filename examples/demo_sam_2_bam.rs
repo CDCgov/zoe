@@ -3,7 +3,7 @@ use zoe::data::{
         error::BamError,
         writer::{BamWriter, BlockCompressor},
     },
-    sam::{SAMReader, SamDataSort, SamRow},
+    sam::{SamDataSort, SamReader, SamRow},
 };
 
 fn main() -> Result<(), BamError> {
@@ -11,7 +11,7 @@ fn main() -> Result<(), BamError> {
     let bam_path = "examples/example.bam";
     let bai_path = "examples/example.bai";
 
-    let sam_reader = SAMReader::from_path(sam_path)?;
+    let sam_reader = SamReader::from_path(sam_path)?;
 
     // Collect and coordinate sort the SAM records.
     let mut headers = Vec::new();

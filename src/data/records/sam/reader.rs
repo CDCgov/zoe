@@ -10,17 +10,21 @@ use crate::{
 use std::{
     fs::File,
     io::{BufRead, BufReader, Error as IOError, ErrorKind, Read},
+    marker::PhantomData,
     path::Path,
 };
 
+/// A type alias to allow for easier migration.
+pub type SAMReader<R> = SamReader<R>;
+
 /// Enum for holding either a SAM header or data record.
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
-pub enum SamRow {
+pub enum SamRow<T = SamData> {
     Header(String),
-    Data(SamData),
+    Data(T),
 }
 
-impl SamRow {
+impl<T> SamRow<T> {
     /// If the row has the variant [`Header`], returns `Some` containing the
     /// line. Otherwise return `None`.
     ///
@@ -40,7 +44,7 @@ impl SamRow {
     /// [`Data`]: SamRow::Data
     #[inline]
     #[must_use]
-    pub fn data(self) -> Option<SamData> {
+    pub fn data(self) -> Option<T> {
         match self {
             SamRow::Header(_) => None,
             SamRow::Data(data) => Some(data),
@@ -59,23 +63,20 @@ impl std::fmt::Display for SamRow {
 
 /// An iterator for buffered reading of a SAM file.
 ///
-/// This iterator guarantees quality scores are valid (see [`QualityScores`] for
-/// more details). It does not check for the validity of the CIGAR strings. When
-/// the `SEQ` or `QUAL` fields are `*`, empty sequences are stored in the
-/// resulting [`SamData`] items.
-///
 /// ## Parameters
 ///
 /// - `R`: The type of the underlying reader
-/// - `OPT`: Whether optional fields should be parsed
-///
-/// [`QualityScores`]: crate::data::types::phred::QualityScores
+/// - `T`: The record type being parsed into, by default [`SamData`]
 #[derive(Debug)]
-pub struct SAMReader<R: Read> {
+pub struct SamReader<R, T = SamData>
+where
+    R: Read,
+    T: ParseSamFields, {
     sam_reader: std::io::Lines<std::io::BufReader<R>>,
+    record:     PhantomData<T>,
 }
 
-impl<R: Read> SAMReader<R> {
+impl<R: Read> SamReader<R> {
     /// Creates an iterator over SAM data, wrapping the input in a buffered
     /// reader.
     ///
@@ -84,8 +85,9 @@ impl<R: Read> SAMReader<R> {
     ///
     /// [`from_readable`]: SAMReader::from_readable
     pub fn new(inner: R) -> Self {
-        SAMReader {
+        SamReader {
             sam_reader: std::io::BufReader::new(inner).lines(),
+            record:     PhantomData,
         }
     }
 
@@ -96,7 +98,7 @@ impl<R: Read> SAMReader<R> {
     ///
     /// Will return `Err` if the input data is empty or an IO error occurs.
     pub fn from_readable(read: R) -> std::io::Result<Self> {
-        SAMReader::from_bufreader(BufReader::new(read))
+        SamReader::from_bufreader(BufReader::new(read))
     }
 
     /// Creates an iterator over SAM data from a [`BufReader`].
@@ -109,13 +111,22 @@ impl<R: Read> SAMReader<R> {
             return Err(IOError::new(ErrorKind::InvalidData, "No FASTQ data was found!"));
         }
 
-        Ok(SAMReader {
+        Ok(SamReader {
             sam_reader: reader.lines(),
+            record:     PhantomData,
         })
+    }
+
+    /// Changes the yielded record type to be `T` instead of [`SamData`].
+    pub fn with_record_type<T: ParseSamFields>(self) -> SamReader<R, T> {
+        SamReader {
+            sam_reader: self.sam_reader,
+            record:     PhantomData,
+        }
     }
 }
 
-impl<R: Read> Iterator for SAMReader<R> {
+impl<R: Read> Iterator for SamReader<R> {
     type Item = std::io::Result<SamRow>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -129,7 +140,7 @@ impl<R: Read> Iterator for SAMReader<R> {
     }
 }
 
-impl SAMReader<File> {
+impl SamReader<File> {
     /// Creates an iterator over the SAM data contained in a path, using a
     /// buffered reader.
     ///
