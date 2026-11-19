@@ -65,12 +65,16 @@ pub trait ByteSubstring: Sealed {
     fn find_repeating_byte(&self, byte: u8, size: usize) -> Option<Range<usize>>;
 
     /// Checks if the string begins with some minimal number of consecutive byte
-    /// repetitions and returns the largest contiguous range if so.
+    /// repetitions and returns the largest contiguous range if so. `None` is
+    /// returned if the string does not start with at least `min_reps` copies of
+    /// `needle` or if the range is empty (when `min_reps` is 0).
     #[must_use]
     fn find_repeating_at_start(&self, needle: u8, min_reps: usize) -> Option<Range<usize>>;
 
     /// Checks if the string ends with some minimal number of consecutive byte
-    /// repetitions and returns the largest contiguous range if so.
+    /// repetitions and returns the largest contiguous range if so. `None` is
+    /// returned if the string does not end with at least `min_reps` copies of
+    /// `needle` or if the range is empty (when `min_reps` is 0).
     #[must_use]
     fn find_repeating_at_end(&self, needle: u8, min_reps: usize) -> Option<Range<usize>>;
 }
@@ -119,7 +123,8 @@ impl<T: AsRef<[u8]> + ?Sized + Sealed> ByteSubstring for T {
         let (head, tail) = self.as_ref().split_at_checked(min_reps)?;
         if head.iter().all(|b| *b == needle) {
             let offset = tail.iter().take_while(|b| **b == needle).count();
-            Some(0..min_reps + offset)
+            let range = 0..min_reps + offset;
+            (!range.is_empty()).then_some(range)
         } else {
             None
         }
@@ -134,7 +139,8 @@ impl<T: AsRef<[u8]> + ?Sized + Sealed> ByteSubstring for T {
         let (head, tail) = bytes.split_at(bytes.len() - min_reps);
         if tail.iter().all(|b| *b == needle) {
             let offset = head.iter().rev().take_while(|b| **b == needle).count();
-            Some(head.len() - offset..bytes.len())
+            let range = head.len() - offset..bytes.len();
+            (!range.is_empty()).then_some(range)
         } else {
             None
         }
@@ -535,6 +541,12 @@ mod test {
         let b = b"G";
         assert_eq!(b.find_repeating_at_end(b'G', 2), None);
         assert_eq!(b.find_repeating_at_start(b'G', 2), None);
+        assert_eq!(b.find_repeating_at_end(b'G', 0), Some(0..1));
+        assert_eq!(b.find_repeating_at_start(b'G', 0), Some(0..1));
+
+        let b = b"ACGT";
+        assert_eq!(b.find_repeating_at_end(b'G', 0), None);
+        assert_eq!(b.find_repeating_at_start(b'G', 0), None);
     }
 
     #[test]

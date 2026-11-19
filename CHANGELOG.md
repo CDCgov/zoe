@@ -42,6 +42,8 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - `SamData::to_alignment` no longer has any trait bounds on the score `T`
 - `SamData::to_alignment` now has stricter error checking to ensure invariants
   of `Alignment` are upheld
+- `find_repeating_at_start` and `find_repeating_at_end` now return `None`
+  instead of an empty range (only matters when `min_reps` is 0)
 
 ## Fixed
 
