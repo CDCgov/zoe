@@ -18,8 +18,8 @@ pub(super) fn find_k_repeating_scalar(haystack: &[u8], needle: u8, size: usize) 
 ///
 /// ## Limitations
 ///
-/// Not optimized for small needles <21bp. Use [`find_k_repeating_mapped`] to
-/// more appropriately handle this case.
+/// Not optimized for small needles less than length 21. Use
+/// [`find_k_repeating_mapped`] to more appropriately handle this case.
 #[inline]
 #[must_use]
 fn find_k_repeating_mapped_scalar<B>(haystack: &[u8], needle: u8, size: usize, map: B) -> Option<usize>
@@ -34,7 +34,8 @@ where
 
     'outer: while idx < haystack.len() {
         if map(haystack[idx]) == needle {
-            // Single match found: check backwards to see if it occurs `size` times
+            // Single match found: check backwards to see if it occurs `size`
+            // times
             for prev_idx in (left_limit..idx).rev() {
                 if map(haystack[prev_idx]) != needle {
                     left_limit = idx + 1;
@@ -47,7 +48,8 @@ where
             return Some(idx + 1 - size);
         }
 
-        // Mismatch found: advance idx to righmost position in leftmost possible match
+        // Mismatch found: advance idx to righmost position in leftmost possible
+        // match
         left_limit = idx + 1;
         idx += size;
     }
@@ -83,15 +85,18 @@ where
     find_k_repeating_mapped_scalar(rem, needle, 2, byte_transform).map(|found| (haystack.len() - rem.len()) + found)
 }
 
-/// Given a haystack, needle and the number of times the needle repeats itself
-/// in a row, find the starting index of the matching substring or return `None`
-/// otherwise.
+/// An optimized string search routine where the needle consists of a single
+/// byte repeated `size` times. If found, this returns the starting index of the
+/// matching substring. `None` is returned if the pattern is not found or if
+/// `size` is 0.
 ///
-/// For small needle sizes (`size` < 21), SIMD acceleration is used.
+/// The given byte may occur more than `size` times in a row and it will still
+/// be considered a match.
 ///
-/// For larger needle sizes (`size` ≥ 21), a scalar implementation is used,
-/// enabling faster skipping through the string in a similar manner to the
-/// Boyer-Moore algorithm.
+/// For small needle sizes (`size < 21`), SIMD acceleration is used. For larger
+/// needle sizes (`size >= 21`), a scalar implementation is used, enabling
+/// faster skipping through the string in a similar manner to the Boyer-Moore
+/// algorithm.
 ///
 /// ## Limitations
 ///
@@ -100,7 +105,7 @@ where
 ///
 /// ## Parameters
 ///
-/// `N` - The number of SIMD lanes to use for the search. This must be greater
+/// `N`: The number of SIMD lanes to use for the search. This must be greater
 /// than 2.
 #[inline]
 #[must_use]
@@ -110,14 +115,15 @@ pub fn find_k_repeating<const N: usize>(haystack: &[u8], needle: u8, size: usize
     find_k_repeating_inner::<N>(haystack, needle, size)
 }
 
-/// Given a haystack, needle and the number of times the needle repeats itself
-/// in a row, find the starting index of the matching substring or return `None`
-/// otherwise. The `haystack` is lazily mapped using `simd_transform` and
-/// `byte_transform`.
+/// An optimized string search routine where the needle consists of a single
+/// byte repeated `size` times, and the `haystack` is lazily mapped using
+/// `simd_transform` and `byte_transform`. If found, this returns the starting
+/// index of the matching substring. `None` is returned if the pattern is not
+/// found or if `size` is 0.
 ///
-/// For small needle sizes (`size` < 21), SIMD acceleration is used.
+/// For small needle sizes (`size < 21`), SIMD acceleration is used.
 ///
-/// For larger needle sizes (`size` ≥ 21), a scalar implementation is used,
+/// For larger needle sizes (`size >= 21`), a scalar implementation is used,
 /// enabling faster skipping through the string in a similar manner to the
 /// Boyer-Moore algorithm.
 ///

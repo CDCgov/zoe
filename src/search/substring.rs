@@ -13,47 +13,63 @@ use std::{ops::Range, simd::prelude::*};
 
 /// Trait for searching byte substrings.
 ///
-/// [`Nucleotides`](crate::data::types::nucleotides::Nucleotides),
-/// [`AminoAcids`](crate::data::types::amino_acids::AminoAcids), and
-/// [`QualityScores`](crate::data::types::phred::QualityScores) are printable
-/// subsets of ASCII underneath the hood and therefore be efficiently searched
-/// in this manner.
+/// [`Nucleotides`], [`AminoAcids`], and [`QualityScores`] are stored as bytes
+/// and can therefore be efficiently searched in this manner.
 ///
 /// This trait is also compatible with [`RangeSearch`]. See [Restricting the
-/// search range](crate::search#restricting-the-search-range) for more details.
+/// search range] for more details.
+///
+/// [`Nucleotides`]: crate::data::types::nucleotides::Nucleotides
+/// [`AminoAcids`]: crate::data::types::amino_acids::AminoAcids
+/// [`QualityScores`]: crate::data::types::phred::QualityScores
+/// [Restricting the search range]: crate::search#restricting-the-search-range
 pub trait ByteSubstring: Sealed {
-    /// Returns `true` is the substring is found and `false` if not. Searches in
-    /// the forward direction.
+    /// Searches for `needle` within the string, returning `true` if it is found
+    /// and `false` otherwise. If `needle` is empty, then `false` is also
+    /// returned.
+    ///
+    /// This searches in the forward direction.
     #[must_use]
     fn contains_substring(&self, needle: impl AsRef<[u8]>) -> bool;
 
-    /// Returns the substring's index range if found or [`None`] if not. Searches in
-    /// the forward direction.
+    /// Searches for `needle` within the string, returning the range of indices
+    /// of the leftmost match if found or `None` otherwise. If `needle` is
+    /// empty, then `None` is also returned.
     #[must_use]
     fn find_substring(&self, needle: impl AsRef<[u8]>) -> Option<Range<usize>>;
 
-    /// Finds the `needle` in the haystack using inexact matching up to the
-    /// `DIFFERENCES_ALLOWED`.
+    /// Searches for `needle` within the string using inexact matching, allowing
+    /// mismatches up to `DIFFERENCES_ALLOWED`. This returns the range of
+    /// indices of the leftmost match if found or `None` otherwise. If `needle`
+    /// is empty, then `None` is also returned.
     ///
     /// See [`fuzzy_substring_match_simd`] for more details.
     #[must_use]
     fn find_fuzzy_substring<const DIFFERENCES_ALLOWED: usize>(&self, needle: impl AsRef<[u8]>) -> Option<Range<usize>>;
 
-    /// Finds the first occurrence of the `byte` in the haystack.
+    /// Searches for `byte` within the string, returning the index of the
+    /// leftmost match if found or `None` otherwise.
     #[must_use]
     fn find_byte(&self, byte: u8) -> Option<usize>;
 
-    /// Find contiguous, repeating byte characters in a byte slice. See [`find_k_repeating`]
-    /// for more details.
+    /// Searches for `size` consecutive occurrences of `byte`, returning the
+    /// range of indices of the leftmost match if found or `None` otherwise. If
+    /// `size` is 0, then `None` is also returned.
+    ///
+    /// `byte` may occur more than `size` times consecutively and still be
+    /// treated as a match. Only the first `size` occurrences will be included
+    /// in the match.
+    ///
+    /// See [`find_k_repeating`] for more details.
     #[must_use]
-    fn find_repeating_byte(&self, needle: u8, size: usize) -> Option<Range<usize>>;
+    fn find_repeating_byte(&self, byte: u8, size: usize) -> Option<Range<usize>>;
 
-    /// Checks if the slice begins with some minimal number of consecutive byte
+    /// Checks if the string begins with some minimal number of consecutive byte
     /// repetitions and returns the largest contiguous range if so.
     #[must_use]
     fn find_repeating_at_start(&self, needle: u8, min_reps: usize) -> Option<Range<usize>>;
 
-    /// Checks if the slice ends with some minimal number of consecutive byte
+    /// Checks if the string ends with some minimal number of consecutive byte
     /// repetitions and returns the largest contiguous range if so.
     #[must_use]
     fn find_repeating_at_end(&self, needle: u8, min_reps: usize) -> Option<Range<usize>>;
@@ -173,15 +189,19 @@ impl<Q: ?Sized> ByteSubstring for RangeSearch<'_, Q> {
 /// Similar to [`ByteSubstring`] but requires the input byte string to be
 /// mutable.
 pub trait ByteSubstringMut: Sealed {
-    /// If the substring is found, the first instance is removed and index range
-    /// of the removed substring is returned, otherwise [`None`]. Searches in
-    /// the forward direction.
+    /// Searches for `needle` within the string, removing the leftmost match and
+    /// returning the range of indices removed if found. `None` is returned if
+    /// it is not found or if `needle` is empty.
     fn remove_first_substring(&mut self, needle: impl AsRef<[u8]>) -> Option<Range<usize>>;
 
-    /// Replace a single byte of the stored sequence. See the [`Recode`] trait
-    /// for a more wholistic approach.
+    /// Replaces all occurrences of the `needle` byte with the `replacement`
+    /// byte.
+    ///
+    /// See the [`Recode`] trait for a more wholistic approach using look-up
+    /// tables and [`ByteMap`].
     ///
     /// [`Recode`]: crate::data::Recode
+    /// [`ByteMap`]: crate::data::ByteMap
     fn replace_all_bytes(&mut self, needle: u8, replacement: u8);
 }
 
@@ -203,7 +223,7 @@ impl<T: AsMut<Vec<u8>> + AsRef<[u8]> + Sealed> ByteSubstringMut for T {
 }
 
 /// Finds the `needle` byte substring in the `haystack`, returning the starting
-/// index or [`None`] otherwise.
+/// index. `None` is returned if it is not found or if `needle` is empty.
 ///
 /// ## Limitations
 ///
@@ -225,7 +245,8 @@ pub fn substring_match(haystack: &[u8], needle: &[u8]) -> Option<usize> {
     None
 }
 
-/// Returns the starting index of the matched substring or [`None`] otherwise.
+/// Returns the starting index of the matched substring. `None` is returned if
+/// it is not found or if `needle` is empty.
 ///
 /// ## Parameters
 ///
@@ -234,7 +255,8 @@ pub fn substring_match(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 ///
 /// ## Limitations
 ///
-/// The current version is not optimized for larger needles (> 30 bp).
+/// The current version is not optimized for larger needles (length larger than
+/// 30).
 ///
 /// ## Citation
 ///
@@ -300,7 +322,8 @@ pub fn substring_match_simd<const N: usize>(haystack: &[u8], needle: &[u8]) -> O
 }
 
 /// Similar to [`substring_match_simd`] but takes a transformation of the
-/// haystack before matching.
+/// haystack before matching. `None` is returned if the pattern is not found or
+/// if `needle` is empty.
 ///
 /// A transformation mapping for both bytes and SIMD vectors is required in
 /// order to verify potential matches.
@@ -316,7 +339,8 @@ pub fn substring_match_simd<const N: usize>(haystack: &[u8], needle: &[u8]) -> O
 ///
 /// ## Limitations
 ///
-/// The current version is not optimized for larger needles (> 30 bp).
+/// The current version is not optimized for larger needles (length larger than
+/// 30).
 #[inline]
 #[must_use]
 #[cfg_attr(feature = "multiversion", multiversion::multiversion(targets = "simd"))]

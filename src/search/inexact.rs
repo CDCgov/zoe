@@ -1,7 +1,8 @@
 use std::{iter::zip, simd::prelude::*};
 
 /// Provides the starting index of a matched "fuzzy substring" with however many
-/// `differences_allowed` from the needle, otherwise [`None`] is returned.
+/// `differences_allowed` from the needle. If the pattern is not found or if the
+/// `needle` is empty, `None` is returned.
 ///
 /// ## Limitations
 ///
@@ -68,7 +69,7 @@ const fn create_masks<const N: usize>() -> [Simd<u8, N>; 256] {
 }
 
 /// Similar to [`fuzzy_substring_match`], but utilizes SIMD for more efficient
-/// searching.
+/// searching. `None` is returned if there is no match or the `needle` is empty.
 ///
 /// This algorithm implements a portable version of (1).
 ///
