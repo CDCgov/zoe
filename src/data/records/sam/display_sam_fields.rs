@@ -2,7 +2,7 @@
 //! generic [`GetSamFields`] records to be displayed.
 
 use crate::data::sam::GetSamFields;
-use std::fmt::{Display, Write};
+use std::fmt::{Display, FormattingOptions, Write};
 
 /// An extension of [`GetSamFields`] that provides a
 /// [`display`](DisplaySamFields::display) method for automatically displaying
@@ -66,24 +66,31 @@ pub struct SamFieldsDisplay<T>(T);
 
 impl<T: DisplaySamFields> Display for SamFieldsDisplay<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let qname = self.0.qname().display_or_star();
-        let flag = self.0.flag().display_or("0");
-        let rname = self.0.rname().display_or_star();
-        let pos = self.0.pos().display_or("0");
-        let mapq = self.0.mapq().display_or("255");
-        let cigar = self.0.cigar().display_or_star();
-        let rnext = '*';
-        let pnext = 0;
-        let tlen = 0;
-        let seq = self.0.seq().display_or_star();
-        let qual = self.0.qual().display_or_star();
-        let opt_fields = self.0.opt_fields().display_leading_tab();
+        // Using write! for each field has performance regressions, so we need
+        // to manually construct the formatter. Create plain formatter to avoid
+        // accidentally supporting formatting options and erroneously applying
+        // them to each individual field, which would happen if `f` were used
+        // directly.
+        let mut f = f.with_options(FormattingOptions::new());
 
-        // opt_fields adds its own tab if present
-        write!(
-            f,
-            "{qname}\t{flag}\t{rname}\t{pos}\t{mapq}\t{cigar}\t{rnext}\t{pnext}\t{tlen}\t{seq}\t{qual}{opt_fields}"
-        )
+        self.0.qname().display_or_star().fmt(&mut f)?;
+        f.write_char('\t')?;
+        self.0.flag().display_or("0").fmt(&mut f)?;
+        f.write_char('\t')?;
+        self.0.rname().display_or_star().fmt(&mut f)?;
+        f.write_char('\t')?;
+        self.0.pos().display_or("0").fmt(&mut f)?;
+        f.write_char('\t')?;
+        self.0.mapq().display_or("255").fmt(&mut f)?;
+        f.write_char('\t')?;
+        self.0.cigar().display_or_star().fmt(&mut f)?;
+        f.write_str("\t*\t0\t0\t")?;
+        self.0.seq().display_or_star().fmt(&mut f)?;
+        f.write_char('\t')?;
+        self.0.qual().display_or_star().fmt(&mut f)?;
+
+        // Optional fields write their own leading tab when nonempty.
+        self.0.opt_fields().display_leading_tab().fmt(&mut f)
     }
 }
 
@@ -132,7 +139,7 @@ struct DisplayOr<T> {
 impl<T: Display> Display for DisplayOr<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self.value {
-            Some(value) => write!(f, "{value}"),
+            Some(value) => Display::fmt(value, f),
             None => f.write_str(self.default),
         }
     }
@@ -156,7 +163,10 @@ impl<T: Display> Display for DisplayOrStar<T> {
             anything_written: false,
         };
 
-        write!(&mut f, "{value}")?;
+        // Create a new formatter to write to `TrackedFmt` instead of the
+        // original `f`
+        let mut value_f = std::fmt::Formatter::new(&mut f, FormattingOptions::new());
+        Display::fmt(value, &mut value_f)?;
 
         let TrackedFmt { f, anything_written } = f;
 
@@ -176,7 +186,11 @@ impl<T: Display> Display for DisplayLeadingTab<T> {
         let Some(value) = &self.value else { return Ok(()) };
 
         let mut f = LeadingTabFmt { f, tab_written: false };
-        write!(f, "{value}")
+
+        // Create a new formatter to write to `LeadingTabFmt` instead of the
+        // original `f`
+        let mut value_f = std::fmt::Formatter::new(&mut f, FormattingOptions::new());
+        Display::fmt(value, &mut value_f)
     }
 }
 
@@ -225,5 +239,16 @@ impl std::fmt::Write for LeadingTabFmt<'_, '_> {
         }
 
         self.f.write_char(c)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::data::sam::{DisplaySamFields, SamData};
+
+    #[test]
+    fn formatting_options_are_not_forwarded_to_fields() {
+        let data = SamData::default();
+        assert_eq!(format!("{:*>100}", data.display()), data.to_string());
     }
 }

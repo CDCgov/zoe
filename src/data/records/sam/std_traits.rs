@@ -2,73 +2,22 @@
 //! types.
 
 use crate::data::{
-    cigar::CigarView,
     err::ResultWithErrorContext,
-    nucleotides::NucleotidesView,
-    phred::QualityScoresView,
-    sam::{OptArray, SamData, SamDataView, SamOptField, SamOptValue, is_missing_sam_field},
-    views::AsView,
+    sam::{DisplaySamFields, OptArray, SamData, SamDataView, SamOptField, SamOptValue},
 };
 use std::{fmt::Display, str::FromStr};
 
 impl Display for SamData {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        self.as_view().fmt(f)
+        write!(f, "{}", self.display())
     }
 }
 
 impl Display for SamDataView<'_> {
     #[inline]
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let SamDataView {
-            qname,
-            flag,
-            rname,
-            pos,
-            mapq,
-            cigar,
-            rnext,
-            pnext,
-            tlen,
-            seq,
-            qual,
-            opt_fields,
-        } = self;
-
-        let qname = if is_missing_sam_field(qname) { "*" } else { qname };
-        let rname = if is_missing_sam_field(rname) { "*" } else { rname };
-
-        let cigar = if is_missing_sam_field(cigar.as_bytes()) {
-            CigarView::from_slice_unchecked(b"*")
-        } else {
-            *cigar
-        };
-
-        let seq = if is_missing_sam_field(seq) {
-            NucleotidesView::from(b"*")
-        } else {
-            *seq
-        };
-
-        let qual = if is_missing_sam_field(qual) {
-            // Safety: `b"*"` is graphic ASCII, which satisfies
-            // `QualityScoresView`'s byte invariant.
-            unsafe { QualityScoresView::from_bytes_unchecked(b"*") }
-        } else {
-            *qual
-        };
-
-        write!(
-            f,
-            "{qname}\t{flag}\t{rname}\t{pos}\t{mapq}\t{cigar}\t{rnext}\t{pnext}\t{tlen}\t{seq}\t{qual}"
-        )?;
-
-        if !opt_fields.is_empty() {
-            write!(f, "\t{opt_fields}")?;
-        }
-
-        Ok(())
+        write!(f, "{}", self.display())
     }
 }
 

@@ -14,6 +14,7 @@
     try_trait_v2,
     cold_path,
     int_format_into,
+    formatting_options,
     doc_cfg,
     pattern,
     align_to_uninit_mut
