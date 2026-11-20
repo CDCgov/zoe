@@ -101,32 +101,19 @@
 //! [`unwrap_or_fail`]: crate::data::err::OrFail::unwrap_or_fail
 //! [`unwrap_or_die`]: crate::data::err::OrFail::unwrap_or_die
 
-#[cfg(feature = "fuzzing")]
-pub mod arbitrary;
 pub mod err;
 pub mod matrices;
-/// A module for records types--usually for I/O--that are structures of other
-/// more primitive types.
 pub mod records;
-/// A module for storing more fundamental types, like
-/// [`Nucleotides`](self::types::nucleotides::Nucleotides) and
-/// [`AminoAcids`](self::types::amino_acids::AminoAcids).
 pub mod types;
-/// A module containing functionality needed for working with views.
 pub mod views;
 
-/// A private module for helper alphabets, maps, and matrices that can be used
-/// within public methods.
+#[cfg(feature = "fuzzing")]
+pub mod arbitrary;
+
 pub(crate) mod constants;
-/// A private module for helper extension traits.
 pub(crate) mod extension;
 
-/// Used for type validation
 mod validation;
-/// Contains the macros [`define_whichever`] and [`impl_traits`]
-///
-/// [`define_whichever`]: crate::define_whichever
-/// [`impl_traits`]: crate::impl_traits
 mod whichever;
 
 // TODO: Remove this in future versions once it is confirmed it won't break

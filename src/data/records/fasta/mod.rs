@@ -1,3 +1,6 @@
+//! A module for reading and manipulating
+//! [FASTA](https://en.wikipedia.org/wiki/FASTA_format) files.
+
 use crate::data::{
     amino_acids::AminoAcidsView,
     id_types::FastaIDs,

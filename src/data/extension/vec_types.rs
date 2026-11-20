@@ -1,3 +1,5 @@
+//! A private module with helper traits for things like [`Vec<u8>`].
+
 pub(crate) trait ChopLineBreak {
     /// Removes a trailing `\n` or `\r\n`
     fn chop_line_break(&mut self);

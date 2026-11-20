@@ -1,3 +1,5 @@
+//! A private module with helper functions for things that look like `[u8; N]`.
+
 // TODO: Make into a trait when functionality becomes available.
 // See: https://github.com/rust-lang/rust-project-goals/issues/106
 

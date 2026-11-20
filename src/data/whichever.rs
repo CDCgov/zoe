@@ -1,3 +1,8 @@
+//! Contains the macros [`define_whichever`] and [`impl_traits`]
+//!
+//! [`define_whichever`]: crate::define_whichever
+//! [`impl_traits`]: crate::impl_traits
+
 /// A macro to define enums whose variants all implement particular traits.
 ///
 /// Specifically, this macro is able to define enums whose variants each contain

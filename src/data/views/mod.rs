@@ -1,3 +1,5 @@
+//! A module containing functionality needed for working with views.
+
 mod indexing;
 mod macros;
 mod traits;

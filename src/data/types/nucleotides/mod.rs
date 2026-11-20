@@ -1,3 +1,5 @@
+//! Structs and types for nucleotide sequence manipulation.
+
 use crate::{
     DEFAULT_SIMD_LANES,
     alignment::{LocalProfiles, ScoreParams, SharedProfiles},

@@ -1,3 +1,5 @@
+//! A private module for working with IDs.
+
 pub(crate) trait FastaIDs {
     fn get_id_taxon(&self) -> Option<(&str, &str)>;
 }

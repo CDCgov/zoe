@@ -1,10 +1,13 @@
-/// Structs and types for maniuplating amino acid sequences.
+//! A module for storing fundamental bioinformatic types, like [`Nucleotides`],
+//! [`AminoAcids`], and [`QualityScores`].
+//!
+//! [`Nucleotides`]: crate::data::types::nucleotides::Nucleotides
+//! [`AminoAcids`]: crate::data::types::amino_acids::AminoAcids
+//! [`QualityScores`]: crate::data::types::phred::QualityScores
+
 pub mod amino_acids;
-/// Structs and types for CIGAR strings.
 pub mod cigar;
-/// Structs and types for nucleotide sequence manipulation.
 pub mod nucleotides;
-/// Structs and types for processing Phred quality scores.
 pub mod phred;
 
 /// A macro for implementing standard library traits on sequence types and

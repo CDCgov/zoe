@@ -1,3 +1,5 @@
+//! SIMD traits to extend portable SIMD.
+
 use std::{
     ops::{AddAssign, Shl, Shr, SubAssign},
     simd::{Select, SimdElement, prelude::*},
@@ -5,7 +7,8 @@ use std::{
 
 use crate::private::Sealed;
 
-// Do not use in a prelude to avoid conflicts with `std::simd::SimdInt` and `std::simd::SimdUint`.
+// Do not use in a prelude to avoid conflicts with `std::simd::SimdInt` and
+// `std::simd::SimdUint`.
 pub trait SimdAnyInt<T, const N: usize>:
     SimdOrd
     + SimdPartialEq<Mask = Mask<<T as SimdElement>::Mask, N>>

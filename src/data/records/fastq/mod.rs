@@ -1,12 +1,19 @@
-use crate::prelude::*;
+//! A module for reading and manipulating
+//! [FASTQ](https://en.wikipedia.org/wiki/FASTQ_format) files.
 
 mod reader;
 mod std_traits;
-#[cfg(test)]
-mod test;
 mod view_traits;
 
 pub use reader::*;
+
+#[cfg(test)]
+mod test;
+
+use crate::data::{
+    nucleotides::{Nucleotides, NucleotidesView, NucleotidesViewMut},
+    phred::{QualityScores, QualityScoresView, QualityScoresViewMut},
+};
 
 /// Holds data for a single [Read](https://en.wikipedia.org/wiki/Read_(biology))
 /// or [FASTQ](https://en.wikipedia.org/wiki/FASTQ_format) record.

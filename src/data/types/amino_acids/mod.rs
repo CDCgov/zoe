@@ -1,3 +1,5 @@
+//! Structs and types for maniuplating amino acid sequences.
+
 use crate::{
     DEFAULT_SIMD_LANES,
     data::{CheckSequence, types::impl_std_traits_for_sequence},

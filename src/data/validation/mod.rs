@@ -1,3 +1,5 @@
+//! Used for type validation
+
 pub(crate) mod check;
 pub(crate) mod recode;
 pub(crate) mod retain;

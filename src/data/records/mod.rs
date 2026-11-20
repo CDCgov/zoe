@@ -1,9 +1,12 @@
+//! A module for records types that are structures of other more primitive
+//! types. Examples include [`Fasta`], [`FastQ`], and [`SamData`].
+//!
+//! [`Fasta`]: crate::data::records::fasta::Fasta
+//! [`FastQ`]: crate::data::records::fastq::FastQ
+//! [`SamData`]: crate::data::records::sam::SamData
+
 pub mod bam;
-/// A module for reading and manipulating
-/// [FASTA](https://en.wikipedia.org/wiki/FASTA_format) files.
 pub mod fasta;
-/// A module for reading and manipulating
-/// [FASTQ](https://en.wikipedia.org/wiki/FASTQ_format) files.
 pub mod fastq;
 pub mod sam;
 

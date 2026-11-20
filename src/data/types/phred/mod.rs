@@ -1,3 +1,5 @@
+//! Structs and types for processing Phred quality scores.
+
 #![allow(clippy::cast_precision_loss)]
 
 mod stats;

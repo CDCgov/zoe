@@ -1,3 +1,5 @@
+//! Structs and types for CIGAR strings.
+
 use crate::{
     DEFAULT_SIMD_LANES,
     alignment::{AlignOp, AlignmentStates},
