@@ -242,7 +242,7 @@ impl FromIterator<String> for SamOptRaw {
 
 impl Display for SamOptRaw {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.as_view())
+        self.as_view().fmt(f)
     }
 }
 
