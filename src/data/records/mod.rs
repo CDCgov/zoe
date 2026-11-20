@@ -10,7 +10,9 @@ pub mod fasta;
 pub mod fastq;
 pub mod sam;
 
+mod annotations;
 mod getter_traits;
 mod reader_utils;
 
+pub use annotations::*;
 pub use getter_traits::*;
