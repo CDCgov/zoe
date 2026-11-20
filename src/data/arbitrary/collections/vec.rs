@@ -59,19 +59,19 @@ where
     /// [`arbitrary`]: arbitrary::Arbitrary::arbitrary
     #[inline]
     fn make_arbitrary(&self, u: &mut Unstructured<'a>) -> Result<Self::Output> {
-        let Some(len_range) = self.max_len.checked_sub(self.min_len) else {
-            panic!(
-                "The min_len field must be less than or equal to the max_len field for VecSpecs (found min_len={min_len} and max_len={max_len})",
-                min_len = self.min_len,
-                max_len = self.max_len
-            );
-        };
-
         let vec = if let Some(len) = self.len {
             std::iter::repeat_with(|| self.element_specs.make_arbitrary(u))
                 .take(len)
                 .collect::<Result<Vec<_>>>()?
         } else {
+            let Some(len_range) = self.max_len.checked_sub(self.min_len) else {
+                panic!(
+                    "The min_len field must be less than or equal to the max_len field for VecSpecs (found min_len={min_len} and max_len={max_len})",
+                    min_len = self.min_len,
+                    max_len = self.max_len
+                );
+            };
+
             let start = std::iter::repeat_with(|| self.element_specs.make_arbitrary(u)).take(self.min_len);
 
             let mut out = start.collect::<Result<Vec<_>>>()?;
