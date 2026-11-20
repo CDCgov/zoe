@@ -46,7 +46,7 @@ pub struct FastQ {
 ///
 /// </div>
 ///
-/// [`restrict`]: Restrict::restrict
+/// [`restrict`]: crate::data::views::Restrict::restrict
 #[derive(Clone, Eq, PartialEq, Hash, Debug, Default)]
 pub struct FastQView<'a> {
     pub header:   &'a str,
@@ -67,7 +67,7 @@ pub struct FastQView<'a> {
 ///
 /// </div>
 ///
-/// [`restrict`]: Restrict::restrict
+/// [`restrict`]: crate::data::views::Restrict::restrict
 #[derive(Eq, PartialEq, Hash, Debug)]
 pub struct FastQViewMut<'a> {
     pub header:   &'a mut String,
