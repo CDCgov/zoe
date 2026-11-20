@@ -16,6 +16,10 @@ use crate::{alignment::AlignOp, data::cigar::Ciglet};
 ///   alignment operations.
 #[inline]
 #[must_use]
+#[deprecated(
+    since = "0.0.38",
+    note = "Use Alignment::get_aligned_seqs instead, which uses the aligned ranges as a more robust alternative to soft clipping and the passed reference index"
+)]
 pub fn pairwise_align_with(
     reference: &[u8], query: &[u8], ciglets: impl IntoIterator<Item = Ciglet>, mut ref_index: usize,
 ) -> (Vec<u8>, Vec<u8>) {

@@ -1,9 +1,6 @@
 //! Iterators and iterator-like traits over alignments.
 
-use crate::{
-    alignment::{AlignOp, AlignmentStates},
-    data::types::cigar::Ciglet,
-};
+use crate::{alignment::AlignOp, data::types::cigar::Ciglet};
 use std::{iter::FusedIterator, ops::ControlFlow};
 
 /// Iterator yielding the aligned bases as specified by the given alignment
@@ -15,37 +12,16 @@ pub struct AlignmentIter<'a, R, Q>
 where
     R: Iterator<Item = u8>,
     Q: Iterator<Item = u8>, {
-    reference_iter: R,
-    query_iter:     Q,
-    operations:     CigletOpIter<'a>,
+    pub(super) reference_iter: R,
+    pub(super) query_iter:     Q,
+    pub(super) operations:     CigletOpIter<'a>,
 }
 
-impl<'a, R, Q> AlignmentIter<'a, R, Q>
+impl<R, Q> AlignmentIter<'_, R, Q>
 where
     R: Iterator<Item = u8>,
     Q: Iterator<Item = u8>,
 {
-    /// Creates a new [`AlignmentIter`] from a reference, query, cigar
-    /// string, and reference position.
-    #[inline]
-    #[must_use]
-    pub(crate) fn new(reference: R, query: Q, alignment: &'a AlignmentStates, ref_index: usize) -> Self {
-        let mut reference_iter = reference.into_iter();
-        let query_iter = query.into_iter();
-
-        if let Some(ref_skipped) = ref_index.checked_sub(1) {
-            reference_iter.nth(ref_skipped);
-        }
-
-        let operations = CigletOpIter::new(alignment);
-
-        AlignmentIter {
-            reference_iter,
-            query_iter,
-            operations,
-        }
-    }
-
     /// Remove a base from the beginning of the reference buffer.
     ///
     /// ## Panics
@@ -85,13 +61,8 @@ where
                 AlignOp::M | AlignOp::Eq | AlignOp::X => (Some(self.advance_reference()), Some(self.advance_query())),
                 AlignOp::D => (Some(self.advance_reference()), None),
                 AlignOp::I => (None, Some(self.advance_query())),
-                AlignOp::S => {
-                    self.query_iter.nth(ciglet.inc);
-                    ciglet.inc = 0;
-                    continue;
-                }
                 AlignOp::N => (Some(self.advance_reference()), Some(b'N')),
-                AlignOp::H | AlignOp::P => {
+                AlignOp::S | AlignOp::H | AlignOp::P => {
                     ciglet.inc = 0;
                     continue;
                 }

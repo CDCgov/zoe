@@ -1,7 +1,7 @@
 //! The [`Alignment`] type and its methods.
 
 use crate::{
-    alignment::{AlignOp, AlignmentIter, AlignmentStates, ByteSeq, pairwise_align_with},
+    alignment::{AlignOp, AlignmentIter, AlignmentStates, ByteSeq, CigletOpIter},
     data::{cigar::Ciglet, views::IndexAdjustable},
 };
 use std::ops::Range;
@@ -124,24 +124,16 @@ impl<T> Alignment<T> {
     #[inline]
     #[must_use]
     pub fn get_aligned_seqs<R: ByteSeq, Q: ByteSeq>(&self, reference: R, query: Q) -> (R::Owned, Q::Owned) {
-        let reference = reference.as_ref();
-        let query = query.as_ref();
-
-        assert!(
-            reference.len() == self.ref_len,
-            "Expected reference length {expected}, but found {actual}",
-            expected = self.ref_len,
-            actual = reference.len()
+        let (reference, query) = get_aligned_seqs(
+            reference.as_ref(),
+            query.as_ref(),
+            &self.ref_range,
+            &self.query_range,
+            &self.states,
+            self.ref_len,
+            self.query_len,
         );
 
-        assert!(
-            query.len() == self.query_len,
-            "Expected query length {expected}, but found {actual}",
-            expected = self.query_len,
-            actual = query.len()
-        );
-
-        let (reference, query) = pairwise_align_with(reference, query, &self.states, self.ref_range.start);
         (reference.into(), query.into())
     }
 
@@ -166,28 +158,14 @@ impl<T> Alignment<T> {
     pub fn get_aligned_iter<R: ByteSeq, Q: ByteSeq>(
         &self, reference: R, query: Q,
     ) -> AlignmentIter<'_, R::IntoIter, Q::IntoIter> {
-        let reference_bytes = reference.as_ref();
-        let query_bytes = query.as_ref();
-
-        assert!(
-            reference_bytes.len() == self.ref_len,
-            "Expected reference length {expected}, but found {actual}",
-            expected = self.ref_len,
-            actual = reference_bytes.len()
-        );
-
-        assert!(
-            query_bytes.len() == self.query_len,
-            "Expected query length {expected}, but found {actual}",
-            expected = self.query_len,
-            actual = query_bytes.len()
-        );
-
-        AlignmentIter::new(
-            reference.into_bytes_iter(),
-            query.into_bytes_iter(),
+        get_aligned_iter(
+            reference,
+            query,
+            &self.ref_range,
+            &self.query_range,
             &self.states,
-            self.ref_range.start,
+            self.ref_len,
+            self.query_len,
         )
     }
 
@@ -208,37 +186,14 @@ impl<T> Alignment<T> {
     ///
     /// [`get_aligned_seqs`]: Alignment::get_aligned_seqs
     pub fn get_aligned_query<Q: ByteSeq>(&self, query: Q) -> Q::Owned {
-        let query = query.as_ref();
-
-        assert!(
-            query.len() == self.query_len,
-            "Expected query length {expected}, but found {actual}",
-            expected = self.query_len,
-            actual = query.len()
-        );
-
-        let mut query_index = 0;
-        let mut query_aln = Vec::with_capacity(query.len() + (self.ref_range.len() / 2));
-
-        for Ciglet { inc, op } in &self.states {
-            match op {
-                AlignOp::M | AlignOp::Eq | AlignOp::X | AlignOp::I => {
-                    query_aln.extend_from_slice(&query[query_index..query_index + inc]);
-                    query_index += inc;
-                }
-                AlignOp::D => {
-                    query_aln.extend(std::iter::repeat_n(b'-', inc));
-                }
-
-                AlignOp::S => query_index += inc,
-                AlignOp::N => {
-                    query_aln.extend(std::iter::repeat_n(b'N', inc));
-                }
-                AlignOp::H | AlignOp::P => {}
-            }
-        }
-
-        query_aln.into()
+        get_aligned_query(
+            query.as_ref(),
+            &self.ref_range,
+            &self.query_range,
+            &self.states,
+            self.query_len,
+        )
+        .into()
     }
 
     /// Returns the number of bases at the start of the query that did not
@@ -594,4 +549,132 @@ impl AlignmentIndices for (usize, usize) {
             AlignOp::H | AlignOp::P => (query_idx, ref_idx),
         }
     }
+}
+
+/// Helper function for [`Alignment::get_aligned_seqs`] that avoids
+/// monomorphization.
+fn get_aligned_seqs(
+    reference: &[u8], query: &[u8], ref_range: &Range<usize>, query_range: &Range<usize>, states: &AlignmentStates,
+    ref_len: usize, query_len: usize,
+) -> (Vec<u8>, Vec<u8>) {
+    assert!(
+        reference.len() == ref_len,
+        "Expected reference length {ref_len}, but found {actual}",
+        actual = reference.len()
+    );
+
+    assert!(
+        query.len() == query_len,
+        "Expected query length {query_len}, but found {actual}",
+        actual = query.len()
+    );
+
+    let mut ref_index = ref_range.start;
+    let mut query_index = query_range.start;
+
+    let mut ref_aln = Vec::with_capacity(ref_range.len() + (query_range.len() / 2));
+    let mut query_aln = Vec::with_capacity(query_range.len() + (ref_range.len() / 2));
+
+    for Ciglet { inc, op } in states {
+        match op {
+            AlignOp::M | AlignOp::Eq | AlignOp::X => {
+                ref_aln.extend_from_slice(&reference[ref_index..ref_index + inc]);
+                query_aln.extend_from_slice(&query[query_index..query_index + inc]);
+                ref_index += inc;
+                query_index += inc;
+            }
+            AlignOp::D => {
+                ref_aln.extend_from_slice(&reference[ref_index..ref_index + inc]);
+                query_aln.extend(std::iter::repeat_n(b'-', inc));
+                ref_index += inc;
+            }
+            AlignOp::I => {
+                ref_aln.extend(std::iter::repeat_n(b'-', inc));
+                query_aln.extend_from_slice(&query[query_index..query_index + inc]);
+                query_index += inc;
+            }
+            AlignOp::N => {
+                ref_aln.extend_from_slice(&reference[ref_index..ref_index + inc]);
+                query_aln.extend(std::iter::repeat_n(b'N', inc));
+                ref_index += inc;
+            }
+            AlignOp::S | AlignOp::H | AlignOp::P => {}
+        }
+    }
+
+    (ref_aln, query_aln)
+}
+
+/// Helper function for [`Alignment::get_aligned_iter`] that reduces
+/// monomorphization.
+fn get_aligned_iter<'a, R: ByteSeq, Q: ByteSeq>(
+    reference: R, query: Q, ref_range: &Range<usize>, query_range: &Range<usize>, states: &'a AlignmentStates,
+    ref_len: usize, query_len: usize,
+) -> AlignmentIter<'a, R::IntoIter, Q::IntoIter> {
+    let reference_bytes = reference.as_ref();
+    let query_bytes = query.as_ref();
+
+    assert!(
+        reference_bytes.len() == ref_len,
+        "Expected reference length {ref_len}, but found {actual}",
+        actual = reference_bytes.len()
+    );
+
+    assert!(
+        query_bytes.len() == query_len,
+        "Expected query length {query_len}, but found {actual}",
+        actual = query_bytes.len()
+    );
+
+    let mut reference_iter = reference.into_bytes_iter();
+    let mut query_iter = query.into_bytes_iter();
+
+    if let Some(ref_skipped) = ref_range.start.checked_sub(1) {
+        reference_iter.nth(ref_skipped);
+    }
+    if let Some(query_skipped) = query_range.start.checked_sub(1) {
+        query_iter.nth(query_skipped);
+    }
+
+    let operations = CigletOpIter::new(states);
+
+    AlignmentIter {
+        reference_iter,
+        query_iter,
+        operations,
+    }
+}
+
+/// Helper function for [`Alignment::get_aligned_query`] that reduces
+/// monomorphization.
+fn get_aligned_query(
+    query: &[u8], ref_range: &Range<usize>, query_range: &Range<usize>, states: &AlignmentStates, query_len: usize,
+) -> Vec<u8> {
+    assert!(
+        query.len() == query_len,
+        "Expected query length {expected}, but found {actual}",
+        expected = query_len,
+        actual = query.len()
+    );
+
+    let mut query_index = query_range.start;
+    let mut query_aln = Vec::with_capacity(query.len() + (ref_range.len() / 2));
+
+    for Ciglet { inc, op } in states {
+        match op {
+            AlignOp::M | AlignOp::Eq | AlignOp::X | AlignOp::I => {
+                query_aln.extend_from_slice(&query[query_index..query_index + inc]);
+                query_index += inc;
+            }
+            AlignOp::D => {
+                query_aln.extend(std::iter::repeat_n(b'-', inc));
+            }
+            AlignOp::N => {
+                query_aln.extend(std::iter::repeat_n(b'N', inc));
+            }
+            AlignOp::S | AlignOp::H | AlignOp::P => {}
+        }
+    }
+
+    query_aln
 }

@@ -368,16 +368,16 @@ fn align_with_cigar() {
             Alignment {
                 score:       (),
                 ref_range:   1..26,
-                query_range: 0..18,
+                query_range: 2..20,
                 states:      "1H2S3M4I5D6N7P6=5X3S2H".try_into().unwrap(),
                 ref_len:     26,
                 query_len:   23,
             },
             [
                 b"ABCDEFGHIJKLMNOPQRSTUVWXYZ".into(),
-                b"ABCDEFGHIJKLMNOPQRSTUVW".into(),
+                b"abcdefghijklmnopqrstuvw".into(),
                 b"BCD----EFGHIJKLMNOPQRSTUVWXYZ".into(),
-                b"CDEFGHI-----NNNNNNJKLMNOPQRST".into(),
+                b"cdefghi-----NNNNNNjklmnopqrst".into(),
             ],
         ),
     ];

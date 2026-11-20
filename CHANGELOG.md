@@ -8,8 +8,15 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 
 ### Changed
 
+- Alignment methods `get_aligned_seqs`, `get_aligned_iter`, and
+  `get_aligned_query` now use the query range field instead of the soft clipping
+  in the CIGAR string to infer starting location
 - Removed allocation from `cut_to_start` on `Nucleotides`, `AminoAcids`, and
   `QualityScores`
+
+### Removed
+
+- Deprecated `pairwise_align_with` in favor of `Alignment::get_aligned_seqs`
 
 ## [0.0.37] - 2026-11-23
 
