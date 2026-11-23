@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file. The format
 is roughly based on [Keep a Changelog], and this project tries to adheres to
 [Semantic Versioning].
 
+## [0.0.38] - TBD
+
+### Changed
+
+- Removed allocation from `cut_to_start` on `Nucleotides`, `AminoAcids`, and
+  `QualityScores`
+
 ## [0.0.37] - 2026-11-23
 
 ### Added
@@ -898,6 +905,7 @@ is roughly based on [Keep a Changelog], and this project tries to adheres to
 - **Added**: Initial internal release. Provides various readers and types for bioinformatics data manipulation.
 
 <!-- Versions -->
+[0.0.38]: https://github.com/CDCgov/zoe/compare/v0.0.37...v0.0.38
 [0.0.37]: https://github.com/CDCgov/zoe/compare/v0.0.36...v0.0.37
 [0.0.36]: https://github.com/CDCgov/zoe/compare/v0.0.35...v0.0.36
 [0.0.35]: https://github.com/CDCgov/zoe/compare/v0.0.34...v0.0.35

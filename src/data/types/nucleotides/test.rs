@@ -396,3 +396,14 @@ fn test_simd_make_reverse_complement() {
         String::from_utf8_lossy(&seq2)
     );
 }
+
+#[test]
+fn cut_to_start() {
+    let mut seq = Nucleotides::from(b"ABCDEFGHIJKLM");
+
+    seq.cut_to_start(0);
+    assert_eq!(seq.as_bytes(), b"ABCDEFGHIJKLM");
+
+    seq.cut_to_start(5);
+    assert_eq!(seq.as_bytes(), b"FGHIJKLM");
+}

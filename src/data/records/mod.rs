@@ -1,4 +1,4 @@
-//! A module for records types that are structures of other more primitive
+//! A module for record types that are structures of other more primitive
 //! types. Examples include [`Fasta`], [`FastQ`], and [`SamData`].
 //!
 //! [`Fasta`]: crate::data::records::fasta::Fasta

@@ -161,11 +161,9 @@ impl Nucleotides {
 
     /// Cuts the 5' end of the [`Nucleotides`] just prior to the new starting
     /// index (0-based).
-    ///
-    /// This method clones the internal buffer.
     #[inline]
     pub fn cut_to_start(&mut self, new_start: usize) {
-        *self = Nucleotides(self.0.drain(new_start..).collect());
+        self.0.drain(..new_start);
     }
 
     /// Extends nucleotide sequence by the given slice.

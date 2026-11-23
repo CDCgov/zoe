@@ -130,11 +130,9 @@ impl AminoAcids {
 
     /// Cuts the N-terminus of the [`AminoAcids`] just prior to the new starting
     /// index (0-based).
-    ///
-    /// This method clones the internal buffer.
     #[inline]
     pub fn cut_to_start(&mut self, new_start: usize) {
-        *self = Self(self.0.drain(new_start..).collect());
+        self.0.drain(..new_start);
     }
 
     /// Extends amino acids sequence by the given slice.

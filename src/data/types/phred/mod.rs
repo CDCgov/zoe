@@ -111,10 +111,10 @@ impl QualityScores {
     }
 
     /// Cuts the 5' end of the [`QualityScores`] just prior to the new starting
-    /// index (0-based). Be aware that this clones the internal buffer!
+    /// index (0-based).
     #[inline]
     pub fn cut_to_start(&mut self, new_start: usize) {
-        *self = QualityScores(self.0.drain(new_start..).collect());
+        self.0.drain(..new_start);
     }
 
     /// Clear the quality scores sequence so that it is empty.
